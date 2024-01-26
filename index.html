@@ -1,0 +1,117 @@
+<html>
+
+<head>
+  <style>
+    :root {
+      --bg-color: white;
+      --text-color: #4b4b4b;
+      --header-color: #353535;
+      --link-color: #3d7496;
+      --bg-contrast-color: lightgrey;
+      --blob-filter: contrast(110%) brightness(900%);
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #353535;
+      --text-color: #b4b4b4;
+      --header-color: #cacaca;
+      --link-color: #93bdd8;
+      --blob-filter: contrast(110%) brightness(900%) invert(100%);
+    }
+
+    /* html is set to 62.5% so that all the REM measurements are 1rem = 10px */
+    html {
+      font-size: 62.5%;
+    }
+
+    body {
+      overflow: hidden;
+      font-family: monospace;
+      max-width: 72rem;
+      padding: 2rem 4rem;
+      font-size: 1.4rem;
+      line-height: 1.6;
+      color: var(--text-color);
+      background-color: var(--bg-color);
+    }
+
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-family: monospace;
+      font-weight: 700;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      color: var(--header-color);
+    }
+
+    p {
+      margin-bottom: 1.2rem;
+    }
+
+    #blob {
+      --gradient-size: 100vw;
+      position: absolute;
+      z-index: -1;
+      top: calc(var(--gradient-size) / -2 - 2vw);
+      right: calc(var(--gradient-size) / -2 - 2vw);
+      width: var(--gradient-size);
+      height: var(--gradient-size);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 1), transparent),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 81 81' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='8.15' numOctaves='8' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+
+      filter: var(--blob-filter);
+      opacity: 0.5;
+    }
+
+    #newsletter-form {
+      border: 1px solid var(--bg-contrast-color);
+      padding: 1rem 2rem;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 id="title">dynamical</h1>
+  <h2>advancing humanity's ability to access, understand, and act on past, present and future weather</h2>
+  <p>
+    Weather touches <strong>everything</strong> But step changes in forecast accuracy, data access, and usability have
+    been elusive.
+  </p>
+  <p>
+    We are a small, cooperatively governed team, commited to staying independent.
+  </p>
+  <form id="newsletter-form">
+    <p style="margin-top: 0;">We're just getting started and plan to publish 1-2 emails per month. Want to tag along?
+    </p>
+    <input type='email' />
+    <button type='submit'>Subscribe</button>
+  </form>
+  <p style="font-weight:bold">Our plan:</p>
+  <ol>
+    <li>Create free and open <a href='https://zarr.dev/'>zarr</a> format real-time and archive access to the best
+      public-domain data
+    </li>
+    <li>Operationalize nascent AI forecast models and publish their forecasts</li>
+    <li>Launch an ensembler to surface the best guidance from all available forecasts</li>
+    <li>Launch Dynamical weather models</li>
+  </ol>
+  <p>
+    It's crucial we build an enduring business. To financially support our open data, public research, and ongoing R&D,
+    we will:
+  <ul>
+    <li>Pursue grant funding from organizations interested in advancing access to and quality of weather forecasts</li>
+    <li>Deploy the weather models we operationalize for enterprise and government customers</li>
+    <li>Build and sell subscription access to vertical-specific decision-support applications</li>
+    <li>Sliding-scale financial support from for-profit companies that get value from our data and services</li>
+  </ul>
+  </p>
+  <span id="blob"></span>
+</body>
+
+</html>
