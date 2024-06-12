@@ -33,6 +33,7 @@
       line-height: 1.6;
       color: var(--text-color);
       background-color: var(--bg-color);
+      counter-reset: footnotes;
     }
 
 
@@ -73,37 +74,121 @@
       border: 1px solid var(--bg-contrast-color);
       padding: 1rem 2rem;
     }
+
+
+    /**
+ * Inline footnotes references
+ * 1. Increment the counter at each new reference
+ * 2. Reset link styles to make it appear like regular text
+ */
+    [aria-describedby="footnote-label"] {
+      counter-increment: footnotes;
+      /* 1 */
+      text-decoration: none;
+      /* 2 */
+      color: inherit;
+      /* 2 */
+      cursor: default;
+      /* 2 */
+      outline: none;
+      /* 2 */
+    }
+
+    /**
+ * Actual numbered references
+ * 1. Display the current state of the counter (e.g. `[1]`)
+ * 2. Align text as superscript
+ * 3. Make the number smaller (since it's superscript)
+ * 4. Slightly offset the number from the text
+ * 5. Reset link styles on the number to show it's usable
+ */
+    [aria-describedby="footnote-label"]::after {
+      content: '[' counter(footnotes) ']';
+      /* 1 */
+      vertical-align: super;
+      /* 2 */
+      font-size: 0.5em;
+      /* 3 */
+      margin-left: 2px;
+      /* 4 */
+      color: blue;
+      /* 5 */
+      text-decoration: underline;
+      /* 5 */
+      cursor: pointer;
+      /* 5 */
+    }
+
+    /**
+ * Resetting the default focused styles on the number
+ */
+    [aria-describedby="footnote-label"]:focus::after {
+      outline: thin dotted;
+      outline-offset: 2px;
+    }
+
+    [aria-label="Back to content"] {
+      font-size: 0.8em;
+    }
+
+    /**
+ * Highlight target note
+ */
+    .footnotes :target {
+      background: yellow;
+    }
+
+    /**
+ * Visually hidden yet accessible content
+ */
+    .visually-hidden {
+      position: absolute;
+      clip: rect(0 0 0 0);
+      visibility: hidden;
+      opacity: 0;
+    }
   </style>
 </head>
 
 <body>
   <h1 id="title">dynamical</h1>
-  <p>Weather impacts everything we do. But today's dominant forecasts have fallen behind modern technology and the needs
-    of their users.
-  <p>
-    Dynamical is an independent research non-profit pursuing:
-  <ol>
-    <li>the next step-change in forecast accuracy</li>
-    <li>publicly-hosted weather and climate data</li>
-    <li>a reimagined intersection of weather data and programming</li>
-    <li>a more distributed and resilient global forecast network</li>
-  </ol>
-  </p>
-  <h2>Our Research</h2>
+  <h2>
+    <p>Weather impacts everything.</p>
+    <p>Let's make weather data better.</p>
+    <p>
+      Dynamical is an independent research institute making <a href='#better' aria-describedby="footnote-label"
+        id="better-ref">better</a>,
+      more usable weather forecasts.
+    </p>
+  </h2>
+
+  <h3>Our Projects</h3>
   <ul>
-    <li></li>
-  </ul>
-  <h2>Our Software</h2>
-  <ul>
-    <li></li>
+    <li>NOAA GFS zarr</li>
+    <li><code>wxql</code>, a query language designed for weather</li>
   </ul>
   <form>
-    <h2>Receive the Dynamical Dispatch</h2>
+    <h3>Receive the Dynamical Dispatch</h3>
     <p style="margin-top: 0;">We're just getting started and plan to publish 1-2 emails per month. Want to tag along?
     </p>
     <input type='email' />
     <button type='submit'>Subscribe</button>
   </form>
+  <div class="footnotes">
+    <h2 class="visually-hidden" id="footnote-label">Footnotes</h2>
+    <ol>
+      <li id="better">
+        Better means:
+        <ul>
+          <li>a step-change in forecast accuracy and resolution</li>
+          <li>weather and climate data in incredible new file formats, accessible to everyone</li>
+          <li>a reimagined intersection of weather data and programming</li>
+          <li>a more distributed and resilient global forecast network</li>
+        </ul>
+        <a href="#better-ref" aria-label="Back to content">↩</a>
+      </li>
+    </ol>
+  </div>
   <span id="blob"></span>
 </body>
 
