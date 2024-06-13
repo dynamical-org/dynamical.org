@@ -1,195 +1,47 @@
 <html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="author" content="Marshall Moutenot" />
+    <meta name="keywords" content="Marshall Moutenot, mrshll, upstream tech, climate tech" />
+    <meta
+      name="description"
+      content="The place Marshall logs ephemera, writes, and stores public notes."
+    />
+    <meta
+      name="license"
+      content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="dynamical.org" />
+    <meta property="og:site_name" content="dynamical.org" />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" type="text/css" href="./main.css" />
+    <title>dynamical.org</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./gml.css" />
+    <script src="./highlight.min.js"></script>
+    <script>
+      hljs.highlightAll();
+    </script>
+  </head>
 
-<head>
-  <style>
-    :root {
-      --bg-color: white;
-      --text-color: #4b4b4b;
-      --header-color: #353535;
-      --link-color: #3d7496;
-      --bg-contrast-color: lightgrey;
-      --blob-filter: contrast(110%) brightness(900%);
-    }
-
-    [data-theme="dark"] {
-      --bg-color: #353535;
-      --text-color: #b4b4b4;
-      --header-color: #cacaca;
-      --link-color: #93bdd8;
-      --blob-filter: contrast(110%) brightness(900%) invert(100%);
-    }
-
-    /* html is set to 62.5% so that all the REM measurements are 1rem = 10px */
-    html {
-      font-size: 62.5%;
-    }
-
-    body {
-      overflow: hidden;
-      font-family: monospace;
-      max-width: 72rem;
-      padding: 2rem 4rem;
-      font-size: 1.4rem;
-      line-height: 1.6;
-      color: var(--text-color);
-      background-color: var(--bg-color);
-      counter-reset: footnotes;
-    }
-
-
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-      font-family: monospace;
-      font-weight: 700;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-      color: var(--header-color);
-    }
-
-    p {
-      margin-bottom: 1.2rem;
-    }
-
-    #blob {
-      --gradient-size: 100vw;
-      position: absolute;
-      z-index: -1;
-      top: calc(var(--gradient-size) / -2 - 2vw);
-      right: calc(var(--gradient-size) / -2 - 2vw);
-      width: var(--gradient-size);
-      height: var(--gradient-size);
-      background:
-        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 1), transparent),
-        url("data:image/svg+xml,%3Csvg viewBox='0 0 81 81' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='8.15' numOctaves='8' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-
-      filter: var(--blob-filter);
-      opacity: 0.5;
-    }
-
-    #newsletter-form {
-      border: 1px solid var(--bg-contrast-color);
-      padding: 1rem 2rem;
-    }
-
-
-    /**
- * Inline footnotes references
- * 1. Increment the counter at each new reference
- * 2. Reset link styles to make it appear like regular text
- */
-    [aria-describedby="footnote-label"] {
-      counter-increment: footnotes;
-      /* 1 */
-      text-decoration: none;
-      /* 2 */
-      color: inherit;
-      /* 2 */
-      cursor: default;
-      /* 2 */
-      outline: none;
-      /* 2 */
-    }
-
-    /**
- * Actual numbered references
- * 1. Display the current state of the counter (e.g. `[1]`)
- * 2. Align text as superscript
- * 3. Make the number smaller (since it's superscript)
- * 4. Slightly offset the number from the text
- * 5. Reset link styles on the number to show it's usable
- */
-    [aria-describedby="footnote-label"]::after {
-      content: '[' counter(footnotes) ']';
-      /* 1 */
-      vertical-align: super;
-      /* 2 */
-      font-size: 0.5em;
-      /* 3 */
-      margin-left: 2px;
-      /* 4 */
-      color: blue;
-      /* 5 */
-      text-decoration: underline;
-      /* 5 */
-      cursor: pointer;
-      /* 5 */
-    }
-
-    /**
- * Resetting the default focused styles on the number
- */
-    [aria-describedby="footnote-label"]:focus::after {
-      outline: thin dotted;
-      outline-offset: 2px;
-    }
-
-    [aria-label="Back to content"] {
-      font-size: 0.8em;
-    }
-
-    /**
- * Highlight target note
- */
-    .footnotes :target {
-      background: yellow;
-    }
-
-    /**
- * Visually hidden yet accessible content
- */
-    .visually-hidden {
-      position: absolute;
-      clip: rect(0 0 0 0);
-      visibility: hidden;
-      opacity: 0;
-    }
-  </style>
-</head>
-
-<body>
-  <h1 id="title">dynamical</h1>
-  <h2>
-    <p>Weather impacts everything.</p>
-    <p>Let's make weather data better.</p>
-    <p>
-      Dynamical is an independent research institute making <a href='#better' aria-describedby="footnote-label"
-        id="better-ref">better</a>,
-      more usable weather forecasts.
-    </p>
-  </h2>
-
-  <h3>Our Projects</h3>
-  <ul>
-    <li>NOAA GFS zarr</li>
-    <li><code>wxql</code>, a query language designed for weather</li>
-  </ul>
-  <form>
-    <h3>Receive the Dynamical Dispatch</h3>
-    <p style="margin-top: 0;">We're just getting started and plan to publish 1-2 emails per month. Want to tag along?
-    </p>
-    <input type='email' />
-    <button type='submit'>Subscribe</button>
-  </form>
-  <div class="footnotes">
-    <h2 class="visually-hidden" id="footnote-label">Footnotes</h2>
-    <ol>
-      <li id="better">
-        Better means:
-        <ul>
-          <li>a step-change in forecast accuracy and resolution</li>
-          <li>weather and climate data in incredible new file formats, accessible to everyone</li>
-          <li>a reimagined intersection of weather data and programming</li>
-          <li>a more distributed and resilient global forecast network</li>
-        </ul>
-        <a href="#better-ref" aria-label="Back to content">↩</a>
-      </li>
-    </ol>
-  </div>
-  <span id="blob"></span>
-</body>
-
+  <body>
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org</div>
+        <div class="frameHeaderSubtitle">Python</div>
+      </div>
+      <pre class="frameContent"><code class="language-python">
+ds = xr.open_dataset("https://dynamical.org/gfs/forecast/v1.zarr", engine="zarr")
+      </code></pre>
+    </div>
+    <div class="content">Weather data is hard to work with. What if it wasn't?</div>
+  </body>
 </html>

@@ -1,0 +1,117 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* html is set to 62.5% so that all the REM measurements are 1rem = 10px */
+html {
+  font-size: 62.5%;
+}
+
+body {
+  overflow: hidden;
+  font-family: 'IBM Plex Mono', monospace;
+  padding: 2rem 4rem;
+  font-size: 1.4rem;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: var(--header-color);
+}
+
+p {
+  margin-bottom: 1.2rem;
+}
+
+.hero {
+  display: block;
+  width: 100%;
+  max-width: 910px;
+  margin: auto;
+}
+
+.content {
+  max-width: 72rem;
+  margin: auto;
+  text-align: center;
+  font-size: 2rem;
+  text-wrap: balance;
+}
+
+.frame {
+  max-width: 78rem;
+  margin: 8rem auto;
+  border: 1px solid #292929;
+  border-radius: 6px;
+  background: #171717;
+}
+
+.frameHeader {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #292929;
+  background: #1f1f1f;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  gap: 12px;
+}
+
+.frameHeaderTitle {
+  position: relative;
+  display: grid;
+  height: 40px;
+  align-items: center;
+  color: #fafafa;
+  font-size: 14px;
+  line-height: 40px;
+  vertical-align: top;
+  border-bottom: 1px solid white;
+}
+
+.frameHeaderSubtitle {
+  height: 40px;
+  color: #898989;
+  font-size: 14px;
+  line-height: 40px;
+}
+
+.frameContent {
+  width: 100%;
+  margin: 0;
+  padding: 16px 16px 21px 16px;
+}
+
+.frameContent code {
+  font-family: inherit;
+  font-size: 1.5rem;
+  letter-spacing: 0.1px;
+  line-height: 22.5px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+@media screen and (max-width: 1000px) {
+  html {
+    font-size: 12px;
+  }
+
+  body {
+    padding: 2rem 1rem;
+  }
+}
