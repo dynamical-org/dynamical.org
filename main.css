@@ -10,7 +10,6 @@ html {
 }
 
 body {
-  overflow: hidden;
   font-family: 'IBM Plex Mono', monospace;
   padding: 2rem 4rem;
   font-size: 1.4rem;
