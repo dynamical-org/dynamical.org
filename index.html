@@ -38,8 +38,14 @@
         <div class="frameHeaderTitle">dynamical.org</div>
         <div class="frameHeaderSubtitle">Python</div>
       </div>
-      <pre class="frameContent"><code class="language-python">
+      <pre class="frameContent frameContentDesktop"><code class="language-python">
 ds = xr.open_dataset("https://dynamical.org/gfs/forecast/v1.zarr", engine="zarr")
+      </code></pre>
+      <pre class="frameContent frameContentMobile"><code class="language-python">
+ds = xr.open_dataset(
+  'https://dynamical.org/gfs/analysis/v1.zarr',
+  engine = 'zarr'
+)
       </code></pre>
     </div>
     <div class="content">Weather data is hard to work with. What if it wasn't?</div>

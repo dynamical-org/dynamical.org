@@ -95,6 +95,7 @@ p {
   width: 100%;
   margin: 0;
   padding: 16px 16px 21px 16px;
+  overflow-x: auto;
 }
 
 .frameContent code {
@@ -102,8 +103,10 @@ p {
   font-size: 1.5rem;
   letter-spacing: 0.1px;
   line-height: 22.5px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+}
+
+.frameContentMobile {
+  display: none;
 }
 
 @media screen and (max-width: 1000px) {
@@ -113,5 +116,13 @@ p {
 
   body {
     padding: 2rem 1rem;
+  }
+
+  .frameContentDesktop {
+    display: none;
+  }
+
+  .frameContentMobile {
+    display: block;
   }
 }
