@@ -108,6 +108,11 @@ p {
   display: none;
 }
 
+#newsletter {
+  margin-top: 4rem;
+  font-size: 1.2rem;
+}
+
 @media screen and (max-width: 1000px) {
   html {
     font-size: 12px;
