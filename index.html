@@ -36,7 +36,7 @@
     <div class="frame">
       <div class="frameHeader">
         <div class="frameHeaderTitle">dynamical.org</div>
-        <div class="frameHeaderSubtitle">Python</div>
+        <div class="frameHeaderSubtitle">GFS Analysis</div>
       </div>
       <pre class="frameContent frameContentDesktop"><code class="language-python">
 ds = xr.open_dataset("https://dynamical.org/gfs/analysis/v1.zarr", engine="zarr")
@@ -68,7 +68,7 @@ ds = xr.open_dataset(
     <div class="frame">
       <div class="frameHeader">
         <div class="frameHeaderTitle">dynamical.org</div>
-        <div class="frameHeaderSubtitle">April 2024 Temperature</div>
+        <div class="frameHeaderSubtitle">April 2024 temperature</div>
       </div>
       <pre class="frameContent frameContentDesktop"><code class="language-python">
 ds['temperature_surface'].sel(time='2024-04-01T00:00').plot(figsize=(12,8))
@@ -88,7 +88,7 @@ ds['temperature_surface']
     <div class="frame">
       <div class="frameHeader">
         <div class="frameHeaderTitle">dynamical.org</div>
-        <div class="frameHeaderSubtitle">April 2024 Temperature Anomaly</div>
+        <div class="frameHeaderSubtitle">April 2024 temperature anomaly</div>
       </div>
       <pre class="frameContent frameContentDesktop"><code class="language-python">
 tmp_april_mean = ds['temperature_surface'].sel(time=ds.time.dt.month == 4).mean(dim='time')
