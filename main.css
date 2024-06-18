@@ -56,6 +56,7 @@ p {
   border: 1px solid #292929;
   border-radius: 6px;
   background: #171717;
+  overflow: hidden;
 }
 
 .frameHeader {
@@ -93,7 +94,7 @@ p {
 .frameContent {
   width: 100%;
   margin: 0;
-  padding: 16px 16px 21px 16px;
+  padding: 10px 16px 10px 16px;
   overflow-x: auto;
 }
 
@@ -106,6 +107,11 @@ p {
 
 .frameContentMobile {
   display: none;
+}
+
+.frameResult {
+  max-width: 100%;
+  outline: 1px solid #292929;
 }
 
 #newsletter {

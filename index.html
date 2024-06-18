@@ -39,15 +39,16 @@
         <div class="frameHeaderSubtitle">Python</div>
       </div>
       <pre class="frameContent frameContentDesktop"><code class="language-python">
-xr.open_dataset("https://dynamical.org/gfs/forecast/v1.zarr", engine="zarr")
+ds = xr.open_dataset("https://dynamical.org/gfs/analysis/v1.zarr", engine="zarr")
       </code></pre>
       <pre class="frameContent frameContentMobile"><code class="language-python">
-xr.open_dataset(
-  "https://dynamical.org/gfs/forecast/v1.zarr",
+ds = xr.open_dataset(
+  "https://dynamical.org/gfs/analysis/v1.zarr",
   engine = "zarr"
 )
       </code></pre>
     </div>
+
     <div class="content">Weather data is hard to work with. What if it wasn't?</div>
     <div id="newsletter" class="content">
       <form
@@ -58,10 +59,90 @@ xr.open_dataset(
         class="embeddable-buttondown-form"
       >
         <label for="bd-email">Follow along</label>
-        <input type="email" name="email" id="bd-email" />
+        <input type="email" name="email" id="bd-email" placeholder="marshall@dynamical.org" />
 
         <input type="submit" value="Subscribe" />
       </form>
+    </div>
+
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org</div>
+        <div class="frameHeaderSubtitle">April 2024 Temperature</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code class="language-python">
+ds['temperature_surface'].sel(time='2024-04-01T00:00').plot(figsize=(12,8))
+      </code></pre>
+      <pre class="frameContent frameContentMobile"><code class="language-python">
+ds['temperature_surface']
+  .sel(time='2024-04-01T00:00')
+  .plot(figsize=(12,8))
+      </code></pre>
+      <img
+        class="frameResult"
+        src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
+        alt="A plot showing global temperature for 2024-04-01"
+      />
+    </div>
+
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org</div>
+        <div class="frameHeaderSubtitle">April 2024 Temperature Anomaly</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code class="language-python">
+tmp_april_mean = ds['temperature_surface'].sel(time=ds.time.dt.month == 4).mean(dim='time')
+tmp_april_2024 = ds['temperature_surface'].sel(time='2024-04').mean(dim='time')
+
+(tmp_april_2024 - tmp_april_mean).plot(figsize=(12, 8))
+      </code></pre>
+      <pre class="frameContent frameContentMobile"><code class="language-python">
+tmp_april_mean = ds['temperature_surface']
+  .sel(time=ds.time.dt.month == 4)
+  .mean(dim='time')
+tmp_april_2024 = ds['temperature_surface']
+  .sel(time='2024-04')
+  .mean(dim='time')
+
+(tmp_april_2024 - tmp_april_mean).plot(figsize=(12, 8))
+      </code></pre>
+      <img
+        class="frameResult"
+        src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
+        alt="A plot showing global temperature anomaly for April 2024."
+      />
+    </div>
+
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org</div>
+        <div class="frameHeaderSubtitle">Where does it rain the most?</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code class="language-python">
+(
+  ds['precipitation_surface'].sel(
+      latitude=slice(70, 20),
+      longitude=slice(-150, -30)
+  )
+  .mean(dim='time') # take the average over ~all time~
+  .plot(figsize=(12, 8))
+)
+      </code></pre>
+      <pre class="frameContent frameContentMobile"><code class="language-python">
+(
+  ds['precipitation_surface'].sel(
+      latitude=slice(70, 20),
+      longitude=slice(-150, -30)
+  )
+  .mean(dim='time') # take the average over ~all time~
+  .plot(figsize=(12, 8))
+)
+      </code></pre>
+      <img
+        class="frameResult"
+        src="./assets/gfs_precipitation_all_time.png"
+        alt="A plot showing all time precipitaiton of North America, revealing the locations where it rains the most overall."
+      />
     </div>
   </body>
 </html>
