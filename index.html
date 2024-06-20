@@ -33,7 +33,15 @@
   </head>
 
   <body>
-    <div class="frame">
+    <nav>
+      <ul>
+        <li>dynamical.org</li>
+        <li><a href="about.html">about</a></li>
+        <li><a href="follow.html">follow</a></li>
+        <li><a href="https://github.com/dynamical-org">code</a></li>
+      </ul>
+    </nav>
+    <div class="frame" style="margin-top: 4rem">
       <div class="frameHeader">
         <div class="frameHeaderTitle">dynamical.org</div>
         <div class="frameHeaderSubtitle">GFS Analysis</div>
@@ -49,22 +57,8 @@ ds = xr.open_dataset(
       </code></pre>
     </div>
 
-    <div class="content">Weather data is hard to work with. What if it wasn't?</div>
-    <div id="newsletter" class="content">
-      <form
-        action="https://buttondown.email/api/emails/embed-subscribe/dynamical"
-        method="post"
-        target="popupwindow"
-        onsubmit="window.open('https://buttondown.email/dynamical', 'popupwindow')"
-        class="embeddable-buttondown-form"
-      >
-        <label for="bd-email">Follow along</label>
-        <input type="email" name="email" id="bd-email" placeholder="marshall@dynamical.org" />
-
-        <input type="submit" value="Subscribe" />
-      </form>
-    </div>
-
+    <div class="content centered">Weather data is hard to work with. What if it wasn't?</div>
+    <div class="content centered"><a href="follow.html">Follow along</a></div>
     <div class="frame">
       <div class="frameHeader">
         <div class="frameHeaderTitle">dynamical.org</div>

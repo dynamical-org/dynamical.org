@@ -42,16 +42,30 @@ p {
   margin: auto;
 }
 
-.content {
-  max-width: 72rem;
+nav,
+.content,
+.frame {
+  max-width: 78rem;
   margin: auto;
-  text-align: center;
+}
+
+nav {
+  text-align: right;
+}
+
+nav ul li {
+  list-style: none;
+}
+
+.content {
   font-size: 2rem;
-  text-wrap: balance;
+}
+
+.content.centered {
+  text-align: center;
 }
 
 .frame {
-  max-width: 78rem;
   margin: 8rem auto;
   border: 1px solid #292929;
   border-radius: 6px;
@@ -116,7 +130,14 @@ p {
 
 #newsletter {
   margin-top: 4rem;
-  font-size: 1.2rem;
+}
+
+#newsletter form > * {
+  margin: 1rem 0;
+}
+
+.content input {
+  font-size: inherit;
 }
 
 @media screen and (max-width: 1000px) {
@@ -126,6 +147,10 @@ p {
 
   body {
     padding: 2rem 1rem;
+  }
+
+  .frame {
+    margin: 4rem auto;
   }
 
   .frameContentDesktop {
