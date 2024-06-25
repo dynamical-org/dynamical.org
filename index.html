@@ -138,5 +138,29 @@ tmp_april_2024 = ds['temperature_surface']
         alt="A plot showing all time precipitaiton of North America, revealing the locations where it rains the most overall."
       />
     </div>
+
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org</div>
+        <div class="frameHeaderSubtitle">April 10, 2024 wind speed</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code class="language-python">
+wind_speed = (ds['wind_u_10m_above_ground']**2 + ds['wind_v_10m_above_ground']**2) ** 0.5
+wind_speed.sel(time='2024-04-10T00').plot(cmap='YlGnBu_r', figsize=(14, 8))
+      </code></pre>
+      <pre class="frameContent frameContentMobile"><code class="language-python">
+wind_speed = (
+  ds['wind_u_10m_above_ground'] ** 2 +
+  ds['wind_v_10m_above_ground'] ** 2) ** 0.5
+wind_speed
+  .sel((time = '2024-04-10T00'))
+  .plot((cmap = 'YlGnBu_r'), (figsize = (14, 8)))
+      </code></pre>
+      <img
+        class="frameResult"
+        src="./assets/gfs_wind_2024_04_01T00:00.png"
+        alt="A plot showing global wind speeds on April 10th, 2024."
+      />
+    </div>
   </body>
 </html>
