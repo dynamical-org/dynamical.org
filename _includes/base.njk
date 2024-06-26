@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="{{ metadata.language }}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="author" content="Dynamical Team" />
+    <meta name="keywords" content="Weather, data, zarr" />
+    <title>{{ title or metadata.title }}</title>
+    <meta name="description" content="{{ description or metadata.description }}" />
+    <meta
+      name="license"
+      content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="dynamical.org" />
+    <meta property="og:site_name" content="dynamical.org" />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" type="text/css" href="/main.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+		<link
+			href="/prism-atom-dark.css"
+			rel="stylesheet"
+		/>
+
+    <link
+      rel="alternate"
+      href="/feed/feed.xml"
+      type="application/atom+xml"
+      title="{{ metadata.title }}"
+    />
+    <link
+      rel="alternate"
+      href="/feed/feed.json"
+      type="application/json"
+      title="{{ metadata.title }}"
+    />
+  </head>
+
+  <body>
+    <nav>
+      <ul>
+        <li><a href="/">dynamical.org</a></li>
+        <li><a href="/about">about</a></li>
+        <li><a href="/updates">updates</a></li>
+        <li><a href="https://github.com/dynamical-org">code</a></li>
+      </ul>
+    </nav>
+    {{ content | safe }}
+  </body>
+</html>

@@ -1,0 +1,34 @@
+---
+layout: base.njk
+redirect_from: /follow
+---
+
+<div id="newsletter" class="content centered" style="margin-bottom: 4rem;">
+  <form
+    action="https://buttondown.email/api/emails/embed-subscribe/dynamical"
+    method="post"
+    target="popupwindow"
+    onsubmit="window.open('https://buttondown.email/dynamical', 'popupwindow')"
+    class="embeddable-buttondown-form"
+  >
+    <label for="email">Email</label>
+    <input type="email" name="email" placeholder="marshall@dynamical.org" />
+    <br />
+    <input type="checkbox" name="tag" id="tester" value="tester" />
+    <label for="tester">I would like to test new datasets and libraries</label>
+    <br />
+
+    <input type="hidden" value="1" name="embed" />
+    <input type="submit" value="Subscribe to Dynamical Dispatch" />
+  </form>
+</div>
+
+<div class="content">
+{%- for post in collections.updates -%}
+  <article>
+    <h2>{{post.data.title}}</h2>
+    <em>{{post.page.date | readableDate}}</em>
+    {{post.content}}
+  </article>
+{%- endfor -%}
+</div>

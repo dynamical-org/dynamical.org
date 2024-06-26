@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:base="en">
+  <title>dynamical.org</title>
+  <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
+  <link href="https://dynamical.org/feed/feed.xml" rel="self" />
+  <link href="https://dynamical.org/" />
+  <updated>2024-06-25T00:00:00Z</updated>
+  <id>https://dynamical.org/</id>
+  <author>
+    <name>dynamical.org</name>
+    <email>marshall@dynamical.org</email>
+  </author> 
+  <entry>
+    <title>Introducing dynamical.org</title>
+    <link href="https://dynamical.org/updates/2024-06-25/" />
+    <updated>2024-06-25T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2024-06-25/</id>
+    <content
+      type="html"
+      >&lt;p&gt;Introducing dynamical!&lt;/p&gt;
+&lt;p&gt;Thank you for being the first to follow our journey making weather and climate data more accessible. We are humbled by the response. Our mission clearly strikes a chord - weather data today is a pain to work with.&lt;/p&gt;
+&lt;p&gt;Over &lt;strong&gt;one hundred people&lt;/strong&gt; (!?) signed up to test the first versions of the data we endeavor to release. And that’s without having spilled the beans on the best parts 😉&lt;/p&gt;
+&lt;p&gt;So what’s the plan? First, check out Alden’s fantastic &lt;a href=&quot;https://youtu.be/uR6-UVO_3k8?si=AgXz6DM6l0mYiENw&quot;&gt;introduction to dynamical.org&lt;/a&gt; (video link). Second, &lt;a href=&quot;https://dynamical.org/about.html&quot;&gt;read&lt;/a&gt; about how we are designing dynamical to be a long-term steward and rock-solid foundation on which to build.&lt;/p&gt;
+&lt;p&gt;We are aiming to release our first public test next week in collaboration with &lt;a href=&quot;https://source.coop/&quot;&gt;Source Cooperative&lt;/a&gt;: &lt;strong&gt;a GFS analysis with a long historical record&lt;/strong&gt;. If you are interested in testing this out and haven’t already told us, reply to this email. We plan to fast-follow with documentation and a data catalog with our roadmap.&lt;/p&gt;
+&lt;p&gt;Enjoy the &lt;a href=&quot;https://ought.bandcamp.com/track/beautiful-blue-sky&quot;&gt;weather&lt;/a&gt;!&lt;/p&gt;
+&lt;p&gt;MM + AKS&lt;/p&gt;
+&lt;p&gt;P.S. Please forward this email to folks working with weather data and consider amplifying our announcement on &lt;a href=&quot;https://www.linkedin.com/posts/marshallmoutenot_introducing-dynamicalorg-fast-optimized-activity-7211005158162317313-rk-V&quot;&gt;linkedin&lt;/a&gt; / &lt;a href=&quot;https://mastodon.social/@dynamical&quot;&gt;fedi&lt;/a&gt;!&lt;/p&gt;
+</content
+    >
+  </entry>
+</feed>

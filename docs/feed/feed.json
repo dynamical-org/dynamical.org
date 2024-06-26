@@ -1,0 +1,22 @@
+{
+	"version": "https://jsonfeed.org/version/1.1",
+	"title": "dynamical.org",
+	"language": "en",
+	"home_page_url": "https://dynamical.org/",
+	"feed_url": "https://dynamical.org/feed/feed.json",
+	"description": "Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.",
+	"author": {
+		"name": "dynamical.org",
+		"url": ""
+	},
+	"items": [
+		{
+			"id": "https://dynamical.org/updates/2024-06-25/",
+			"url": "https://dynamical.org/updates/2024-06-25/",
+			"title": "Introducing dynamical.org",
+			"content_html": "<p>Introducing dynamical!</p>\n<p>Thank you for being the first to follow our journey making weather and climate data more accessible. We are humbled by the response. Our mission clearly strikes a chord - weather data today is a pain to work with.</p>\n<p>Over <strong>one hundred people</strong> (!?) signed up to test the first versions of the data we endeavor to release. And that’s without having spilled the beans on the best parts 😉</p>\n<p>So what’s the plan? First, check out Alden’s fantastic <a href=\"https://youtu.be/uR6-UVO_3k8?si=AgXz6DM6l0mYiENw\">introduction to dynamical.org</a> (video link). Second, <a href=\"https://dynamical.org/about.html\">read</a> about how we are designing dynamical to be a long-term steward and rock-solid foundation on which to build.</p>\n<p>We are aiming to release our first public test next week in collaboration with <a href=\"https://source.coop/\">Source Cooperative</a>: <strong>a GFS analysis with a long historical record</strong>. If you are interested in testing this out and haven’t already told us, reply to this email. We plan to fast-follow with documentation and a data catalog with our roadmap.</p>\n<p>Enjoy the <a href=\"https://ought.bandcamp.com/track/beautiful-blue-sky\">weather</a>!</p>\n<p>MM + AKS</p>\n<p>P.S. Please forward this email to folks working with weather data and consider amplifying our announcement on <a href=\"https://www.linkedin.com/posts/marshallmoutenot_introducing-dynamicalorg-fast-optimized-activity-7211005158162317313-rk-V\">linkedin</a> / <a href=\"https://mastodon.social/@dynamical\">fedi</a>!</p>\n",
+			"date_published": "2024-06-25T00:00:00Z"
+		}
+		
+	]
+}

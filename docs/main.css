@@ -49,8 +49,18 @@ nav,
   margin: auto;
 }
 
+article{
+  border: 1px solid black;
+  margin: 2rem -3rem;
+  padding: 2rem 3rem;
+}
+
 nav {
   text-align: right;
+}
+
+nav ul {
+  padding-inline-start: 0;
 }
 
 nav ul li {
@@ -80,7 +90,7 @@ nav ul li {
   justify-content: space-between;
   padding: 0 16px;
   border-bottom: 1px solid #292929;
-  background: #1f1f1f;
+  background: black;
   border-top-left-radius: 5px;
   border-top-right-radius: 5px;
   gap: 12px;
@@ -108,8 +118,8 @@ nav ul li {
 .frameContent {
   width: 100%;
   margin: 0;
-  padding: 10px 16px 10px 16px;
   overflow-x: auto;
+	background: #1d1f21;
 }
 
 .frameContent code {
