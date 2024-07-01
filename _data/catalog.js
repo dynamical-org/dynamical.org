@@ -6,14 +6,18 @@ let catalog = [
     description:
       "Historical weather data from the US National Oceanic and Atmospheric Administration's Global Forecast System",
     url: 'https://data.dynamical.org/gfs/analysis/latest.zarr',
-		status: 'todo',
+    status: 'todo-phase1',
   },
 ];
 
 module.exports = async function () {
   for (let i = 0; i < catalog.length; i++) {
-    const metadata = (await fetch(`${catalog[i].url}/.zmetadata`, {type: 'json'}))['metadata'];
-    const metadataKeys = Object.keys(metadata);
+    let metadataKeys = {};
+    let metadata = {};
+    if (catalog[i].url) {
+      metadata = (await fetch(`${catalog[i].url}/.zmetadata`, {type: 'json'}))['metadata'];
+      metadataKeys = Object.keys(metadata);
+    }
 
     let dimensions = [];
     let variables = [];
