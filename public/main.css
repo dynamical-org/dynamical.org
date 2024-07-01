@@ -9,8 +9,11 @@ html {
   font-size: 62.5%;
 }
 
-body {
+body, input, h1, h2, h3, h4, h5, h6 {
   font-family: 'IBM Plex Mono', monospace;
+}
+
+body {
   padding: 2rem 4rem;
   font-size: 1.4rem;
   line-height: 1.6;
@@ -24,7 +27,6 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'IBM Plex Mono', monospace;
   font-weight: 700;
   margin-top: 2rem;
   margin-bottom: 1rem;
@@ -33,6 +35,34 @@ h6 {
 
 p {
   margin-bottom: 1.2rem;
+}
+
+table {
+  border-collapse: collapse;
+  margin-left: -20px;
+  border: 1px solid black;
+}
+
+th {
+  border-bottom: 1px solid black;
+}
+
+td, th {
+  padding: 10px 20px;
+  border-right: 1px dotted black;
+}
+
+tr td, tr th {
+  text-align: right;
+}
+
+tr td:first-of-type, tr th:first-of-type {
+  text-align: left;
+}
+
+
+caption {
+  padding: 10px;
 }
 
 .hero {
@@ -151,10 +181,6 @@ nav ul li {
 }
 
 @media screen and (max-width: 1000px) {
-  html {
-    font-size: 12px;
-  }
-
   body {
     padding: 2rem 1rem;
   }

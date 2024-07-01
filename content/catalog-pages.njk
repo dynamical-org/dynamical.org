@@ -1,0 +1,82 @@
+---
+layout: base.njk
+pagination:
+  data: catalog
+  alias: entry
+  size: 1
+permalink: "catalog/{{entry.name | slugify}}/"
+title: "{{entry.name}}"
+---
+
+<style>
+	.content.catalog-item {
+		font-size: 1.4rem;
+	}
+
+	.metadata-comment {
+		font-size: 80%;
+	}
+	.metadata-comment td {
+		padding-top: 0;
+	}
+	.metadata-comment span {
+		background-color: rgb(250,250,250);
+		color: rgb(45,45,45);
+	}
+</style>
+
+<div class="content catalog-item">
+	<div style="display: flex; justify-content: space-between; align-items: center;">
+  <h1>{{entry.name}}</h1>
+
+	{% include "catalog-entry-status.njk" %}
+
+	</div>
+  <p style="text-wrap:balance;">{{entry.description}}</p>
+  <p>
+		URL:
+  <input readonly name="url" value="{{entry.url}}" style="width: {{entry.url.length + 2}}ch;"/>
+  </p>
+
+  <table>
+	  <tr>
+		  <td>Time range</td>
+		  <td>2021-01-15 to 2024-07-01</td>
+		  <td>6-hourly</td>
+	  </tr>
+	  <tr>
+		  <td>Spatial coverage</td>
+		  <td>Global</td>
+		  <td>0.25 degrees</td>
+	  </tr>
+  </table>
+
+  <h2>Dimensions</h2>
+  <table style="width: 100%;">
+	  <tr><th/><th>start</th><th>stop</th><th>units</th><th>chunk size</th></tr>
+	  {% for dim in entry.dimensions %}
+	  <tr>
+		  <td><strong>{{dim.name}}</strong></td>
+		  <td>{{dim.start}}</td>
+		  <td>{{dim.stop}}</td>
+		  <td>{{dim.units}}</td>
+		  <td>{{dim.chunks[0]}}</td>
+	  </tr>
+	  <tr class="metadata-comment"><td colspan="5"><span></span></td></tr>
+	  {% endfor %}
+  </table>
+
+  <h2>Variables</h2>
+  <table style="width: 100%;">
+	  <tr><th/><th>units</th><th>dimensions</th><th>range (approx.)</th></tr>
+	  {% for variable in entry.variables %}
+	  <tr>
+		  <td><strong>{{variable.name}}</strong></td>
+		  <td>{{variable.units}}</td>
+		  <td>{{variable._ARRAY_DIMENSIONS.join(' × ')}}</td>
+		  <td>{{variable.range}}</td>
+	  </tr>
+	  <tr class="metadata-comment"><td colspan="5"><span>{{variable.long_name}}</span></td></tr>
+	  {% endfor %}
+  </table>
+</div>

@@ -19,6 +19,7 @@
   "homepage": "https://github.com/dynamical-org/dynamical.org#readme",
   "dependencies": {
     "@11ty/eleventy": "^2.0.1",
+    "@11ty/eleventy-fetch": "^4.0.1",
     "@11ty/eleventy-plugin-rss": "^1",
     "@11ty/eleventy-plugin-syntaxhighlight": "^5.0.0",
     "luxon": "^3.4.4"

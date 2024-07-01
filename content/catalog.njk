@@ -1,0 +1,29 @@
+---
+layout: base.njk
+title: catalog
+---
+
+<div class="content">
+	<h1>Catalog</h1>
+	<ul>
+
+		{% for entry in catalog %}
+		<li>
+			<div style='display: flex; justify-content: space-between; align-items: center;'>
+				<strong>
+					{% if entry.status == 'live' %}
+					<a href="/catalog/{{entry.name | slugify }}">{{entry.name}}</a>
+					{% else %}
+					{{entry.name}}
+					{% endif %}
+				</strong>
+				<br />
+
+				{% include "catalog-entry-status.njk" %}
+			</div>
+			<p>{{entry.description}}</p>
+		</li>
+		{% endfor %}
+
+	</ul>
+</div>

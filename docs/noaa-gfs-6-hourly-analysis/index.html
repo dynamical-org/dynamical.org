@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="author" content="Dynamical Team" />
+    <meta name="keywords" content="Weather, data, zarr" />
+    <title>dynamical.org - {{entry.name}}</title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data." />
+    <meta
+      name="license"
+      content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="dynamical.org" />
+    <meta property="og:site_name" content="dynamical.org" />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" type="text/css" href="/main.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+		<link
+			href="/prism-atom-dark.css"
+			rel="stylesheet"
+		/>
+
+    <link
+      rel="alternate"
+      href="/feed/feed.xml"
+      type="application/atom+xml"
+      title="dynamical.org"
+    />
+    <link
+      rel="alternate"
+      href="/feed/feed.json"
+      type="application/json"
+      title="dynamical.org"
+    />
+  </head>
+
+  <body>
+    <nav>
+      <ul>
+        <li><a href="/">dynamical.org</a></li>
+        <li><a href="/catalog">catalog</a></li>
+        <li><a href="/about">about</a></li>
+        <li><a href="/updates">updates</a></li>
+        <li><a href="https://github.com/dynamical-org">code</a></li>
+      </ul>
+    </nav>
+    
+<style>
+	.metadata-comment {
+		font-size: 1rem;
+	}
+	.metadata-comment td {
+		padding-top: 0;
+	}
+</style>
+
+<h1>NOAA GFS 6-hourly Analysis</h1>
+<p style="text-wrap:balance;">Historical weather data from the US National Oceanic and Atmospheric Administration&#39;s Global Forecast System</p>
+<p>
+<input readonly name="url" value="https://data.dynamical.org/gfs/analysis/latest.zarr" style="width: NaNch;"/>
+</p>
+
+<table>
+	<tr>
+		<td>Time range</td>
+		<td>2021-01-15 to 2024-07-01</td>
+		<td>6-hourly</td>
+	</tr>
+	<tr>
+		<td>Spatial coverage</td>
+		<td>Global</td>
+		<td>0.25 degrees</td>
+	</tr>
+</table>
+
+<h2>Dimensions</h2>
+<table>
+	<tr><th/><th>start</th><th>stop</th><th>units</th><th>chunk size</th></tr>
+	
+	<tr>
+		<td><strong>latitude</strong></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td>721</td>
+	</tr>
+	<tr class="metadata-comment"><td colspan="5">Notes about the above dimension</td></tr>
+	
+	<tr>
+		<td><strong>longitude</strong></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td>1440</td>
+	</tr>
+	<tr class="metadata-comment"><td colspan="5">Notes about the above dimension</td></tr>
+	
+	<tr>
+		<td><strong>time</strong></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td>13804</td>
+	</tr>
+	<tr class="metadata-comment"><td colspan="5">Notes about the above dimension</td></tr>
+	
+</table>
+
+<h2>Variables</h2>
+<table>
+	<tr><th/><th>units</th><th>dimensions</th><th>range (approx.)</th></tr>
+	
+	<tr>
+		<td><strong>precipitation_surface</strong></td>
+		<td>kg/(m^2 s)</td>
+		<td>time,latitude,longitude</td>
+		<td></td>
+	</tr>
+	<tr class="metadata-comment"><td colspan="5">Precipitation rate at earth surface</td></tr>
+	
+	<tr>
+		<td><strong>temperature_2m</strong></td>
+		<td>C</td>
+		<td>time,latitude,longitude</td>
+		<td></td>
+	</tr>
+	<tr class="metadata-comment"><td colspan="5">Temperature 2 meters above earth surface</td></tr>
+	
+	<tr>
+		<td><strong>wind_u_10m</strong></td>
+		<td>m/s</td>
+		<td>time,latitude,longitude</td>
+		<td></td>
+	</tr>
+	<tr class="metadata-comment"><td colspan="5">Wind speed u-component 10 meters above earth surface</td></tr>
+	
+	<tr>
+		<td><strong>wind_v_10m</strong></td>
+		<td>m/s</td>
+		<td>time,latitude,longitude</td>
+		<td></td>
+	</tr>
+	<tr class="metadata-comment"><td colspan="5">Wind speed v-component 10 meters above earth surface</td></tr>
+	
+</table>
+
+  </body>
+</html>

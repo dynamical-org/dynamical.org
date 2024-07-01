@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    ".zattrs": {},
+    ".zgroup": {"zarr_format": 2},
+    "latitude/.zarray": {
+      "chunks": [721],
+      "compressor": {"blocksize": 0, "clevel": 5, "cname": "lz4", "id": "blosc", "shuffle": 1},
+      "dtype": "<f8",
+      "fill_value": "NaN",
+      "filters": null,
+      "order": "C",
+      "shape": [721],
+      "zarr_format": 2
+    },
+    "latitude/.zattrs": {"_ARRAY_DIMENSIONS": ["latitude"]},
+    "longitude/.zarray": {
+      "chunks": [1440],
+      "compressor": {"blocksize": 0, "clevel": 5, "cname": "lz4", "id": "blosc", "shuffle": 1},
+      "dtype": "<f8",
+      "fill_value": "NaN",
+      "filters": null,
+      "order": "C",
+      "shape": [1440],
+      "zarr_format": 2
+    },
+    "longitude/.zattrs": {"_ARRAY_DIMENSIONS": ["longitude"]},
+    "precipitation_surface/.zarray": {
+      "chunks": [40, 361, 360],
+      "compressor": {"blocksize": 0, "clevel": 5, "cname": "zstd", "id": "blosc", "shuffle": 1},
+      "dtype": "<f4",
+      "fill_value": "NaN",
+      "filters": null,
+      "order": "C",
+      "shape": [13804, 721, 1440],
+      "zarr_format": 2
+    },
+    "precipitation_surface/.zattrs": {
+      "_ARRAY_DIMENSIONS": ["time", "latitude", "longitude"],
+      "long_name": "Precipitation rate at earth surface",
+      "units": "kg/(m^2 s)"
+    },
+    "temperature_2m/.zarray": {
+      "chunks": [40, 361, 360],
+      "compressor": {"blocksize": 0, "clevel": 5, "cname": "zstd", "id": "blosc", "shuffle": 1},
+      "dtype": "<f4",
+      "fill_value": "NaN",
+      "filters": null,
+      "order": "C",
+      "shape": [13804, 721, 1440],
+      "zarr_format": 2
+    },
+    "temperature_2m/.zattrs": {
+      "_ARRAY_DIMENSIONS": ["time", "latitude", "longitude"],
+      "long_name": "Temperature 2 meters above earth surface",
+      "units": "C"
+    },
+    "time/.zarray": {
+      "chunks": [13804],
+      "compressor": {"blocksize": 0, "clevel": 5, "cname": "lz4", "id": "blosc", "shuffle": 1},
+      "dtype": "<i8",
+      "fill_value": null,
+      "filters": null,
+      "order": "C",
+      "shape": [13804],
+      "zarr_format": 2
+    },
+    "time/.zattrs": {
+      "_ARRAY_DIMENSIONS": ["time"],
+      "calendar": "proleptic_gregorian",
+      "units": "hours since 2015-01-15 00:00:00"
+    },
+    "wind_u_10m/.zarray": {
+      "chunks": [40, 361, 360],
+      "compressor": {"blocksize": 0, "clevel": 5, "cname": "zstd", "id": "blosc", "shuffle": 1},
+      "dtype": "<f4",
+      "fill_value": "NaN",
+      "filters": null,
+      "order": "C",
+      "shape": [13804, 721, 1440],
+      "zarr_format": 2
+    },
+    "wind_u_10m/.zattrs": {
+      "_ARRAY_DIMENSIONS": ["time", "latitude", "longitude"],
+      "long_name": "Wind speed u-component 10 meters above earth surface",
+      "units": "m/s"
+    },
+    "wind_v_10m/.zarray": {
+      "chunks": [40, 361, 360],
+      "compressor": {"blocksize": 0, "clevel": 5, "cname": "zstd", "id": "blosc", "shuffle": 1},
+      "dtype": "<f4",
+      "fill_value": "NaN",
+      "filters": null,
+      "order": "C",
+      "shape": [13804, 721, 1440],
+      "zarr_format": 2
+    },
+    "wind_v_10m/.zattrs": {
+      "_ARRAY_DIMENSIONS": ["time", "latitude", "longitude"],
+      "long_name": "Wind speed v-component 10 meters above earth surface",
+      "units": "m/s"
+    }
+  },
+  "zarr_consolidated_format": 1
+}
