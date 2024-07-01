@@ -1,8 +1,6 @@
 {% if entry.status == 'live' %}
 <span style="background-color: rgb(120, 250, 100);">updating 𝧤</span>
-{% endif -%}
-
-{% if entry.status == 'todo-phase1' %}
-<span style="background-color: rgb(240, 240, 240);">phase 1 roadmap</span>
+{% else %}
+<span style="background-color: rgb(240, 240, 240);">{{entry.status}}</span>
 {% endif -%}
 

@@ -6,7 +6,14 @@ let catalog = [
     description:
       "Historical weather data from the US National Oceanic and Atmospheric Administration's Global Forecast System",
     url: 'https://data.dynamical.org/gfs/analysis/latest.zarr',
-    status: 'todo-phase1',
+    status: 'Initial release',
+  },
+  {
+    name: 'NOAA GFS 6-hourly Analysis',
+    description:
+      "Historical weather data from the US National Oceanic and Atmospheric Administration's Global Forecast System",
+    url: 'https://data.dynamical.org/gfs/analysis/latest.zarr',
+    status: 'Phase 1 roadmap',
   },
 ];
 
