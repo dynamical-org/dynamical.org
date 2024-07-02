@@ -3,13 +3,37 @@ const {uniq} = require('lodash');
 
 let catalog = [
   {
-    name: 'NOAA GFS 6-hourly Analysis',
+    name: 'NOAA GFS Analysis',
     description:
-      "Historical weather data from the US National Oceanic and Atmospheric Administration's Global Forecast System",
-    url: 'https://data.dynamical.org/gfs/analysis/latest.zarr',
-    status: 'Initial release',
+      "Hourly historical weather data from NOAA's Global Forecast System from XXXX to the present.",
+    url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
+    status: 'Release on 2024-07-03',
   },
-];
+  {
+    name: 'NOAA GFS Forecast',
+    description:
+      "Real-time forecasts from NOAA's Global Forecast System, updating every 6 hours.",
+    // url: 'https://data.dynamical.org/noaa/gfs/forecast/latest.zarr',
+    status: 'Phase 1 Roadmap',
+    hide: true
+  },
+  {
+    name: 'NOAA HRRR Forecast',
+    description:
+      "Real-time forecasts leveraging a 3-km resolution, hourly updated, cloud-resolving, convection-allowing atmospheric model.",
+    // url: 'https://data.dynamical.org/noaa/gfs/forecast/latest.zarr',
+    status: 'Phase 1 Roadmap',
+    hide: true
+  },
+  {
+    name: 'ECMWF ERA5-Land',
+    description:
+      "Historical weather data from European Centre for Medium-Range Weather Forecasts's enhanced reanalysis dataset providing a consistent view of the evolution of land variables over several decades.",
+    // url: 'https://data.dynamical.org/noaa/gfs/forecast/latest.zarr',
+    status: 'Phase 1 Roadmap',
+    hide: true
+  },
+].filter(entry => !entry.hide);
 
 module.exports = async function () {
   for (let i = 0; i < catalog.length; i++) {

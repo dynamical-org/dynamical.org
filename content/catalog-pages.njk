@@ -26,12 +26,12 @@ title: '{{entry.name}}'
 </style>
 
 <div class="content catalog-item">
-  <div style="display: flex; justify-content: space-between; align-items: center">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>{{ entry.name }}</h1>
 
     {% include "catalog-entry-status.njk" %}
   </div>
-  <p style="text-wrap: balance">{{ entry.description }}</p>
+  <p style="text-wrap: balance">{{ entry.description | safe }}</p>
   <p>
     URL:
     <input
@@ -70,7 +70,7 @@ title: '{{entry.name}}'
         <strong>{{ dim.name }}</strong>
       </td>
       <td>{{ dim.start }}</td>
-      <td>{{ dim.stop }}</td>
+      <td>{{ dim.end }}</td>
       <td>{{ dim.units }}</td>
       <td>{{ dim.chunks[0] }}</td>
     </tr>
