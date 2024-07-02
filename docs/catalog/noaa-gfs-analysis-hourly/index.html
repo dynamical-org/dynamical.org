@@ -72,38 +72,30 @@
 
 <div class="content catalog-item">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-    <h1>NOAA GFS 6-hourly Analysis</h1>
-
+    <h1>GFS analysis, hourly</h1>
     
 <span style="background-color: rgb(240, 240, 240);">Release on 2024-07-03</span>
 
   </div>
-  <p style="text-wrap: balance">Historical weather data from the US National Oceanic and Atmospheric Administration&#39;s Global Forecast System</p>
+  <table>
+    <tr><td>Spatial domain</td><td>Global</td></tr>
+    <tr><td>Spatial resolution</td><td>0.25 degrees (approx 20km)</td></tr>
+    <tr><td>Time domain</td><td>2024-03-01 00:00:00 UTC to Present</td></tr>
+    <tr><td>Time resolution</td><td>1 hour</td></tr>
+  </table>
   <p>
     URL:
     <input
       readonly
       name="url"
-      value="https://data.dynamical.org/gfs/analysis/latest.zarr"
-      style="width: 53ch;"
+      value="https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"
+      style="width: 65ch;"
     />
   </p>
-
-  <table>
-    <tr>
-      <td>Time range</td>
-      <td>2021-01-15 to 2024-07-01</td>
-      <td>6-hourly</td>
-    </tr>
-    <tr>
-      <td>Spatial coverage</td>
-      <td>Global</td>
-      <td>0.25 degrees</td>
-    </tr>
-  </table>
+  <p style="text-wrap: balance">Historical weather data from the Global Forecast System (GFS) model operated by NOAA NCEP.</p>
 
   <h2>Dimensions</h2>
-  <table style="width: 100%">
+  <table class="data">
     <tr>
       <th />
       <th>start</th>
@@ -116,9 +108,9 @@
       <td>
         <strong>latitude</strong>
       </td>
-      <td></td>
-      <td></td>
-      <td></td>
+      <td>90</td>
+      <td>-90</td>
+      <td>decimal degrees</td>
       <td>721</td>
     </tr>
     <tr class="metadata-comment">
@@ -129,9 +121,9 @@
       <td>
         <strong>longitude</strong>
       </td>
-      <td></td>
-      <td></td>
-      <td></td>
+      <td>-180</td>
+      <td>180</td>
+      <td>decimal degrees</td>
       <td>1440</td>
     </tr>
     <tr class="metadata-comment">
@@ -142,10 +134,10 @@
       <td>
         <strong>time</strong>
       </td>
-      <td></td>
-      <td></td>
-      <td>hours since 2015-01-15 00:00:00</td>
-      <td>13804</td>
+      <td>2024-03-01 00:00:00 UTC</td>
+      <td>Present</td>
+      <td>hours since 2024-03-01 00:00:00</td>
+      <td>2964</td>
     </tr>
     <tr class="metadata-comment">
       <td colspan="5"><span></span></td>
@@ -154,7 +146,7 @@
   </table>
 
   <h2>Variables</h2>
-  <table style="width: 100%">
+  <table class="data">
     <tr>
       <th />
       <th>units</th>

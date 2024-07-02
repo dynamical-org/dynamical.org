@@ -39,15 +39,19 @@ p {
 
 table {
   border-collapse: collapse;
-  margin-left: -20px;
-  border: 1px solid black;
 }
 
-th {
+table.data {
+  margin-left: -20px;
+  border: 1px solid black;
+  width: 100%;
+}
+
+table.data th {
   border-bottom: 1px solid black;
 }
 
-td, th {
+table.data td, th {
   padding: 10px 20px;
   border-right: 1px dotted black;
 }

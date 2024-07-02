@@ -2,38 +2,34 @@ const fetch = require('@11ty/eleventy-fetch');
 const {uniq} = require('lodash');
 
 let catalog = [
+  // noaa-gfs-analysis-hourly
   {
-    name: 'NOAA GFS Analysis',
-    description:
-      "Hourly historical weather data from NOAA's Global Forecast System from XXXX to the present.",
+    descriptionFull: `
+        <p>
+        The Global Forecast System (GFS) is a National Oceanic and Atmospheric
+        Administration (NOAA) National Centers for Environmental Prediction
+        (NCEP) weather forecast model that generates data for dozens of
+        atmospheric and land-soil variables, including temperatures, winds,
+        precipitation, soil moisture, and atmospheric ozone concentration. The
+        system couples four separate models (atmosphere, ocean model, land/soil
+        model, and sea ice) that work together to depict weather conditions.
+        </p>
+
+        <p>
+        This dataset is an "analysis" containing the model's best estimate of
+        each value at each timestep. In other words, it does not contain a
+        forecast dimension. GFS starts a new model run every 6 hours and
+        dynamical.org has created this analysis by concatenating the first 6
+        hours of each forecast. Before 2021-02-27 GFS had a 3 hourly step at
+        early forecast hours. In this reanalysis we have used linear
+        interpolation in the time dimension to fill in the two timesteps between
+        the three-hourly values prior to 2021-02-27.
+        </p>
+      `,
     url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
     status: 'Release on 2024-07-03',
   },
-  {
-    name: 'NOAA GFS Forecast',
-    description:
-      "Real-time forecasts from NOAA's Global Forecast System, updating every 6 hours.",
-    // url: 'https://data.dynamical.org/noaa/gfs/forecast/latest.zarr',
-    status: 'Phase 1 Roadmap',
-    hide: true
-  },
-  {
-    name: 'NOAA HRRR Forecast',
-    description:
-      "Real-time forecasts leveraging a 3-km resolution, hourly updated, cloud-resolving, convection-allowing atmospheric model.",
-    // url: 'https://data.dynamical.org/noaa/gfs/forecast/latest.zarr',
-    status: 'Phase 1 Roadmap',
-    hide: true
-  },
-  {
-    name: 'ECMWF ERA5-Land',
-    description:
-      "Historical weather data from European Centre for Medium-Range Weather Forecasts's enhanced reanalysis dataset providing a consistent view of the evolution of land variables over several decades.",
-    // url: 'https://data.dynamical.org/noaa/gfs/forecast/latest.zarr',
-    status: 'Phase 1 Roadmap',
-    hide: true
-  },
-].filter(entry => !entry.hide);
+].filter((entry) => !entry.hide);
 
 module.exports = async function () {
   for (let i = 0; i < catalog.length; i++) {
@@ -67,8 +63,7 @@ module.exports = async function () {
       variables.push({name: key, ...metadata[`${key}/.zattrs`], ...metadata[`${key}/.zarray`]});
     }
 
-    catalog[i].dimensions = dimensions;
-    catalog[i].variables = variables;
+    catalog[i] = {...catalog[i], ...metadata['.zattrs'], dimensions, variables};
   }
 
   return catalog;
