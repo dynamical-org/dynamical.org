@@ -92,7 +92,28 @@
       style="width: 65ch;"
     />
   </p>
-  <p style="text-wrap: balance">Historical weather data from the Global Forecast System (GFS) model operated by NOAA NCEP.</p>
+  <p style="text-wrap: balance">
+        <p>
+        The Global Forecast System (GFS) is a National Oceanic and Atmospheric
+        Administration (NOAA) National Centers for Environmental Prediction
+        (NCEP) weather forecast model that generates data for dozens of
+        atmospheric and land-soil variables, including temperatures, winds,
+        precipitation, soil moisture, and atmospheric ozone concentration. The
+        system couples four separate models (atmosphere, ocean model, land/soil
+        model, and sea ice) that work together to depict weather conditions.
+        </p>
+
+        <p>
+        This dataset is an "analysis" containing the model's best estimate of
+        each value at each timestep. In other words, it does not contain a
+        forecast dimension. GFS starts a new model run every 6 hours and
+        dynamical.org has created this analysis by concatenating the first 6
+        hours of each forecast. Before 2021-02-27 GFS had a 3 hourly step at
+        early forecast hours. In this reanalysis we have used linear
+        interpolation in the time dimension to fill in the two timesteps between
+        the three-hourly values prior to 2021-02-27.
+        </p>
+      </p>
 
   <h2>Dimensions</h2>
   <table class="data">
