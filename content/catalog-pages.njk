@@ -5,7 +5,8 @@ pagination:
   alias: entry
   size: 1
 permalink: 'catalog/{{entry.id | slugify}}/'
-title: '{{entry.name}}'
+eleventyComputed:
+  title: '{{entry.name}}'
 ---
 
 <style>
