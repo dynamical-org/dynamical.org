@@ -56,31 +56,27 @@
 <div class="frame" style="margin-top: 4rem">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">GFS Analysis</div>
+    <a class='frameHeaderSubtitle' href='/catalog/noaa-gfs-analysis-hourly'>GFS hourly analysis ↗</a>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_dataset<span class="token punctuation">(</span><span class="token string">"https://dynamical.org/gfs/analysis/v1.zarr"</span><span class="token punctuation">,</span> engine<span class="token operator">=</span><span class="token string">"zarr"</span><span class="token punctuation">)</span></code></pre></code></pre>
-  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_dataset<span class="token punctuation">(</span>
-  <span class="token string">"https://dynamical.org/gfs/analysis/v1.zarr"</span><span class="token punctuation">,</span>
-  engine <span class="token operator">=</span> <span class="token string">"zarr"</span>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_dataset<span class="token punctuation">(</span>
+  <span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"</span><span class="token punctuation">,</span>
+  engine<span class="token operator">=</span><span class="token string">"zarr"</span>
 <span class="token punctuation">)</span></code></pre></code></pre>
 </div>
 
 <div class="content centered">Weather data is hard to work with. What if it wasn't?</div>
-<div class="content centered"><a href="/updates">Follow along</a></div>
+<div class="content centered"><a href="/updates">Follow along ↗</a></div>
 <div class="frame">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class="frameHeaderSubtitle">April 2024 temperature</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">'temperature_surface'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04-01T00:00'</span><span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span>figsize<span class="token operator">=</span><span class="token punctuation">(</span><span class="token number">12</span><span class="token punctuation">,</span><span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre></code></pre>
-  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">'temperature_surface'</span><span class="token punctuation">]</span>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04-01T00:00'</span><span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span>figsize<span class="token operator">=</span><span class="token punctuation">(</span><span class="token number">12</span><span class="token punctuation">,</span><span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre></code></pre>
+  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span>
   <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04-01T00:00'</span><span class="token punctuation">)</span>
   <span class="token punctuation">.</span>plot<span class="token punctuation">(</span>figsize<span class="token operator">=</span><span class="token punctuation">(</span><span class="token number">12</span><span class="token punctuation">,</span><span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre></code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
-    alt="A plot showing global temperature for 2024-04-01"
-  />
+  <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
+    alt="A plot showing global temperature for 2024-04-01" />
 </div>
 
 <div class="frame">
@@ -88,23 +84,16 @@
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class="frameHeaderSubtitle">April 2024 temperature anomaly</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">tmp_april_mean <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_surface'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span>ds<span class="token punctuation">.</span>time<span class="token punctuation">.</span>dt<span class="token punctuation">.</span>month <span class="token operator">==</span> <span class="token number">4</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span>
-tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_surface'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04'</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span>
-
-<span class="token punctuation">(</span>tmp_april_2024 <span class="token operator">-</span> tmp_april_mean<span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span>figsize<span class="token operator">=</span><span class="token punctuation">(</span><span class="token number">12</span><span class="token punctuation">,</span> <span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre></code></pre>
-  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">tmp_april_mean <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_surface'</span><span class="token punctuation">]</span>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">tmp_april_mean <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span>
   <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span>ds<span class="token punctuation">.</span>time<span class="token punctuation">.</span>dt<span class="token punctuation">.</span>month <span class="token operator">==</span> <span class="token number">4</span><span class="token punctuation">)</span>
   <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span>
-tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_surface'</span><span class="token punctuation">]</span>
+tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span>
   <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04'</span><span class="token punctuation">)</span>
   <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span>
 
 <span class="token punctuation">(</span>tmp_april_2024 <span class="token operator">-</span> tmp_april_mean<span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span>figsize<span class="token operator">=</span><span class="token punctuation">(</span><span class="token number">12</span><span class="token punctuation">,</span> <span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre></code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
-    alt="A plot showing global temperature anomaly for April 2024."
-  />
+  <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
+    alt="A plot showing global temperature anomaly for April 2024." />
 </div>
 
 <div class="frame">
@@ -128,11 +117,8 @@ tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctu
   <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span> <span class="token comment"># take the average over ~all time~</span>
   <span class="token punctuation">.</span>plot<span class="token punctuation">(</span>figsize<span class="token operator">=</span><span class="token punctuation">(</span><span class="token number">12</span><span class="token punctuation">,</span> <span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
 <span class="token punctuation">)</span></code></pre></code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_precipitation_all_time.png"
-    alt="A plot showing all time precipitaiton of North America, revealing the locations where it rains the most overall."
-  />
+  <img class="frameResult" src="./assets/gfs_precipitation_all_time.png"
+    alt="A plot showing all time precipitaiton of North America, revealing the locations where it rains the most overall." />
 </div>
 
 <div class="frame">
@@ -140,19 +126,16 @@ tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctu
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class="frameHeaderSubtitle">April 10, 2024 wind speed</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">wind_speed <span class="token operator">=</span> <span class="token punctuation">(</span>ds<span class="token punctuation">[</span><span class="token string">'wind_u_10m_above_ground'</span><span class="token punctuation">]</span><span class="token operator">**</span><span class="token number">2</span> <span class="token operator">+</span> ds<span class="token punctuation">[</span><span class="token string">'wind_v_10m_above_ground'</span><span class="token punctuation">]</span><span class="token operator">**</span><span class="token number">2</span><span class="token punctuation">)</span> <span class="token operator">**</span> <span class="token number">0.5</span>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">wind_speed <span class="token operator">=</span> <span class="token punctuation">(</span>ds<span class="token punctuation">[</span><span class="token string">'wind_u_10m'</span><span class="token punctuation">]</span><span class="token operator">**</span><span class="token number">2</span> <span class="token operator">+</span> ds<span class="token punctuation">[</span><span class="token string">'wind_v_10m'</span><span class="token punctuation">]</span><span class="token operator">**</span><span class="token number">2</span><span class="token punctuation">)</span> <span class="token operator">**</span> <span class="token number">0.5</span>
 wind_speed<span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04-10T00'</span><span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span>cmap<span class="token operator">=</span><span class="token string">'YlGnBu_r'</span><span class="token punctuation">,</span> figsize<span class="token operator">=</span><span class="token punctuation">(</span><span class="token number">14</span><span class="token punctuation">,</span> <span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre></code></pre>
   <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">wind_speed <span class="token operator">=</span> <span class="token punctuation">(</span>
-  ds<span class="token punctuation">[</span><span class="token string">'wind_u_10m_above_ground'</span><span class="token punctuation">]</span> <span class="token operator">**</span> <span class="token number">2</span> <span class="token operator">+</span>
-  ds<span class="token punctuation">[</span><span class="token string">'wind_v_10m_above_ground'</span><span class="token punctuation">]</span> <span class="token operator">**</span> <span class="token number">2</span><span class="token punctuation">)</span> <span class="token operator">**</span> <span class="token number">0.5</span>
+  ds<span class="token punctuation">[</span><span class="token string">'wind_u_10m'</span><span class="token punctuation">]</span> <span class="token operator">**</span> <span class="token number">2</span> <span class="token operator">+</span>
+  ds<span class="token punctuation">[</span><span class="token string">'wind_v_10m'</span><span class="token punctuation">]</span> <span class="token operator">**</span> <span class="token number">2</span><span class="token punctuation">)</span> <span class="token operator">**</span> <span class="token number">0.5</span>
 wind_speed
   <span class="token punctuation">.</span>sel<span class="token punctuation">(</span><span class="token punctuation">(</span>time <span class="token operator">=</span> <span class="token string">'2024-04-10T00'</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
   <span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">(</span>cmap <span class="token operator">=</span> <span class="token string">'YlGnBu_r'</span><span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token punctuation">(</span>figsize <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token number">14</span><span class="token punctuation">,</span> <span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">)</span></code></pre></code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_wind_2024_04_01T00:00.png"
-    alt="A plot showing global wind speeds on April 10th, 2024."
-  />
+  <img class="frameResult" src="./assets/gfs_wind_2024_04_01T00:00.png"
+    alt="A plot showing global wind speeds on April 10th, 2024." />
 </div>
 
   </body>

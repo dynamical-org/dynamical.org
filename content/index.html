@@ -7,39 +7,33 @@ redirects_from: /index.html
 <div class="frame" style="margin-top: 4rem">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">GFS Analysis</div>
+    <a class='frameHeaderSubtitle' href='/catalog/noaa-gfs-analysis-hourly'>GFS hourly analysis ↗</a>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-ds = xr.open_dataset("https://dynamical.org/gfs/analysis/v1.zarr", engine="zarr")
-    {% endhighlight %}</code></pre>
-  <pre class="frameContent frameContentMobile"><code>{% highlight py %}
 ds = xr.open_dataset(
-  "https://dynamical.org/gfs/analysis/v1.zarr",
-  engine = "zarr"
+  "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
+  engine="zarr"
 )
     {% endhighlight %}</code></pre>
 </div>
 
 <div class="content centered">Weather data is hard to work with. What if it wasn't?</div>
-<div class="content centered"><a href="/updates">Follow along</a></div>
+<div class="content centered"><a href="/updates">Follow along ↗</a></div>
 <div class="frame">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class="frameHeaderSubtitle">April 2024 temperature</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-ds['temperature_surface'].sel(time='2024-04-01T00:00').plot(figsize=(12,8))
+ds['temperature_2m'].sel(time='2024-04-01T00:00').plot(figsize=(12,8))
     {% endhighlight %}</code></pre>
   <pre class="frameContent frameContentMobile"><code>{% highlight py %}
-ds['temperature_surface']
+ds['temperature_2m']
   .sel(time='2024-04-01T00:00')
   .plot(figsize=(12,8))
     {% endhighlight %}</code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
-    alt="A plot showing global temperature for 2024-04-01"
-  />
+  <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
+    alt="A plot showing global temperature for 2024-04-01" />
 </div>
 
 <div class="frame">
@@ -48,26 +42,17 @@ ds['temperature_surface']
     <div class="frameHeaderSubtitle">April 2024 temperature anomaly</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-tmp_april_mean = ds['temperature_surface'].sel(time=ds.time.dt.month == 4).mean(dim='time')
-tmp_april_2024 = ds['temperature_surface'].sel(time='2024-04').mean(dim='time')
-
-(tmp_april_2024 - tmp_april_mean).plot(figsize=(12, 8))
-    {% endhighlight %}</code></pre>
-  <pre class="frameContent frameContentMobile"><code>{% highlight py %}
-tmp_april_mean = ds['temperature_surface']
+tmp_april_mean = ds['temperature_2m']
   .sel(time=ds.time.dt.month == 4)
   .mean(dim='time')
-tmp_april_2024 = ds['temperature_surface']
+tmp_april_2024 = ds['temperature_2m']
   .sel(time='2024-04')
   .mean(dim='time')
 
 (tmp_april_2024 - tmp_april_mean).plot(figsize=(12, 8))
     {% endhighlight %}</code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
-    alt="A plot showing global temperature anomaly for April 2024."
-  />
+  <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
+    alt="A plot showing global temperature anomaly for April 2024." />
 </div>
 
 <div class="frame">
@@ -95,11 +80,8 @@ tmp_april_2024 = ds['temperature_surface']
   .plot(figsize=(12, 8))
 )
     {% endhighlight %}</code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_precipitation_all_time.png"
-    alt="A plot showing all time precipitaiton of North America, revealing the locations where it rains the most overall."
-  />
+  <img class="frameResult" src="./assets/gfs_precipitation_all_time.png"
+    alt="A plot showing all time precipitaiton of North America, revealing the locations where it rains the most overall." />
 </div>
 
 <div class="frame">
@@ -108,20 +90,17 @@ tmp_april_2024 = ds['temperature_surface']
     <div class="frameHeaderSubtitle">April 10, 2024 wind speed</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-wind_speed = (ds['wind_u_10m_above_ground']**2 + ds['wind_v_10m_above_ground']**2) ** 0.5
+wind_speed = (ds['wind_u_10m']**2 + ds['wind_v_10m']**2) ** 0.5
 wind_speed.sel(time='2024-04-10T00').plot(cmap='YlGnBu_r', figsize=(14, 8))
     {% endhighlight %}</code></pre>
   <pre class="frameContent frameContentMobile"><code>{% highlight py %}
 wind_speed = (
-  ds['wind_u_10m_above_ground'] ** 2 +
-  ds['wind_v_10m_above_ground'] ** 2) ** 0.5
+  ds['wind_u_10m'] ** 2 +
+  ds['wind_v_10m'] ** 2) ** 0.5
 wind_speed
   .sel((time = '2024-04-10T00'))
   .plot((cmap = 'YlGnBu_r'), (figsize = (14, 8)))
     {% endhighlight %}</code></pre>
-  <img
-    class="frameResult"
-    src="./assets/gfs_wind_2024_04_01T00:00.png"
-    alt="A plot showing global wind speeds on April 10th, 2024."
-  />
+  <img class="frameResult" src="./assets/gfs_wind_2024_04_01T00:00.png"
+    alt="A plot showing global wind speeds on April 10th, 2024." />
 </div>

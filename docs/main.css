@@ -9,7 +9,14 @@ html {
   font-size: 62.5%;
 }
 
-body, input, h1, h2, h3, h4, h5, h6 {
+body,
+input,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'IBM Plex Mono', monospace;
 }
 
@@ -51,19 +58,21 @@ table.data th {
   border-bottom: 1px solid black;
 }
 
-table.data td, th {
+table.data td,
+th {
   padding: 10px 20px;
   border-right: 1px dotted black;
 }
 
-tr td, tr th {
+tr td,
+tr th {
   text-align: right;
 }
 
-tr td:first-of-type, tr th:first-of-type {
+tr td:first-of-type,
+tr th:first-of-type {
   text-align: left;
 }
-
 
 caption {
   padding: 10px;
@@ -83,7 +92,7 @@ nav,
   margin: auto;
 }
 
-article{
+article {
   border: 1px solid black;
   margin: 2rem -3rem;
   padding: 2rem 3rem;
@@ -153,7 +162,7 @@ nav ul li {
   width: 100%;
   margin: 0;
   overflow-x: auto;
-	background: #1d1f21;
+  background: #1d1f21;
 }
 
 .frameContent code {
@@ -170,6 +179,7 @@ nav ul li {
 .frameResult {
   max-width: 100%;
   outline: 1px solid #292929;
+  display: block;
 }
 
 #newsletter {
@@ -193,7 +203,7 @@ nav ul li {
     margin: 4rem auto;
   }
 
-  .frameContentDesktop {
+  .frameContentDesktop + .frameContentMobile {
     display: none;
   }
 
