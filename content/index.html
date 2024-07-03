@@ -25,12 +25,12 @@ ds = xr.open_dataset(
     <div class="frameHeaderSubtitle">April 2024 temperature</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-ds['temperature_2m'].sel(time='2024-04-01T00:00').plot(figsize=(12,8))
+ds['temperature_2m'].sel(time='2024-04-01T00:00').plot()
     {% endhighlight %}</code></pre>
   <pre class="frameContent frameContentMobile"><code>{% highlight py %}
-ds['temperature_2m']
-  .sel(time='2024-04-01T00:00')
-  .plot(figsize=(12,8))
+ds['temperature_2m'] \
+  .sel(time='2024-04-01T00:00') \
+  .plot()
     {% endhighlight %}</code></pre>
   <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
     alt="A plot showing global temperature for 2024-04-01" />
@@ -42,14 +42,14 @@ ds['temperature_2m']
     <div class="frameHeaderSubtitle">April 2024 temperature anomaly</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-tmp_april_mean = ds['temperature_2m']
-  .sel(time=ds.time.dt.month == 4)
+tmp_april_mean = ds['temperature_2m'] \
+  .sel(time=ds.time.dt.month == 4) \
   .mean(dim='time')
-tmp_april_2024 = ds['temperature_2m']
-  .sel(time='2024-04')
+tmp_april_2024 = ds['temperature_2m'] \
+  .sel(time='2024-04') \
   .mean(dim='time')
 
-(tmp_april_2024 - tmp_april_mean).plot(figsize=(12, 8))
+(tmp_april_2024 - tmp_april_mean).plot()
     {% endhighlight %}</code></pre>
   <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
     alt="A plot showing global temperature anomaly for April 2024." />
@@ -67,7 +67,7 @@ tmp_april_2024 = ds['temperature_2m']
       longitude=slice(-150, -30)
   )
   .mean(dim='time') # take the average over ~all time~
-  .plot(figsize=(12, 8))
+  .plot()
 )
     {% endhighlight %}</code></pre>
   <pre class="frameContent frameContentMobile"><code>{% highlight py %}
@@ -77,7 +77,7 @@ tmp_april_2024 = ds['temperature_2m']
       longitude=slice(-150, -30)
   )
   .mean(dim='time') # take the average over ~all time~
-  .plot(figsize=(12, 8))
+  .plot()
 )
     {% endhighlight %}</code></pre>
   <img class="frameResult" src="./assets/gfs_precipitation_all_time.png"
@@ -90,16 +90,15 @@ tmp_april_2024 = ds['temperature_2m']
     <div class="frameHeaderSubtitle">April 10, 2024 wind speed</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-wind_speed = (ds['wind_u_10m']**2 + ds['wind_v_10m']**2) ** 0.5
-wind_speed.sel(time='2024-04-10T00').plot(cmap='YlGnBu_r', figsize=(14, 8))
-    {% endhighlight %}</code></pre>
-  <pre class="frameContent frameContentMobile"><code>{% highlight py %}
-wind_speed = (
-  ds['wind_u_10m'] ** 2 +
-  ds['wind_v_10m'] ** 2) ** 0.5
-wind_speed
-  .sel((time = '2024-04-10T00'))
-  .plot((cmap = 'YlGnBu_r'), (figsize = (14, 8)))
+import numpy as np
+
+wind_speed = np.sqrt(
+  ds["wind_u_10m"] ** 2 +
+  ds["wind_v_10m"] ** 2
+)
+wind_speed \
+  .sel(time="2024-04-10T00") \
+  .plot(cmap="YlGnBu_r")
     {% endhighlight %}</code></pre>
   <img class="frameResult" src="./assets/gfs_wind_2024_04_01T00:00.png"
     alt="A plot showing global wind speeds on April 10th, 2024." />
