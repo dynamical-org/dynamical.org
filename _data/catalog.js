@@ -27,7 +27,7 @@ let catalog = [
         </p>
       `,
     url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
-    status: 'Release on 2024-07-03',
+    status: 'Release on 2024-07-09',
   },
 ].filter((entry) => !entry.hide);
 
