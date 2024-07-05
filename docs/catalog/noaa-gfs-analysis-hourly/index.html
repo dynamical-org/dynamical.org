@@ -61,14 +61,24 @@
   .metadata-comment {
     font-size: 80%;
   }
+
   .metadata-comment td {
     padding-top: 0;
   }
+
   .metadata-comment span {
     background-color: rgb(250, 250, 250);
     color: rgb(45, 45, 45);
   }
 </style>
+
+<script>
+  function copyUrl() {
+    const input = document.getElementById('catalog-entry-url');
+    input.select();
+    document.execCommand('copy');
+  }
+</script>
 
 <div class="content catalog-item">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
@@ -78,19 +88,28 @@
 
   </div>
   <table>
-    <tr><td>Spatial domain</td><td>Global</td></tr>
-    <tr><td>Spatial resolution</td><td>0.25 degrees (approx 20km)</td></tr>
-    <tr><td>Time domain</td><td>2024-03-01 00:00:00 UTC to Present</td></tr>
-    <tr><td>Time resolution</td><td>1 hour</td></tr>
+    <tr>
+      <td>Spatial domain</td>
+      <td>Global</td>
+    </tr>
+    <tr>
+      <td>Spatial resolution</td>
+      <td>0.25 degrees (~20km)</td>
+    </tr>
+    <tr>
+      <td>Time domain</td>
+      <td>2015-01-15 00:00:00 UTC to 2024-07-01 00:00:00 UTC</td>
+    </tr>
+    <tr>
+      <td>Time resolution</td>
+      <td>1 hour</td>
+    </tr>
   </table>
   <p>
     URL:
-    <input
-      readonly
-      name="url"
-      value="https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"
-      style="width: 65ch;"
-    />
+    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"
+      style="width: 65ch;" />
+    <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
   </p>
   <p style="text-wrap: balance">
         <p>
@@ -155,10 +174,10 @@
       <td>
         <strong>time</strong>
       </td>
-      <td>2024-03-01 00:00:00 UTC</td>
-      <td>Present</td>
-      <td>hours since 2024-03-01 00:00:00</td>
-      <td>2964</td>
+      <td>2015-01-15 00:00:00 UTC</td>
+      <td>2024-07-01 00:00:00 UTC</td>
+      <td>seconds since 1970-01-01 00:00:00</td>
+      <td>82920</td>
     </tr>
     <tr class="metadata-comment">
       <td colspan="5"><span></span></td>
@@ -232,7 +251,19 @@
     </tr>
     
   </table>
+
+  <h2>Examples</h2>
 </div>
+
+
+<div class="frame">
+  <div class="frameHeader">
+    <div class="frameHeaderTitle">dynamical.org - GFS analysis, hourly</div>
+    <div class="frameHeaderSubtitle">Mean temperature for a single day</div>
+  </div>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr<br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_dataset<span class="token punctuation">(</span><br>    <span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.json?email=optional@email.com"</span><span class="token punctuation">,</span><br>    engine<span class="token operator">=</span><span class="token string">"zarr"</span><span class="token punctuation">,</span><br><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-06-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+</div>
+
 
   </body>
 </html>

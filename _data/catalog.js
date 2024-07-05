@@ -28,6 +28,17 @@ let catalog = [
       `,
     url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
     status: 'Release on 2024-07-09',
+    examples: [{
+      title: 'Mean temperature for a single day',
+      code: `
+import xarray as xr
+
+ds = xr.open_dataset(
+    "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.json?email=optional@email.com",
+    engine="zarr",
+)
+ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
+    `}]
   },
 ].filter((entry) => !entry.hide);
 

@@ -119,7 +119,7 @@ nav ul li {
 }
 
 .frame {
-  margin: 8rem auto;
+  margin: 2rem auto;
   border: 1px solid #292929;
   border-radius: 6px;
   background: #171717;
@@ -177,7 +177,7 @@ nav ul li {
 }
 
 .frameResult {
-  max-width: 100%;
+  width: 100%;
   outline: 1px solid #292929;
   display: block;
 }
