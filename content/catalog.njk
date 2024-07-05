@@ -4,20 +4,19 @@ title: catalog
 ---
 
 <style>
-  .catalog-list {
-    padding-left: 0;
-  }
-
   .catalog-list li {
     border-bottom: 1px solid black;
-    padding: 4rem 0;
     list-style: none;
+    padding: 1rem 0;
+  }
+
+  .catalog-list li > * {
+    margin: 0;
   }
 
   .catalog-list li:last-child {
     border-bottom: none;
   }
-
 </style>
 
 <div class="content">
@@ -42,5 +41,26 @@ title: catalog
     </li>
     {% endfor %}
 
+  </ul>
+
+  <h2>Phase 1b</h2>
+  <ul class="catalog-list">
+    <li><strong>NOAA GFS analysis, daily</strong></li>
+    <li><strong>NOAA GFS climatology, hourly</strong></li>
+    <li><strong>NOAA GFS climatology, daily</strong></li>
+  </ul>
+
+  <h2>Phase 1c</h2>
+  <ul class="catalog-list">
+    <li><strong>NOAA GFS forecast</strong></li>
+  </ul>
+
+  <h2>Phase 2</h2>
+  <ul class="catalog-list">
+    <li><strong>ECMWF IFS forecast</strong></li>
+    <li><strong>NOAA GEFS forecast</strong></li>
+    <li><strong>NOAA HRRR forecast</strong></li>
+    <li><strong>DeepMind GraphCast forecast</strong></li>
+    <li><strong>ECMWF AIFS forecast</strong></li>
   </ul>
 </div>
