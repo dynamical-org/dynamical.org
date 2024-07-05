@@ -1,6 +1,6 @@
 module.exports = {
-	tags: [
-		"updates"
-	],
-	"layout": "base.njk",
+  tags: [
+    "updates"
+  ],
+  "layout": "base.njk",
 };

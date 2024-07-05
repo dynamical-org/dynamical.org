@@ -4,43 +4,43 @@ title: catalog
 ---
 
 <style>
-	.catalog-list {
-		padding-left: 0;
-	}
+  .catalog-list {
+    padding-left: 0;
+  }
 
-	.catalog-list li {
-		border-bottom: 1px solid black;
-		padding: 4rem 0;
-		list-style: none;
-	}
+  .catalog-list li {
+    border-bottom: 1px solid black;
+    padding: 4rem 0;
+    list-style: none;
+  }
 
-	.catalog-list li:last-child {
-		border-bottom: none;
-	}
+  .catalog-list li:last-child {
+    border-bottom: none;
+  }
 
 </style>
 
 <div class="content">
-	<h1>Catalog</h1>
-	<ul class="catalog-list">
+  <h1>Catalog</h1>
+  <ul class="catalog-list">
 
-		{% for entry in catalog %}
-		<li>
-			<div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
-				<strong>
-					{% if entry.status == 'live' %}
-					<a href="/catalog/{{entry.name | slugify }}">{{entry.name}}</a>
-					{% else %}
-					{{entry.name}}
-					{% endif %}
-				</strong>
-				<br />
+    {% for entry in catalog %}
+    <li>
+      <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+        <strong>
+          {% if entry.status == 'live' %}
+          <a href="/catalog/{{entry.name | slugify }}">{{entry.name}}</a>
+          {% else %}
+          {{entry.name}}
+          {% endif %}
+        </strong>
+        <br />
 
-				{% include "catalog-entry-status.njk" %}
-			</div>
-			<p>{{entry.description}}</p>
-		</li>
-		{% endfor %}
+        {% include "catalog-entry-status.njk" %}
+      </div>
+      <p>{{entry.description}}</p>
+    </li>
+    {% endfor %}
 
-	</ul>
+  </ul>
 </div>
