@@ -16,10 +16,7 @@ redirects_from: /index.html
     <div class='frameHeaderSubtitle'>GFS hourly analysis</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-ds = xr.open_dataset(
-  "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
-  engine="zarr"
-)
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr")
     {% endhighlight %}</code></pre>
 </div>
 
@@ -31,11 +28,11 @@ ds = xr.open_dataset(
     <div class="frameHeaderSubtitle">April 2024 temperature</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-ds['temperature_2m'].sel(time='2024-04-01T00:00').plot()
+ds["temperature_2m"].sel(time="2024-04-01T00:00").plot()
     {% endhighlight %}</code></pre>
   <pre class="frameContent frameContentMobile"><code>{% highlight py %}
-ds['temperature_2m'] \
-  .sel(time='2024-04-01T00:00') \
+ds["temperature_2m"] \
+  .sel(time="2024-04-01T00:00") \
   .plot()
     {% endhighlight %}</code></pre>
   <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
@@ -48,12 +45,12 @@ ds['temperature_2m'] \
     <div class="frameHeaderSubtitle">April 2024 temperature anomaly</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-tmp_april_mean = ds['temperature_2m'] \
+tmp_april_mean = ds["temperature_2m"] \
   .sel(time=ds.time.dt.month == 4) \
-  .mean(dim='time')
-tmp_april_2024 = ds['temperature_2m'] \
-  .sel(time='2024-04') \
-  .mean(dim='time')
+  .mean(dim="time")
+tmp_april_2024 = ds["temperature_2m"] \
+  .sel(time="2024-04") \
+  .mean(dim="time")
 
 (tmp_april_2024 - tmp_april_mean).plot()
     {% endhighlight %}</code></pre>
@@ -68,21 +65,21 @@ tmp_april_2024 = ds['temperature_2m'] \
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
 (
-  ds['precipitation_surface'].sel(
+  ds["precipitation_surface"].sel(
       latitude=slice(70, 20),
       longitude=slice(-150, -30)
   )
-  .mean(dim='time') # take the average over ~all time~
+  .mean(dim="time") # take the average over ~all time~
   .plot()
 )
     {% endhighlight %}</code></pre>
   <pre class="frameContent frameContentMobile"><code>{% highlight py %}
 (
-  ds['precipitation_surface'].sel(
+  ds["precipitation_surface"].sel(
       latitude=slice(70, 20),
       longitude=slice(-150, -30)
   )
-  .mean(dim='time') # take the average over ~all time~
+  .mean(dim="time") # take the average over ~all time~
   .plot()
 )
     {% endhighlight %}</code></pre>
