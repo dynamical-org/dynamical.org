@@ -61,7 +61,7 @@ eleventyComputed:
   </table>
   <p>
     URL:
-    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=option@email.com"
+    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=optional@email.com"
       style="width: {{ entry.url.length + 25 }}ch; max-width: 100%;" />
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
     <div class="metadata-comment"><span>* Email optional: registration not required.
@@ -78,7 +78,6 @@ eleventyComputed:
       <th>start</th>
       <th>stop</th>
       <th>units</th>
-      <th>chunk size</th>
     </tr>
     {% for dim in entry.dimensions %}
     <tr>
@@ -88,10 +87,9 @@ eleventyComputed:
       <td>{{ dim.start }}</td>
       <td>{{ dim.end }}</td>
       <td>{{ dim.units }}</td>
-      <td>{{ dim.chunks[0] }}</td>
     </tr>
     <tr class="metadata-comment">
-      <td colspan="5"><span></span></td>
+      <td colspan="4"><span></span></td>
     </tr>
     {% endfor %}
   </table>
