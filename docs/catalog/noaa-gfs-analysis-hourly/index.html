@@ -136,6 +136,15 @@
         interpolation in the time dimension to fill in the two timesteps between
         the three-hourly values prior to 2021-02-27.
         </p>
+
+        <p>
+        The data values in this dataset have been rounded in their binary
+        representation to improve compression. We round to retain 9 bits of
+        the floating point number's base (mantissa) which creates a maximum
+        of 0.2% difference between the original and rounded value. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information.
+        </p>
       </p>
 
   <h2>Dimensions</h2>
