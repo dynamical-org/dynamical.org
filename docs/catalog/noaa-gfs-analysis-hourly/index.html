@@ -5,7 +5,7 @@
     <meta name="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="author" content="Dynamical Team" />
     <meta name="keywords" content="Weather, data, zarr" />
-    <title>dynamical.org - GFS analysis, hourly</title>
+    <title>dynamical.org - NOAA GFS analysis, hourly</title>
     <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data." />
     <meta
       name="license"
@@ -82,7 +82,7 @@
 
 <div class="content catalog-item">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-    <h1>GFS analysis, hourly</h1>
+    <h1>NOAA GFS analysis, hourly</h1>
     
 <span style="background-color: rgb(240, 240, 240);">Release on 2024-07-09</span>
 
@@ -107,7 +107,7 @@
   </table>
   <p>
     URL:
-    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=option@email.com"
+    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=optional@email.com"
       style="width: 88ch; max-width: 100%;" />
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
     <div class="metadata-comment"><span>* Email optional: registration not required.
@@ -154,7 +154,6 @@
       <th>start</th>
       <th>stop</th>
       <th>units</th>
-      <th>chunk size</th>
     </tr>
     
     <tr>
@@ -164,10 +163,9 @@
       <td>90</td>
       <td>-90</td>
       <td>decimal degrees</td>
-      <td>721</td>
     </tr>
     <tr class="metadata-comment">
-      <td colspan="5"><span></span></td>
+      <td colspan="4"><span></span></td>
     </tr>
     
     <tr>
@@ -177,10 +175,9 @@
       <td>-180</td>
       <td>180</td>
       <td>decimal degrees</td>
-      <td>1440</td>
     </tr>
     <tr class="metadata-comment">
-      <td colspan="5"><span></span></td>
+      <td colspan="4"><span></span></td>
     </tr>
     
     <tr>
@@ -190,10 +187,9 @@
       <td>2015-01-15 00:00:00 UTC</td>
       <td>2024-07-01 00:00:00 UTC</td>
       <td>seconds since 1970-01-01 00:00:00</td>
-      <td>82920</td>
     </tr>
     <tr class="metadata-comment">
-      <td colspan="5"><span></span></td>
+      <td colspan="4"><span></span></td>
     </tr>
     
   </table>
@@ -271,10 +267,10 @@
 
 <div class="frame">
   <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org - GFS analysis, hourly</div>
+    <div class="frameHeaderTitle">dynamical.org - NOAA GFS analysis, hourly</div>
     <div class="frameHeaderSubtitle">Mean temperature for a single day</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr<br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_dataset<span class="token punctuation">(</span><br>    <span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.json?email=optional@email.com"</span><span class="token punctuation">,</span><br>    engine<span class="token operator">=</span><span class="token string">"zarr"</span><span class="token punctuation">,</span><br><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-06-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr<br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.json?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-06-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
 </div>
 
 

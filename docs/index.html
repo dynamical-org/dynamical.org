@@ -64,10 +64,7 @@
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class='frameHeaderSubtitle'>GFS hourly analysis</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_dataset<span class="token punctuation">(</span>
-  <span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"</span><span class="token punctuation">,</span>
-  engine<span class="token operator">=</span><span class="token string">"zarr"</span>
-<span class="token punctuation">)</span></code></pre></code></pre>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"</span><span class="token punctuation">)</span></code></pre></code></pre>
 </div>
 
 <div class="content centered">Weather data is hard to work with. What if it wasn't?</div>
@@ -77,9 +74,9 @@
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class="frameHeaderSubtitle">April 2024 temperature</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04-01T00:00'</span><span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
-  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span> \
-  <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04-01T00:00'</span><span class="token punctuation">)</span> \
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-04-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span> \
+  <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-04-01T00:00"</span><span class="token punctuation">)</span> \
   <span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
   <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
     alt="A plot showing global temperature for 2024-04-01" />
@@ -90,12 +87,12 @@
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class="frameHeaderSubtitle">April 2024 temperature anomaly</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">tmp_april_mean <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span> \
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">tmp_april_mean <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span> \
   <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span>ds<span class="token punctuation">.</span>time<span class="token punctuation">.</span>dt<span class="token punctuation">.</span>month <span class="token operator">==</span> <span class="token number">4</span><span class="token punctuation">)</span> \
-  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span>
-tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span> \
-  <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">'2024-04'</span><span class="token punctuation">)</span> \
-  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span>
+  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">"time"</span><span class="token punctuation">)</span>
+tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span> \
+  <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-04"</span><span class="token punctuation">)</span> \
+  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">"time"</span><span class="token punctuation">)</span>
 
 <span class="token punctuation">(</span>tmp_april_2024 <span class="token operator">-</span> tmp_april_mean<span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
   <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
@@ -108,19 +105,19 @@ tmp_april_2024 <span class="token operator">=</span> ds<span class="token punctu
     <div class="frameHeaderSubtitle">Where does it rain the most?</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py"><span class="token punctuation">(</span>
-  ds<span class="token punctuation">[</span><span class="token string">'precipitation_surface'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>
+  ds<span class="token punctuation">[</span><span class="token string">"precipitation_surface"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>
       latitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token number">70</span><span class="token punctuation">,</span> <span class="token number">20</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
       longitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token operator">-</span><span class="token number">150</span><span class="token punctuation">,</span> <span class="token operator">-</span><span class="token number">30</span><span class="token punctuation">)</span>
   <span class="token punctuation">)</span>
-  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span> <span class="token comment"># take the average over ~all time~</span>
+  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">"time"</span><span class="token punctuation">)</span> <span class="token comment"># take the average over ~all time~</span>
   <span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span>
 <span class="token punctuation">)</span></code></pre></code></pre>
   <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py"><span class="token punctuation">(</span>
-  ds<span class="token punctuation">[</span><span class="token string">'precipitation_surface'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>
+  ds<span class="token punctuation">[</span><span class="token string">"precipitation_surface"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>
       latitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token number">70</span><span class="token punctuation">,</span> <span class="token number">20</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
       longitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token operator">-</span><span class="token number">150</span><span class="token punctuation">,</span> <span class="token operator">-</span><span class="token number">30</span><span class="token punctuation">)</span>
   <span class="token punctuation">)</span>
-  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">'time'</span><span class="token punctuation">)</span> <span class="token comment"># take the average over ~all time~</span>
+  <span class="token punctuation">.</span>mean<span class="token punctuation">(</span>dim<span class="token operator">=</span><span class="token string">"time"</span><span class="token punctuation">)</span> <span class="token comment"># take the average over ~all time~</span>
   <span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span>
 <span class="token punctuation">)</span></code></pre></code></pre>
   <img class="frameResult" src="./assets/gfs_precipitation_all_time.png"
