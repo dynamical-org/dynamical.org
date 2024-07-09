@@ -50,8 +50,9 @@ table {
 
 table.data {
   margin-left: -20px;
+  margin-right: -20px;
   border: 1px solid black;
-  width: 100%;
+  width: calc(100% + 40px);
 }
 
 table.data th {
