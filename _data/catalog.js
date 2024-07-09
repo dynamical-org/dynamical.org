@@ -34,6 +34,12 @@ let catalog = [
         <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
         for more information.
         </p>
+
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
       `,
     url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
     status: 'available',
