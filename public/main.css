@@ -65,8 +65,8 @@ th {
   border-right: 1px dotted black;
 }
 
-tr td,
-tr th {
+table.data tr td,
+table.data tr th {
   text-align: right;
 }
 

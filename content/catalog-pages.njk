@@ -114,14 +114,28 @@ eleventyComputed:
   </table>
 
   <h2>Examples</h2>
-</div>
 
-{% for example in entry.examples %}
-<div class="frame">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org - {{entry.name}}</div>
-    <div class="frameHeaderSubtitle">{{example.title}}</div>
+  <table>
+    {% if entry.githubUrl %}
+    <tr>
+      <td style="text-align: center"><img src="/assets/github.svg" height="18" /></td>
+      <td><a href="{{entry.githubUrl}}">Open notebook in github</a></td>
+    </tr>
+    {% endif %}
+    {% if entry.colabUrl %}
+    <td style="text-align: center;"><img src="/assets/colab.svg" height="18" /></td>
+    <td><a href="{{entry.colabUrl}}">Open notebook in colab</a></td>
+    {% endif %}
+  </table>
+
+  {% for example in entry.examples %}
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">dynamical.org - {{entry.name}}</div>
+      <div class="frameHeaderSubtitle">{{example.title}}</div>
+    </div>
+    <pre class="frameContent frameContentDesktop"><code>{{example.code | highlight('py') | safe}}</code></pre>
   </div>
-  <pre class="frameContent frameContentDesktop"><code>{{example.code | highlight('py') | safe}}</code></pre>
+  {% endfor %}
+
 </div>
-{% endfor %}
