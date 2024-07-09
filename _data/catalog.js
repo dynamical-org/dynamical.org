@@ -29,14 +29,14 @@ let catalog = [
         <p>
         The data values in this dataset have been rounded in their binary
         representation to improve compression. We round to retain 9 bits of
-        the floating point number's mantissa (a 10 digit significand) which 
+        the floating point number's mantissa (a 10 digit significand) which
         creates a maximum of 0.2% difference between the original and rounded value. See
         <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
         for more information.
         </p>
       `,
     url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
-    status: 'Release on 2024-07-09',
+    status: 'live',
     examples: [{
       title: 'Mean temperature for a single day',
       code: `
