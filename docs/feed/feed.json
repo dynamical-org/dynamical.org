@@ -11,6 +11,14 @@
   },
   "items": [
     {
+      "id": "https://dynamical.org/updates/2024-07-09/",
+      "url": "https://dynamical.org/updates/2024-07-09/",
+      "title": "Let there be zarr: GFS hourly analysis is live",
+      "content_html": "<p>Last week, we announced <a href=\"http://dynamical.org/\">dynamical.org</a> to the world. The response was unexpected*: in just seven days, over a hundred nerds registered themselves as testers with many more following along for the ride.</p>\n<p>Apparently, we are not alone in our frustration with yesterday's weather data. Together we can create a future of well-organized data about our most beloved chaotic system!</p>\n<p><strong>Today, we are excited to announce the first entry into dynamical’s catalog: <a href=\"https://dynamical.org/catalog/noaa-gfs-analysis-hourly/\">an hourly GFS analysis</a> from 2015-01-15 to present.</strong></p>\n<p>Testers! Fire up your rigs - in the catalog entry above, we've included documentation and an example notebook. If you run into any issues, email us at <a href=\"mailto:feedback@dynamical.org\">feedback@dynamical.org</a>. As our very first release, we’re expecting there will be lots of additions and refinement based on community input.</p>\n<p>Our pals at <a href=\"https://source.coop/\">Source Cooperative</a> are generously providing storage for this first catalog entry. Their team is wonderful and their mission is badass - check them and the broader <a href=\"https://radiant.earth/\">Radiant Earth</a> organization out.</p>\n<p>Enjoy the <a href=\"https://www.youtube.com/watch?v=GvnbpG_NA2Y\">weather</a>^!</p>\n<p>MM</p>\n<p>* or expected, depending on how long you've been working with yesterday's weather data</p>\n<p>^ courtesy of Alex M.</p>\n",
+      "date_published": "2024-07-09T00:00:00Z"
+    }
+    ,
+    {
       "id": "https://dynamical.org/updates/2024-06-25/",
       "url": "https://dynamical.org/updates/2024-06-25/",
       "title": "Introducing dynamical.org",

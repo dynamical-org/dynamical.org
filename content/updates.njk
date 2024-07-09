@@ -25,11 +25,11 @@ redirect_from: [/follow, /follow.html]
 </div>
 
 <div class="content">
-{%- for post in collections.updates -%}
+{%- for post in collections.updates | reverse -%}
   <article>
     <h2>{{post.data.title}}</h2>
     <em>{{post.page.date | readableDate}}</em>
-    {{post.content}}
+    {{post.content | safe}}
   </article>
 {%- endfor -%}
 </div>
