@@ -99,7 +99,6 @@ eleventyComputed:
       <th />
       <th>units</th>
       <th>dimensions</th>
-      <th>range (approx.)</th>
     </tr>
     {% for variable in entry.variables %}
     <tr>
@@ -108,7 +107,6 @@ eleventyComputed:
       </td>
       <td>{{ variable.units }}</td>
       <td>{{ variable._ARRAY_DIMENSIONS.join(' × ') }}</td>
-      <td>{{ variable.range }}</td>
     </tr>
     <tr class="metadata-comment">
       <td colspan="5">
