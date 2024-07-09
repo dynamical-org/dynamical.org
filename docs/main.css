@@ -48,6 +48,11 @@ table {
   border-collapse: collapse;
 }
 
+table td,
+table th {
+  padding: 4px 8px;
+}
+
 table.data {
   margin-left: -20px;
   margin-right: -20px;
@@ -60,7 +65,7 @@ table.data th {
 }
 
 table.data td,
-th {
+table.data th {
   padding: 10px 20px;
   border-right: 1px dotted black;
 }

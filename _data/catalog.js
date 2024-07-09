@@ -36,7 +36,7 @@ let catalog = [
         </p>
       `,
     url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
-    status: 'live',
+    status: 'available',
     examples: [{
       title: 'Mean temperature for a single day',
       code: `

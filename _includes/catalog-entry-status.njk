@@ -1,5 +1,7 @@
 {% if entry.status == 'live' %}
-<span style="background-color: rgb(120, 250, 100);">updating 𝧤</span>
+<span style="background-color: rgb(120, 250, 100);">updating</span>
+{% elseif entry.status == 'available' %}
+<span style="background-color: rgb(120, 250, 100);">available</span>
 {% else %}
 <span style="background-color: rgb(240, 240, 240);">{{entry.status}}</span>
 {% endif -%}

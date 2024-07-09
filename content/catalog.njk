@@ -27,7 +27,7 @@ title: catalog
     <li>
       <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
         <strong>
-          {% if entry.status == 'live' %}
+          {% if entry.status == 'live' or entry.status == 'available' %}
           <a href="/catalog/{{entry.name | slugify }}">{{entry.name}}</a>
           {% else %}
           {{entry.name}}
