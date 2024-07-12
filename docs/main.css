@@ -216,4 +216,8 @@ nav ul li {
   .frameContentMobile {
     display: block;
   }
+
+  .frameHeaderTitle {
+    display: none;
+  }
 }
