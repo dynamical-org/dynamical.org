@@ -71,8 +71,8 @@ eleventyComputed:
   <table class="data">
     <tr>
       <th />
-      <th>start</th>
-      <th>stop</th>
+      <th>min</th>
+      <th>max</th>
       <th>units</th>
     </tr>
     {% for dim in entry.dimensions %}
@@ -80,8 +80,8 @@ eleventyComputed:
       <td>
         <strong>{{ dim.name }}</strong>
       </td>
-      <td>{{ dim.start }}</td>
-      <td>{{ dim.end }}</td>
+      <td>{{ dim.statistics_approximate.min }}</td>
+      <td>{{ dim.statistics_approximate.max }}</td>
       <td>{{ dim.units }}</td>
     </tr>
     <tr class="metadata-comment">

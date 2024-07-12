@@ -1,5 +1,5 @@
 const fetch = require('@11ty/eleventy-fetch');
-const {uniq} = require('lodash');
+const { uniq } = require('lodash');
 
 let catalog = [
   // noaa-gfs-analysis-hourly
@@ -62,8 +62,8 @@ module.exports = async function () {
       continue;
     }
 
-    const metadata = (await fetch(`${catalog[i].url}/.zmetadata`, {type: 'json'}))['metadata'];
-    const metadataKeys = Object.keys(metadata);
+    const metadata = (await fetch(`${catalog[i].url}/.zmetadata`, { type: 'json' }))['metadata'];
+    const metadataKeys = Object.keys(metadata).filter(key => !key.startsWith("spatial_ref"));
     const dimensionKeys = uniq(
       metadataKeys.flatMap((key) => metadata[key]['_ARRAY_DIMENSIONS']).filter((key) => !!key)
     );
@@ -85,10 +85,10 @@ module.exports = async function () {
 
     for (let i = 0; i < variableKeys.length; i++) {
       const key = variableKeys[i];
-      variables.push({name: key, ...metadata[`${key}/.zattrs`], ...metadata[`${key}/.zarray`]});
+      variables.push({ name: key, ...metadata[`${key}/.zattrs`], ...metadata[`${key}/.zarray`] });
     }
 
-    catalog[i] = {...catalog[i], ...metadata['.zattrs'], dimensions, variables};
+    catalog[i] = { ...catalog[i], ...metadata['.zattrs'], dimensions, variables };
   }
 
   return catalog;
