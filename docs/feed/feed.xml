@@ -4,12 +4,45 @@
   <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
   <link href="https://dynamical.org/feed/feed.xml" rel="self" />
   <link href="https://dynamical.org/" />
-  <updated>2024-07-09T00:00:00Z</updated>
+  <updated>2024-09-26T00:00:00Z</updated>
   <id>https://dynamical.org/</id>
   <author>
     <name>dynamical.org</name>
     <email>marshall@dynamical.org</email>
   </author> 
+  <entry>
+    <title>September update</title>
+    <link href="https://dynamical.org/updates/2024-09-26/" />
+    <updated>2024-09-26T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2024-09-26/</id>
+    <content
+      type="html"
+      >&lt;p&gt;Ahoy weatherheads! It’s been a busy few months for us as we shift gears from dreaming to building.&lt;/p&gt;
+&lt;h3&gt;Catalog updates&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Our dataset for &lt;a href=&quot;https://dynamical.org/catalog/noaa-gfs-analysis-hourly/&quot;&gt;NOAA GFS analysis&lt;/a&gt; has getting some awesome usage! Thanks to everyone who has tested it out.&lt;/li&gt;
+&lt;li&gt;We are prepping to launch &lt;strong&gt;NOAA GEFS&lt;/strong&gt; &lt;strong&gt;forecasts&lt;/strong&gt; as the second entry to &lt;a href=&quot;http://dynamical.org/catalog&quot;&gt;dynamical.org/catalog&lt;/a&gt;. It will include a large historical forecast record and update in real-time. Dealing with GEFS in its standard format has, in the past, broken my spirit; and I suppose it’s part of why we are so passionate about making weather data easier to work with! So… thank you GEFS? Excited for this one.
+&lt;img src=&quot;https://dynamical.org/assets/gefs-dlwrf-img-only.png&quot; alt=&quot;GEFS ensemble average downward long-wave radiation flux.&quot;&gt;
+&lt;em&gt;GEFS ensemble average downward long-wave radiation flux.&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;We plan to fast-follow GEFS with &lt;strong&gt;GFS&lt;/strong&gt; (forecasts vs our current analysis) and &lt;strong&gt;HRRR&lt;/strong&gt; from NOAA as well as &lt;strong&gt;GDPS&lt;/strong&gt; and &lt;strong&gt;HRDPS&lt;/strong&gt; from ECCC (Environment and Climate Change Canada). As part of these releases we will be announcing our first &lt;strong&gt;catalog sponsor&lt;/strong&gt;!&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;GFS analysis feedback&lt;/h3&gt;
+&lt;p&gt;A hearty thank you to everyone who filled out our &lt;a href=&quot;https://docs.google.com/forms/d/e/1FAIpQLSeqDiWRfTQfZgejPWWfNoBwcm4m2wxa9qxgSZIunsnbhH15XQ/viewform&quot;&gt;GFS survey&lt;/a&gt;. Common themes included the value of live updating and forecast data, and a clear preference for reading data with python + xarray. That aligned with our expectations (wonderful) and is reflected in our roadmap above. We did see more desire for long history (re)analysis data than we had anticipated -- we&#39;ll be moving up a true reanalysis dataset in priority thanks to this feedback. Reply to this email if there&#39;s a specific reanalysis you&#39;d like!&lt;/p&gt;
+&lt;h3&gt;Assembling our Steering Committee&lt;/h3&gt;
+&lt;p&gt;We are officially launching our steering committee, which will be comprised of industry users and experts in the technical and scientific domain. The committee will meet quarterly to evaluate and influence the catalog and open-source roadmap and advise potential collaborations and partnerships.&lt;/p&gt;
+&lt;p&gt;If you’re interested in joining or nominating someone else, please respond to this email or email &lt;a href=&quot;mailto:marshall@dynamical.org&quot;&gt;marshall@upstream.tech&lt;/a&gt;!&lt;/p&gt;
+&lt;h3&gt;What we’ve been reading&lt;/h3&gt;
+&lt;blockquote&gt;
+&lt;p&gt;My souls, how the wind did scream along! And every second or two there’d come a glare that lit up the white-caps for a half a mile around, and you’d see the islands looking dusty through the rain, and the trees thrashing around in the wind; then comes a &lt;em&gt;h-whack!&lt;/em&gt;—bum! bum! bumble-umble-um-bum-bum-bum-bum—and the thunder would go rumbling and grumbling away, and quit—and then &lt;em&gt;rip&lt;/em&gt; comes another flash and another sockdolager.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I’m reading &lt;em&gt;Adventures of Huckleberry Finn&lt;/em&gt;, which has some stellar meteorological descriptions. Should we petition NOAA to make their detailed forecasts use “h-wack!-bum! bum!” and “sockdolager?” I think yes.&lt;/p&gt;
+&lt;p&gt;We enjoyed Dr. Jack Kelly’s post on the vision this community shares, where he outlined a complimentary route to solving major pain points. Thanks for the &lt;a href=&quot;http://dynamical.org&quot;&gt;dynamical.org&lt;/a&gt; shoutouts, Jack! Definitely check it out here: &lt;a href=&quot;https://openclimatefix.org/post/lazy-loading-making-it-easier-to-access-vast-datasets-of-weather-satellite-data&quot;&gt;https://openclimatefix.org/post/lazy-loading-making-it-easier-to-access-vast-datasets-of-weather-satellite-data&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;We were thrilled to see our pals at &lt;strong&gt;Brightband&lt;/strong&gt; &lt;a href=&quot;https://www.brightband.com/blog/introducing-brightband&quot;&gt;announce themselves to the world&lt;/a&gt;. The field of AI meteorological forecasts is progressing at quite the clip - three cheers for more open source models! We also enjoyed &lt;strong&gt;Zeus AI&lt;/strong&gt;&#39;s cool work &lt;a href=&quot;https://myzeus.ai/earthnet-a-multi-modal-foundation-model-for-global-data-assimilation-of-earth-observations/&quot;&gt;synthesizing multiple, sparse data sources into a single gap filled analysis state&lt;/a&gt;.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;Enjoy the &lt;a href=&quot;https://open.spotify.com/track/1rJi8cf8OWsrX4CqBnMSoQ?si=d985266a142a4669&quot;&gt;weather&lt;/a&gt;!&lt;/p&gt;
+</content
+    >
+  </entry> 
   <entry>
     <title>Let there be zarr: GFS hourly analysis is live</title>
     <link href="https://dynamical.org/updates/2024-07-09/" />

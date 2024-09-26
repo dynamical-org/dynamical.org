@@ -104,6 +104,10 @@ article {
   padding: 2rem 3rem;
 }
 
+article img {
+  max-width: 100%;
+}
+
 nav {
   text-align: right;
 }
