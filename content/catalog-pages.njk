@@ -4,7 +4,7 @@ pagination:
   data: catalog
   alias: entry
   size: 1
-permalink: 'catalog/{{entry.id | slugify}}/'
+permalink: 'catalog/{{entry.dataset_id | slugify}}/'
 eleventyComputed:
   title: '{{entry.name}}'
 ---
