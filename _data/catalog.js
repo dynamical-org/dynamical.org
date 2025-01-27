@@ -70,7 +70,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         start time of the model run as well as by the <code>ensemble_member</code>.
         Each forecast has a 3 hourly forecast step along the <code>lead_time</code>
         dimension. This dataset contains only the 00 hour UTC initialization times
-        which produce the full length 35 day forecast.
+        which produce the full length, 35 day forecast.
         </p>
 
         <p>
@@ -89,8 +89,8 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         </p>
       `,
     // url: 'https://data.dynamical.org/noaa/gefs/forecast/latest.zarr',
-    url: 'https://data.source.coop/dynamical/noaa-gefs-forecast/v0.0.1.zarr',
-    status: 'pre-release',
+    url: 'https://data.source.coop/dynamical/noaa-gefs-forecast/v0.0.3.zarr',
+    status: 'coming soon',
     examples: [{
       title: 'Maximum temperature in ensemble forecast',
       code: `

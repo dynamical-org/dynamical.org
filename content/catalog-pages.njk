@@ -58,6 +58,16 @@ eleventyComputed:
       <td>Time resolution</td>
       <td>{{entry.time_resolution}}</td>
     </tr>
+    {% if entry.forecast_domain %}
+    <tr>
+      <td>Forecast domain</td>
+      <td>{{entry.forecast_domain}}</td>
+    </tr>
+    <tr>
+      <td>Forecast resolution</td>
+      <td>{{entry.forecast_resolution}}</td>
+    </tr>
+    {% endif %}
   </table>
   <p>
     <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=optional@email.com"
