@@ -88,8 +88,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       `,
-    // url: 'https://data.dynamical.org/noaa/gefs/forecast/latest.zarr',
-    url: 'https://data.source.coop/dynamical/noaa-gefs-forecast/v0.0.3.zarr',
+    url: 'https://data.dynamical.org/noaa/gefs/forecast/latest.zarr',
     status: 'coming soon',
     examples: [{
       title: 'Maximum temperature in ensemble forecast',

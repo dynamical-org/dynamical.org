@@ -116,8 +116,8 @@
     
   </table>
   <p>
-    <input id="catalog-entry-url" readonly name="url" value="https://data.source.coop/dynamical/noaa-gefs-forecast/v0.0.3.zarr?email=optional@email.com"
-      style="width: 92ch; max-width: 100%;" />
+    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/forecast/latest.zarr?email=optional@email.com"
+      style="width: 84ch; max-width: 100%;" />
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
     <div class="metadata-comment"><span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org supported for the long-term. For catalog updates follow <a href='/updates'>here</a>.</span></div>
   </p>
@@ -248,10 +248,36 @@
     
     <tr>
       <td>
+        <strong>categorical_freezing_rain_surface_avg</strong>
+      </td>
+      <td>0=no; 1=yes</td>
+      <td>init_time × lead_time × latitude × longitude</td>
+    </tr>
+    <tr class="metadata-comment">
+      <td colspan="5">
+        <span>Categorical freezing rain</span>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
         <strong>categorical_ice_pellets_surface</strong>
       </td>
       <td>0=no; 1=yes</td>
       <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+    </tr>
+    <tr class="metadata-comment">
+      <td colspan="5">
+        <span>Categorical ice pellets</span>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>categorical_ice_pellets_surface_avg</strong>
+      </td>
+      <td>0=no; 1=yes</td>
+      <td>init_time × lead_time × latitude × longitude</td>
     </tr>
     <tr class="metadata-comment">
       <td colspan="5">
@@ -274,10 +300,36 @@
     
     <tr>
       <td>
+        <strong>categorical_rain_surface_avg</strong>
+      </td>
+      <td>0=no; 1=yes</td>
+      <td>init_time × lead_time × latitude × longitude</td>
+    </tr>
+    <tr class="metadata-comment">
+      <td colspan="5">
+        <span>Categorical rain</span>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
         <strong>categorical_snow_surface</strong>
       </td>
       <td>0=no; 1=yes</td>
       <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+    </tr>
+    <tr class="metadata-comment">
+      <td colspan="5">
+        <span>Categorical snow</span>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>categorical_snow_surface_avg</strong>
+      </td>
+      <td>0=no; 1=yes</td>
+      <td>init_time × lead_time × latitude × longitude</td>
     </tr>
     <tr class="metadata-comment">
       <td colspan="5">
@@ -308,6 +360,32 @@
     <tr class="metadata-comment">
       <td colspan="5">
         <span>Surface downward long-wave radiation flux</span>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>downward_short_wave_radiation_flux_surface</strong>
+      </td>
+      <td>W/(m^2)</td>
+      <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+    </tr>
+    <tr class="metadata-comment">
+      <td colspan="5">
+        <span>Surface downward short-wave radiation flux</span>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>downward_short_wave_radiation_flux_surface_avg</strong>
+      </td>
+      <td>W/(m^2)</td>
+      <td>init_time × lead_time × latitude × longitude</td>
+    </tr>
+    <tr class="metadata-comment">
+      <td colspan="5">
+        <span>Surface downward short-wave radiation flux</span>
       </td>
     </tr>
     
