@@ -54,6 +54,53 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
     githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb',
     colabUrl: 'https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb'
   },
+  // noaa-gefs-forecast
+  {
+    descriptionFull: `
+        <p>
+        The Global Ensemble Forecast System (GEFS) is a National Oceanic and
+        Atmospheric Administration (NOAA) National Centers for Environmental
+        Prediction (NCEP) weather forecast model. GEFS creates 31 separate
+        forecasts (ensemble members) to describe the range of forecast uncertainty.
+        </p>
+
+        <p>
+        This dataset is an archive of past and present GEFS forecasts. Forecasts
+        are identified by an initialization time (<code>init_time</code>) denoting the
+        start time of the model run as well as by the <code>ensemble_member</code>.
+        Each forecast has a 3 hourly forecast step along the <code>lead_time</code>
+        dimension. This dataset contains only the 00 hour UTC initialization times
+        which produce the full length, 35 day forecast.
+        </p>
+
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. The exact number of
+        rounded bits has been tuned for each variable and can be inspected in the
+        variable's zarr encoding. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach.
+        </p>
+
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+      `,
+    url: 'https://data.dynamical.org/noaa/gefs/forecast/latest.zarr',
+    status: 'coming soon',
+    examples: [{
+      title: 'Maximum temperature in ensemble forecast',
+      code: `
+import xarray as xr
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast/latest.json?email=optional@email.com")
+ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+    `}],
+    githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast.ipynb',
+    colabUrl: 'https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast.ipynb'
+  },
 ].filter((entry) => !entry.hide);
 
 module.exports = async function () {
@@ -89,6 +136,10 @@ module.exports = async function () {
     }
 
     catalog[i] = { ...catalog[i], ...metadata['.zattrs'], dimensions, variables };
+
+    if (!catalog[i].dataset_id) {
+      catalog[i].dataset_id = catalog[i].id
+    }
   }
 
   return catalog;
