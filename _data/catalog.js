@@ -74,6 +74,13 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         </p>
 
         <p>
+        In addition to the full ensemble traces, an ensemble mean for each variable
+        can be accessed by adding the "_avg" suffix to the variable name (e.g.
+        <code>temperature_2m</code> and <code>temperature_2m_avg</code>). These summary
+        statistics can be significantly faster to load if you do not need the full ensemble.
+        </p>
+
+        <p>
         The data values in this dataset have been rounded in their binary
         floating point representation to improve compression. The exact number of
         rounded bits has been tuned for each variable and can be inspected in the
@@ -95,7 +102,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
       code: `
 import xarray as xr
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast/latest.json?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast/latest.zarr?email=optional@email.com")
 ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `}],
     githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast.ipynb',

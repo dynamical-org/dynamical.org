@@ -98,7 +98,7 @@
     </tr>
     <tr>
       <td>Time domain</td>
-      <td>Forecasts initialized 2025-01-01 00:00:00 UTC to Present</td>
+      <td>Forecasts initialized 2024-01-01 00:00:00 UTC to Present</td>
     </tr>
     <tr>
       <td>Time resolution</td>
@@ -139,6 +139,13 @@
         </p>
 
         <p>
+        In addition to the full ensemble traces, an ensemble mean for each variable
+        can be accessed by adding the "_avg" suffix to the variable name (e.g.
+        <code>temperature_2m</code> and <code>temperature_2m_avg</code>). These summary
+        statistics can be significantly faster to load if you do not need the full ensemble.
+        </p>
+
+        <p>
         The data values in this dataset have been rounded in their binary
         floating point representation to improve compression. The exact number of
         rounded bits has been tuned for each variable and can be inspected in the
@@ -167,7 +174,7 @@
       <td>
         <strong>init_time</strong>
       </td>
-      <td>2025-01-01T00:00:00</td>
+      <td>2024-01-01T00:00:00</td>
       <td>Present</td>
       <td>seconds since 1970-01-01</td>
     </tr>
@@ -217,7 +224,7 @@
       </td>
       <td>-180</td>
       <td>179.75</td>
-      <td>degrees_south</td>
+      <td>degrees_east</td>
     </tr>
     <tr class="metadata-comment">
       <td colspan="4"><span></span></td>
@@ -420,7 +427,7 @@
         <strong>ingested_forecast_length</strong>
       </td>
       <td>seconds</td>
-      <td>init_time</td>
+      <td>init_time × ensemble_member</td>
     </tr>
     <tr class="metadata-comment">
       <td colspan="5">
@@ -715,6 +722,11 @@
     </tr>
     
   </table>
+
+  <p class="metadata-comment">
+  Don't see what you're looking for? Let us know at
+  <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
+  </p>
 
   <h2>Examples</h2>
 
