@@ -78,50 +78,53 @@ eleventyComputed:
   <p style="text-wrap: balance">{{ entry.descriptionFull | safe }}</p>
 
   <h2>Dimensions</h2>
-  <table class="data">
-    <tr>
-      <th />
-      <th>min</th>
-      <th>max</th>
-      <th>units</th>
-    </tr>
-    {% for dim in entry.dimensions %}
-    <tr>
-      <td>
-        <strong>{{ dim.name }}</strong>
-      </td>
-      <td>{{ dim.statistics_approximate.min }}</td>
-      <td>{{ dim.statistics_approximate.max }}</td>
-      <td>{{ dim.units }}</td>
-    </tr>
-    <tr class="metadata-comment">
-      <td colspan="4"><span></span></td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="table-container">
+    <table class="data">
+      <tr>
+        <th />
+        <th>min</th>
+        <th>max</th>
+        <th>units</th>
+      </tr>
+      {% for dim in entry.dimensions %}
+      <tr>
+        <td>
+          <strong>{{ dim.name }}</strong>
+        </td>
+        <td>{{ dim.statistics_approximate.min }}</td>
+        <td>{{ dim.statistics_approximate.max }}</td>
+        <td>{{ dim.units }}</td>
+      </tr>
+      <tr class="metadata-comment">
+        <td colspan="4"><span></span></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
 
   <h2>Variables</h2>
-  <table class="data">
-    <tr>
-      <th />
-      <th>units</th>
-      <th>dimensions</th>
-    </tr>
-    {% for variable in entry.variables %}
-    <tr>
-      <td>
-        <strong>{{ variable.name }}</strong>
-      </td>
-      <td>{{ variable.units }}</td>
-      <td>{{ variable._ARRAY_DIMENSIONS.join(' × ') }}</td>
-    </tr>
-    <tr class="metadata-comment">
-      <td colspan="5">
-        <span>{{ variable.long_name }}</span>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="table-container">
+    <table class="data">
+      <tr>
+        <th />
+        <th>units</th>
+        <th>dimensions</th>
+      </tr>
+      {% for variable in entry.variables %}
+      <tr>
+        <td>
+          <strong>{{ variable.name }}</strong>
+          <p class="metadata-comment">{{ variable.long_name }}</p>
+        </td>
+        <td>{{ variable.units }}</td>
+        <td>{{ variable._ARRAY_DIMENSIONS.join(' × ') }}</td>
+      </tr>
+      <tr class="metadata-comment">
+        <td colspan="3"><span></span></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
 
   <p class="metadata-comment">
   Don't see what you're looking for? Let us know at
