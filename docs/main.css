@@ -55,10 +55,12 @@ table {
 table td,
 table th {
   padding: 4px 8px;
+  overflow-wrap: break-word;
 }
 
 table.data {
   border: 1px solid black;
+  min-width: 640px;
 }
 
 table.data th {
@@ -74,8 +76,6 @@ table.data th {
 table.data tr td,
 table.data tr th {
   text-align: right;
-  overflow-wrap: break-word;
-  max-width: 70vw;
 }
 
 table.data tr td:first-of-type,
