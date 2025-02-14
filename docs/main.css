@@ -44,6 +44,10 @@ p {
   margin-bottom: 1.2rem;
 }
 
+.table-container {
+  overflow-x: auto;
+}
+
 table {
   border-collapse: collapse;
 }
@@ -54,10 +58,7 @@ table th {
 }
 
 table.data {
-  margin-left: -20px;
-  margin-right: -20px;
   border: 1px solid black;
-  width: calc(100% + 40px);
 }
 
 table.data th {
@@ -73,10 +74,12 @@ table.data th {
 table.data tr td,
 table.data tr th {
   text-align: right;
+  overflow-wrap: break-word;
+  max-width: 70vw;
 }
 
-tr td:first-of-type,
-tr th:first-of-type {
+table.data tr td:first-of-type,
+table.data tr th:first-of-type {
   text-align: left;
 }
 
