@@ -54,7 +54,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
     githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb',
     colabUrl: 'https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb'
   },
-  // noaa-gefs-forecast
+  // noaa-gefs-forecast-35-day
   {
     descriptionFull: `
         <p>
@@ -95,18 +95,18 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       `,
-    url: 'https://data.dynamical.org/noaa/gefs/forecast/latest.zarr',
+    url: 'https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr',
     status: 'coming soon',
     examples: [{
       title: 'Maximum temperature in ensemble forecast',
       code: `
 import xarray as xr
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com")
 ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `}],
-    githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast.ipynb',
-    colabUrl: 'https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast.ipynb'
+    githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb',
+    colabUrl: 'https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb'
   },
 ].filter((entry) => !entry.hide);
 
@@ -116,36 +116,40 @@ module.exports = async function () {
       continue;
     }
 
-    const metadata = (await fetch(`${catalog[i].url}/.zmetadata`, { type: 'json' }))['metadata'];
-    const metadataKeys = Object.keys(metadata).filter(key => !key.startsWith("spatial_ref"));
-    const dimensionKeys = uniq(
-      metadataKeys.flatMap((key) => metadata[key]['_ARRAY_DIMENSIONS']).filter((key) => !!key)
-    );
-    const variableKeys = metadataKeys
-      .filter((key) => key.endsWith('.zattrs') && metadata[key]['_ARRAY_DIMENSIONS'])
-      .map((key) => key.substring(0, key.indexOf('/')))
-      .filter((key) => !dimensionKeys.includes(key));
+    if (catalog[i].url.includes('noaa/gfs/analysis-hourly')) {
+      const metadata = (await fetch(`${catalog[i].url}/.zmetadata`, { type: 'json' }))['metadata'];
+      const metadataKeys = Object.keys(metadata).filter(key => !key.startsWith("spatial_ref"));
+      const dimensionKeys = uniq(
+        metadataKeys.flatMap((key) => metadata[key]['_ARRAY_DIMENSIONS']).filter((key) => !!key)
+      );
+      const variableKeys = metadataKeys
+        .filter((key) => key.endsWith('.zattrs') && metadata[key]['_ARRAY_DIMENSIONS'])
+        .map((key) => key.substring(0, key.indexOf('/')))
+        .filter((key) => !dimensionKeys.includes(key));
 
-    let dimensions = [];
-    let variables = [];
-    for (let i = 0; i < dimensionKeys.length; i++) {
-      const key = dimensionKeys[i];
-      dimensions.push({
-        name: key,
-        ...metadata[`${key}/.zattrs`],
-        ...metadata[`${key}/.zarray`],
-      });
-    }
+      let dimensions = [];
+      let variables = [];
+      for (let i = 0; i < dimensionKeys.length; i++) {
+        const key = dimensionKeys[i];
+        dimensions.push({
+          name: key,
+          ...metadata[`${key}/.zattrs`],
+          ...metadata[`${key}/.zarray`],
+        });
+      }
 
-    for (let i = 0; i < variableKeys.length; i++) {
-      const key = variableKeys[i];
-      variables.push({ name: key, ...metadata[`${key}/.zattrs`], ...metadata[`${key}/.zarray`] });
-    }
+      for (let i = 0; i < variableKeys.length; i++) {
+        const key = variableKeys[i];
+        variables.push({ name: key, ...metadata[`${key}/.zattrs`], ...metadata[`${key}/.zarray`] });
+      }
 
-    catalog[i] = { ...catalog[i], ...metadata['.zattrs'], dimensions, variables };
+      catalog[i] = { ...catalog[i], ...metadata['.zattrs'], dimensions, variables };
+      catalog[i].dataset_id = "noaa-gfs-analysis-hourly";
 
-    if (!catalog[i].dataset_id) {
-      catalog[i].dataset_id = catalog[i].id
+    } else {
+        const metadata = (await fetch(`${catalog[i].url}/zarr.json`, { type: 'json' }));
+        console.log(metadata);
+        // TODO fill in catalog with metadata.attributes, and metadata.consolidated_metadata.metadata.{variables} and those variables' dimensions
     }
   }
 
