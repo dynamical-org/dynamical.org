@@ -13,21 +13,17 @@ eleventyComputed:
   .content.catalog-item {
     font-size: 1.4rem;
   }
-
   .metadata-comment {
     font-size: 80%;
   }
-
   .metadata-comment td {
     padding-top: 0;
   }
-
   .metadata-comment span {
     background-color: rgb(250, 250, 250);
     color: rgb(45, 45, 45);
   }
 </style>
-
 <script>
   function copyUrl() {
     const input = document.getElementById('catalog-entry-url');
@@ -35,7 +31,6 @@ eleventyComputed:
     document.execCommand('copy');
   }
 </script>
-
 <div class="content catalog-item">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>{{ entry.name }}</h1>
@@ -44,116 +39,120 @@ eleventyComputed:
   <table>
     <tr>
       <td>Spatial domain</td>
-      <td>{{entry.spatial_domain}}</td>
+      <td>{{ entry.spatial_domain }}</td>
     </tr>
     <tr>
       <td>Spatial resolution</td>
-      <td>{{entry.spatial_resolution}}</td>
+      <td>{{ entry.spatial_resolution }}</td>
     </tr>
     <tr>
       <td>Time domain</td>
-      <td>{{entry.time_domain}}</td>
+      <td>{{ entry.time_domain }}</td>
     </tr>
     <tr>
       <td>Time resolution</td>
-      <td>{{entry.time_resolution}}</td>
+      <td>{{ entry.time_resolution }}</td>
     </tr>
     {% if entry.forecast_domain %}
-    <tr>
-      <td>Forecast domain</td>
-      <td>{{entry.forecast_domain}}</td>
-    </tr>
-    <tr>
-      <td>Forecast resolution</td>
-      <td>{{entry.forecast_resolution}}</td>
-    </tr>
+      <tr>
+        <td>Forecast domain</td>
+        <td>{{ entry.forecast_domain }}</td>
+      </tr>
+      <tr>
+        <td>Forecast resolution</td>
+        <td>{{ entry.forecast_resolution }}</td>
+      </tr>
     {% endif %}
   </table>
   <p>
-    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=optional@email.com"
-      style="width: {{ entry.url.length + 27 }}ch; max-width: 100%;" />
+    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=optional@email.com" style="width: {{ entry.url.length + 27 }}ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
-    <div class="metadata-comment"><span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org supported for the long-term. For catalog updates follow <a href='/updates'>here</a>.</span></div>
+    <div class="metadata-comment">
+      <span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org
+        supported for the long-term. For catalog updates follow
+        <a href='/updates'>here</a>.</span>
+    </div>
   </p>
   <p style="text-wrap: balance">{{ entry.descriptionFull | safe }}</p>
-
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">
       <tr>
-        <th />
+        <th/>
         <th>min</th>
         <th>max</th>
         <th>units</th>
       </tr>
       {% for dim in entry.dimensions %}
-      <tr>
-        <td>
-          <strong>{{ dim.name }}</strong>
-        </td>
-        <td>{{ dim.statistics_approximate.min }}</td>
-        <td>{{ dim.statistics_approximate.max }}</td>
-        <td>{{ dim.units }}</td>
-      </tr>
-      <tr class="metadata-comment">
-        <td colspan="4"><span></span></td>
-      </tr>
+        <tr>
+          <td>
+            <strong>{{ dim.name }}</strong>
+          </td>
+          <td>{{ dim.statistics_approximate.min }}</td>
+          <td>{{ dim.statistics_approximate.max }}</td>
+          <td>{{ dim.units }}</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="4">
+            <span></span>
+          </td>
+        </tr>
       {% endfor %}
     </table>
   </div>
-
   <h2>Variables</h2>
   <div class="table-container">
     <table class="data">
       <tr>
-        <th />
+        <th/>
         <th>units</th>
         <th>dimensions</th>
       </tr>
       {% for variable in entry.variables %}
-      <tr>
-        <td>
-          <strong>{{ variable.name }}</strong>
-          <p class="metadata-comment">{{ variable.long_name }}</p>
-        </td>
-        <td>{{ variable.units }}</td>
-        <td>{{ variable._ARRAY_DIMENSIONS.join(' × ') }}</td>
-      </tr>
-      <tr class="metadata-comment">
-        <td colspan="3"><span></span></td>
-      </tr>
+        <tr>
+          <td>
+            <strong>{{ variable.name }}</strong>
+            <p class="metadata-comment">{{ variable.long_name }}</p>
+          </td>
+          <td>{{ variable.units }}</td>
+          <td>{{ variable.dimension_names.join(' × ') }}</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
       {% endfor %}
     </table>
   </div>
-
   <p class="metadata-comment">
-  Don't see what you're looking for? Let us know at
-  <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
+    Don't see what you're looking for? Let us know at
+    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
   </p>
-
   <h2>Examples</h2>
-
   <table>
     {% if entry.githubUrl %}
-    <tr>
-      <td style="text-align: center"><img src="/assets/github.svg" height="18" /></td>
-      <td><a href="{{entry.githubUrl}}">Open notebook in github</a></td>
-    </tr>
+      <tr>
+        <td style="text-align: center"><img src="/assets/github.svg" height="18"/> </td>
+        <td>
+          <a href="{{ entry.githubUrl }}">Open notebook in github</a>
+        </td>
+      </tr>
     {% endif %}
     {% if entry.colabUrl %}
-    <td style="text-align: center;"><img src="/assets/colab.svg" height="18" /></td>
-    <td><a href="{{entry.colabUrl}}">Open notebook in colab</a></td>
+      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
+      <td>
+        <a href="{{ entry.colabUrl }}">Open notebook in colab</a>
+      </td>
     {% endif %}
   </table>
-
   {% for example in entry.examples %}
-  <div class="frame">
-    <div class="frameHeader">
-      <div class="frameHeaderTitle">dynamical.org - {{entry.name}}</div>
-      <div class="frameHeaderSubtitle">{{example.title}}</div>
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org - {{ entry.name }}</div>
+        <div class="frameHeaderSubtitle">{{ example.title }}</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
     </div>
-    <pre class="frameContent frameContentDesktop"><code>{{example.code | highlight('py') | safe}}</code></pre>
-  </div>
   {% endfor %}
-
 </div>

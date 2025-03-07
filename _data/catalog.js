@@ -1,5 +1,5 @@
-const fetch = require('@11ty/eleventy-fetch');
-const { uniq } = require('lodash');
+const fetch = require("@11ty/eleventy-fetch");
+const { uniq } = require("lodash");
 
 let catalog = [
   // noaa-gfs-analysis-hourly
@@ -41,20 +41,26 @@ let catalog = [
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       `,
-    url: 'https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr',
-    status: 'available',
-    examples: [{
-      title: 'Mean temperature for a single day',
-      code: `
+    url: "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
+    status: "available",
+    examples: [
+      {
+        title: "Mean temperature for a single day",
+        code: `
 import xarray as xr
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.json?email=optional@email.com")
 ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
-    `}],
-    githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb',
-    colabUrl: 'https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb'
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
   },
-  // noaa-gefs-forecast
+
+  // noaa-gefs-forecast-35-day
   {
     descriptionFull: `
         <p>
@@ -95,18 +101,23 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       `,
-    url: 'https://data.dynamical.org/noaa/gefs/forecast/latest.zarr',
-    status: 'coming soon',
-    examples: [{
-      title: 'Maximum temperature in ensemble forecast',
-      code: `
+    url: "https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr",
+    status: "coming soon",
+    examples: [
+      {
+        title: "Maximum temperature in ensemble forecast",
+        code: `
 import xarray as xr
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com")
 ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
-    `}],
-    githubUrl: 'https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast.ipynb',
-    colabUrl: 'https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast.ipynb'
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
   },
 ].filter((entry) => !entry.hide);
 
@@ -116,38 +127,140 @@ module.exports = async function () {
       continue;
     }
 
-    const metadata = (await fetch(`${catalog[i].url}/.zmetadata`, { type: 'json' }))['metadata'];
-    const metadataKeys = Object.keys(metadata).filter(key => !key.startsWith("spatial_ref"));
-    const dimensionKeys = uniq(
-      metadataKeys.flatMap((key) => metadata[key]['_ARRAY_DIMENSIONS']).filter((key) => !!key)
-    );
-    const variableKeys = metadataKeys
-      .filter((key) => key.endsWith('.zattrs') && metadata[key]['_ARRAY_DIMENSIONS'])
-      .map((key) => key.substring(0, key.indexOf('/')))
-      .filter((key) => !dimensionKeys.includes(key));
-
-    let dimensions = [];
-    let variables = [];
-    for (let i = 0; i < dimensionKeys.length; i++) {
-      const key = dimensionKeys[i];
-      dimensions.push({
-        name: key,
-        ...metadata[`${key}/.zattrs`],
-        ...metadata[`${key}/.zarray`],
-      });
-    }
-
-    for (let i = 0; i < variableKeys.length; i++) {
-      const key = variableKeys[i];
-      variables.push({ name: key, ...metadata[`${key}/.zattrs`], ...metadata[`${key}/.zarray`] });
-    }
-
-    catalog[i] = { ...catalog[i], ...metadata['.zattrs'], dimensions, variables };
-
-    if (!catalog[i].dataset_id) {
-      catalog[i].dataset_id = catalog[i].id
+    try {
+      // Try zarr v3 format first
+      const datasetInfo = await processZarrV3(catalog[i].url);
+      catalog[i] = {
+        ...catalog[i],
+        ...datasetInfo,
+      };
+    } catch (e) {
+      console.log(
+        `Falling back to zarr v2 for ${catalog[i].url}: ${e.message}`
+      );
+      // Fall back to zarr v2 format
+      const datasetInfo = await processZarrV2(catalog[i].url);
+      catalog[i] = {
+        ...catalog[i],
+        ...datasetInfo,
+      };
     }
   }
 
   return catalog;
 };
+
+/**
+ * Process zarr v2 metadata format
+ * @param {string} url - URL to the zarr dataset
+ * @returns {Object} - Dataset metadata with dimensions and variables
+ */
+async function processZarrV2(url) {
+  const metadata = (await fetch(`${url}/.zmetadata`, { type: "json" }))[
+    "metadata"
+  ];
+
+  const metadataKeys = Object.keys(metadata).filter(
+    (key) => !key.startsWith("spatial_ref")
+  );
+
+  const dimensionKeys = uniq(
+    metadataKeys
+      .flatMap((key) => metadata[key]["_ARRAY_DIMENSIONS"])
+      .filter((key) => !!key)
+  );
+
+  const variableKeys = metadataKeys
+    .filter(
+      (key) => key.endsWith(".zattrs") && metadata[key]["_ARRAY_DIMENSIONS"]
+    )
+    .map((key) => key.substring(0, key.indexOf("/")))
+    .filter((key) => !dimensionKeys.includes(key));
+
+  let dimensions = [];
+  let variables = [];
+
+  for (let i = 0; i < dimensionKeys.length; i++) {
+    const key = dimensionKeys[i];
+    dimensions.push({
+      name: key,
+      ...metadata[`${key}/.zattrs`],
+      ...metadata[`${key}/.zarray`],
+    });
+  }
+
+  for (let i = 0; i < variableKeys.length; i++) {
+    const key = variableKeys[i];
+    variables.push({
+      name: key,
+      dimension_names: metadata[`${key}/.zattrs`]["_ARRAY_DIMENSIONS"],
+      ...metadata[`${key}/.zattrs`],
+      ...metadata[`${key}/.zarray`],
+    });
+  }
+
+  return {
+    ...metadata[".zattrs"],
+    dataset_id: metadata[".zattrs"]["id"],
+    dimensions,
+    variables,
+  };
+}
+
+/**
+ * Process zarr v3 metadata format
+ * @param {string} url - URL to the zarr dataset
+ * @returns {Object} - Dataset metadata with dimensions and variables
+ */
+async function processZarrV3(url) {
+  const zarrJson = await fetch(`${url}/zarr.json`, { type: "json" });
+
+  if (!zarrJson.consolidated_metadata) {
+    throw new Error("No consolidated metadata found in zarr v3 format");
+  }
+
+  const metadata = zarrJson.consolidated_metadata.metadata;
+  const datasetAttributes = zarrJson.attributes || {};
+
+  const metadataKeys = Object.keys(metadata).filter(
+    (key) => !key.startsWith("spatial_ref")
+  );
+
+  const dimensions = [];
+  const variables = [];
+
+  // Process metadata to identify dimensions and variables
+  for (const key of metadataKeys) {
+    const metaItem = metadata[key];
+
+    // Skip if not an array (likely a group or other metadata)
+    if (!metaItem.shape) continue;
+
+    const dimensionNames = metaItem.dimension_names || [];
+
+    // Determine if this is a dimension or a variable
+    const isDimension =
+      dimensionNames.length === 1 && dimensionNames[0] === key;
+
+    const itemInfo = {
+      name: key,
+      ...metaItem.attributes,
+      shape: metaItem.shape,
+      chunks: metaItem.chunks,
+      dtype: metaItem.dtype,
+      dimension_names: dimensionNames,
+    };
+
+    if (isDimension) {
+      dimensions.push(itemInfo);
+    } else {
+      variables.push(itemInfo);
+    }
+  }
+
+  return {
+    ...datasetAttributes,
+    dimensions,
+    variables,
+  };
+}
