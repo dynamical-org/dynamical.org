@@ -113,6 +113,9 @@ eleventyComputed:
           <td>
             <strong>{{ variable.name }}</strong>
             <p class="metadata-comment">{{ variable.long_name }}</p>
+            {% if variable.comment %}
+              <p class="metadata-comment">{{ variable.comment }}</p>
+            {% endif %}
           </td>
           <td>{{ variable.units }}</td>
           <td>{{ variable.dimension_names.join(' × ') }}</td>
