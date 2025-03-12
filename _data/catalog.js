@@ -4,7 +4,7 @@ const { uniq } = require("lodash");
 let catalog = [
   // noaa-gfs-analysis-hourly
   {
-    descriptionFull: `
+    descriptionSummary: `
         <p>
         The Global Forecast System (GFS) is a National Oceanic and Atmospheric
         Administration (NOAA) National Centers for Environmental Prediction
@@ -27,18 +27,19 @@ let catalog = [
         </p>
 
         <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+      `,
+    descriptionDetails: `
+        <p>
         The data values in this dataset have been rounded in their binary
         representation to improve compression. We round to retain 9 bits of
         the floating point number's mantissa (a 10 digit significand) which
         creates a maximum of 0.2% difference between the original and rounded value. See
         <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
         for more information.
-        </p>
-
-        <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       `,
     url: "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
@@ -62,7 +63,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
 
   // noaa-gefs-forecast-35-day
   {
-    descriptionFull: `
+    descriptionSummary: `
         <p>
         The Global Ensemble Forecast System (GEFS) is a National Oceanic and
         Atmospheric Administration (NOAA) National Centers for Environmental
@@ -80,27 +81,33 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         </p>
 
         <p>
-        In addition to the full ensemble traces, an ensemble mean for each variable
-        can be accessed by adding the "_avg" suffix to the variable name (e.g.
-        <code>temperature_2m</code> and <code>temperature_2m_avg</code>). These summary
-        statistics can be significantly faster to load if you do not need the full ensemble.
-        </p>
-
-        <p>
-        The data values in this dataset have been rounded in their binary
-        floating point representation to improve compression. See
-        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
-        for more information on this approach.
-        </p>
-
-        <p>
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       `,
+    descriptionDetails: `
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gefs/forecast_35_day/template_config.py">reformatting code</a>.
+        </p>
+
+        <p>
+        The source data is available at both 0.25-degree and 0.5-degree resolutions.
+        All variables—except where noted, including the 100m wind components—are derived
+        from a 0.25-degree grid for the first 240 hours of each forecast and from a
+        0.5-degree grid for the remainder. Bilinear interpolation is used to convert
+        0.5-degree data to a 0.25-degree grid. The original 0.5-degree values can be
+        retrieved by selecting every other pixel starting from offset 0 in both the 
+        latitude and longitude dimensions (e.g. <code>array[::2, ::2]</code>).
+        </p>
+      `,
     url: "https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr",
-    status: "coming soon",
+    status: "live",
     examples: [
       {
         title: "Maximum temperature in ensemble forecast",

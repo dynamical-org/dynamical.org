@@ -79,7 +79,7 @@
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>NOAA GEFS forecast, 35 day</h1>
     
-<span style="background-color: rgb(240, 240, 240);">coming soon</span>
+<span style="background-color: rgb(120, 250, 100);">updating</span>
 
   </div>
   <table>
@@ -134,20 +134,6 @@
         Each forecast has a 3 hourly forecast step along the <code>lead_time</code>
         dimension. This dataset contains only the 00 hour UTC initialization times
         which produce the full length, 35 day forecast.
-        </p>
-
-        <p>
-        In addition to the full ensemble traces, an ensemble mean for each variable
-        can be accessed by adding the "_avg" suffix to the variable name (e.g.
-        <code>temperature_2m</code> and <code>temperature_2m_avg</code>). These summary
-        statistics can be significantly faster to load if you do not need the full ensemble.
-        </p>
-
-        <p>
-        The data values in this dataset have been rounded in their binary
-        floating point representation to improve compression. See
-        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
-        for more information on this approach.
         </p>
 
         <p>
@@ -264,42 +250,12 @@
       
         <tr>
           <td>
-            <strong>categorical_freezing_rain_surface_avg</strong>
-            <p class="metadata-comment">Categorical freezing rain</p>
-            
-          </td>
-          <td>0=no; 1=yes</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>categorical_ice_pellets_surface</strong>
             <p class="metadata-comment">Categorical ice pellets</p>
             
           </td>
           <td>0=no; 1=yes</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>categorical_ice_pellets_surface_avg</strong>
-            <p class="metadata-comment">Categorical ice pellets</p>
-            
-          </td>
-          <td>0=no; 1=yes</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -324,42 +280,12 @@
       
         <tr>
           <td>
-            <strong>categorical_rain_surface_avg</strong>
-            <p class="metadata-comment">Categorical rain</p>
-            
-          </td>
-          <td>0=no; 1=yes</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>categorical_snow_surface</strong>
             <p class="metadata-comment">Categorical snow</p>
             
           </td>
           <td>0=no; 1=yes</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>categorical_snow_surface_avg</strong>
-            <p class="metadata-comment">Categorical snow</p>
-            
-          </td>
-          <td>0=no; 1=yes</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -386,23 +312,6 @@
       
         <tr>
           <td>
-            <strong>downward_long_wave_radiation_flux_surface_avg</strong>
-            <p class="metadata-comment">Surface downward long-wave radiation flux</p>
-            
-              <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-            
-          </td>
-          <td>W/(m^2)</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>downward_short_wave_radiation_flux_surface</strong>
             <p class="metadata-comment">Surface downward short-wave radiation flux</p>
             
@@ -411,23 +320,6 @@
           </td>
           <td>W/(m^2)</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>downward_short_wave_radiation_flux_surface_avg</strong>
-            <p class="metadata-comment">Surface downward short-wave radiation flux</p>
-            
-              <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-            
-          </td>
-          <td>W/(m^2)</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -497,42 +389,12 @@
       
         <tr>
           <td>
-            <strong>maximum_temperature_2m_avg</strong>
-            <p class="metadata-comment">Maximum temperature</p>
-            
-          </td>
-          <td>C</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>minimum_temperature_2m</strong>
             <p class="metadata-comment">Minimum temperature</p>
             
           </td>
           <td>C</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>minimum_temperature_2m_avg</strong>
-            <p class="metadata-comment">Minimum temperature</p>
-            
-          </td>
-          <td>C</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -572,21 +434,6 @@
       
         <tr>
           <td>
-            <strong>precipitable_water_atmosphere_avg</strong>
-            <p class="metadata-comment">Precipitable water</p>
-            
-          </td>
-          <td>kg/(m^2)</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>precipitation_surface</strong>
             <p class="metadata-comment">Total Precipitation</p>
             
@@ -595,23 +442,6 @@
           </td>
           <td>mm/s</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>precipitation_surface_avg</strong>
-            <p class="metadata-comment">Total Precipitation</p>
-            
-              <p class="metadata-comment">Average precipitation rate since the previous forecast step.</p>
-            
-          </td>
-          <td>mm/s</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -636,42 +466,12 @@
       
         <tr>
           <td>
-            <strong>pressure_reduced_to_mean_sea_level_avg</strong>
-            <p class="metadata-comment">Pressure reduced to MSL</p>
-            
-          </td>
-          <td>Pa</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>pressure_surface</strong>
             <p class="metadata-comment">Surface pressure</p>
             
           </td>
           <td>Pa</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>pressure_surface_avg</strong>
-            <p class="metadata-comment">Surface pressure</p>
-            
-          </td>
-          <td>Pa</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -696,42 +496,12 @@
       
         <tr>
           <td>
-            <strong>relative_humidity_2m_avg</strong>
-            <p class="metadata-comment">2 metre relative humidity</p>
-            
-          </td>
-          <td>%</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>temperature_2m</strong>
             <p class="metadata-comment">2 metre temperature</p>
             
           </td>
           <td>C</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>temperature_2m_avg</strong>
-            <p class="metadata-comment">2 metre temperature</p>
-            
-          </td>
-          <td>C</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -749,23 +519,6 @@
           </td>
           <td>%</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>total_cloud_cover_atmosphere_avg</strong>
-            <p class="metadata-comment">Total Cloud Cover</p>
-            
-              <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-            
-          </td>
-          <td>%</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -820,21 +573,6 @@
       
         <tr>
           <td>
-            <strong>wind_u_10m_avg</strong>
-            <p class="metadata-comment">10 metre U wind component</p>
-            
-          </td>
-          <td>m/s</td>
-          <td>init_time × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>wind_v_100m</strong>
             <p class="metadata-comment">100 metre V wind component</p>
             
@@ -856,21 +594,6 @@
           </td>
           <td>m/s</td>
           <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>wind_v_10m_avg</strong>
-            <p class="metadata-comment">10 metre V wind component</p>
-            
-          </td>
-          <td>m/s</td>
-          <td>init_time × lead_time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -910,6 +633,29 @@
       <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr<br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>init_time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">,</span> latitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token builtin">max</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
     </div>
   
+  <h2>Details</h2>
+  <p>
+    
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gefs/forecast_35_day/template_config.py">reformatting code</a>.
+        </p>
+
+        <p>
+        The source data is available at both 0.25-degree and 0.5-degree resolutions.
+        All variables—except where noted, including the 100m wind components—are derived
+        from a 0.25-degree grid for the first 240 hours of each forecast and from a
+        0.5-degree grid for the remainder. Bilinear interpolation is used to convert
+        0.5-degree data to a 0.25-degree grid. The original 0.5-degree values can be
+        retrieved by selecting every other pixel starting from offset 0 in both the 
+        latitude and longitude dimensions (e.g. <code>array[::2, ::2]</code>).
+        </p>
+      
+  </p>
 </div>
   </body>
 </html>
