@@ -4,12 +4,144 @@
   <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
   <link href="https://dynamical.org/feed/feed.xml" rel="self" />
   <link href="https://dynamical.org/" />
-  <updated>2024-09-26T00:00:00Z</updated>
+  <updated>2025-03-12T00:00:00Z</updated>
   <id>https://dynamical.org/</id>
   <author>
     <name>dynamical.org</name>
     <email>marshall@dynamical.org</email>
   </author> 
+  <entry>
+    <title>About GEFS-fing Time &amp; Introducing Our Steering Committee</title>
+    <link href="https://dynamical.org/updates/2025-03-12/" />
+    <updated>2025-03-12T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2025-03-12/</id>
+    <content
+      type="html"
+      >&lt;p&gt;Weatherlings, the time has come for our first non-demo release. Weighing in at &lt;strong&gt;115TB&lt;/strong&gt; compressed and &lt;strong&gt;815TB&lt;/strong&gt; (!) uncompressed, GEFS ain’t messing around.&lt;/p&gt;
+&lt;p&gt;Last year, we launched &lt;a href=&quot;https://dynamical.org&quot;&gt;dynamical.org&lt;/a&gt; into the world and watched as hundreds of weather data nerds emerged (sublimated?) from the woodwork. Our community has been growing steadily, united by a shared mission to make weather data &lt;em&gt;Spark Joy&lt;/em&gt;.&lt;/p&gt;
+&lt;h1&gt;🌎 Introducing NOAA&#39;s Global Ensemble Forecast System (GEFS) 35-Day Forecasts!&lt;/h1&gt;
+&lt;p&gt;I am thrilled to announce the latest addition to Dynamical’s catalog: &lt;strong&gt;NOAA&#39;s Global Ensemble Forecast System (GEFS) 35-day forecasts!&lt;/strong&gt;&lt;/p&gt;
+&lt;h2&gt;📦 What&#39;s in the box?&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;The Specs:&lt;/strong&gt;&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Parameter&lt;/th&gt;
+&lt;th&gt;Details&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Spatial Domain&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Global&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Spatial Resolution&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;0-240 hours: 0.25 degrees (~20km), 243-840 hours: 0.5 degrees (~40km)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Time Domain&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Forecasts initialized &lt;strong&gt;2020-10-01 00:00:00 UTC&lt;/strong&gt; to Present&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Time Resolution&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Forecasts initialized every &lt;strong&gt;24 hours&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Forecast Domain&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Forecast lead time &lt;strong&gt;0-840 hours (0-35 days) ahead&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Forecast Resolution&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Forecast step &lt;strong&gt;0-240 hours: 3-hourly&lt;/strong&gt;, 243-840 hours: 6-hourly&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Best of all, it&#39;s &lt;strong&gt;operationally updated with minimal latency&lt;/strong&gt; and available in the &lt;strong&gt;Zarr v3&lt;/strong&gt; format that plants crave:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; xarray &lt;span class=&quot;token keyword&quot;&gt;as&lt;/span&gt; xr
+
+ds &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; xr&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;open_dataset&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We are already using this new dataset for R&amp;amp;D at Upstream Tech, and we &lt;strong&gt;can’t wait to hear how you use it!&lt;/strong&gt; We&#39;ve included &lt;a href=&quot;https://dynamical.org/catalog&quot;&gt;documentation and example notebooks&lt;/a&gt; in the catalog entry to get you started. If you hit snags or have feedback, drop us a line at &lt;a href=&quot;mailto:feedback@dynamical.org&quot;&gt;feedback@dynamical.org&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;We’ll be holding our first dynamical.org office hours Thursday Mar 20, 2025 at 10-11am PDT / 1-2pm EDT / 5-6pm UTC. Join &lt;a href=&quot;https://meet.google.com/wtc-jhff-bxn&quot;&gt;this Google Meet&lt;/a&gt; to ask questions or give feedback.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h1&gt;Introducing Our Steering Committee!&lt;/h1&gt;
+&lt;p&gt;We&#39;re excited to announce the formation of the &lt;strong&gt;dynamical.org Steering Committee!&lt;/strong&gt; This dream team will:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Advise on &lt;strong&gt;project priorities&lt;/strong&gt; (Which datasets to zarr-ify next?)&lt;/li&gt;
+&lt;li&gt;Bridge the gap between &lt;strong&gt;our open-source code and real-world applications&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;Shape the future of how we &lt;strong&gt;access and analyze weather and climate data&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Current Members:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Alden Keefe Sampson&lt;/strong&gt; – dynamical.org &amp;amp; Upstream Tech&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Jack Kelly&lt;/strong&gt; – Open Climate Fix&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Jake Zwart&lt;/strong&gt; – United States Geological Survey&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Joe Hamman&lt;/strong&gt; – Earthmover&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Stephan Hoyer&lt;/strong&gt; – Xarray&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;By bringing together this collective expertise, we&#39;re ensuring that &lt;strong&gt;Dynamical.org remains relevant, impactful, and true to its mission.&lt;/strong&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=2NdhcYnC-V8&quot;&gt;Shine on&lt;/a&gt; (lol),&lt;/p&gt;
+&lt;p&gt;MM&lt;/p&gt;
+</content
+    >
+  </entry> 
+  <entry>
+    <title>Alden @ AMS; GEFS zarrs?!</title>
+    <link href="https://dynamical.org/updates/2025-01-10/" />
+    <updated>2025-01-10T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2025-01-10/</id>
+    <content
+      type="html"
+      >&lt;p&gt;CALLING ALL WEATHER DWEEBS! Bracing for a winter storm here in Nashville, where I moved to from Boston in order to escape winter storms. 3 to 7 inches they say - good thing I brought the XC skis!&lt;/p&gt;
+&lt;h1&gt;dynamical.org @ AMS&lt;/h1&gt;
+&lt;p&gt;From the look of it the vast majority of our subscribers will be at AMS. We are excited to see you there!&lt;/p&gt;
+&lt;p&gt;Alden will be presenting at the 105th Annual Meeting of the American Meteorological Society (AMS) along with our first fiscal sponsor at Hydro-Québec! Their talk, titled “Fast, Easy, Open: Sustaining Live Updating, Analysis Ready, Cloud Optimized Weather Data Archives,” will highlight the vision behind &lt;a href=&quot;http://dynamical.org&quot;&gt;dynamical.org&lt;/a&gt; and the drive to create and sustain ARCO weather datasets.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;🗓️ &lt;strong&gt;When&lt;/strong&gt;: Tuesday, January 14, 9:15 AM&lt;/li&gt;
+&lt;li&gt;📍 Where: &lt;a href=&quot;https://ams.confex.com/ams/105ANNUAL/meetingapp.cgi/Paper/448901&quot;&gt;355 (New Orleans Ernest N. Morial Convention Center)&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If you’re at AMS, find &lt;a href=&quot;https://www.linkedin.com/in/alden-keefe-sampson-a0292164/&quot;&gt;Alden&lt;/a&gt; and Upstream Tech&#39;s &lt;a href=&quot;https://www.linkedin.com/in/phillip-butcher-96ba2461/&quot;&gt;Phil Butcher&lt;/a&gt;.&lt;/p&gt;
+&lt;h1&gt;Catalog Updates: GEFS is Almost Here!&lt;/h1&gt;
+&lt;p&gt;We’ve made some big strides toward releasing a &lt;em&gt;complete&lt;/em&gt; archive and live-updating GEFS dataset to the catalog:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The &lt;a href=&quot;https://github.com/dynamical-org/reformatters&quot;&gt;GEFS reformatter&lt;/a&gt; can now create an archive of years of data &lt;em&gt;super quickly&lt;/em&gt;, thanks to tons of parallelism.&lt;/li&gt;
+&lt;li&gt;The dataset is not only comprehensive but also a dream to work with:&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&gt;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; ds&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;u100
+&lt;span class=&quot;token operator&quot;&gt;&amp;lt;&lt;/span&gt;xarray&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;DataArray &lt;span class=&quot;token string&quot;&gt;&#39;u100&#39;&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; ensemble_member&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; lead_time&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                          latitude&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;721&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; longitude&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1440&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; Size&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; 83MB
+dask&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;array&lt;span class=&quot;token operator&quot;&gt;&amp;lt;&lt;/span&gt;open_dataset&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;u100&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; shape&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;721&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1440&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; dtype&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;float32&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; chunksize&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;73&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;72&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; chunktype&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;numpy&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;ndarray&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt;
+Coordinates&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; ensemble_member           &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ensemble_member&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; uint16 8B &lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;3&lt;/span&gt;
+    expected_forecast_length  &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; timedelta64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 8B &lt;span class=&quot;token number&quot;&gt;35&lt;/span&gt; days
+    ingested_forecast_length  &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; timedelta64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 8B &lt;span class=&quot;token number&quot;&gt;35&lt;/span&gt; days
+  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; init_time                 &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; datetime64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 8B &lt;span class=&quot;token number&quot;&gt;2025&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;01&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;08&lt;/span&gt;
+  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; latitude                  &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;latitude&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; float64 6kB &lt;span class=&quot;token number&quot;&gt;90.0&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;89.75&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;89.75&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;90.0&lt;/span&gt;
+  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; lead_time                 &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;lead_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; timedelta64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 40B &lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt; days &lt;span class=&quot;token number&quot;&gt;00&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;00&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;00.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;
+  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; longitude                 &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;longitude&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; float64 12kB &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;180.0&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;179.8&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;179.8&lt;/span&gt;
+    valid_time                &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; lead_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; datetime64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 40B &lt;span class=&quot;token number&quot;&gt;2025&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;
+Attributes&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    long_name&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;      &lt;span class=&quot;token number&quot;&gt;100&lt;/span&gt; metre U wind component
+    short_name&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;     u100
+    standard_name&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;  eastward_wind
+    step_type&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;      instant
+    units&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;          m&lt;span class=&quot;token operator&quot;&gt;/&lt;/span&gt;s&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Woah nelly, check out those attributes!&lt;/p&gt;
+&lt;p&gt;We’re testing out operational updates in our compute cluster &lt;em&gt;THIS WEEK&lt;/em&gt;. Once that’s complete, we’ll be ready to push live, real-time updates to the catalog. So close, we can almost taste the churros/pancakes/scones (ha ha ha get it).&lt;/p&gt;
+&lt;h1&gt;What We Are Reading&lt;/h1&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Zarr Python 3 released!&lt;/strong&gt; We’re especially excited about the included chunk sharding extension, which will enable a much wider range of efficient read patterns with a single, optimized dataset. &lt;a href=&quot;https://zarr.dev/blog/zarr-python-3-release&quot;&gt;Read more here&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Earthmover debuted Icechunk&lt;/strong&gt;, a new open storage engine for Zarr datasets. It supports simple and correct updates to datasets that are being read from and written to simultaneously (e.g., live-updated weather), along with great features like dataset versioning and improved read performance. We’re already experimenting with it and considering support once the storage format stabilizes. &lt;a href=&quot;https://icechunk.io/&quot;&gt;Check it out here&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;China is planning to become a weather superpower by investing in advanced meteorological technologies and infrastructure to enhance its weather forecasting capabilities. &lt;a href=&quot;https://www.bloomberg.com/news/newsletters/2024-12-11/china-is-planning-to-become-a-weather-superpower&quot;&gt;Bloomberg&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;p&gt;Finally - we&#39;ll be launching our steering committee this quarter. Thanks to all those who responded with interest in helping us achieve our mission.&lt;/p&gt;
+&lt;p&gt;Catch you in the &lt;a href=&quot;https://www.youtube.com/watch?v=3N6rBXI3Uow&quot;&gt;clouds&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;MM&lt;/p&gt;
+</content
+    >
+  </entry> 
   <entry>
     <title>September update</title>
     <link href="https://dynamical.org/updates/2024-09-26/" />
@@ -77,62 +209,6 @@
 &lt;p&gt;Enjoy the &lt;a href=&quot;https://ought.bandcamp.com/track/beautiful-blue-sky&quot;&gt;weather&lt;/a&gt;!&lt;/p&gt;
 &lt;p&gt;MM + AKS&lt;/p&gt;
 &lt;p&gt;P.S. Please forward this email to folks working with weather data and consider amplifying our announcement on &lt;a href=&quot;https://www.linkedin.com/posts/marshallmoutenot_introducing-dynamicalorg-fast-optimized-activity-7211005158162317313-rk-V&quot;&gt;linkedin&lt;/a&gt; / &lt;a href=&quot;https://mastodon.social/@dynamical&quot;&gt;fedi&lt;/a&gt;!&lt;/p&gt;
-</content
-    >
-  </entry> 
-  <entry>
-    <title>Alden @ AMS; GEFS zarrs?!</title>
-    <link href="https://dynamical.org/updates/2025-01-10/" />
-    <updated>2024-01-10T00:00:00Z</updated>
-    <id>https://dynamical.org/updates/2025-01-10/</id>
-    <content
-      type="html"
-      >&lt;p&gt;CALLING ALL WEATHER DWEEBS! Bracing for a winter storm here in Nashville, where I moved to from Boston in order to escape winter storms. 3 to 7 inches they say - good thing I brought the XC skis!&lt;/p&gt;
-&lt;h1&gt;dynamical.org @ AMS&lt;/h1&gt;
-&lt;p&gt;From the look of it the vast majority of our subscribers will be at AMS. We are excited to see you there!&lt;/p&gt;
-&lt;p&gt;Alden will be presenting at the 105th Annual Meeting of the American Meteorological Society (AMS) along with our first fiscal sponsor at Hydro-Québec! Their talk, titled “Fast, Easy, Open: Sustaining Live Updating, Analysis Ready, Cloud Optimized Weather Data Archives,” will highlight the vision behind &lt;a href=&quot;http://dynamical.org&quot;&gt;dynamical.org&lt;/a&gt; and the drive to create and sustain ARCO weather datasets.&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;🗓️ &lt;strong&gt;When&lt;/strong&gt;: Tuesday, January 14, 9:15 AM&lt;/li&gt;
-&lt;li&gt;📍 Where: &lt;a href=&quot;https://ams.confex.com/ams/105ANNUAL/meetingapp.cgi/Paper/448901&quot;&gt;355 (New Orleans Ernest N. Morial Convention Center)&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;If you’re at AMS, find &lt;a href=&quot;https://www.linkedin.com/in/alden-keefe-sampson-a0292164/&quot;&gt;Alden&lt;/a&gt; and Upstream Tech&#39;s &lt;a href=&quot;https://www.linkedin.com/in/phillip-butcher-96ba2461/&quot;&gt;Phil Butcher&lt;/a&gt;.&lt;/p&gt;
-&lt;h1&gt;Catalog Updates: GEFS is Almost Here!&lt;/h1&gt;
-&lt;p&gt;We’ve made some big strides toward releasing a &lt;em&gt;complete&lt;/em&gt; archive and live-updating GEFS dataset to the catalog:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;The &lt;a href=&quot;https://github.com/dynamical-org/reformatters&quot;&gt;GEFS reformatter&lt;/a&gt; can now create an archive of years of data &lt;em&gt;super quickly&lt;/em&gt;, thanks to tons of parallelism.&lt;/li&gt;
-&lt;li&gt;The dataset is not only comprehensive but also a dream to work with:&lt;/li&gt;
-&lt;/ul&gt;
-&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&gt;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; ds&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;u100
-&lt;span class=&quot;token operator&quot;&gt;&amp;lt;&lt;/span&gt;xarray&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;DataArray &lt;span class=&quot;token string&quot;&gt;&#39;u100&#39;&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; ensemble_member&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; lead_time&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
-                          latitude&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;721&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; longitude&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1440&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; Size&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; 83MB
-dask&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;array&lt;span class=&quot;token operator&quot;&gt;&amp;lt;&lt;/span&gt;open_dataset&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;u100&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; shape&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;721&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1440&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; dtype&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;float32&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; chunksize&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;73&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;72&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; chunktype&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;numpy&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;ndarray&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt;
-Coordinates&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
-  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; ensemble_member           &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ensemble_member&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; uint16 8B &lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;3&lt;/span&gt;
-    expected_forecast_length  &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; timedelta64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 8B &lt;span class=&quot;token number&quot;&gt;35&lt;/span&gt; days
-    ingested_forecast_length  &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; timedelta64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 8B &lt;span class=&quot;token number&quot;&gt;35&lt;/span&gt; days
-  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; init_time                 &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; datetime64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 8B &lt;span class=&quot;token number&quot;&gt;2025&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;01&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;08&lt;/span&gt;
-  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; latitude                  &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;latitude&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; float64 6kB &lt;span class=&quot;token number&quot;&gt;90.0&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;89.75&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;89.75&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;90.0&lt;/span&gt;
-  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; lead_time                 &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;lead_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; timedelta64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 40B &lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt; days &lt;span class=&quot;token number&quot;&gt;00&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;00&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;00.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;
-  &lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt; longitude                 &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;longitude&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; float64 12kB &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;180.0&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;179.8&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;179.8&lt;/span&gt;
-    valid_time                &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;init_time&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; lead_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; datetime64&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;ns&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; 40B &lt;span class=&quot;token number&quot;&gt;2025&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;
-Attributes&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
-    long_name&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;      &lt;span class=&quot;token number&quot;&gt;100&lt;/span&gt; metre U wind component
-    short_name&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;     u100
-    standard_name&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;  eastward_wind
-    step_type&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;      instant
-    units&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;          m&lt;span class=&quot;token operator&quot;&gt;/&lt;/span&gt;s&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Woah nelly, check out those attributes!&lt;/p&gt;
-&lt;p&gt;We’re testing out operational updates in our compute cluster &lt;em&gt;THIS WEEK&lt;/em&gt;. Once that’s complete, we’ll be ready to push live, real-time updates to the catalog. So close, we can almost taste the churros/pancakes/scones (ha ha ha get it).&lt;/p&gt;
-&lt;h1&gt;What We Are Reading&lt;/h1&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Zarr Python 3 released!&lt;/strong&gt; We’re especially excited about the included chunk sharding extension, which will enable a much wider range of efficient read patterns with a single, optimized dataset. &lt;a href=&quot;https://zarr.dev/blog/zarr-python-3-release&quot;&gt;Read more here&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Earthmover debuted Icechunk&lt;/strong&gt;, a new open storage engine for Zarr datasets. It supports simple and correct updates to datasets that are being read from and written to simultaneously (e.g., live-updated weather), along with great features like dataset versioning and improved read performance. We’re already experimenting with it and considering support once the storage format stabilizes. &lt;a href=&quot;https://icechunk.io/&quot;&gt;Check it out here&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;China is planning to become a weather superpower by investing in advanced meteorological technologies and infrastructure to enhance its weather forecasting capabilities. &lt;a href=&quot;https://www.bloomberg.com/news/newsletters/2024-12-11/china-is-planning-to-become-a-weather-superpower&quot;&gt;Bloomberg&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;hr&gt;
-&lt;p&gt;Finally - we&#39;ll be launching our steering committee this quarter. Thanks to all those who responded with interest in helping us achieve our mission.&lt;/p&gt;
-&lt;p&gt;Catch you in the &lt;a href=&quot;https://www.youtube.com/watch?v=3N6rBXI3Uow&quot;&gt;clouds&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;MM&lt;/p&gt;
 </content
     >
   </entry>
