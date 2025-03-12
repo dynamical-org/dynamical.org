@@ -73,7 +73,7 @@ eleventyComputed:
         <a href='/updates'>here</a>.</span>
     </div>
   </p>
-  <p style="text-wrap: balance">{{ entry.descriptionFull | safe }}</p>
+  <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">
@@ -158,4 +158,8 @@ eleventyComputed:
       <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
     </div>
   {% endfor %}
+  <h2>Details</h2>
+  <p>
+    {{ entry.descriptionDetails | safe }}
+  </p>
 </div>
