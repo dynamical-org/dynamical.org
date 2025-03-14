@@ -112,7 +112,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
       {
         title: "Maximum temperature in ensemble forecast",
         code: `
-import xarray as xr
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com")
 ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
