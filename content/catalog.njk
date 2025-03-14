@@ -9,56 +9,65 @@ title: catalog
     list-style: none;
     padding: 1rem 0;
   }
-
   .catalog-list li > * {
     margin: 0;
   }
-
   .catalog-list li:last-child {
     border-bottom: none;
   }
 </style>
-
 <div class="content">
-  <h1>Catalog</h1>
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+    <h1>Catalog</h1>
+    <div style="margin-left: auto;">
+      <a href="/catalog/llms">🤖</a>
+    </div>
+  </div>
   <ul class="catalog-list">
-
     {% for entry in catalog %}
-    <li>
-      <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
-        <strong>
-          {% if entry.status == 'live' or entry.status == 'available' %}
-          <a href="/catalog/{{entry.name | slugify }}">{{entry.name}}</a>
-          {% else %}
-          {{entry.name}}
-          {% endif %}
-        </strong>
-        <br />
-
-        {% include "catalog-entry-status.njk" %}
-      </div>
-      <p>{{entry.description}}</p>
-    </li>
+      <li>
+        <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+          <strong>
+            {% if entry.status == 'live' or entry.status == 'available' %}
+              <a href="/catalog/{{ entry.name | slugify }}">{{ entry.name }}</a>
+            {% else %}
+              {{ entry.name }}
+            {% endif %}
+          </strong>
+          <br/> {% include "catalog-entry-status.njk" %}
+        </div>
+        <p>{{ entry.description }}</p>
+      </li>
     {% endfor %}
-
   </ul>
-
   <h2>Phase 1b</h2>
   <ul class="catalog-list">
-    <li><strong>NOAA GEFS analysis</strong></li>
-    <li><strong>NOAA GEFS climatology</strong></li>
+    <li>
+      <strong>NOAA GEFS analysis</strong>
+    </li>
+    <li>
+      <strong>NOAA GEFS climatology</strong>
+    </li>
   </ul>
-
   <h2>Phase 1c</h2>
   <ul class="catalog-list">
-    <li><strong>NOAA GFS forecast</strong></li>
+    <li>
+      <strong>NOAA GFS forecast</strong>
+    </li>
   </ul>
-
   <h2>Phase 2</h2>
   <ul class="catalog-list">
-    <li><strong>ECMWF IFS forecast</strong></li>
-    <li><strong>NOAA HRRR forecast</strong></li>
-    <li><strong>DeepMind GraphCast forecast</strong></li>
-    <li><strong>ECMWF AIFS forecast</strong></li>
+    <li>
+      <strong>ECMWF IFS forecast</strong>
+    </li>
+    <li>
+      <strong>NOAA HRRR forecast</strong>
+    </li>
+    <li>
+      <strong>DeepMind GraphCast forecast</strong>
+    </li>
+    <li>
+      <strong>ECMWF AIFS forecast</strong>
+    </li>
   </ul>
 </div>
