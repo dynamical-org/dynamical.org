@@ -99,11 +99,59 @@
             Don't see what you're looking for? Let us know at
             <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
         </p>
+        <!-- Structured metadata for LLMs -->
+        <div class="llm-metadata" style="display: none;">
+            <script type="application/json">
+                {
+                                    "dataset_name": "{{ entry.name }}", "spatial_domain": "{{ entry.spatial_domain }}",
+                                    "spatial_resolution": "{{ entry.spatial_resolution }}
+                ", "time_domain": "{{ entry.time_domain }}",
+                                    "time_resolution": "{{ entry.time_resolution }}",
+                {% if entry.forecast_domain %}
+                    "forecast_domain": "{{ entry.forecast_domain }}",
+                                        "forecast_resolution": "{{ entry.forecast_resolution }}",
+                {% endif %}
+                "variables": [{% for variable in entry.variables %}{
+                                            "name": "{{ variable.name }}",
+                                            "units": "{{ variable.units }}
+                    ", "dimensions": "{{ variable.dimension_names.join(' × ') }}",
+                                            "long_name": "{{ variable.long_name }}
+                    " }{% if not loop.last %},{% endif %}
+                {% endfor %}],
+                                    "access_url": "{{ entry.url }}"
+                                }
+            </script>
+        </div>
+        <h2>For LLMs & AI Assistants</h2>
+        <div class="llm-context-info">
+            <p>
+                <strong>Dataset summary:</strong>
+                {{ entry.name }} is a dataset containing {{ entry.variables.length }} variables across {{ entry.dimensions.length }}
+                dimensions, covering
+                {{ entry.spatial_domain }} at {{ entry.spatial_resolution }} resolution 
+                                and {{ entry.time_domain }} at
+                {{ entry.time_resolution }} resolution.
+            </p>
+            <p>
+                <strong>Key use cases:</strong>
+                This dataset is suitable for
+                {% if entry.forecast_domain %}forecasting and prediction models,
+                {% endif %}
+                data analysis, visualization, and scientific research related to this domain.
+            </p>
+            <p>
+                <strong>Access pattern:</strong>
+                Use the URL below with optional email parameter to access this dataset programmatically. The dataset follows standard
+                conventions for dimensions and variable naming.
+            </p>
+        </div>
         <h2>Examples</h2>
         {% if entry.githubUrl %}
             <div class="notebook-content">
                 {% set rawUrl = entry.githubUrl | replace("github.com", "raw.githubusercontent.com") | replace("blob/", "refs/heads/") %}
-                <div>{{ rawUrl }}</div>
+                <div class="example-source">Source:
+                    <a href="{{ entry.githubUrl }}">{{ entry.githubUrl }}</a>
+                </div>
                 {{ rawUrl | embedNotebookContent | safe }}
             </div>
         {% endif %}
@@ -113,7 +161,20 @@
                     <div class="frameHeaderTitle">dynamical.org - {{ entry.name }}</div>
                     <div class="frameHeaderSubtitle">{{ example.title }}</div>
                 </div>
-                <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
+                <pre class="frameContent frameContentDesktop"><code class="language-python">
+# Example: {{ example.title }}
+# Dataset: {{ entry.name }}
+# This code demonstrates how to access and process the {{ entry.name }} dataset
+
+{{ example.code | highlight('py') | safe }}</code></pre>
+                <div class="example-notes">
+                    <p>
+                        <strong>What this example does:</strong>
+                        This code demonstrates accessing the {{ entry.name }} dataset and processing its data.</p>
+                    <p>
+                        <strong>Key components:</strong>
+                        Data loading, processing, and potentially visualization of the dataset variables.</p>
+                </div>
             </div>
         {% endfor %}
         <h2>Details</h2>
