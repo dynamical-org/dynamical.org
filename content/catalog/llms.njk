@@ -102,24 +102,17 @@
         <!-- Structured metadata for LLMs -->
         <div class="llm-metadata" style="display: none;">
             <script type="application/json">
-                {
-                                    "dataset_name": "{{ entry.name }}", "spatial_domain": "{{ entry.spatial_domain }}",
-                                    "spatial_resolution": "{{ entry.spatial_resolution }}
-                ", "time_domain": "{{ entry.time_domain }}",
-                                    "time_resolution": "{{ entry.time_resolution }}",
+                { "dataset_name": "{{ entry.name }}", "spatial_domain": "{{ entry.spatial_domain }}", "spatial_resolution": "{{ entry.spatial_resolution }}
+                ", "time_domain": "{{ entry.time_domain }} ", "time_resolution": "{{ entry.time_resolution }}",
                 {% if entry.forecast_domain %}
-                    "forecast_domain": "{{ entry.forecast_domain }}",
-                                        "forecast_resolution": "{{ entry.forecast_resolution }}",
+                    "forecast_domain": "{{ entry.forecast_domain }}", "forecast_resolution": "{{ entry.forecast_resolution }}",
                 {% endif %}
                 "variables": [{% for variable in entry.variables %}{
-                                            "name": "{{ variable.name }}",
-                                            "units": "{{ variable.units }}
-                    ", "dimensions": "{{ variable.dimension_names.join(' × ') }}",
-                                            "long_name": "{{ variable.long_name }}
-                    " }{% if not loop.last %},{% endif %}
+                                                                                    "name": "{{ variable.name }}
+                    ", "units": "{{ variable.units }}
+                    ", "dimensions": "{{ variable.dimension_names.join(' × ') }}", "long_name": "{{ variable.long_name }} " }{% if not loop.last %},{% endif %}
                 {% endfor %}],
-                                    "access_url": "{{ entry.url }}"
-                                }
+                                                                    "access_url": "{{ entry.url }}" }
             </script>
         </div>
         <h2>For LLMs & AI Assistants</h2>
@@ -128,9 +121,8 @@
                 <strong>Dataset summary:</strong>
                 {{ entry.name }} is a dataset containing {{ entry.variables.length }} variables across {{ entry.dimensions.length }}
                 dimensions, covering
-                {{ entry.spatial_domain }} at {{ entry.spatial_resolution }} resolution 
-                                and {{ entry.time_domain }} at
-                {{ entry.time_resolution }} resolution.
+                {{ entry.spatial_domain }} at {{ entry.spatial_resolution }} resolution and
+                {{ entry.time_domain }} at {{ entry.time_resolution }} resolution.
             </p>
             <p>
                 <strong>Key use cases:</strong>
