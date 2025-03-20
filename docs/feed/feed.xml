@@ -4,12 +4,54 @@
   <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
   <link href="https://dynamical.org/feed/feed.xml" rel="self" />
   <link href="https://dynamical.org/" />
-  <updated>2025-03-12T00:00:00Z</updated>
+  <updated>2025-03-20T00:00:00Z</updated>
   <id>https://dynamical.org/</id>
   <author>
     <name>dynamical.org</name>
     <email>marshall@dynamical.org</email>
   </author> 
+  <entry>
+    <title>1 Million Requests!</title>
+    <link href="https://dynamical.org/updates/2025-03-20/" />
+    <updated>2025-03-20T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2025-03-20/</id>
+    <content
+      type="html"
+      >&lt;p&gt;While modest on the scale of Computers, 1M is not bad for our baby’s first week in the world. The gigabytes are flying and we’ve received requests from 51 countries over the last few days. No single person has downloaded the whole dataset, so thank you but also WHAT ARE YOU WAITING FOR?!&lt;/p&gt;
+&lt;p&gt;A reminder that the &lt;a href=&quot;https://dynamical.org/catalog/noaa-gefs-forecast-35-day/&quot;&gt;GEFS&lt;/a&gt; dataset is Zarr v3, so don’t forget to update your Xarray&amp;gt;=2025.1.2 which includes v3 support!&lt;/p&gt;
+&lt;h2&gt;Let’s make Phase 1 happen (and how you can help)&lt;/h2&gt;
+&lt;p&gt;With GEFS complete, we are already working on our next slate of catalog additions. Our Phase 1 will include the following datasets:&lt;/p&gt;
+&lt;p&gt;Forecasts&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;NOAA GEFS, 35 day, 1x day &lt;em&gt;(we did it)&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;NOAA HRRR &lt;em&gt;(Tony is on it!)&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;NOAA GFS &lt;em&gt;(Dan is on it!)&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;NOAA GEFS, 10 day, 4x day&lt;/li&gt;
+&lt;li&gt;ECMWF AIFS&lt;/li&gt;
+&lt;li&gt;ECMWF ENS, 15 day, 1x day&lt;/li&gt;
+&lt;li&gt;ECCC HRDPS&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Analyses&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;NOAA GEFS &lt;em&gt;(Alden is on it!)&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;ECMWF AIFS&lt;/li&gt;
+&lt;li&gt;ECMWF ENS&lt;/li&gt;
+&lt;li&gt;NOAA HRRR&lt;/li&gt;
+&lt;li&gt;NOAA GFS&lt;/li&gt;
+&lt;li&gt;ECCC HRDPS&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Three ways you, dear reader, can help:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;[1] Financial support&lt;/strong&gt;:&lt;/p&gt;
+&lt;p&gt;We estimate that making&lt;strong&gt; Phase 1 operational &amp;amp; publicly accessible&lt;/strong&gt; will run around $100,000 per year with the cost growing by approximately 30% year over year as the datasets get inevitably larger. Pennies compared to the value, in my humble opinion!&lt;/p&gt;
+&lt;p&gt;So… we are seeking our first cohort of sponsors to make these forecasts and analyses a reality. If you belong to an organization that benefits from, and is able to support our work, &lt;strong&gt;we’d love to hear from you&lt;/strong&gt;. Reply to this email to learn more about our plans for fiscal sponsorship.&lt;/p&gt;
+&lt;p&gt;[2] &lt;strong&gt;Publicize these datasets as they’re released!&lt;/strong&gt; Tell your coworkers, post on whatever social media we are using these days, tell your parents over dinner, teach your toddler about scones and pancakes.&lt;/p&gt;
+&lt;p&gt;[3] &lt;strong&gt;Write code?&lt;/strong&gt; Not quite yet but soon. We are testing to see if our open source code so far is sufficiently clear to have other folks pitch in and write reformatters for new datasets. If all goes well we may solicit help from your big brain.&lt;/p&gt;
+&lt;p&gt;Help us out, and especially [1] so that there are NO BLOCKERS, ONLY WEATHER.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=BkimxLUkJwk&quot;&gt;Stay dry&lt;/a&gt;,&lt;/p&gt;
+&lt;p&gt;MM&lt;/p&gt;
+</content
+    >
+  </entry> 
   <entry>
     <title>About GEFS-fing Time &amp; Introducing Our Steering Committee</title>
     <link href="https://dynamical.org/updates/2025-03-12/" />
