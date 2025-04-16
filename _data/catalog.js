@@ -93,7 +93,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
         for more information on this approach. The exact number of rounded bits
         can be found in our
-        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gefs/forecast_35_day/template_config.py">reformatting code</a>.
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gefs/common_gefs_template_config.py">reformatting code</a>.
         </p>
 
         <p>
@@ -123,6 +123,101 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
+  },
+
+  // noaa-gefs-analysis
+  {
+    descriptionSummary: `
+        <p>
+        The Global Ensemble Forecast System (GEFS) is a National Oceanic and
+        Atmospheric Administration (NOAA) National Centers for Environmental
+        Prediction (NCEP) weather forecast model.
+        </p>
+
+        <p>
+        This analysis dataset is an archive of the model's best estimate of past weather.
+        It is created by concatenating the first few hours of each historical forecast to
+        provide a dataset with dimensions time, latitude, and longitude.
+        </p>
+
+        <p>
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gefs-forecast-35-day">GEFS forecast 35 day</a>
+        dataset.
+        </p>
+
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+      `,
+    descriptionDetails: `
+        <p>
+        To provide the longest possible historical record, this dataset in constructed
+        from three distinct GEFS forecast archives.
+        <ul>
+          <li>From 2000-01-01 to 2019-12-31 we use the <a href="https://registry.opendata.aws/noaa-gefs-reforecast/">GEFS reforecast</a>.</li>
+          <li>From 2020-01-01 to 2020-09-23 we use <a href="https://registry.opendata.aws/noaa-gefs/">GEFS forecast archive</a> data which has a lower spatial and temporal resolution.</li>
+          <li>From 2020-09-23 to Present we use <a href="https://registry.opendata.aws/noaa-gefs/">GEFS operational forecast archives</a>.</li>
+        </ul>
+        </p>
+
+        <p>
+        For the extent of the archive except for 2020-01-01 to 2020-09-23 the source data is
+        available at 0.25 degree resolution and a 3 hourly time step. In the first 9 months of
+        2020, the source data has a 1.0 degree spatial resolution and 6 hourly time step.
+        To provide a consistent archive during those months we first perform bilinear interpolation
+        in space to 0.25 degree resolution followed by linear interpolation in time
+        to a 3 hourly timestep. The original, uninterpolated data can be obtained during
+        this period by selecting latitudes and longitudes evenly divisible by 1 and time steps
+        whose hour is divisible by 6.
+        </p>
+
+        <p>
+        Data is available for all variables at all times with the following exceptions:
+        <ul>
+          <li>Unavailable before 2020-01-01:
+            <code>relative_humidity_2m</code>,
+            <code>percent_frozen_precipitation_surface</code>,
+            <code>categorical_freezing_rain_surface</code>,
+            <code>categorical_ice_pellets_surface</code>,
+            <code>categorical_rain_surface</code>,
+            <code>categorical_snow_surface</code>
+          </li>
+          <li>Unavailable 2020-01-01T00 to 2020-09-22T21:
+            <code>geopotential_height_cloud_ceiling</code>
+          </li>
+        </ul>
+        </p>
+
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gefs/common_gefs_template_config.py">reformatting code</a>.
+        </p>
+
+      `,
+    url: "https://data.dynamical.org/noaa/gefs/analysis/latest.zarr",
+    status: "coming soon",
+    examples: [
+      {
+        title: "Temperature at a specific place and time",
+        code: `
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com")
+ds['temperature_2m'].sel(time="2025-01-01T00", latitude=0, longitude=0).compute()
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
   },
 ].filter((entry) => !entry.hide);
 
