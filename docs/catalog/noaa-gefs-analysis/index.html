@@ -5,7 +5,7 @@
     <meta name="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="author" content="Dynamical Team" />
     <meta name="keywords" content="Weather, data, zarr" />
-    <title>dynamical.org - NOAA GEFS forecast, 35 day</title>
+    <title>dynamical.org - NOAA GEFS analysis</title>
     <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data." />
     <meta
       name="license"
@@ -77,9 +77,9 @@
 </script>
 <div class="content catalog-item">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-    <h1>NOAA GEFS forecast, 35 day</h1>
+    <h1>NOAA GEFS analysis</h1>
     
-<span style="background-color: rgb(120, 250, 100);">updating</span>
+<span style="background-color: rgb(240, 240, 240);">coming soon</span>
 
   </div>
   <table>
@@ -89,29 +89,20 @@
     </tr>
     <tr>
       <td>Spatial resolution</td>
-      <td>0-240 hours: 0.25 degrees (~20km), 243-840 hours: 0.5 degrees (~40km)</td>
+      <td>0.25 degrees (~20km)</td>
     </tr>
     <tr>
       <td>Time domain</td>
-      <td>Forecasts initialized 2020-10-01 00:00:00 UTC to Present</td>
+      <td>2000-01-01 00:00:00 UTC to Present</td>
     </tr>
     <tr>
       <td>Time resolution</td>
-      <td>Forecasts initialized every 24 hours.</td>
+      <td>3.0 hours</td>
     </tr>
-    
-      <tr>
-        <td>Forecast domain</td>
-        <td>Forecast lead time 0-840 hours (0-35 days) ahead</td>
-      </tr>
-      <tr>
-        <td>Forecast resolution</td>
-        <td>Forecast step 0-240 hours: 3 hourly, 243-840 hours: 6 hourly</td>
-      </tr>
     
   </table>
   <p>
-    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com" style="width: 91ch; max-width: 100%;"/>
+    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com" style="width: 84ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
     <div class="metadata-comment">
       <span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org
@@ -123,17 +114,19 @@
         <p>
         The Global Ensemble Forecast System (GEFS) is a National Oceanic and
         Atmospheric Administration (NOAA) National Centers for Environmental
-        Prediction (NCEP) weather forecast model. GEFS creates 31 separate
-        forecasts (ensemble members) to describe the range of forecast uncertainty.
+        Prediction (NCEP) weather forecast model.
         </p>
 
         <p>
-        This dataset is an archive of past and present GEFS forecasts. Forecasts
-        are identified by an initialization time (<code>init_time</code>) denoting the
-        start time of the model run as well as by the <code>ensemble_member</code>.
-        Each forecast has a 3 hourly forecast step along the <code>lead_time</code>
-        dimension. This dataset contains only the 00 hour UTC initialization times
-        which produce the full length, 35 day forecast.
+        This analysis dataset is an archive of the model's best estimate of past weather.
+        It is created by concatenating the first few hours of each historical forecast to
+        provide a dataset with dimensions time, latitude, and longitude.
+        </p>
+
+        <p>
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gefs-forecast-35-day">GEFS forecast 35 day</a>
+        dataset.
         </p>
 
         <p>
@@ -154,34 +147,6 @@
       
         <tr>
           <td>
-            <strong>ensemble_member</strong>
-          </td>
-          <td>0</td>
-          <td>30</td>
-          <td>realization</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="4">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>init_time</strong>
-          </td>
-          <td>2020-10-01T00:00:00</td>
-          <td>Present</td>
-          <td>seconds since 1970-01-01</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="4">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
             <strong>latitude</strong>
           </td>
           <td>-90</td>
@@ -196,11 +161,11 @@
       
         <tr>
           <td>
-            <strong>lead_time</strong>
+            <strong>longitude</strong>
           </td>
-          <td>0 days 00:00:00</td>
-          <td>35 days 00:00:00</td>
-          <td>seconds</td>
+          <td>-180</td>
+          <td>179.75</td>
+          <td>degrees_east</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="4">
@@ -210,11 +175,11 @@
       
         <tr>
           <td>
-            <strong>longitude</strong>
+            <strong>time</strong>
           </td>
-          <td>-180</td>
-          <td>179.75</td>
-          <td>degrees_east</td>
+          <td>2000-01-01T00:00:00</td>
+          <td>Present</td>
+          <td>seconds since 1970-01-01</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="4">
@@ -240,7 +205,7 @@
             
           </td>
           <td>0=no; 1=yes</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -255,7 +220,7 @@
             
           </td>
           <td>0=no; 1=yes</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -270,7 +235,7 @@
             
           </td>
           <td>0=no; 1=yes</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -285,7 +250,7 @@
             
           </td>
           <td>0=no; 1=yes</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -302,7 +267,7 @@
             
           </td>
           <td>W/(m^2)</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -319,22 +284,7 @@
             
           </td>
           <td>W/(m^2)</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>expected_forecast_length</strong>
-            <p class="metadata-comment"></p>
-            
-          </td>
-          <td>seconds</td>
-          <td>init_time</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -349,22 +299,7 @@
             
           </td>
           <td>gpm</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>ingested_forecast_length</strong>
-            <p class="metadata-comment"></p>
-            
-          </td>
-          <td>seconds</td>
-          <td>init_time × ensemble_member</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -379,7 +314,7 @@
             
           </td>
           <td>C</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -394,7 +329,7 @@
             
           </td>
           <td>C</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -409,7 +344,7 @@
             
           </td>
           <td>%</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -424,7 +359,7 @@
             
           </td>
           <td>kg/(m^2)</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -441,7 +376,7 @@
             
           </td>
           <td>mm/s</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -456,7 +391,7 @@
             
           </td>
           <td>Pa</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -471,7 +406,7 @@
             
           </td>
           <td>Pa</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -486,7 +421,7 @@
             
           </td>
           <td>%</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -501,7 +436,7 @@
             
           </td>
           <td>C</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -518,22 +453,7 @@
             
           </td>
           <td>%</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      
-        <tr>
-          <td>
-            <strong>valid_time</strong>
-            <p class="metadata-comment"></p>
-            
-          </td>
-          <td>seconds since 1970-01-01</td>
-          <td>init_time × lead_time</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -550,7 +470,7 @@
             
           </td>
           <td>m/s</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -565,7 +485,7 @@
             
           </td>
           <td>m/s</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -582,7 +502,7 @@
             
           </td>
           <td>m/s</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -597,7 +517,7 @@
             
           </td>
           <td>m/s</td>
-          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+          <td>time × latitude × longitude</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
@@ -617,29 +537,67 @@
       <tr>
         <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
         <td>
-          <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb">Open notebook in github</a>
+          <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb">Open notebook in github</a>
         </td>
       </tr>
     
     
       <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
       <td>
-        <a href="https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb">Open notebook in colab</a>
+        <a href="https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb">Open notebook in colab</a>
       </td>
     
   </table>
   
     <div class="frame">
       <div class="frameHeader">
-        <div class="frameHeaderTitle">dynamical.org - NOAA GEFS forecast, 35 day</div>
-        <div class="frameHeaderSubtitle">Maximum temperature in ensemble forecast</div>
+        <div class="frameHeaderTitle">dynamical.org - NOAA GEFS analysis</div>
+        <div class="frameHeaderSubtitle">Temperature at a specific place and time</div>
       </div>
-      <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr  <span class="token comment"># xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support</span><br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>init_time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">,</span> latitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token builtin">max</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+      <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr  <span class="token comment"># xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support</span><br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">,</span> latitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
     </div>
   
   <h2>Details</h2>
   <p>
     
+        <p>
+        To provide the longest possible historical record, this dataset in constructed
+        from three distinct GEFS forecast archives.
+        <ul>
+          <li>From 2000-01-01 to 2019-12-31 we use the <a href="https://registry.opendata.aws/noaa-gefs-reforecast/">GEFS reforecast</a>.</li>
+          <li>From 2020-01-01 to 2020-09-23 we use <a href="https://registry.opendata.aws/noaa-gefs/">GEFS forecast archive</a> data which has a lower spatial and temporal resolution.</li>
+          <li>From 2020-09-23 to Present we use <a href="https://registry.opendata.aws/noaa-gefs/">GEFS operational forecast archives</a>.</li>
+        </ul>
+        </p>
+
+        <p>
+        For the extent of the archive except for 2020-01-01 to 2020-09-23 the source data is
+        available at 0.25 degree resolution and a 3 hourly time step. In the first 9 months of
+        2020, the source data has a 1.0 degree spatial resolution and 6 hourly time step.
+        To provide a consistent archive during those months we first perform bilinear interpolation
+        in space to 0.25 degree resolution followed by linear interpolation in time
+        to a 3 hourly timestep. The original, uninterpolated data can be obtained during
+        this period by selecting latitudes and longitudes evenly divisible by 1 and time steps
+        whose hour is divisible by 6.
+        </p>
+
+        <p>
+        Data is available for all variables at all times with the following exceptions:
+        <ul>
+          <li>Unavailable before 2020-01-01:
+            <code>relative_humidity_2m</code>,
+            <code>percent_frozen_precipitation_surface</code>,
+            <code>categorical_freezing_rain_surface</code>,
+            <code>categorical_ice_pellets_surface</code>,
+            <code>categorical_rain_surface</code>,
+            <code>categorical_snow_surface</code>
+          </li>
+          <li>Unavailable 2020-01-01T00 to 2020-09-22T21:
+            <code>geopotential_height_cloud_ceiling</code>
+          </li>
+        </ul>
+        </p>
+
         <p>
         The data values in this dataset have been rounded in their binary
         floating point representation to improve compression. See
@@ -649,15 +607,6 @@
         <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gefs/common_gefs_template_config.py">reformatting code</a>.
         </p>
 
-        <p>
-        The source data is available at both 0.25-degree and 0.5-degree resolutions.
-        All variables—except where noted, including the 100m wind components—are derived
-        from a 0.25-degree grid for the first 240 hours of each forecast and from a
-        0.5-degree grid for the remainder. Bilinear interpolation is used to convert
-        0.5-degree data to a 0.25-degree grid. The original 0.5-degree values can be
-        retrieved by selecting every other pixel starting from offset 0 in both the 
-        latitude and longitude dimensions (e.g. <code>array[::2, ::2]</code>).
-        </p>
       
   </p>
 </div>
