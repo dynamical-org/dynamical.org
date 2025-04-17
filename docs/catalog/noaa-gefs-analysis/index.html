@@ -560,29 +560,21 @@
   <h2>Details</h2>
   <p>
     
+        <h3>Sources</h3>
         <p>
         To provide the longest possible historical record, this dataset in constructed
         from three distinct GEFS forecast archives.
+        </p>
         <ul>
           <li>From 2000-01-01 to 2019-12-31 we use the <a href="https://registry.opendata.aws/noaa-gefs-reforecast/">GEFS reforecast</a>.</li>
           <li>From 2020-01-01 to 2020-09-23 we use <a href="https://registry.opendata.aws/noaa-gefs/">GEFS forecast archive</a> data which has a lower spatial and temporal resolution.</li>
           <li>From 2020-09-23 to Present we use <a href="https://registry.opendata.aws/noaa-gefs/">GEFS operational forecast archives</a>.</li>
         </ul>
-        </p>
 
+        <h3>Variable availability</h3>
         <p>
-        For the extent of the archive except for 2020-01-01 to 2020-09-23 the source data is
-        available at 0.25 degree resolution and a 3 hourly time step. In the first 9 months of
-        2020, the source data has a 1.0 degree spatial resolution and 6 hourly time step.
-        To provide a consistent archive during those months we first perform bilinear interpolation
-        in space to 0.25 degree resolution followed by linear interpolation in time
-        to a 3 hourly timestep. The original, uninterpolated data can be obtained during
-        this period by selecting latitudes and longitudes evenly divisible by 1 and time steps
-        whose hour is divisible by 6.
+        Data is available for all variables at all times with the following exceptions.
         </p>
-
-        <p>
-        Data is available for all variables at all times with the following exceptions:
         <ul>
           <li>Unavailable before 2020-01-01:
             <code>relative_humidity_2m</code>,
@@ -596,8 +588,33 @@
             <code>geopotential_height_cloud_ceiling</code>
           </li>
         </ul>
+
+        <h3>Construction</h3>
+        <p>
+        To create a single time dimension we concatenate the first few hours of each forecast.
+        From 2000-01-01 to 2019-12-31 reforecasts are available once per day and this dataset
+        uses the first 21 or 24 hours of each forecast. From 2020-01-01 to present forecasts
+        are available every 6 hours and this dataset uses the first 3 or 6 hours of each forecast.
+        Variables with an instantaneous <code>step_type</code> use the shortest possible lead times
+        (e.g. 0 and 3 hours) while accumulated variables must use one additional forecast
+        step (e.g. 3 and 6 hours) because they do not have an hour 0 forecast value.
         </p>
 
+        <h3>Interpolation</h3>
+        <p>
+        For most of the time range of the archive the source data is available at 0.25-degree
+        resolution and a 3 hourly time step and we perform no interpolation. There are two
+        exceptions to this. 1) From 2020-01-01 to 2020-09-23 the source data has a 1.0-degree
+        spatial resolution and a 6 hourly time step. 2) From 2020-09-23 to present the 100m
+        wind components have a 0.5-degree spatial resolution in the source data.
+        To provide a consistent archive in the above two cases we first perform bilinear
+        interpolation in space to 0.25-degree resolution followed by linear interpolation in time
+        to a 3-hourly timestep if necessary. The original, uninterpolated data can be obtained
+        by selecting latitudes and longitudes evenly divisible by 1 and, in case 1), time steps
+        whose hour is divisible by 6.
+        </p>
+
+        <h3>Compression</h3>
         <p>
         The data values in this dataset have been rounded in their binary
         floating point representation to improve compression. See
