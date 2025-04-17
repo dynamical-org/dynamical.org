@@ -51,6 +51,9 @@ module.exports = function (eleventyConfig) {
     const contributorsSet = new Set();
 
     for (const repo of repos) {
+      if (repo.name === "aws-open-data-registry") {
+        continue;
+      }
       // Fetch each repo's contributors with caching
       const repoContributors = await fetch(repo.contributors_url, {
         duration: "1d",
@@ -73,13 +76,57 @@ module.exports = function (eleventyConfig) {
         type: "json",
       });
 
-      // Process the notebook content
-      return `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+      // Create a copy of the notebook to avoid modifying the cached version
+      const cleanedNotebook = JSON.parse(JSON.stringify(json));
+
+      // Remove base64 encoded data and script and style tags from notebook cell outputs
+      if (cleanedNotebook.cells) {
+        cleanedNotebook.cells.forEach(cell => {
+          if (cell.outputs) {
+            cell.outputs.forEach(output => {
+              if (output.data) {
+                const mimeTypes = ['image/png', 'image/jpeg', 'application/pdf', 'application/octet-stream'];
+                mimeTypes.forEach(mimeType => {
+                  if (output.data[mimeType]) {
+                    output.data[mimeType] = '[BASE64_DATA_REMOVED]';
+                  }
+                });
+
+                if (output.data['text/html']) {
+                  if (Array.isArray(output.data['text/html'])) {
+                    const joinedHtml = output.data['text/html'].join('\n');
+                    const cleanedHtml = removeStyleAndScriptTags(joinedHtml);
+                    output.data['text/html'] = cleanedHtml.split('\n');
+                  } else if (typeof output.data['text/html'] === 'string') {
+                    output.data['text/html'] = removeStyleAndScriptTags(output.data['text/html']);
+                  }
+                }
+              }
+            });
+          }
+
+          if (cell.attachments) {
+            Object.keys(cell.attachments).forEach(key => {
+              Object.keys(cell.attachments[key]).forEach(mimeType => {
+                cell.attachments[key][mimeType] = '[BASE64_DATA_REMOVED]';
+              });
+            });
+          }
+        });
+      }
+
+      return `<pre>${JSON.stringify(cleanedNotebook, null, 2)}</pre>`;
     } catch (error) {
       console.error(`Error fetching notebook from ${url}:`, error);
       return `<p>Error loading notebook content: ${error.message}</p>`;
     }
   });
+
+  function removeStyleAndScriptTags(htmlContent) {
+    return htmlContent
+      .replace(/<script[\s\S]*?<\/script>/gi, '[SCRIPT_REMOVED]')
+      .replace(/<style[\s\S]*?<\/style>/gi, '[STYLE_REMOVED]');
+  }
 
   return {
     dir: {
