@@ -76,42 +76,11 @@ module.exports = function (eleventyConfig) {
         type: "json",
       });
 
-      // Create a copy of the notebook to avoid modifying the cached version
+      // Remove outputs from notebook cells, they spew a lot of data that's not LLM friendly.
       const cleanedNotebook = JSON.parse(JSON.stringify(json));
-
-      // Remove base64 encoded data and script and style tags from notebook cell outputs
       if (cleanedNotebook.cells) {
         cleanedNotebook.cells.forEach(cell => {
-          if (cell.outputs) {
-            cell.outputs.forEach(output => {
-              if (output.data) {
-                const mimeTypes = ['image/png', 'image/jpeg', 'application/pdf', 'application/octet-stream'];
-                mimeTypes.forEach(mimeType => {
-                  if (output.data[mimeType]) {
-                    output.data[mimeType] = '[BASE64_DATA_REMOVED]';
-                  }
-                });
-
-                if (output.data['text/html']) {
-                  if (Array.isArray(output.data['text/html'])) {
-                    const joinedHtml = output.data['text/html'].join('\n');
-                    const cleanedHtml = removeStyleAndScriptTags(joinedHtml);
-                    output.data['text/html'] = cleanedHtml.split('\n');
-                  } else if (typeof output.data['text/html'] === 'string') {
-                    output.data['text/html'] = removeStyleAndScriptTags(output.data['text/html']);
-                  }
-                }
-              }
-            });
-          }
-
-          if (cell.attachments) {
-            Object.keys(cell.attachments).forEach(key => {
-              Object.keys(cell.attachments[key]).forEach(mimeType => {
-                cell.attachments[key][mimeType] = '[BASE64_DATA_REMOVED]';
-              });
-            });
-          }
+          cell.outputs = [];
         });
       }
 
@@ -121,12 +90,6 @@ module.exports = function (eleventyConfig) {
       return `<p>Error loading notebook content: ${error.message}</p>`;
     }
   });
-
-  function removeStyleAndScriptTags(htmlContent) {
-    return htmlContent
-      .replace(/<script[\s\S]*?<\/script>/gi, '[SCRIPT_REMOVED]')
-      .replace(/<style[\s\S]*?<\/style>/gi, '[STYLE_REMOVED]');
-  }
 
   return {
     dir: {
