@@ -445,13 +445,15 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         {
             "name": "downward_long_wave_radiation_flux_surface",
             "long_name": "Surface downward long-wave radiation flux",
-            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
         {
             "name": "downward_short_wave_radiation_flux_surface",
             "long_name": "Surface downward short-wave radiation flux",
-            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
         {
@@ -488,6 +490,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
             "name": "percent_frozen_precipitation_surface",
             "long_name": "Percent frozen precipitation",
             "units": "%",
+            "comment": "Contains the value -50 when there is no precipitation.",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
         {
@@ -499,7 +502,8 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         {
             "name": "precipitation_surface",
             "long_name": "Total Precipitation",
-            "units": "mm/s","comment": "Average precipitation rate since the previous forecast step.",
+            "units": "mm/s",
+            "comment": "Average precipitation rate since the previous forecast step.",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
         {
@@ -529,7 +533,8 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         {
             "name": "total_cloud_cover_atmosphere",
             "long_name": "Total Cloud Cover",
-            "units": "%","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "%",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
         {
@@ -541,7 +546,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         {
             "name": "wind_u_100m",
             "long_name": "100 metre U wind component",
-            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
         {
@@ -553,7 +558,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         {
             "name": "wind_v_100m",
             "long_name": "100 metre V wind component",
-            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
         {
@@ -902,13 +907,15 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         {
             "name": "downward_long_wave_radiation_flux_surface",
             "long_name": "Surface downward long-wave radiation flux",
-            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "time × latitude × longitude"
         },
         {
             "name": "downward_short_wave_radiation_flux_surface",
             "long_name": "Surface downward short-wave radiation flux",
-            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "time × latitude × longitude"
         },
         {
@@ -932,7 +939,8 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         {
             "name": "percent_frozen_precipitation_surface",
             "long_name": "Percent frozen precipitation",
-            "units": "%","comment": "Contains the value -50 when there is no precipitation.",
+            "units": "%",
+            "comment": "Contains the value -50 when there is no precipitation.",
             "dimensions": "time × latitude × longitude"
         },
         {
@@ -944,7 +952,8 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         {
             "name": "precipitation_surface",
             "long_name": "Total Precipitation",
-            "units": "mm/s","comment": "Average precipitation rate since the previous forecast step.",
+            "units": "mm/s",
+            "comment": "Average precipitation rate since the previous forecast step.",
             "dimensions": "time × latitude × longitude"
         },
         {
@@ -974,13 +983,14 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         {
             "name": "total_cloud_cover_atmosphere",
             "long_name": "Total Cloud Cover",
-            "units": "%","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "%",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "time × latitude × longitude"
         },
         {
             "name": "wind_u_100m",
             "long_name": "100 metre U wind component",
-            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s",
             "dimensions": "time × latitude × longitude"
         },
         {
@@ -992,7 +1002,7 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         {
             "name": "wind_v_100m",
             "long_name": "100 metre V wind component",
-            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s",
             "dimensions": "time × latitude × longitude"
         },
         {
