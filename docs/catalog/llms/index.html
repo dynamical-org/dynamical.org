@@ -183,35 +183,50 @@
                 
             </table>
         </div>
-        <p class="metadata-comment">
-            Don't see what you're looking for? Let us know at
-            <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
-        </p>
         <!-- Structured metadata for LLMs -->
-        <div class="llm-metadata" style="display: none;">
-            <script type="application/json">
-                { "dataset_name": "NOAA GFS analysis, hourly", "spatial_domain": "Global", "spatial_resolution": "0.25 degrees (~20km)
-                ", "time_domain": "2015-01-15 00:00:00 UTC to 2024-07-01 00:00:00 UTC ", "time_resolution": "1 hour",
-                
-                "variables": [{
-                                                                                    "name": "precipitation_surface
-                    ", "units": "kg/(m^2 s)
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Precipitation rate at earth surface " },
-                {
-                                                                                    "name": "temperature_2m
-                    ", "units": "C
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Temperature 2 meters above earth surface " },
-                {
-                                                                                    "name": "wind_u_10m
-                    ", "units": "m/s
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Wind speed u-component 10 meters above earth surface " },
-                {
-                                                                                    "name": "wind_v_10m
-                    ", "units": "m/s
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Wind speed v-component 10 meters above earth surface " }
-                ],
-                                                                    "access_url": "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr" }
-            </script>
+        <div class="llm-metadata">
+            <pre>
+{
+    "dataset_name": "NOAA GFS analysis, hourly", "spatial_domain": "Global", "spatial_resolution": "0.25 degrees (~20km)",
+    "time_domain": "2015-01-15 00:00:00 UTC to 2024-07-01 00:00:00 UTC", "time_resolution": "1 hour",
+    "access_url": "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
+    
+    "variables": [
+        {
+            "name": "precipitation_surface",
+            "long_name": "Precipitation rate at earth surface",
+            "units": "kg/(m^2 s)",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "temperature_2m",
+            "long_name": "Temperature 2 meters above earth surface",
+            "units": "C",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_u_10m",
+            "long_name": "Wind speed u-component 10 meters above earth surface",
+            "units": "m/s",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_v_10m",
+            "long_name": "Wind speed v-component 10 meters above earth surface",
+            "units": "m/s",
+            
+            "dimensions": "time × latitude × longitude"
+        }
+        
+    ]
+}
+            </pre>
         </div>
         <h2>For LLMs & AI Assistants</h2>
         <div class="llm-context-info">
@@ -230,8 +245,7 @@
             </p>
             <p>
                 <strong>Access pattern:</strong>
-                Use this URL with optional email parameter to access this dataset programmatically. The dataset follows standard
-                conventions for dimensions and variable naming: https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr
+                Use this URL with optional email parameter to access this dataset programmatically: https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr
             </p>
         </div>
         <h2>Details</h2>
@@ -248,6 +262,7 @@
       
         </p>
         <h2>Examples</h2>
+        <h3>Brief example usage:</h3>
         
             <div class="frame">
                 <div class="frameHeader">
@@ -277,6 +292,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         
         
             <div class="notebook-content">
+                <h3>Python notebook example usage:</h3>
                 
                 <div class="example-source">Source:
                     <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb">https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb</a>
@@ -926,117 +942,212 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
                 
             </table>
         </div>
-        <p class="metadata-comment">
-            Don't see what you're looking for? Let us know at
-            <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
-        </p>
         <!-- Structured metadata for LLMs -->
-        <div class="llm-metadata" style="display: none;">
-            <script type="application/json">
-                { "dataset_name": "NOAA GEFS forecast, 35 day", "spatial_domain": "Global", "spatial_resolution": "0-240 hours: 0.25 degrees (~20km), 243-840 hours: 0.5 degrees (~40km)
-                ", "time_domain": "Forecasts initialized 2020-10-01 00:00:00 UTC to Present ", "time_resolution": "Forecasts initialized every 24 hours.",
-                
-                    "forecast_domain": "Forecast lead time 0-840 hours (0-35 days) ahead", "forecast_resolution": "Forecast step 0-240 hours: 3 hourly, 243-840 hours: 6 hourly",
-                
-                "variables": [{
-                                                                                    "name": "categorical_freezing_rain_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Categorical freezing rain " },
-                {
-                                                                                    "name": "categorical_ice_pellets_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Categorical ice pellets " },
-                {
-                                                                                    "name": "categorical_rain_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Categorical rain " },
-                {
-                                                                                    "name": "categorical_snow_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Categorical snow " },
-                {
-                                                                                    "name": "downward_long_wave_radiation_flux_surface
-                    ", "units": "W/(m^2)
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Surface downward long-wave radiation flux " },
-                {
-                                                                                    "name": "downward_short_wave_radiation_flux_surface
-                    ", "units": "W/(m^2)
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Surface downward short-wave radiation flux " },
-                {
-                                                                                    "name": "expected_forecast_length
-                    ", "units": "seconds
-                    ", "dimensions": "init_time", "long_name": " " },
-                {
-                                                                                    "name": "geopotential_height_cloud_ceiling
-                    ", "units": "gpm
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Geopotential height " },
-                {
-                                                                                    "name": "ingested_forecast_length
-                    ", "units": "seconds
-                    ", "dimensions": "init_time × ensemble_member", "long_name": " " },
-                {
-                                                                                    "name": "maximum_temperature_2m
-                    ", "units": "C
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Maximum temperature " },
-                {
-                                                                                    "name": "minimum_temperature_2m
-                    ", "units": "C
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Minimum temperature " },
-                {
-                                                                                    "name": "percent_frozen_precipitation_surface
-                    ", "units": "%
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Percent frozen precipitation " },
-                {
-                                                                                    "name": "precipitable_water_atmosphere
-                    ", "units": "kg/(m^2)
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Precipitable water " },
-                {
-                                                                                    "name": "precipitation_surface
-                    ", "units": "mm/s
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Total Precipitation " },
-                {
-                                                                                    "name": "pressure_reduced_to_mean_sea_level
-                    ", "units": "Pa
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Pressure reduced to MSL " },
-                {
-                                                                                    "name": "pressure_surface
-                    ", "units": "Pa
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Surface pressure " },
-                {
-                                                                                    "name": "relative_humidity_2m
-                    ", "units": "%
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "2 metre relative humidity " },
-                {
-                                                                                    "name": "temperature_2m
-                    ", "units": "C
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "2 metre temperature " },
-                {
-                                                                                    "name": "total_cloud_cover_atmosphere
-                    ", "units": "%
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "Total Cloud Cover " },
-                {
-                                                                                    "name": "valid_time
-                    ", "units": "seconds since 1970-01-01
-                    ", "dimensions": "init_time × lead_time", "long_name": " " },
-                {
-                                                                                    "name": "wind_u_100m
-                    ", "units": "m/s
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "100 metre U wind component " },
-                {
-                                                                                    "name": "wind_u_10m
-                    ", "units": "m/s
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "10 metre U wind component " },
-                {
-                                                                                    "name": "wind_v_100m
-                    ", "units": "m/s
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "100 metre V wind component " },
-                {
-                                                                                    "name": "wind_v_10m
-                    ", "units": "m/s
-                    ", "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude", "long_name": "10 metre V wind component " }
-                ],
-                                                                    "access_url": "https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr" }
-            </script>
+        <div class="llm-metadata">
+            <pre>
+{
+    "dataset_name": "NOAA GEFS forecast, 35 day", "spatial_domain": "Global", "spatial_resolution": "0-240 hours: 0.25 degrees (~20km), 243-840 hours: 0.5 degrees (~40km)",
+    "time_domain": "Forecasts initialized 2020-10-01 00:00:00 UTC to Present", "time_resolution": "Forecasts initialized every 24 hours.",
+    "access_url": "https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr",
+    
+    "forecast_domain": "Forecast lead time 0-840 hours (0-35 days) ahead", "forecast_resolution": "Forecast step 0-240 hours: 3 hourly, 243-840 hours: 6 hourly",
+    
+    "variables": [
+        {
+            "name": "categorical_freezing_rain_surface",
+            "long_name": "Categorical freezing rain",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "categorical_ice_pellets_surface",
+            "long_name": "Categorical ice pellets",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "categorical_rain_surface",
+            "long_name": "Categorical rain",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "categorical_snow_surface",
+            "long_name": "Categorical snow",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "downward_long_wave_radiation_flux_surface",
+            "long_name": "Surface downward long-wave radiation flux",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "downward_short_wave_radiation_flux_surface",
+            "long_name": "Surface downward short-wave radiation flux",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "expected_forecast_length",
+            "long_name": "",
+            "units": "seconds",
+            
+            "dimensions": "init_time"
+        },
+        
+        {
+            "name": "geopotential_height_cloud_ceiling",
+            "long_name": "Geopotential height",
+            "units": "gpm",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "ingested_forecast_length",
+            "long_name": "",
+            "units": "seconds",
+            
+            "dimensions": "init_time × ensemble_member"
+        },
+        
+        {
+            "name": "maximum_temperature_2m",
+            "long_name": "Maximum temperature",
+            "units": "C",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "minimum_temperature_2m",
+            "long_name": "Minimum temperature",
+            "units": "C",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "percent_frozen_precipitation_surface",
+            "long_name": "Percent frozen precipitation",
+            "units": "%",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "precipitable_water_atmosphere",
+            "long_name": "Precipitable water",
+            "units": "kg/(m^2)",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "precipitation_surface",
+            "long_name": "Total Precipitation",
+            "units": "mm/s",
+            "comment": "Average precipitation rate since the previous forecast step.",
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "pressure_reduced_to_mean_sea_level",
+            "long_name": "Pressure reduced to MSL",
+            "units": "Pa",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "pressure_surface",
+            "long_name": "Surface pressure",
+            "units": "Pa",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "relative_humidity_2m",
+            "long_name": "2 metre relative humidity",
+            "units": "%",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "temperature_2m",
+            "long_name": "2 metre temperature",
+            "units": "C",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "total_cloud_cover_atmosphere",
+            "long_name": "Total Cloud Cover",
+            "units": "%",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "valid_time",
+            "long_name": "",
+            "units": "seconds since 1970-01-01",
+            
+            "dimensions": "init_time × lead_time"
+        },
+        
+        {
+            "name": "wind_u_100m",
+            "long_name": "100 metre U wind component",
+            "units": "m/s",
+            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_u_10m",
+            "long_name": "10 metre U wind component",
+            "units": "m/s",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_v_100m",
+            "long_name": "100 metre V wind component",
+            "units": "m/s",
+            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_v_10m",
+            "long_name": "10 metre V wind component",
+            "units": "m/s",
+            
+            "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
+        }
+        
+    ]
+}
+            </pre>
         </div>
         <h2>For LLMs & AI Assistants</h2>
         <div class="llm-context-info">
@@ -1056,8 +1167,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
             </p>
             <p>
                 <strong>Access pattern:</strong>
-                Use this URL with optional email parameter to access this dataset programmatically. The dataset follows standard
-                conventions for dimensions and variable naming: https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr
+                Use this URL with optional email parameter to access this dataset programmatically: https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr
             </p>
         </div>
         <h2>Details</h2>
@@ -1087,6 +1197,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
       
         </p>
         <h2>Examples</h2>
+        <h3>Brief example usage:</h3>
         
             <div class="frame">
                 <div class="frameHeader">
@@ -1116,6 +1227,7 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         
         
             <div class="notebook-content">
+                <h3>Python notebook example usage:</h3>
                 
                 <div class="example-source">Source:
                     <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb">https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb</a>
@@ -1709,103 +1821,186 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
                 
             </table>
         </div>
-        <p class="metadata-comment">
-            Don't see what you're looking for? Let us know at
-            <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
-        </p>
         <!-- Structured metadata for LLMs -->
-        <div class="llm-metadata" style="display: none;">
-            <script type="application/json">
-                { "dataset_name": "NOAA GEFS analysis", "spatial_domain": "Global", "spatial_resolution": "0.25 degrees (~20km)
-                ", "time_domain": "2000-01-01 00:00:00 UTC to Present ", "time_resolution": "3.0 hours",
-                
-                "variables": [{
-                                                                                    "name": "categorical_freezing_rain_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Categorical freezing rain " },
-                {
-                                                                                    "name": "categorical_ice_pellets_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Categorical ice pellets " },
-                {
-                                                                                    "name": "categorical_rain_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Categorical rain " },
-                {
-                                                                                    "name": "categorical_snow_surface
-                    ", "units": "0=no; 1=yes
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Categorical snow " },
-                {
-                                                                                    "name": "downward_long_wave_radiation_flux_surface
-                    ", "units": "W/(m^2)
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Surface downward long-wave radiation flux " },
-                {
-                                                                                    "name": "downward_short_wave_radiation_flux_surface
-                    ", "units": "W/(m^2)
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Surface downward short-wave radiation flux " },
-                {
-                                                                                    "name": "geopotential_height_cloud_ceiling
-                    ", "units": "gpm
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Geopotential height " },
-                {
-                                                                                    "name": "maximum_temperature_2m
-                    ", "units": "C
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Maximum temperature " },
-                {
-                                                                                    "name": "minimum_temperature_2m
-                    ", "units": "C
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Minimum temperature " },
-                {
-                                                                                    "name": "percent_frozen_precipitation_surface
-                    ", "units": "%
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Percent frozen precipitation " },
-                {
-                                                                                    "name": "precipitable_water_atmosphere
-                    ", "units": "kg/(m^2)
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Precipitable water " },
-                {
-                                                                                    "name": "precipitation_surface
-                    ", "units": "mm/s
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Total Precipitation " },
-                {
-                                                                                    "name": "pressure_reduced_to_mean_sea_level
-                    ", "units": "Pa
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Pressure reduced to MSL " },
-                {
-                                                                                    "name": "pressure_surface
-                    ", "units": "Pa
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Surface pressure " },
-                {
-                                                                                    "name": "relative_humidity_2m
-                    ", "units": "%
-                    ", "dimensions": "time × latitude × longitude", "long_name": "2 metre relative humidity " },
-                {
-                                                                                    "name": "temperature_2m
-                    ", "units": "C
-                    ", "dimensions": "time × latitude × longitude", "long_name": "2 metre temperature " },
-                {
-                                                                                    "name": "total_cloud_cover_atmosphere
-                    ", "units": "%
-                    ", "dimensions": "time × latitude × longitude", "long_name": "Total Cloud Cover " },
-                {
-                                                                                    "name": "wind_u_100m
-                    ", "units": "m/s
-                    ", "dimensions": "time × latitude × longitude", "long_name": "100 metre U wind component " },
-                {
-                                                                                    "name": "wind_u_10m
-                    ", "units": "m/s
-                    ", "dimensions": "time × latitude × longitude", "long_name": "10 metre U wind component " },
-                {
-                                                                                    "name": "wind_v_100m
-                    ", "units": "m/s
-                    ", "dimensions": "time × latitude × longitude", "long_name": "100 metre V wind component " },
-                {
-                                                                                    "name": "wind_v_10m
-                    ", "units": "m/s
-                    ", "dimensions": "time × latitude × longitude", "long_name": "10 metre V wind component " }
-                ],
-                                                                    "access_url": "https://data.dynamical.org/noaa/gefs/analysis/latest.zarr" }
-            </script>
+        <div class="llm-metadata">
+            <pre>
+{
+    "dataset_name": "NOAA GEFS analysis", "spatial_domain": "Global", "spatial_resolution": "0.25 degrees (~20km)",
+    "time_domain": "2000-01-01 00:00:00 UTC to Present", "time_resolution": "3.0 hours",
+    "access_url": "https://data.dynamical.org/noaa/gefs/analysis/latest.zarr",
+    
+    "variables": [
+        {
+            "name": "categorical_freezing_rain_surface",
+            "long_name": "Categorical freezing rain",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "categorical_ice_pellets_surface",
+            "long_name": "Categorical ice pellets",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "categorical_rain_surface",
+            "long_name": "Categorical rain",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "categorical_snow_surface",
+            "long_name": "Categorical snow",
+            "units": "0=no; 1=yes",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "downward_long_wave_radiation_flux_surface",
+            "long_name": "Surface downward long-wave radiation flux",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "downward_short_wave_radiation_flux_surface",
+            "long_name": "Surface downward short-wave radiation flux",
+            "units": "W/(m^2)",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "geopotential_height_cloud_ceiling",
+            "long_name": "Geopotential height",
+            "units": "gpm",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "maximum_temperature_2m",
+            "long_name": "Maximum temperature",
+            "units": "C",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "minimum_temperature_2m",
+            "long_name": "Minimum temperature",
+            "units": "C",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "percent_frozen_precipitation_surface",
+            "long_name": "Percent frozen precipitation",
+            "units": "%",
+            "comment": "Contains the value -50 when there is no precipitation.",
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "precipitable_water_atmosphere",
+            "long_name": "Precipitable water",
+            "units": "kg/(m^2)",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "precipitation_surface",
+            "long_name": "Total Precipitation",
+            "units": "mm/s",
+            "comment": "Average precipitation rate since the previous forecast step.",
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "pressure_reduced_to_mean_sea_level",
+            "long_name": "Pressure reduced to MSL",
+            "units": "Pa",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "pressure_surface",
+            "long_name": "Surface pressure",
+            "units": "Pa",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "relative_humidity_2m",
+            "long_name": "2 metre relative humidity",
+            "units": "%",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "temperature_2m",
+            "long_name": "2 metre temperature",
+            "units": "C",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "total_cloud_cover_atmosphere",
+            "long_name": "Total Cloud Cover",
+            "units": "%",
+            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_u_100m",
+            "long_name": "100 metre U wind component",
+            "units": "m/s",
+            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_u_10m",
+            "long_name": "10 metre U wind component",
+            "units": "m/s",
+            
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_v_100m",
+            "long_name": "100 metre V wind component",
+            "units": "m/s",
+            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "dimensions": "time × latitude × longitude"
+        },
+        
+        {
+            "name": "wind_v_10m",
+            "long_name": "10 metre V wind component",
+            "units": "m/s",
+            
+            "dimensions": "time × latitude × longitude"
+        }
+        
+    ]
+}
+            </pre>
         </div>
         <h2>For LLMs & AI Assistants</h2>
         <div class="llm-context-info">
@@ -1824,8 +2019,7 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
             </p>
             <p>
                 <strong>Access pattern:</strong>
-                Use this URL with optional email parameter to access this dataset programmatically. The dataset follows standard
-                conventions for dimensions and variable naming: https://data.dynamical.org/noaa/gefs/analysis/latest.zarr
+                Use this URL with optional email parameter to access this dataset programmatically: https://data.dynamical.org/noaa/gefs/analysis/latest.zarr
             </p>
         </div>
         <h2>Details</h2>
@@ -1898,6 +2092,7 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       
         </p>
         <h2>Examples</h2>
+        <h3>Brief example usage:</h3>
         
             <div class="frame">
                 <div class="frameHeader">
@@ -1927,6 +2122,7 @@ ds['temperature_2m'].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
         
         
             <div class="notebook-content">
+                <h3>Python notebook example usage:</h3>
                 
                 <div class="example-source">Source:
                     <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb">https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb</a>
