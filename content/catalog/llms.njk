@@ -1,3 +1,10 @@
+<h1>dynamical.org Zarr Weather Dataset Catalog</h1>
+<p>
+dynamical.org transforms weather data archives into the zarr file format, making
+them easier to access.
+This page contains the contents of dynamical.org's dataset catalog documentation,
+concatenated into a single page designed to be read by an LLM or AI assistant.
+</p>
 {% for entry in catalog %}
     <div class="content catalog-item">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
@@ -35,84 +42,45 @@
                 </tr>
             {% endif %}
         </table>
+        <h2>Description</h2>
         <p>
-            <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=optional@email.com" style="width: {{ entry.url.length + 27 }}ch; max-width: 100%;"/>
-            <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
+            {{ entry.descriptionSummary | safe }}
         </p>
-        <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
-        <h2>Dimensions</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>min</th>
-                    <th>max</th>
-                    <th>units</th>
-                </tr>
-                {% for dim in entry.dimensions %}
-                    <tr>
-                        <td>
-                            <strong>{{ dim.name }}</strong>
-                        </td>
-                        <td>{{ dim.statistics_approximate.min }}</td>
-                        <td>{{ dim.statistics_approximate.max }}</td>
-                        <td>{{ dim.units }}</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </table>
-        </div>
-        <h2>Variables</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>units</th>
-                    <th>dimensions</th>
-                </tr>
-                {% for variable in entry.variables %}
-                    <tr>
-                        <td>
-                            <strong>{{ variable.name }}</strong>
-                            <p class="metadata-comment">{{ variable.long_name }}</p>
-                            {% if variable.comment %}
-                                <p class="metadata-comment">{{ variable.comment }}</p>
-                            {% endif %}
-                        </td>
-                        <td>{{ variable.units }}</td>
-                        <td>{{ variable.dimension_names.join(' × ') }}</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </table>
-        </div>
         <!-- Structured metadata for LLMs -->
         <div class="llm-metadata">
-            <pre>
+            <pre class="llm-metadata">
 {
-    "dataset_name": "{{ entry.name }}", "spatial_domain": "{{ entry.spatial_domain }}", "spatial_resolution": "{{ entry.spatial_resolution }}",
-    "time_domain": "{{ entry.time_domain }}", "time_resolution": "{{ entry.time_resolution }}",
-    "access_url": "{{ entry.url }}",
-    {% if entry.forecast_domain %}
-    "forecast_domain": "{{ entry.forecast_domain }}", "forecast_resolution": "{{ entry.forecast_resolution }}",
-    {% endif %}
-    "variables": [{% for variable in entry.variables %}
+    "dataset_name": "{{ entry.name }}",
+    "description_short": "{{ entry.description }}",
+    "url": "{{ entry.url }}",
+    "spatial_domain": "{{ entry.spatial_domain }}",
+    "spatial_resolution": "{{ entry.spatial_resolution }}",
+    "time_domain": "{{ entry.time_domain }}",
+    "time_resolution": "{{ entry.time_resolution }}",
+    {%- if entry.forecast_domain %}
+    "forecast_domain": "{{ entry.forecast_domain }}",
+    "forecast_resolution": "{{ entry.forecast_resolution }}",
+    {%- endif %}
+    "dimensions": [
+        {%- for dim in entry.dimensions %}
+        {
+            "name": "{{ dim.name }}",
+            "min": "{{ dim.statistics_approximate.min }}",
+            "max": "{{ dim.statistics_approximate.max }}",
+            "units": "{{ dim.units }}"
+        }{% if not loop.last %},{% endif %}
+        {%- endfor %}
+    ],
+    "variables": [
+        {%- for variable in entry.variables %}
         {
             "name": "{{ variable.name }}",
             "long_name": "{{ variable.long_name }}",
             "units": "{{ variable.units }}",
-            {% if variable.comment %}"comment": "{{ variable.comment }}",{% endif %}
+            {%- if variable.comment %}"comment": "{{ variable.comment }}",{%- endif %}
             "dimensions": "{{ variable.dimension_names.join(' × ') }}"
         }{% if not loop.last %},{% endif %}
-        {% endfor %}
+        {%- endfor %}
     ]
 }
             </pre>

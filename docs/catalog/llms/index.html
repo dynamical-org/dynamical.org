@@ -1,3 +1,10 @@
+<h1>dynamical.org Zarr Weather Dataset Catalog</h1>
+<p>
+dynamical.org transforms weather data archives into the zarr file format, making
+them easier to access.
+This page contains the contents of dynamical.org's dataset catalog documentation,
+concatenated into a single page designed to be read by an LLM or AI assistant.
+</p>
 
     <div class="content catalog-item">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
@@ -26,11 +33,9 @@
             </tr>
             
         </table>
+        <h2>Description</h2>
         <p>
-            <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=optional@email.com" style="width: 90ch; max-width: 100%;"/>
-            <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
-        </p>
-        <p style="text-wrap: balance">
+            
         <p>
         The Global Forecast System (GFS) is a National Oceanic and Atmospheric
         Administration (NOAA) National Centers for Environmental Prediction
@@ -57,173 +62,64 @@
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
-      </p>
-        <h2>Dimensions</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>min</th>
-                    <th>max</th>
-                    <th>units</th>
-                </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>latitude</strong>
-                        </td>
-                        <td>-90</td>
-                        <td>90</td>
-                        <td>decimal degrees</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>longitude</strong>
-                        </td>
-                        <td>-180</td>
-                        <td>179.75</td>
-                        <td>decimal degrees</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>time</strong>
-                        </td>
-                        <td>2015-01-15 00:00:00 UTC</td>
-                        <td>2024-06-30 23:00:00 UTC</td>
-                        <td>seconds since 1970-01-01 00:00:00</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-            </table>
-        </div>
-        <h2>Variables</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>units</th>
-                    <th>dimensions</th>
-                </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>precipitation_surface</strong>
-                            <p class="metadata-comment">Precipitation rate at earth surface</p>
-                            
-                        </td>
-                        <td>kg/(m^2 s)</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>temperature_2m</strong>
-                            <p class="metadata-comment">Temperature 2 meters above earth surface</p>
-                            
-                        </td>
-                        <td>C</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_u_10m</strong>
-                            <p class="metadata-comment">Wind speed u-component 10 meters above earth surface</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_v_10m</strong>
-                            <p class="metadata-comment">Wind speed v-component 10 meters above earth surface</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-            </table>
-        </div>
+      
+        </p>
         <!-- Structured metadata for LLMs -->
         <div class="llm-metadata">
-            <pre>
+            <pre class="llm-metadata">
 {
-    "dataset_name": "NOAA GFS analysis, hourly", "spatial_domain": "Global", "spatial_resolution": "0.25 degrees (~20km)",
-    "time_domain": "2015-01-15 00:00:00 UTC to 2024-07-01 00:00:00 UTC", "time_resolution": "1 hour",
-    "access_url": "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
-    
+    "dataset_name": "NOAA GFS analysis, hourly",
+    "description_short": "Historical weather data from the Global Forecast System (GFS) model operated by NOAA NCEP.",
+    "url": "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
+    "spatial_domain": "Global",
+    "spatial_resolution": "0.25 degrees (~20km)",
+    "time_domain": "2015-01-15 00:00:00 UTC to 2024-07-01 00:00:00 UTC",
+    "time_resolution": "1 hour",
+    "dimensions": [
+        {
+            "name": "latitude",
+            "min": "-90",
+            "max": "90",
+            "units": "decimal degrees"
+        },
+        {
+            "name": "longitude",
+            "min": "-180",
+            "max": "179.75",
+            "units": "decimal degrees"
+        },
+        {
+            "name": "time",
+            "min": "2015-01-15 00:00:00 UTC",
+            "max": "2024-06-30 23:00:00 UTC",
+            "units": "seconds since 1970-01-01 00:00:00"
+        }
+    ],
     "variables": [
         {
             "name": "precipitation_surface",
             "long_name": "Precipitation rate at earth surface",
             "units": "kg/(m^2 s)",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "temperature_2m",
             "long_name": "Temperature 2 meters above earth surface",
             "units": "C",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "wind_u_10m",
             "long_name": "Wind speed u-component 10 meters above earth surface",
             "units": "m/s",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "wind_v_10m",
             "long_name": "Wind speed v-component 10 meters above earth surface",
             "units": "m/s",
-            
             "dimensions": "time × latitude × longitude"
         }
-        
     ]
 }
             </pre>
@@ -450,11 +346,9 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
                 </tr>
             
         </table>
+        <h2>Description</h2>
         <p>
-            <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com" style="width: 91ch; max-width: 100%;"/>
-            <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
-        </p>
-        <p style="text-wrap: balance">
+            
         <p>
         The Global Ensemble Forecast System (GEFS) is a National Oceanic and
         Atmospheric Administration (NOAA) National Centers for Environmental
@@ -476,675 +370,198 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
-      </p>
-        <h2>Dimensions</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>min</th>
-                    <th>max</th>
-                    <th>units</th>
-                </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>ensemble_member</strong>
-                        </td>
-                        <td>0</td>
-                        <td>30</td>
-                        <td>realization</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>init_time</strong>
-                        </td>
-                        <td>2020-10-01T00:00:00</td>
-                        <td>Present</td>
-                        <td>seconds since 1970-01-01</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>latitude</strong>
-                        </td>
-                        <td>-90</td>
-                        <td>90</td>
-                        <td>degrees_north</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>lead_time</strong>
-                        </td>
-                        <td>0 days 00:00:00</td>
-                        <td>35 days 00:00:00</td>
-                        <td>seconds</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>longitude</strong>
-                        </td>
-                        <td>-180</td>
-                        <td>179.75</td>
-                        <td>degrees_east</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-            </table>
-        </div>
-        <h2>Variables</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>units</th>
-                    <th>dimensions</th>
-                </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_freezing_rain_surface</strong>
-                            <p class="metadata-comment">Categorical freezing rain</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_ice_pellets_surface</strong>
-                            <p class="metadata-comment">Categorical ice pellets</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_rain_surface</strong>
-                            <p class="metadata-comment">Categorical rain</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_snow_surface</strong>
-                            <p class="metadata-comment">Categorical snow</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>downward_long_wave_radiation_flux_surface</strong>
-                            <p class="metadata-comment">Surface downward long-wave radiation flux</p>
-                            
-                                <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-                            
-                        </td>
-                        <td>W/(m^2)</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>downward_short_wave_radiation_flux_surface</strong>
-                            <p class="metadata-comment">Surface downward short-wave radiation flux</p>
-                            
-                                <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-                            
-                        </td>
-                        <td>W/(m^2)</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>expected_forecast_length</strong>
-                            <p class="metadata-comment"></p>
-                            
-                        </td>
-                        <td>seconds</td>
-                        <td>init_time</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>geopotential_height_cloud_ceiling</strong>
-                            <p class="metadata-comment">Geopotential height</p>
-                            
-                        </td>
-                        <td>gpm</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>ingested_forecast_length</strong>
-                            <p class="metadata-comment"></p>
-                            
-                        </td>
-                        <td>seconds</td>
-                        <td>init_time × ensemble_member</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>maximum_temperature_2m</strong>
-                            <p class="metadata-comment">Maximum temperature</p>
-                            
-                        </td>
-                        <td>C</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>minimum_temperature_2m</strong>
-                            <p class="metadata-comment">Minimum temperature</p>
-                            
-                        </td>
-                        <td>C</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>percent_frozen_precipitation_surface</strong>
-                            <p class="metadata-comment">Percent frozen precipitation</p>
-                            
-                        </td>
-                        <td>%</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>precipitable_water_atmosphere</strong>
-                            <p class="metadata-comment">Precipitable water</p>
-                            
-                        </td>
-                        <td>kg/(m^2)</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>precipitation_surface</strong>
-                            <p class="metadata-comment">Total Precipitation</p>
-                            
-                                <p class="metadata-comment">Average precipitation rate since the previous forecast step.</p>
-                            
-                        </td>
-                        <td>mm/s</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>pressure_reduced_to_mean_sea_level</strong>
-                            <p class="metadata-comment">Pressure reduced to MSL</p>
-                            
-                        </td>
-                        <td>Pa</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>pressure_surface</strong>
-                            <p class="metadata-comment">Surface pressure</p>
-                            
-                        </td>
-                        <td>Pa</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>relative_humidity_2m</strong>
-                            <p class="metadata-comment">2 metre relative humidity</p>
-                            
-                        </td>
-                        <td>%</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>temperature_2m</strong>
-                            <p class="metadata-comment">2 metre temperature</p>
-                            
-                        </td>
-                        <td>C</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>total_cloud_cover_atmosphere</strong>
-                            <p class="metadata-comment">Total Cloud Cover</p>
-                            
-                                <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-                            
-                        </td>
-                        <td>%</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>valid_time</strong>
-                            <p class="metadata-comment"></p>
-                            
-                        </td>
-                        <td>seconds since 1970-01-01</td>
-                        <td>init_time × lead_time</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_u_100m</strong>
-                            <p class="metadata-comment">100 metre U wind component</p>
-                            
-                                <p class="metadata-comment">All lead times of this variable are interpolated from a 0.5 degree grid.</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_u_10m</strong>
-                            <p class="metadata-comment">10 metre U wind component</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_v_100m</strong>
-                            <p class="metadata-comment">100 metre V wind component</p>
-                            
-                                <p class="metadata-comment">All lead times of this variable are interpolated from a 0.5 degree grid.</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_v_10m</strong>
-                            <p class="metadata-comment">10 metre V wind component</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-            </table>
-        </div>
+      
+        </p>
         <!-- Structured metadata for LLMs -->
         <div class="llm-metadata">
-            <pre>
+            <pre class="llm-metadata">
 {
-    "dataset_name": "NOAA GEFS forecast, 35 day", "spatial_domain": "Global", "spatial_resolution": "0-240 hours: 0.25 degrees (~20km), 243-840 hours: 0.5 degrees (~40km)",
-    "time_domain": "Forecasts initialized 2020-10-01 00:00:00 UTC to Present", "time_resolution": "Forecasts initialized every 24 hours.",
-    "access_url": "https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr",
-    
-    "forecast_domain": "Forecast lead time 0-840 hours (0-35 days) ahead", "forecast_resolution": "Forecast step 0-240 hours: 3 hourly, 243-840 hours: 6 hourly",
-    
+    "dataset_name": "NOAA GEFS forecast, 35 day",
+    "description_short": "Weather forecasts from the Global Ensemble Forecast System (GEFS) operated by NOAA NWS NCEP.",
+    "url": "https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr",
+    "spatial_domain": "Global",
+    "spatial_resolution": "0-240 hours: 0.25 degrees (~20km), 243-840 hours: 0.5 degrees (~40km)",
+    "time_domain": "Forecasts initialized 2020-10-01 00:00:00 UTC to Present",
+    "time_resolution": "Forecasts initialized every 24 hours.",
+    "forecast_domain": "Forecast lead time 0-840 hours (0-35 days) ahead",
+    "forecast_resolution": "Forecast step 0-240 hours: 3 hourly, 243-840 hours: 6 hourly",
+    "dimensions": [
+        {
+            "name": "ensemble_member",
+            "min": "0",
+            "max": "30",
+            "units": "realization"
+        },
+        {
+            "name": "init_time",
+            "min": "2020-10-01T00:00:00",
+            "max": "Present",
+            "units": "seconds since 1970-01-01"
+        },
+        {
+            "name": "latitude",
+            "min": "-90",
+            "max": "90",
+            "units": "degrees_north"
+        },
+        {
+            "name": "lead_time",
+            "min": "0 days 00:00:00",
+            "max": "35 days 00:00:00",
+            "units": "seconds"
+        },
+        {
+            "name": "longitude",
+            "min": "-180",
+            "max": "179.75",
+            "units": "degrees_east"
+        }
+    ],
     "variables": [
         {
             "name": "categorical_freezing_rain_surface",
             "long_name": "Categorical freezing rain",
             "units": "0=no; 1=yes",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "categorical_ice_pellets_surface",
             "long_name": "Categorical ice pellets",
             "units": "0=no; 1=yes",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "categorical_rain_surface",
             "long_name": "Categorical rain",
             "units": "0=no; 1=yes",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "categorical_snow_surface",
             "long_name": "Categorical snow",
             "units": "0=no; 1=yes",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "downward_long_wave_radiation_flux_surface",
             "long_name": "Surface downward long-wave radiation flux",
-            "units": "W/(m^2)",
-            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "downward_short_wave_radiation_flux_surface",
             "long_name": "Surface downward short-wave radiation flux",
-            "units": "W/(m^2)",
-            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "expected_forecast_length",
             "long_name": "",
             "units": "seconds",
-            
             "dimensions": "init_time"
         },
-        
         {
             "name": "geopotential_height_cloud_ceiling",
             "long_name": "Geopotential height",
             "units": "gpm",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "ingested_forecast_length",
             "long_name": "",
             "units": "seconds",
-            
             "dimensions": "init_time × ensemble_member"
         },
-        
         {
             "name": "maximum_temperature_2m",
             "long_name": "Maximum temperature",
             "units": "C",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "minimum_temperature_2m",
             "long_name": "Minimum temperature",
             "units": "C",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "percent_frozen_precipitation_surface",
             "long_name": "Percent frozen precipitation",
             "units": "%",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "precipitable_water_atmosphere",
             "long_name": "Precipitable water",
             "units": "kg/(m^2)",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "precipitation_surface",
             "long_name": "Total Precipitation",
-            "units": "mm/s",
-            "comment": "Average precipitation rate since the previous forecast step.",
+            "units": "mm/s","comment": "Average precipitation rate since the previous forecast step.",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "pressure_reduced_to_mean_sea_level",
             "long_name": "Pressure reduced to MSL",
             "units": "Pa",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "pressure_surface",
             "long_name": "Surface pressure",
             "units": "Pa",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "relative_humidity_2m",
             "long_name": "2 metre relative humidity",
             "units": "%",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "temperature_2m",
             "long_name": "2 metre temperature",
             "units": "C",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "total_cloud_cover_atmosphere",
             "long_name": "Total Cloud Cover",
-            "units": "%",
-            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "%","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "valid_time",
             "long_name": "",
             "units": "seconds since 1970-01-01",
-            
             "dimensions": "init_time × lead_time"
         },
-        
         {
             "name": "wind_u_100m",
             "long_name": "100 metre U wind component",
-            "units": "m/s",
-            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "wind_u_10m",
             "long_name": "10 metre U wind component",
             "units": "m/s",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "wind_v_100m",
             "long_name": "100 metre V wind component",
-            "units": "m/s",
-            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         },
-        
         {
             "name": "wind_v_10m",
             "long_name": "10 metre V wind component",
             "units": "m/s",
-            
             "dimensions": "init_time × ensemble_member × lead_time × latitude × longitude"
         }
-        
     ]
 }
             </pre>
@@ -1398,11 +815,9 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
             </tr>
             
         </table>
+        <h2>Description</h2>
         <p>
-            <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com" style="width: 84ch; max-width: 100%;"/>
-            <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
-        </p>
-        <p style="text-wrap: balance">
+            
         <p>
         The Global Ensemble Forecast System (GEFS) is a National Oceanic and
         Atmospheric Administration (NOAA) National Centers for Environmental
@@ -1426,578 +841,166 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
-      </p>
-        <h2>Dimensions</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>min</th>
-                    <th>max</th>
-                    <th>units</th>
-                </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>latitude</strong>
-                        </td>
-                        <td>-90</td>
-                        <td>90</td>
-                        <td>degrees_north</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>longitude</strong>
-                        </td>
-                        <td>-180</td>
-                        <td>179.75</td>
-                        <td>degrees_east</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>time</strong>
-                        </td>
-                        <td>2000-01-01T00:00:00</td>
-                        <td>Present</td>
-                        <td>seconds since 1970-01-01</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="4">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-            </table>
-        </div>
-        <h2>Variables</h2>
-        <div class="table-container">
-            <table class="data">
-                <tr>
-                    <th/>
-                    <th>units</th>
-                    <th>dimensions</th>
-                </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_freezing_rain_surface</strong>
-                            <p class="metadata-comment">Categorical freezing rain</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_ice_pellets_surface</strong>
-                            <p class="metadata-comment">Categorical ice pellets</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_rain_surface</strong>
-                            <p class="metadata-comment">Categorical rain</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>categorical_snow_surface</strong>
-                            <p class="metadata-comment">Categorical snow</p>
-                            
-                        </td>
-                        <td>0=no; 1=yes</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>downward_long_wave_radiation_flux_surface</strong>
-                            <p class="metadata-comment">Surface downward long-wave radiation flux</p>
-                            
-                                <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-                            
-                        </td>
-                        <td>W/(m^2)</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>downward_short_wave_radiation_flux_surface</strong>
-                            <p class="metadata-comment">Surface downward short-wave radiation flux</p>
-                            
-                                <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-                            
-                        </td>
-                        <td>W/(m^2)</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>geopotential_height_cloud_ceiling</strong>
-                            <p class="metadata-comment">Geopotential height</p>
-                            
-                        </td>
-                        <td>gpm</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>maximum_temperature_2m</strong>
-                            <p class="metadata-comment">Maximum temperature</p>
-                            
-                        </td>
-                        <td>C</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>minimum_temperature_2m</strong>
-                            <p class="metadata-comment">Minimum temperature</p>
-                            
-                        </td>
-                        <td>C</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>percent_frozen_precipitation_surface</strong>
-                            <p class="metadata-comment">Percent frozen precipitation</p>
-                            
-                                <p class="metadata-comment">Contains the value -50 when there is no precipitation.</p>
-                            
-                        </td>
-                        <td>%</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>precipitable_water_atmosphere</strong>
-                            <p class="metadata-comment">Precipitable water</p>
-                            
-                        </td>
-                        <td>kg/(m^2)</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>precipitation_surface</strong>
-                            <p class="metadata-comment">Total Precipitation</p>
-                            
-                                <p class="metadata-comment">Average precipitation rate since the previous forecast step.</p>
-                            
-                        </td>
-                        <td>mm/s</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>pressure_reduced_to_mean_sea_level</strong>
-                            <p class="metadata-comment">Pressure reduced to MSL</p>
-                            
-                        </td>
-                        <td>Pa</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>pressure_surface</strong>
-                            <p class="metadata-comment">Surface pressure</p>
-                            
-                        </td>
-                        <td>Pa</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>relative_humidity_2m</strong>
-                            <p class="metadata-comment">2 metre relative humidity</p>
-                            
-                        </td>
-                        <td>%</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>temperature_2m</strong>
-                            <p class="metadata-comment">2 metre temperature</p>
-                            
-                        </td>
-                        <td>C</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>total_cloud_cover_atmosphere</strong>
-                            <p class="metadata-comment">Total Cloud Cover</p>
-                            
-                                <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
-                            
-                        </td>
-                        <td>%</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_u_100m</strong>
-                            <p class="metadata-comment">100 metre U wind component</p>
-                            
-                                <p class="metadata-comment">All lead times of this variable are interpolated from a 0.5 degree grid.</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_u_10m</strong>
-                            <p class="metadata-comment">10 metre U wind component</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_v_100m</strong>
-                            <p class="metadata-comment">100 metre V wind component</p>
-                            
-                                <p class="metadata-comment">All lead times of this variable are interpolated from a 0.5 degree grid.</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <strong>wind_v_10m</strong>
-                            <p class="metadata-comment">10 metre V wind component</p>
-                            
-                        </td>
-                        <td>m/s</td>
-                        <td>time × latitude × longitude</td>
-                    </tr>
-                    <tr class="metadata-comment">
-                        <td colspan="3">
-                            <span></span>
-                        </td>
-                    </tr>
-                
-            </table>
-        </div>
+      
+        </p>
         <!-- Structured metadata for LLMs -->
         <div class="llm-metadata">
-            <pre>
+            <pre class="llm-metadata">
 {
-    "dataset_name": "NOAA GEFS analysis", "spatial_domain": "Global", "spatial_resolution": "0.25 degrees (~20km)",
-    "time_domain": "2000-01-01 00:00:00 UTC to Present", "time_resolution": "3.0 hours",
-    "access_url": "https://data.dynamical.org/noaa/gefs/analysis/latest.zarr",
-    
+    "dataset_name": "NOAA GEFS analysis",
+    "description_short": "Weather analysis from the Global Ensemble Forecast System (GEFS) operated by NOAA NWS NCEP.",
+    "url": "https://data.dynamical.org/noaa/gefs/analysis/latest.zarr",
+    "spatial_domain": "Global",
+    "spatial_resolution": "0.25 degrees (~20km)",
+    "time_domain": "2000-01-01 00:00:00 UTC to Present",
+    "time_resolution": "3.0 hours",
+    "dimensions": [
+        {
+            "name": "latitude",
+            "min": "-90",
+            "max": "90",
+            "units": "degrees_north"
+        },
+        {
+            "name": "longitude",
+            "min": "-180",
+            "max": "179.75",
+            "units": "degrees_east"
+        },
+        {
+            "name": "time",
+            "min": "2000-01-01T00:00:00",
+            "max": "Present",
+            "units": "seconds since 1970-01-01"
+        }
+    ],
     "variables": [
         {
             "name": "categorical_freezing_rain_surface",
             "long_name": "Categorical freezing rain",
             "units": "0=no; 1=yes",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "categorical_ice_pellets_surface",
             "long_name": "Categorical ice pellets",
             "units": "0=no; 1=yes",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "categorical_rain_surface",
             "long_name": "Categorical rain",
             "units": "0=no; 1=yes",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "categorical_snow_surface",
             "long_name": "Categorical snow",
             "units": "0=no; 1=yes",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "downward_long_wave_radiation_flux_surface",
             "long_name": "Surface downward long-wave radiation flux",
-            "units": "W/(m^2)",
-            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "downward_short_wave_radiation_flux_surface",
             "long_name": "Surface downward short-wave radiation flux",
-            "units": "W/(m^2)",
-            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "W/(m^2)","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "geopotential_height_cloud_ceiling",
             "long_name": "Geopotential height",
             "units": "gpm",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "maximum_temperature_2m",
             "long_name": "Maximum temperature",
             "units": "C",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "minimum_temperature_2m",
             "long_name": "Minimum temperature",
             "units": "C",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "percent_frozen_precipitation_surface",
             "long_name": "Percent frozen precipitation",
-            "units": "%",
-            "comment": "Contains the value -50 when there is no precipitation.",
+            "units": "%","comment": "Contains the value -50 when there is no precipitation.",
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "precipitable_water_atmosphere",
             "long_name": "Precipitable water",
             "units": "kg/(m^2)",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "precipitation_surface",
             "long_name": "Total Precipitation",
-            "units": "mm/s",
-            "comment": "Average precipitation rate since the previous forecast step.",
+            "units": "mm/s","comment": "Average precipitation rate since the previous forecast step.",
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "pressure_reduced_to_mean_sea_level",
             "long_name": "Pressure reduced to MSL",
             "units": "Pa",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "pressure_surface",
             "long_name": "Surface pressure",
             "units": "Pa",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "relative_humidity_2m",
             "long_name": "2 metre relative humidity",
             "units": "%",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "temperature_2m",
             "long_name": "2 metre temperature",
             "units": "C",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "total_cloud_cover_atmosphere",
             "long_name": "Total Cloud Cover",
-            "units": "%",
-            "comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
+            "units": "%","comment": "Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).",
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "wind_u_100m",
             "long_name": "100 metre U wind component",
-            "units": "m/s",
-            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "wind_u_10m",
             "long_name": "10 metre U wind component",
             "units": "m/s",
-            
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "wind_v_100m",
             "long_name": "100 metre V wind component",
-            "units": "m/s",
-            "comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
+            "units": "m/s","comment": "All lead times of this variable are interpolated from a 0.5 degree grid.",
             "dimensions": "time × latitude × longitude"
         },
-        
         {
             "name": "wind_v_10m",
             "long_name": "10 metre V wind component",
             "units": "m/s",
-            
             "dimensions": "time × latitude × longitude"
         }
-        
     ]
 }
             </pre>
