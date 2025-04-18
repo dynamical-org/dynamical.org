@@ -94,25 +94,28 @@
                 {% endfor %}
             </table>
         </div>
-        <p class="metadata-comment">
-            Don't see what you're looking for? Let us know at
-            <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
-        </p>
         <!-- Structured metadata for LLMs -->
-        <div class="llm-metadata" style="display: none;">
-            <script type="application/json">
-                { "dataset_name": "{{ entry.name }}", "spatial_domain": "{{ entry.spatial_domain }}", "spatial_resolution": "{{ entry.spatial_resolution }}
-                ", "time_domain": "{{ entry.time_domain }} ", "time_resolution": "{{ entry.time_resolution }}",
-                {% if entry.forecast_domain %}
-                    "forecast_domain": "{{ entry.forecast_domain }}", "forecast_resolution": "{{ entry.forecast_resolution }}",
-                {% endif %}
-                "variables": [{% for variable in entry.variables %}{
-                                                                                    "name": "{{ variable.name }}
-                    ", "units": "{{ variable.units }}
-                    ", "dimensions": "{{ variable.dimension_names.join(' × ') }}", "long_name": "{{ variable.long_name }} " }{% if not loop.last %},{% endif %}
-                {% endfor %}],
-                                                                    "access_url": "{{ entry.url }}" }
-            </script>
+        <div class="llm-metadata">
+            <pre>
+{
+    "dataset_name": "{{ entry.name }}", "spatial_domain": "{{ entry.spatial_domain }}", "spatial_resolution": "{{ entry.spatial_resolution }}",
+    "time_domain": "{{ entry.time_domain }}", "time_resolution": "{{ entry.time_resolution }}",
+    "access_url": "{{ entry.url }}",
+    {% if entry.forecast_domain %}
+    "forecast_domain": "{{ entry.forecast_domain }}", "forecast_resolution": "{{ entry.forecast_resolution }}",
+    {% endif %}
+    "variables": [{% for variable in entry.variables %}
+        {
+            "name": "{{ variable.name }}",
+            "long_name": "{{ variable.long_name }}",
+            "units": "{{ variable.units }}",
+            {% if variable.comment %}"comment": "{{ variable.comment }}",{% endif %}
+            "dimensions": "{{ variable.dimension_names.join(' × ') }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+}
+            </pre>
         </div>
         <h2>For LLMs & AI Assistants</h2>
         <div class="llm-context-info">
@@ -132,8 +135,7 @@
             </p>
             <p>
                 <strong>Access pattern:</strong>
-                Use this URL with optional email parameter to access this dataset programmatically. The dataset follows standard
-                conventions for dimensions and variable naming: {{ entry.url }}
+                Use this URL with optional email parameter to access this dataset programmatically: {{ entry.url }}
             </p>
         </div>
         <h2>Details</h2>
@@ -141,6 +143,7 @@
             {{ entry.descriptionDetails | safe }}
         </p>
         <h2>Examples</h2>
+        <h3>Brief example usage:</h3>
         {% for example in entry.examples %}
             <div class="frame">
                 <div class="frameHeader">
@@ -165,6 +168,7 @@
         {% endfor %}
         {% if entry.githubUrl %}
             <div class="notebook-content">
+                <h3>Python notebook example usage:</h3>
                 {% set rawUrl = entry.githubUrl | replace("github.com", "raw.githubusercontent.com") | replace("blob/", "refs/heads/") %}
                 <div class="example-source">Source:
                     <a href="{{ entry.githubUrl }}">{{ entry.githubUrl }}</a>
