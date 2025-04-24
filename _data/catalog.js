@@ -222,7 +222,7 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
 
       `,
     url: "https://data.dynamical.org/noaa/gefs/analysis/latest.zarr",
-    status: "coming soon",
+    status: "live",
     examples: [
       {
         title: "Temperature at a specific place and time",
