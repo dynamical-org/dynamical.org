@@ -40,7 +40,7 @@ module.exports = function (eleventyConfig) {
   });
 
   eleventyConfig.addGlobalData("contributors", async () => {
-    // Fetch repos from GitHub API with caching provided by eleventy-fetch
+    // Fetch all repos for the org
     const repos = await fetch(
       "https://api.github.com/orgs/dynamical-org/repos",
       {
@@ -48,17 +48,18 @@ module.exports = function (eleventyConfig) {
         type: "json",
       }
     );
+
     const contributorsSet = new Set();
 
-    for (const repo of repos) {
-      if (repo.name === "aws-open-data-registry") {
-        continue;
-      }
-      // Fetch each repo's contributors with caching
+    // Only include non-forked repos
+    const primaryRepos = repos.filter((repo) => !repo.fork);
+
+    for (const repo of primaryRepos) {
       const repoContributors = await fetch(repo.contributors_url, {
         duration: "1d",
         type: "json",
       });
+
       repoContributors.forEach((contributor) => {
         contributorsSet.add(contributor.login);
       });
@@ -79,7 +80,7 @@ module.exports = function (eleventyConfig) {
       // Remove outputs from notebook cells, they spew a lot of data that's not LLM friendly.
       const cleanedNotebook = JSON.parse(JSON.stringify(json));
       if (cleanedNotebook.cells) {
-        cleanedNotebook.cells.forEach(cell => {
+        cleanedNotebook.cells.forEach((cell) => {
           cell.outputs = [];
         });
       }
