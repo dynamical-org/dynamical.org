@@ -4,12 +4,33 @@
   <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
   <link href="https://dynamical.org/feed/feed.xml" rel="self" />
   <link href="https://dynamical.org/" />
-  <updated>2025-03-20T00:00:00Z</updated>
+  <updated>2025-04-29T00:00:00Z</updated>
   <id>https://dynamical.org/</id>
   <author>
     <name>dynamical.org</name>
     <email>marshall@dynamical.org</email>
   </author> 
+  <entry>
+    <title>GEFS analysis is live!</title>
+    <link href="https://dynamical.org/updates/2025-04-29/" />
+    <updated>2025-04-29T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2025-04-29/</id>
+    <content
+      type="html"
+      >&lt;p&gt;Well, technically it&#39;s been live for a few days. Check out our new &lt;a href=&quot;https://dynamical.org/catalog/noaa-gfs-analysis-hourly/&quot;&gt;GEFS analysis&lt;/a&gt;, which is derived from the &lt;a href=&quot;https://dynamical.org/catalog/noaa-gefs-forecast-35-day/&quot;&gt;GEFS forecast&lt;/a&gt; catalog item.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://assets.buttondown.email/images/3f8a5ed8-29ca-4b60-88d3-690add9bfa80.png?w=960&amp;amp;fit=max&quot; alt=&quot;image.png&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Both are live updating, and the analysis was designed to work easily with the forecast dataset. For example, you can develop your algorithm/model/sentient AI television weatherperson on the analysis, and then deploy it live with the forecast dataset. COOL!&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;25+ years of data&lt;/li&gt;
+&lt;li&gt;Live updating&lt;/li&gt;
+&lt;li&gt;Performance optimized for time series queries&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;em&gt;Striving to create weather data experiences as satisfying as when you peel citrus in one contiguous piece. You know what I mean :)&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Enjoy the &lt;a href=&quot;https://www.youtube.com/watch?v=28d_A_NuJ7A&quot;&gt;weather&lt;/a&gt;,&lt;/p&gt;
+&lt;p&gt;MM&lt;/p&gt;
+</content
+    >
+  </entry> 
   <entry>
     <title>1 Million Requests!</title>
     <link href="https://dynamical.org/updates/2025-03-20/" />
