@@ -17,7 +17,7 @@
     <id>https://dynamical.org/updates/2025-04-29/</id>
     <content
       type="html"
-      >&lt;p&gt;Well, technically it&#39;s been live for a few days. Check out our new &lt;a href=&quot;https://dynamical.org/catalog/noaa-gfs-analysis-hourly/&quot;&gt;GEFS analysis&lt;/a&gt;, which is derived from the &lt;a href=&quot;https://dynamical.org/catalog/noaa-gefs-forecast-35-day/&quot;&gt;GEFS forecast&lt;/a&gt; catalog item.&lt;/p&gt;
+      >&lt;p&gt;Well, technically it&#39;s been live for a few days. Check out our new &lt;a href=&quot;https://dynamical.org/catalog/noaa-gefs-analysis/&quot;&gt;GEFS analysis&lt;/a&gt;, which is derived from the &lt;a href=&quot;https://dynamical.org/catalog/noaa-gefs-forecast-35-day/&quot;&gt;GEFS forecast&lt;/a&gt; catalog item.&lt;/p&gt;
 &lt;p&gt;&lt;img src=&quot;https://assets.buttondown.email/images/3f8a5ed8-29ca-4b60-88d3-690add9bfa80.png?w=960&amp;amp;fit=max&quot; alt=&quot;image.png&quot;&gt;&lt;/p&gt;
 &lt;p&gt;Both are live updating, and the analysis was designed to work easily with the forecast dataset. For example, you can develop your algorithm/model/sentient AI television weatherperson on the analysis, and then deploy it live with the forecast dataset. COOL!&lt;/p&gt;
 &lt;ul&gt;
