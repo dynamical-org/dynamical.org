@@ -11,7 +11,7 @@ npm install
 ## Editing the Catalog
 
 1. Edit [_data/catalog.js](_data/catalog.js)
-1. Run `npm run build` to render HTML
+1. Run `npm run build` to render HTML and/or `npm start` to run a local development server to preview changes live.
 
 ## Deploying Changes
 
