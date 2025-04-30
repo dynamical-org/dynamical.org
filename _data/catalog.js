@@ -50,7 +50,7 @@ let catalog = [
         code: `
 import xarray as xr
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.json?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=optional@email.com")
 ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
     `,
       },
