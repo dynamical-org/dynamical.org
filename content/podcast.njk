@@ -1,0 +1,43 @@
+---
+layout: base.njk
+title: weathering
+description: "At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden."
+---
+
+<div class="content">
+  <h1>weathering</h1>
+  <p>{{ description }}</p>
+  
+  <p>Listen in your podcast player by searching for "weathering", or via 
+  <a href="https://podcasts.apple.com/podcast/weathering">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple Podcasts" style="height: 16px; width: auto; vertical-align: middle; margin-right: 4px;">
+    Apple Podcasts
+  </a> | 
+  <a href="https://open.spotify.com/show/weathering">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg" alt="Spotify" style="height: 16px; width: auto; vertical-align: middle; margin-right: 4px;">
+    Spotify
+  </a> | 
+  <a href="/feed/podcast.xml">
+    <img src="https://upload.wikimedia.org/wikipedia/en/4/43/Feed-icon.svg" alt="RSS" style="height: 16px; width: auto; vertical-align: middle; margin-right: 4px;">
+    RSS
+  </a></p>
+
+  <hr style="margin: 3rem 0;">
+
+  <div>
+{%- for episode in collections.podcast | reverse -%}
+  <div style="margin-bottom: 1.5rem;">
+    <span style="font-family: monospace; color: #666;">{{ episode.page.date | readableDate }}</span>
+    {% if episode.data.episode_number %}
+    <span style="font-family: monospace; color: #666;"> • {{ episode.data.episode_number }}</span>
+    {% endif %}
+    <br>
+    <a href="{{ episode.url }}">{{ episode.data.title }}</a>
+    {% if episode.data.summary %}
+    <br>
+    <span style="color: #888; font-size: 0.9em;">{{ episode.data.summary }}</span>
+    {% endif %}
+  </div>
+{%- endfor -%}
+  </div>
+</div>

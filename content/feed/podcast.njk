@@ -1,0 +1,43 @@
+---
+permalink: /feed/podcast.xml
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>weathering</title>
+    <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
+    <link>{{ metadata.url }}/podcast</link>
+    <language>en-us</language>
+    <lastBuildDate>{{ collections.podcast | getNewestCollectionItemDate | dateToRfc822 }}</lastBuildDate>
+    <itunes:author>Marshall, Marta, and Alden</itunes:author>
+    <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
+    <itunes:category text="Science">
+      <itunes:category text="Earth Sciences"/>
+    </itunes:category>
+    <itunes:category text="Technology"/>
+    <itunes:explicit>no</itunes:explicit>
+    
+    {%- for episode in collections.podcast | reverse %}
+    {% set absoluteEpisodeUrl %}{{ episode.url | htmlBaseUrl(metadata.url) }}{% endset %}
+    <item>
+      <title>{% if episode.data.episode_number %}{{ episode.data.episode_number }}. {% endif %}{{ episode.data.title }}</title>
+      <description>{% if episode.data.summary %}{{ episode.data.summary }}{% else %}{{ episode.templateContent | striptags | truncate(200) }}{% endif %}</description>
+      <content:encoded><![CDATA[{{ episode.templateContent | transformWithHtmlBase(absoluteEpisodeUrl, episode.url) }}]]></content:encoded>
+      <link>{{ absoluteEpisodeUrl }}</link>
+      <guid>{{ absoluteEpisodeUrl }}</guid>
+      <pubDate>{{ episode.date | dateToRfc822 }}</pubDate>
+      {% if episode.data.audio_url %}
+      <enclosure url="{{ episode.data.audio_url }}" type="audio/mpeg" length="{{ episode.data.file_size or '0' }}"/>
+      {% endif %}
+      {% if episode.data.duration %}
+      <itunes:duration>{{ episode.data.duration }}</itunes:duration>
+      {% endif %}
+      <itunes:author>Marshall, Marta, and Alden</itunes:author>
+      <itunes:explicit>no</itunes:explicit>
+      {% if episode.data.episode_number %}
+      <itunes:episode>{{ episode.data.episode_number }}</itunes:episode>
+      {% endif %}
+    </item>
+    {%- endfor %}
+  </channel>
+</rss>

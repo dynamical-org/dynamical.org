@@ -1,55 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="author" content="Dynamical Team" />
-    <meta name="keywords" content="Weather, data, zarr" />
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
     <title>dynamical.org - updates</title>
-    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data." />
-    <meta
-      name="license"
-      content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"
-    />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="dynamical.org" />
-    <meta property="og:site_name" content="dynamical.org" />
-    <meta property="og:type" content="website" />
-    <link rel="stylesheet" type="text/css" href="/main.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="/prism-atom-dark.css"
-      rel="stylesheet"
-    />
-
-    <link
-      rel="alternate"
-      href="/feed/feed.xml"
-      type="application/atom+xml"
-      title="dynamical.org"
-    />
-    <link
-      rel="alternate"
-      href="/feed/feed.json"
-      type="application/json"
-      title="dynamical.org"
-    />
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
   </head>
-
   <body>
     <nav>
       <ul>
-        <li><a href="/">dynamical.org</a></li>
-        <li><a href="/catalog">catalog</a></li>
-        <li><a href="/about">about</a></li>
-        <li><a href="/updates">updates</a></li>
-        <li><a href="https://github.com/dynamical-org">code</a></li>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
       </ul>
     </nav>
     
@@ -298,5 +288,51 @@ Attributes<span class="token punctuation">:</span>
 
   </article></div>
 
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div
+        id="latest-popup"
+        style="position: fixed; bottom: 1rem; right: 1rem; background: white; border: 1px solid #ccc; border-radius: 8px;
+          padding: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 300px; z-index: 1000; font-size: 0.9em;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+          <span style="font-weight: bold; color: #666; font-size: 0.8em;">🎙️
+            New podcast episode</span>
+          <button
+            id="latest-close"
+            style="background: none; border: none; font-size: 1.2em; cursor: pointer; color: #999; padding: 0; line-height: 1;">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "Tue Jun 10 2025 19:00:00 GMT-0500 (Central Daylight Time)";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/podcast/atmospheric-uncertainty/" style="font-weight: 500;">Testing the Limits of Atmospheric Predictability</a>
+        <div style="color: #666; font-size: 0.8em; margin-top: 0.25rem;">2025-06-11</div>
+      </div>
+    
   </body>
 </html>

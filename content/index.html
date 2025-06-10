@@ -13,96 +13,74 @@ redirects_from: /index.html
 <div class="frame" style="margin-top: 4rem">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
-    <div class='frameHeaderSubtitle'>GFS hourly analysis</div>
+    <div class="frameHeaderSubtitle">GEFS analysis</div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
     {% endhighlight %}</code></pre>
 </div>
 
-<div class="content centered">Weather data is hard to work with. What if it wasn't?</div>
-<div class="content centered"><a href="/updates">Follow along ↗</a></div>
-<div class="frame">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">April 2024 temperature</div>
-  </div>
-  <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-ds["temperature_2m"].sel(time="2024-04-01T00:00").plot()
-    {% endhighlight %}</code></pre>
-  <pre class="frameContent frameContentMobile"><code>{% highlight py %}
-ds["temperature_2m"] \
-  .sel(time="2024-04-01T00:00") \
-  .plot()
-    {% endhighlight %}</code></pre>
-  <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04-01T00:00.png"
-    alt="A plot showing global temperature for 2024-04-01" />
+<div class="content centered">
+  Weather data is hard to work with. What if it wasn't?
 </div>
+<div class="content centered"><a href="/catalog">See the catalog ↗</a></div>
 
 <div class="frame">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">April 2024 temperature anomaly</div>
+    <div class="frameHeaderSubtitle">
+      7-day lead of 25th-percentile temperature over Europe
+    </div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-tmp_april_mean = ds["temperature_2m"] \
-  .sel(time=ds.time.dt.month == 4) \
-  .mean(dim="time")
-tmp_april_2024 = ds["temperature_2m"] \
-  .sel(time="2024-04") \
-  .mean(dim="time")
-
-(tmp_april_2024 - tmp_april_mean).plot()
-    {% endhighlight %}</code></pre>
-  <img class="frameResult" src="./assets/gfs_temperature_surface_2024-04_anomaly.png"
-    alt="A plot showing global temperature anomaly for April 2024." />
-</div>
-
-<div class="frame">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">Where does it rain the most?</div>
-  </div>
-  <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr")
 (
-  ds["precipitation_surface"].sel(
-      latitude=slice(70, 20),
-      longitude=slice(-150, -30)
-  )
-  .mean(dim="time") # take the average over ~all time~
-  .plot()
+    ds["temperature_2m"]
+    .sel(init_time="2025-01-01T00")
+    .sel(lead_time="7d")
+    .sel(latitude=slice(70, 20), longitude=slice(0, 50))
+    .quantile(0.25, dim="ensemble_member")
+    .plot()
 )
     {% endhighlight %}</code></pre>
   <pre class="frameContent frameContentMobile"><code>{% highlight py %}
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr")
 (
-  ds["precipitation_surface"].sel(
-      latitude=slice(70, 20),
-      longitude=slice(-150, -30)
-  )
-  .mean(dim="time") # take the average over ~all time~
-  .plot()
+    ds["temperature_2m"]
+    .sel(init_time="2025-01-01T00")
+    .sel(lead_time="7d")
+    .sel(latitude=slice(70, 20), longitude=slice(0, 50))
+    .quantile(0.25, dim="ensemble_member")
+    .plot()
 )
     {% endhighlight %}</code></pre>
-  <img class="frameResult" src="./assets/gfs_precipitation_all_time.png"
-    alt="A plot showing all time precipitaiton of North America, revealing the locations where it rains the most overall." />
+  <img
+    class="frameResult"
+    src="./assets/gefs_temperature_q25_europe.png"
+    alt="A plot showing precipitation in Mongolia for 2024-04-01"
+  />
 </div>
 
 <div class="frame">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">April 10, 2024 wind speed</div>
+    <div class="frameHeaderSubtitle">
+      Precipitation over time in Ulaanbaatar, Mongolia
+    </div>
   </div>
   <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
-import numpy as np
-
-wind_speed = np.sqrt(
-  ds["wind_u_10m"] ** 2 +
-  ds["wind_v_10m"] ** 2
-)
-wind_speed \
-  .sel(time="2024-04-10T00") \
-  .plot(cmap="YlGnBu_r")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
+ds["precipitation_surface"].sel(latitude=47.9, longitude=106.9, method="nearest").plot()
     {% endhighlight %}</code></pre>
-  <img class="frameResult" src="./assets/gfs_wind_2024_04_01T00:00.png"
-    alt="A plot showing global wind speeds on April 10th, 2024." />
+  <pre class="frameContent frameContentMobile"><code>{% highlight py %}
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
+ds["precipitation_surface"] \
+  .sel(latitude=47.9, longitude=106.9, method="nearest") \
+  .plot()
+    {% endhighlight %}</code></pre>
+  <img
+    class="frameResult"
+    src="./assets/gefs_precipitation_surface_2024-04-01T00-00.png"
+    alt="A plot showing precipitation in Mongolia for 2024-04-01"
+  />
 </div>
