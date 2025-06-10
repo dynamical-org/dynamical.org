@@ -632,8 +632,8 @@
         style="position: fixed; bottom: 1rem; right: 1rem; background: white; border: 1px solid #ccc; border-radius: 8px;
           padding: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 300px; z-index: 1000; font-size: 0.9em;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-          <span style="font-weight: bold; color: #666; font-size: 0.8em;">🎙️
-            New podcast episode</span>
+          <span style="font-weight: bold; color: #666; font-size: 0.8em;">📰
+            Latest update</span>
           <button
             id="latest-close"
             style="background: none; border: none; font-size: 1.2em; cursor: pointer; color: #999; padding: 0; line-height: 1;">
@@ -642,7 +642,7 @@
           <script>
             (function () {
               const popup = document.getElementById('latest-popup');
-              const latestDate = "Tue Jun 10 2025 19:00:00 GMT-0500 (Central Daylight Time)";
+              const latestDate = "Mon Apr 28 2025 19:00:00 GMT-0500 (Central Daylight Time)";
               const seenDate = localStorage.getItem('latestPopupDate');
               // if we've already seen this or something newer, hide the popup immediately
               if (seenDate && seenDate >= latestDate) {
@@ -657,8 +657,8 @@
             })();
           </script>
         </div>
-        <a href="/podcast/atmospheric-uncertainty/" style="font-weight: 500;">Testing the Limits of Atmospheric Predictability</a>
-        <div style="color: #666; font-size: 0.8em; margin-top: 0.25rem;">2025-06-11</div>
+        <a href="/updates/2025-04-29/" style="font-weight: 500;">GEFS analysis is live!</a>
+        <div style="color: #666; font-size: 0.8em; margin-top: 0.25rem;">2025-04-29</div>
       </div>
     
   </body>
