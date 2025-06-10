@@ -5,7 +5,7 @@
     <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
     <link>https://dynamical.org//podcast</link>
     <language>en-us</language>
-    <lastBuildDate>Mon, 09 Jun 2025 21:34:02 +0000</lastBuildDate>
+    <lastBuildDate>Tue, 10 Jun 2025 19:00:00 +0000</lastBuildDate>
     <itunes:author>Marshall, Marta, and Alden</itunes:author>
     <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
     <itunes:category text="Science">
@@ -13,5 +13,68 @@
     </itunes:category>
     <itunes:category text="Technology"/>
     <itunes:explicit>no</itunes:explicit>
+    
+    <item>
+      <title>001. Testing the Limits of Atmospheric Predictability</title>
+      <description>Show Notes In our inaugural episode, we dive into a groundbreaking paper from the University of Washington that challenges the long-held belief that skillful weather forecasts are limited to about 14...</description>
+      <content:encoded><![CDATA[&lt;h2&gt;Show Notes&lt;/h2&gt;
+&lt;p&gt;In our inaugural episode, we dive into a groundbreaking paper from the University of Washington that challenges the long-held belief that skillful weather forecasts are limited to about 14 days. Using GraphCast and gradient-based optimization of initial conditions, the researchers demonstrate that the theoretical limits of atmospheric predictability may extend much further than previously thought.&lt;/p&gt;
+&lt;h3&gt;Featured Paper&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;&amp;quot;Testing the limit of atmospheric predictability with a machine learning weather model&amp;quot;&lt;/strong&gt;&lt;br&gt;
+&lt;a href=&quot;https://arxiv.org/abs/2504.20238&quot;&gt;arxiv.org/abs/2504.20238&lt;/a&gt;&lt;/p&gt;
+&lt;h3&gt;Weather Reports&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Marta&lt;/strong&gt;: Mid-Atlantic drought recovery, mysterious orange sun (likely Saharan dust plume), and the science behind atmospheric aerosols&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Marshall&lt;/strong&gt;: Nashville summer heat, firefly magic, and citizen science counting flashes&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Alden&lt;/strong&gt;: Syracuse&#39;s cursed weekend rain pattern - every weekend in 2025 so far&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;What We&#39;re Reading&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Marshall&lt;/strong&gt;: &lt;em&gt;Gödel, Escher, Bach: An Eternal Golden Braid&lt;/em&gt; by Douglas Hofstadner - exploring strange loops, chaos, and the philosophy of prediction&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Alden&lt;/strong&gt;: &lt;em&gt;Immeasurable Weather&lt;/em&gt; - examining the uncomfortable history of settler colonialism in America&#39;s weather monitoring systems&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Marta&lt;/strong&gt;: &lt;em&gt;Strange as This Weather Has Been&lt;/em&gt; by Ann Pancake - a West Virginia novel about mountaintop removal, floods, and the absence of weather forecasts in Appalachian communities&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Topics Discussed&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;The historical context of weather prediction: from Admiral Fitzroy&#39;s tragic struggles to Poincaré&#39;s early insights about chaos (1903)&lt;/li&gt;
+&lt;li&gt;How gradient-based optimization can improve initial conditions by &amp;quot;flowing backwards&amp;quot; through neural networks&lt;/li&gt;
+&lt;li&gt;The philosophical tension between predictability and chaos - can something be both?&lt;/li&gt;
+&lt;li&gt;Regional inequities in weather data and forecasting accuracy&lt;/li&gt;
+&lt;li&gt;The dominance of ERA5 reanalysis data and the need for more diverse datasets&lt;/li&gt;
+&lt;li&gt;Whether improved prediction diminishes our sense of wonder about weather&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Key Insights&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;The paper doesn&#39;t prove we can make accurate 30+ day forecasts today, but suggests the theoretical limits may be much higher than 14 days&lt;/li&gt;
+&lt;li&gt;Initial conditions matter enormously - small improvements there could unlock significant forecast skill gains&lt;/li&gt;
+&lt;li&gt;The method reveals &amp;quot;coherent large-scale structure&amp;quot; in optimal adjustments, suggesting real atmospheric patterns rather than model artifacts&lt;/li&gt;
+&lt;li&gt;Memory constraints limited the study to 32 days, but the technique could theoretically go much further&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;References &amp;amp; Links&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Poincaré&#39;s &lt;em&gt;The Idea of Chaos&lt;/em&gt; (1903)&lt;/li&gt;
+&lt;li&gt;Ray Bradbury&#39;s &amp;quot;A Sound of Thunder&amp;quot; (1952)&lt;/li&gt;
+&lt;li&gt;Edward Lorenz&#39;s butterfly effect papers&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://deepmind.google/discover/blog/graphcast-ai-model-for-faster-and-more-accurate-global-weather-forecasting/&quot;&gt;GraphCast by DeepMind&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://sentinel.esa.int/web/sentinel/missions/sentinel-3&quot;&gt;Sentinel-3 satellite aerosol products&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Terrawatch newsletter on equity in weather forecasting&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Closing Thoughts&lt;/h3&gt;
+&lt;p&gt;&lt;em&gt;&amp;quot;Nothing that has been said so far explains why chance is obedient to laws... our frailty does not permit us to take in the whole universe, but forces us to cut it up in slices.&amp;quot;&lt;/em&gt; - Henri Poincaré, 1903&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Recorded January 2025, with Marshall in Nashville, Marta in the Mid-Atlantic, and Alden in Syracuse.&lt;/em&gt;&lt;/p&gt;
+]]></content:encoded>
+      <link>https://dynamical.org/podcast/atmospheric-uncertainty/</link>
+      <guid>https://dynamical.org/podcast/atmospheric-uncertainty/</guid>
+      <pubDate>Tue, 10 Jun 2025 19:00:00 +0000</pubDate>
+      
+      <enclosure url="https://example.com/weathering-001.mp3" type="audio/mpeg" length="0"/>
+      
+      
+      <itunes:author>Marshall, Marta, and Alden</itunes:author>
+      <itunes:explicit>no</itunes:explicit>
+      
+      <itunes:episode>001</itunes:episode>
+      
+    </item>
   </channel>
 </rss>
