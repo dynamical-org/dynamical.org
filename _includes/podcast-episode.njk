@@ -4,14 +4,31 @@ layout: base.njk
 
 <div class="content">
   <h1>{{ title }}</h1>
-  <em>{{ episode_number}} | {{ page.date | readableDate }}</em>
-  {% if audio_url %}
-    <div style="margin: 2rem 0;">
-      <audio controls style="width: 100%; max-width: 600px;">
-        <source src="{{ audio_url }}" type="audio/mpeg">
-          Your browser does not support the audio element.
-        </audio>
+  <a href="{{ apple_url }}">
+    <img
+      src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
+      alt="Apple Podcasts"
+      style="height: 16px; width: auto; vertical-align: middle; margin-right: 4px;">
+      Apple Podcasts
+    </a>
+    |
+    <a href="{{ spotify_url }}">
+      <img
+        src="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+        alt="Spotify"
+        style="height: 16px; width: auto; vertical-align: middle; margin-right: 4px;">
+        Spotify
+      </a>
+    </p>
+    <hr style="margin: 3rem 0;">
+      <em>{{ episode_number }} | {{ page.date | readableDate }}</em>
+      {% if audio_url %}
+        <div style="margin: 2rem 0;">
+          <audio controls style="width: 100%; max-width: 600px;">
+            <source src="{{ audio_url }}" type="audio/mpeg">
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        {% endif %}
+        {{ content | safe }}
       </div>
-    {% endif %}
-    {{ content | safe }}
-  </div>
