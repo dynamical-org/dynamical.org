@@ -1,23 +1,39 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss
+  version="2.0"
+  xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>weathering</title>
-    <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
+    <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic
+      papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
     <link>https://dynamical.org//podcast</link>
     <language>en-us</language>
     <lastBuildDate>Wed, 11 Jun 2025 19:00:00 +0000</lastBuildDate>
     <itunes:author>Marshall, Marta, and Alden</itunes:author>
-    <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
+    <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic
+      papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
     <itunes:category text="Science">
       <itunes:category text="Earth Sciences"/>
     </itunes:category>
     <itunes:category text="Technology"/>
     <itunes:explicit>no</itunes:explicit>
-    
-    <item>
-      <title>001. Ep. 1: The limits of predictability</title>
-      <description>How far into the future can we actually predict the weather? Typically, this question is rhetorical, a slight (or smite⚡) against meteorologists everywhere after someone’s wedding gets rained out. But...</description>
-      <content:encoded><![CDATA[&lt;p&gt;How far into the future can we actually predict the weather? Typically, this question is rhetorical, a slight (or smite⚡) against meteorologists everywhere after someone’s wedding gets rained out. But in this inaugural episode of &lt;em&gt;Weathering&lt;/em&gt;, we’re asking in earnest—what is the horizon for accurate weather forecasts?&lt;/p&gt;
+    <itunes:image href="https://dynamical.org//assets/weathering_logo.png"/>
+      
+      <item>
+        <title>
+          
+            001.
+          
+          Ep. 1: The limits of predictability</title>
+        <description>
+          
+            How far into the future can we actually predict the weather? Typically, this question is rhetorical, a slight (or smite⚡) against meteorologists everywhere after someone’s wedding gets rained out. But...
+          
+        </description>
+        <content:encoded>
+          <![CDATA[&lt;p&gt;How far into the future can we actually predict the weather? Typically, this question is rhetorical, a slight (or smite⚡) against meteorologists everywhere after someone’s wedding gets rained out. But in this inaugural episode of &lt;em&gt;Weathering&lt;/em&gt;, we’re asking in earnest—what is the horizon for accurate weather forecasts?&lt;/p&gt;
 &lt;p&gt;Here, we look at a paper from the University of Washington (link below) that suggests the limit might be more than double the long-held belief of fourteen days. Thus, too, challenging the foundational theory of chaos—“the butterfly effect”—that has informed how we think and forecast weather since it was coined in the 1970s. We examine the methods that the researchers use and engage in some armchair philosophy: What does chaos mean if our foundational example of chaos—weather—is actually predictable? Is there a difference between chaos and predictability? And how might knowing next month’s weather change our relationship to the environment and weather itself?&lt;/p&gt;
 &lt;p&gt;We can’t promise you answers, we didn’t even articulate the questions that well, but we can promise to add to your never-ending TBR.&lt;/p&gt;
 &lt;h2&gt;Featured paper&lt;/h2&gt;
@@ -46,19 +62,20 @@
 &lt;em&gt;A short story in which stepping on a butterfly in the past alters the future. Published BEFORE the term was coined, and that’s Bradbury for ya.&lt;/em&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-]]></content:encoded>
-      <link>https://dynamical.org/podcast/001/</link>
-      <guid>https://dynamical.org/podcast/001/</guid>
-      <pubDate>Wed, 11 Jun 2025 19:00:00 +0000</pubDate>
-      
-      <enclosure url="/assets/weathering/001.mp3" type="audio/mpeg" length="0"/>
-      
-      
-      <itunes:author>Marshall, Marta, and Alden</itunes:author>
-      <itunes:explicit>no</itunes:explicit>
-      
-      <itunes:episode>001</itunes:episode>
-      
-    </item>
+]]>
+        </content:encoded>
+        <link>https://dynamical.org/podcast/001/</link>
+        <guid>https://dynamical.org/podcast/001/</guid>
+        <pubDate>Wed, 11 Jun 2025 19:00:00 +0000</pubDate>
+        
+          <enclosure url="/assets/weathering/001.mp3" type="audio/mpeg" length="0"/>
+        
+        
+        <itunes:author>Marshall, Marta, and Alden</itunes:author>
+        <itunes:explicit>no</itunes:explicit>
+        
+          <itunes:episode>001</itunes:episode>
+        
+      </item>
   </channel>
 </rss>
