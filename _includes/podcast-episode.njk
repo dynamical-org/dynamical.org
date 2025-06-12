@@ -4,7 +4,7 @@ layout: base.njk
 
 <div class="content">
   <h1>{{ title }}</h1>
-  <em>{{ page.date | readableDate }}</em>
+  <em>{{ episode_number}} | {{ page.date | readableDate }}</em>
   {% if audio_url %}
     <div style="margin: 2rem 0;">
       <audio controls style="width: 100%; max-width: 600px;">
