@@ -42,7 +42,7 @@ permalink: /feed/podcast.xml
         <guid>{{ absoluteEpisodeUrl }}</guid>
         <pubDate>{{ episode.date | dateToRfc822 }}</pubDate>
         {% if episode.data.audio_url %}
-          <enclosure url="{{ episode.data.audio_url }}" type="audio/mpeg" length="{{ episode.data.file_size or '0' }}"/>
+          <enclosure url="{{ episode.data.audio_url | htmlBaseUrl(metadata.url)}}" type="audio/mpeg" length="{{ episode.data.file_size or '0' }}"/>
         {% endif %}
         {% if episode.data.duration %}
           <itunes:duration>{{ episode.data.duration }}</itunes:duration>

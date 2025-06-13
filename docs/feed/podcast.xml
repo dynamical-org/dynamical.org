@@ -65,7 +65,7 @@
         <guid>https://dynamical.org/podcast/001/</guid>
         <pubDate>Wed, 11 Jun 2025 19:00:00 +0000</pubDate>
         
-          <enclosure url="/assets/weathering/001.mp3" type="audio/mpeg" length="0"/>
+          <enclosure url="https://dynamical.org/assets/weathering/001.mp3" type="audio/mpeg" length="0"/>
         
         
         <itunes:author>Marshall, Marta, and Alden</itunes:author>
