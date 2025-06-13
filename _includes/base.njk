@@ -62,16 +62,10 @@
       {% endif %}
     {% endif %}
     {% if latestContent %}
-      <div
-        id="latest-popup"
-        style="position: fixed; bottom: 1rem; right: 1rem; background: white; border: 1px solid #ccc; border-radius: 8px;
-          padding: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 300px; z-index: 1000; font-size: 0.9em;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-          <span style="font-weight: bold; color: #666; font-size: 0.8em;">{{ contentIcon }}
-            {{ contentType }}</span>
-          <button
-            id="latest-close"
-            style="background: none; border: none; font-size: 1.2em; cursor: pointer; color: #999; padding: 0; line-height: 1;">
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">{{ contentIcon }} {{ contentType }}</span>
+          <button id="latest-close" class="popup-close">
             &times;
           </button>
           <script>
@@ -92,8 +86,8 @@
             })();
           </script>
         </div>
-        <a href="{{ latestContent.url }}" style="font-weight: 500;">{{ latestContent.data.title }}</a>
-        <div style="color: #666; font-size: 0.8em; margin-top: 0.25rem;">{{ latestContent.date | readableDate }}</div>
+        <a href="{{ latestContent.url }}" class="popup-title">{{ latestContent.data.title }}</a>
+        <div class="popup-date">{{ latestContent.date | readableDate }}</div>
       </div>
     {% endif %}
   </body>

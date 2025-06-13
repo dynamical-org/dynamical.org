@@ -211,6 +211,54 @@ nav ul li {
   font-size: inherit;
 }
 
+/* Latest popup styles */
+#latest-popup {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  max-width: 300px;
+  z-index: 1000;
+}
+
+#latest-popup .popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+#latest-popup .popup-type {
+  font-weight: bold;
+  color: #666;
+}
+
+#latest-popup .popup-close {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  line-height: 1;
+}
+
+#latest-popup .popup-title {
+  font-weight: 500;
+  text-decoration: none;
+  color: inherit;
+}
+
+#latest-popup .popup-date {
+  color: #666;
+  font-size: 0.8em;
+  margin-top: 0.25rem;
+}
+
 @media screen and (max-width: 1000px) {
   body {
     padding: 2rem 1rem;
