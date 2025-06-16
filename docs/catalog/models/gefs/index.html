@@ -124,14 +124,14 @@
     
       <div id="latest-popup">
         <div class="popup-header">
-          <span class="popup-type">🎙️ New podcast episode</span>
+          <span class="popup-type">📰 Latest update</span>
           <button id="latest-close" class="popup-close">
             &times;
           </button>
           <script>
             (function () {
               const popup = document.getElementById('latest-popup');
-              const latestDate = "Wed Jun 11 2025 19:00:00 GMT-0500 (Central Daylight Time)";
+              const latestDate = "Fri Jun 13 2025 19:00:00 GMT-0500 (Central Daylight Time)";
               const seenDate = localStorage.getItem('latestPopupDate');
               // if we've already seen this or something newer, hide the popup immediately
               if (seenDate && seenDate >= latestDate) {
@@ -146,8 +146,8 @@
             })();
           </script>
         </div>
-        <a href="/podcast/001/" class="popup-title">The limits of predictability</a>
-        <div class="popup-date">2025-06-12</div>
+        <a href="/updates/2025-06-14/" class="popup-title">introducing a new pod; GFS forecasts incoming</a>
+        <div class="popup-date">2025-06-14</div>
       </div>
     
   </body>
