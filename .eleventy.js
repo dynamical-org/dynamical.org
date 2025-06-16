@@ -92,6 +92,13 @@ module.exports = function (eleventyConfig) {
     }
   });
 
+  eleventyConfig.addFilter("find", function (array, property, value) {
+    if (!Array.isArray(array)) {
+      return undefined;
+    }
+    return array.find((item) => item[property] === value);
+  });
+
   return {
     dir: {
       input: "content",

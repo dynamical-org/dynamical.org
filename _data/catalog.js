@@ -1,20 +1,46 @@
 const fetch = require("@11ty/eleventy-fetch");
 const { uniq } = require("lodash");
 
-let catalog = [
+// Model definitions for grouping datasets
+const models = {
+  "noaa-gfs": {
+    name: "NOAA GFS",
+    shortName: "GFS", 
+    description: `
+      <p>
+      The Global Forecast System (GFS) is a National Oceanic and Atmospheric
+      Administration (NOAA) National Centers for Environmental Prediction
+      (NCEP) weather forecast model that generates data for dozens of
+      atmospheric and land-soil variables, including temperatures, winds,
+      precipitation, soil moisture, and atmospheric ozone concentration. The
+      system couples four separate models (atmosphere, ocean model, land/soil
+      model, and sea ice) that work together to depict weather conditions.
+      </p>
+    `,
+    agency: "NOAA",
+    type: "Global Weather Model"
+  },
+  "noaa-gefs": {
+    name: "NOAA GEFS", 
+    shortName: "GEFS",
+    description: `
+      <p>
+      The Global Ensemble Forecast System (GEFS) is a National Oceanic and
+      Atmospheric Administration (NOAA) National Centers for Environmental
+      Prediction (NCEP) weather forecast model. GEFS creates 31 separate
+      forecasts (ensemble members) to describe the range of forecast uncertainty.
+      </p>
+    `,
+    agency: "NOAA",
+    type: "Global Ensemble Weather Model"
+  }
+};
+
+let entries = [
   // noaa-gfs-analysis-hourly
   {
+    modelId: "noaa-gfs",
     descriptionSummary: `
-        <p>
-        The Global Forecast System (GFS) is a National Oceanic and Atmospheric
-        Administration (NOAA) National Centers for Environmental Prediction
-        (NCEP) weather forecast model that generates data for dozens of
-        atmospheric and land-soil variables, including temperatures, winds,
-        precipitation, soil moisture, and atmospheric ozone concentration. The
-        system couples four separate models (atmosphere, ocean model, land/soil
-        model, and sea ice) that work together to depict weather conditions.
-        </p>
-
         <p>
         This dataset is an "analysis" containing the model's best estimate of
         each value at each timestep. In other words, it does not contain a
@@ -63,14 +89,8 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
 
   // noaa-gefs-forecast-35-day
   {
+    modelId: "noaa-gefs",
     descriptionSummary: `
-        <p>
-        The Global Ensemble Forecast System (GEFS) is a National Oceanic and
-        Atmospheric Administration (NOAA) National Centers for Environmental
-        Prediction (NCEP) weather forecast model. GEFS creates 31 separate
-        forecasts (ensemble members) to describe the range of forecast uncertainty.
-        </p>
-
         <p>
         This dataset is an archive of past and present GEFS forecasts. Forecasts
         are identified by an initialization time (<code>init_time</code>) denoting the
@@ -130,13 +150,8 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
 
   // noaa-gefs-analysis
   {
+    modelId: "noaa-gefs",
     descriptionSummary: `
-        <p>
-        The Global Ensemble Forecast System (GEFS) is a National Oceanic and
-        Atmospheric Administration (NOAA) National Centers for Environmental
-        Prediction (NCEP) weather forecast model.
-        </p>
-
         <p>
         This analysis dataset is an archive of the model's best estimate of past weather.
         It is created by concatenating the first few hours of each historical forecast to
@@ -242,32 +257,64 @@ ds['temperature_2m'].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
 ].filter((entry) => !entry.hide);
 
 module.exports = async function () {
-  for (let i = 0; i < catalog.length; i++) {
-    if (!catalog[i].url) {
+  for (let i = 0; i < entries.length; i++) {
+    if (!entries[i].url) {
       continue;
     }
 
     try {
       // Try zarr v3 format first
-      const datasetInfo = await processZarrV3(catalog[i].url);
-      catalog[i] = {
-        ...catalog[i],
+      const datasetInfo = await processZarrV3(entries[i].url);
+      entries[i] = {
+        ...entries[i],
         ...datasetInfo,
       };
     } catch (e) {
       console.log(
-        `Falling back to zarr v2 for ${catalog[i].url}: ${e.message}`
+        `Falling back to zarr v2 for ${entries[i].url}: ${e.message}`
       );
       // Fall back to zarr v2 format
-      const datasetInfo = await processZarrV2(catalog[i].url);
-      catalog[i] = {
-        ...catalog[i],
+      const datasetInfo = await processZarrV2(entries[i].url);
+      entries[i] = {
+        ...entries[i],
         ...datasetInfo,
       };
     }
   }
 
-  return catalog;
+  // Group datasets by model
+  const modelGroups = {};
+  entries.forEach(dataset => {
+    if (dataset.modelId) {
+      if (!modelGroups[dataset.modelId]) {
+        modelGroups[dataset.modelId] = {
+          ...models[dataset.modelId],
+          id: dataset.modelId,
+          datasets: []
+        };
+      }
+      modelGroups[dataset.modelId].datasets.push(dataset);
+    }
+  });
+
+  // Add related datasets to each entry
+  entries.forEach(dataset => {
+    if (dataset.modelId && modelGroups[dataset.modelId]) {
+      dataset.relatedDatasets = modelGroups[dataset.modelId].datasets
+        .filter(d => d.dataset_id !== dataset.dataset_id)
+        .map(d => ({
+          name: d.name,
+          dataset_id: d.dataset_id,
+          descriptionSummary: d.descriptionSummary
+        }));
+      dataset.model = models[dataset.modelId];
+    }
+  });
+
+  return { 
+    entries, 
+    models: Object.values(modelGroups),
+  };
 };
 
 /**

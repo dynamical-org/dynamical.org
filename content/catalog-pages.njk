@@ -1,7 +1,7 @@
 ---
 layout: base.njk
 pagination:
-  data: catalog
+  data: catalog.entries
   alias: entry
   size: 1
 permalink: 'catalog/{{entry.dataset_id | slugify}}/'
@@ -32,6 +32,18 @@ eleventyComputed:
   }
 </script>
 <div class="content catalog-item">
+  <div>
+    <a href="/catalog">Catalog</a>
+    {% if entry.model %}
+      {% set model = catalog.models | find('id', entry.modelId) %}
+      {% if model %}
+        >
+        <a href="/catalog/models/{{ model.shortName | slugify }}">{{ model.name }}</a>
+      {% endif %}
+    {% endif %}
+    > {{ entry.name }}
+  </div>
+  
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>{{ entry.name }}</h1>
     {% include "catalog-entry-status.njk" %}
@@ -74,6 +86,33 @@ eleventyComputed:
     </div>
   </p>
   <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
+
+  {% if entry.model %}
+    {% set model = catalog.models[entry.model] %}
+    {% if model %}
+      <h2>About {{ model.name }}</h2>
+      <p style="text-wrap: balance">{{ model.description | safe }}</p>
+      
+      {% if model.datasets.length > 1 %}
+        <h3>Related Datasets</h3>
+        <ul>
+          {% for dataset in model.datasets %}
+            {% if dataset.dataset_id != entry.dataset_id %}
+              <li>
+                {% if dataset.status == 'live' or dataset.status == 'available' %}
+                  <a href="/catalog/{{ dataset.dataset_id | slugify }}">{{ dataset.name }}</a>
+                {% else %}
+                  {{ dataset.name }}
+                {% endif %}
+                - {{ dataset.descriptionSummary | striptags | truncate(100) }}
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">

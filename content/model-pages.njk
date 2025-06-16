@@ -1,0 +1,54 @@
+---
+layout: base.njk
+pagination:
+  data: catalog.models
+  alias: model
+  size: 1
+permalink: 'catalog/models/{{model.shortName | slugify}}/'
+eleventyComputed:
+  title: '{{model.name}}'
+---
+
+<style></style>
+<div class="content">
+    <div>
+        <a href="/catalog">Catalog</a>
+        > {{ model.name }}
+    </div>
+    <div>
+        <h1>{{ model.name }}</h1>
+        <table>
+            <tr>
+                <td>
+                    <strong>Agency:</strong>
+                </td>
+                <td>{{ model.agency }}</td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Type</strong>
+                </td>
+                <td>{{ model.type }}</td>
+            </tr>
+        </table>
+        <div>{{ model.description | safe }}</div>
+    </div>
+    <h2>Available Datasets</h2>
+    <ul class="catalog-list">
+        {% for entry in model.datasets %}
+            <li>
+                <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+                    <strong>
+                        {% if entry.status == 'live' or entry.status == 'available' %}
+                            <a href="/catalog/{{ entry.dataset_id | slugify }}">{{ entry.name }}</a>
+                        {% else %}
+                            {{ entry.name }}
+                        {% endif %}
+                    </strong>
+                    <br/> {% include "catalog-entry-status.njk" %}
+                </div>
+                <p>{{ entry.description }}</p>
+            </li>
+        {% endfor %}
+    </ul>
+</div>

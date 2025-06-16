@@ -47,71 +47,86 @@
     </nav>
     
 <style>
-  .catalog-list li {
-    border-bottom: 1px solid black;
-    list-style: none;
-    padding: 1rem 0;
-  }
-  .catalog-list li > * {
-    margin: 0;
-  }
-  .catalog-list li:last-child {
-    border-bottom: none;
-  }
 </style>
 <div class="content">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>Catalog</h1>
-    <div style="margin-left: auto;">
+    <div style="margin-left: auto; display: flex; gap: 1rem; align-items: center;">
       <a href="/catalog/llms">🤖</a>
     </div>
   </div>
-  <ul class="catalog-list">
+
+  <div id="models-view" class="view-content">
     
-      <li>
-        <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
-          <strong>
-            
-              <a href="/catalog/noaa-gfs-analysis-hourly">NOAA GFS analysis, hourly</a>
-            
-          </strong>
-          <br/> 
+      <div class="model-group">
+        <div class="model-header">
+          <h2>
+            <a href="/catalog/models/gfs">NOAA GFS</a>
+          </h2>
+          <p>The Global Forecast System (GFS) is a National Oceanic and Atmospheric Administration (NOAA) National Centers for Environmental Prediction (NCEP)...</p>
+        </div>
+        <ul class="catalog-list">
+          
+            <li>
+              <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+                <strong>
+                  
+                    <a href="/catalog/noaa-gfs-analysis-hourly">NOAA GFS analysis, hourly</a>
+                  
+                </strong>
+                <br/> 
 <span style="background-color: rgb(120, 250, 100);">available</span>
 
-        </div>
-        <p>Historical weather data from the Global Forecast System (GFS) model operated by NOAA NCEP.</p>
-      </li>
+              </div>
+              <p>Historical weather data from the Global Forecast System (GFS) model operated by NOAA NCEP.</p>
+            </li>
+          
+        </ul>
+      </div>
     
-      <li>
-        <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
-          <strong>
-            
-              <a href="/catalog/noaa-gefs-forecast-35-day">NOAA GEFS forecast, 35 day</a>
-            
-          </strong>
-          <br/> 
+      <div class="model-group">
+        <div class="model-header">
+          <h2>
+            <a href="/catalog/models/gefs">NOAA GEFS</a>
+          </h2>
+          <p>The Global Ensemble Forecast System (GEFS) is a National Oceanic and Atmospheric Administration (NOAA) National Centers for Environmental Prediction...</p>
+        </div>
+        <ul class="catalog-list">
+          
+            <li>
+              <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+                <strong>
+                  
+                    <a href="/catalog/noaa-gefs-forecast-35-day">NOAA GEFS forecast, 35 day</a>
+                  
+                </strong>
+                <br/> 
 <span style="background-color: rgb(120, 250, 100);">updating</span>
 
-        </div>
-        <p>Weather forecasts from the Global Ensemble Forecast System (GEFS) operated by NOAA NWS NCEP.</p>
-      </li>
-    
-      <li>
-        <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
-          <strong>
-            
-              <a href="/catalog/noaa-gefs-analysis">NOAA GEFS analysis</a>
-            
-          </strong>
-          <br/> 
+              </div>
+              <p>Weather forecasts from the Global Ensemble Forecast System (GEFS) operated by NOAA NWS NCEP.</p>
+            </li>
+          
+            <li>
+              <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+                <strong>
+                  
+                    <a href="/catalog/noaa-gefs-analysis">NOAA GEFS analysis</a>
+                  
+                </strong>
+                <br/> 
 <span style="background-color: rgb(120, 250, 100);">updating</span>
 
-        </div>
-        <p>Weather analysis from the Global Ensemble Forecast System (GEFS) operated by NOAA NWS NCEP.</p>
-      </li>
+              </div>
+              <p>Weather analysis from the Global Ensemble Forecast System (GEFS) operated by NOAA NWS NCEP.</p>
+            </li>
+          
+        </ul>
+      </div>
     
-  </ul>
-  <h2>Phase 1</h2>
+  </div>
+  <hr style="margin: 6rem 0;" />
+  <h2>Roadmap, Phase 1</h2>
   <p>Each of these items includes both live-updating forecasts and derived analysis/climatology datasets.</p>
   <ul class="catalog-list">
     <li>
@@ -135,6 +150,28 @@
     </li>
   </ul>
 </div>
+<script>
+  function showView(viewName) {
+    // Hide all views
+    document.querySelectorAll('.view-content').forEach(content => {
+      content.classList.remove('active');
+    });
+    // Remove active class from all tabs
+    document.querySelectorAll('.view-tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    // Show selected view
+    document
+      .getElementById(viewName + '-view')
+      .classList
+      .add('active');
+    // Add active class to clicked tab
+    event
+      .target
+      .classList
+      .add('active');
+  }
+</script>
     <!-- Latest content popup -->
     
     
