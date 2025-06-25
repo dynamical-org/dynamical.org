@@ -48,9 +48,9 @@ concatenated into a single page designed to be read by an LLM or AI assistant.
         </p>
 
         <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gfs-forecast">NOAA GFS forecast</a>
+        dataset.
         </p>
       
         </p>
@@ -137,6 +137,14 @@ concatenated into a single page designed to be read by an LLM or AI assistant.
         <h2>Details</h2>
         <p>
             
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
         <p>
         The data values in this dataset have been rounded in their binary
         representation to improve compression. We round to retain 9 bits of
@@ -302,6 +310,448 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
 
     <div class="content catalog-item">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <h1>NOAA GFS forecast</h1>
+        </div>
+        <table>
+            <tr>
+                <td>Dataset url</td>
+                <td>https://data.dynamical.org/noaa/gfs/forecast/latest.zarr</td>
+            </tr>
+            <tr>
+                <td>Spatial domain</td>
+                <td>Global</td>
+            </tr>
+            <tr>
+                <td>Spatial resolution</td>
+                <td>0.25 degrees (~20km)</td>
+            </tr>
+            <tr>
+                <td>Time domain</td>
+                <td>Forecasts initialized 2021-05-01 00:00:00 UTC to Present</td>
+            </tr>
+            <tr>
+                <td>Time resolution</td>
+                <td>Forecasts initialized every 6 hours</td>
+            </tr>
+            
+                <tr>
+                    <td>Forecast domain</td>
+                    <td>Forecast lead time 0-384 hours (0-16 days) ahead</td>
+                </tr>
+                <tr>
+                    <td>Forecast resolution</td>
+                    <td>Forecast step 0-120 hours: hourly, 123-384 hours: 3 hourly</td>
+                </tr>
+            
+        </table>
+        <h2>Description</h2>
+        <p>
+            
+        <p>
+        This dataset is an archive of past and present GFS forecasts. Forecasts
+        are identified by an initialization time (<code>init_time</code>) denoting the
+        start time of the model run. Each forecast steps forward in time along the
+        <code>lead_time</code> dimension.
+        </p>
+
+        <p>
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gfs-analysis-hourly">NOAA GFS analysis, hourly</a>
+        dataset.
+        </p>
+      
+        </p>
+        <!-- Structured metadata for LLMs -->
+        <div class="llm-metadata">
+            <pre class="llm-metadata">
+{
+    "dataset_name": "NOAA GFS forecast",
+    "description_short": "Weather forecasts from the Global Forecast System (GFS) operated by NOAA NWS NCEP.",
+    "url": "https://data.dynamical.org/noaa/gfs/forecast/latest.zarr",
+    "spatial_domain": "Global",
+    "spatial_resolution": "0.25 degrees (~20km)",
+    "time_domain": "Forecasts initialized 2021-05-01 00:00:00 UTC to Present",
+    "time_resolution": "Forecasts initialized every 6 hours",
+    "forecast_domain": "Forecast lead time 0-384 hours (0-16 days) ahead",
+    "forecast_resolution": "Forecast step 0-120 hours: hourly, 123-384 hours: 3 hourly",
+    "dimensions": [
+        {
+            "name": "init_time",
+            "min": "2021-05-01T00:00:00",
+            "max": "Present",
+            "units": "seconds since 1970-01-01"
+        },
+        {
+            "name": "latitude",
+            "min": "-90",
+            "max": "90",
+            "units": "degrees_north"
+        },
+        {
+            "name": "lead_time",
+            "min": "0 days 00:00:00",
+            "max": "16 days 00:00:00",
+            "units": "seconds"
+        },
+        {
+            "name": "longitude",
+            "min": "-180",
+            "max": "179.75",
+            "units": "degrees_east"
+        }
+    ],
+    "variables": [
+        {
+            "name": "categorical_freezing_rain_surface",
+            "long_name": "Categorical freezing rain",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "categorical_ice_pellets_surface",
+            "long_name": "Categorical ice pellets",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "categorical_rain_surface",
+            "long_name": "Categorical rain",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "categorical_snow_surface",
+            "long_name": "Categorical snow",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "downward_long_wave_radiation_flux_surface",
+            "long_name": "Surface downward long-wave radiation flux",
+            "units": "W/(m^2)",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "downward_short_wave_radiation_flux_surface",
+            "long_name": "Surface downward short-wave radiation flux",
+            "units": "W/(m^2)",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "expected_forecast_length",
+            "long_name": "",
+            "units": "seconds",
+            "dimensions": "init_time"
+        },
+        {
+            "name": "geopotential_height_cloud_ceiling",
+            "long_name": "Geopotential height",
+            "units": "gpm",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "ingested_forecast_length",
+            "long_name": "",
+            "units": "seconds",
+            "dimensions": "init_time"
+        },
+        {
+            "name": "maximum_temperature_2m",
+            "long_name": "Maximum temperature",
+            "units": "C",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "minimum_temperature_2m",
+            "long_name": "Minimum temperature",
+            "units": "C",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "percent_frozen_precipitation_surface",
+            "long_name": "Percent frozen precipitation",
+            "units": "%",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "precipitable_water_atmosphere",
+            "long_name": "Precipitable water",
+            "units": "kg/(m^2)",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "precipitation_surface",
+            "long_name": "Total Precipitation",
+            "units": "mm/s",
+            "comment": "Average precipitation rate since the previous forecast step.",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "pressure_reduced_to_mean_sea_level",
+            "long_name": "Pressure reduced to MSL",
+            "units": "Pa",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "pressure_surface",
+            "long_name": "Surface pressure",
+            "units": "Pa",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "relative_humidity_2m",
+            "long_name": "2 metre relative humidity",
+            "units": "%",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "temperature_2m",
+            "long_name": "2 metre temperature",
+            "units": "C",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "total_cloud_cover_atmosphere",
+            "long_name": "Total Cloud Cover",
+            "units": "%",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "valid_time",
+            "long_name": "",
+            "units": "seconds since 1970-01-01",
+            "dimensions": "init_time × lead_time"
+        },
+        {
+            "name": "wind_u_100m",
+            "long_name": "100 metre U wind component",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "wind_u_10m",
+            "long_name": "10 metre U wind component",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "wind_v_100m",
+            "long_name": "100 metre V wind component",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        },
+        {
+            "name": "wind_v_10m",
+            "long_name": "10 metre V wind component",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × latitude × longitude"
+        }
+    ]
+}
+            </pre>
+        </div>
+        <h2>For LLMs & AI Assistants</h2>
+        <div class="llm-context-info">
+            <p>
+                <strong>Dataset summary:</strong>
+                NOAA GFS forecast is a dataset containing 24 variables across 4
+                dimensions, covering
+                Global at 0.25 degrees (~20km) resolution and
+                Forecasts initialized 2021-05-01 00:00:00 UTC to Present at Forecasts initialized every 6 hours resolution.
+            </p>
+            <p>
+                <strong>Key use cases:</strong>
+                This dataset is suitable for
+                forecasting and prediction models,
+                
+                data analysis, visualization, and scientific research related to this domain.
+            </p>
+            <p>
+                <strong>Access pattern:</strong>
+                Use this URL with optional email parameter to access this dataset programmatically: https://data.dynamical.org/noaa/gfs/forecast/latest.zarr
+            </p>
+        </div>
+        <h2>Details</h2>
+        <p>
+            
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gfs/forecast/template_config.py">reformatting code</a>.
+        </p>
+      
+        </p>
+        <h2>Examples</h2>
+        <h3>Brief example usage:</h3>
+        
+            <div class="frame">
+                <div class="frameHeader">
+                    <div class="frameHeaderTitle">dynamical.org - NOAA GFS forecast</div>
+                    <div class="frameHeaderSubtitle">Maximum temperature in a forecast</div>
+                </div>
+                <pre class="frameContent frameContentDesktop"><code class="language-python">
+# Example: Maximum temperature in a forecast
+# Dataset: NOAA GFS forecast
+# This code demonstrates how to access and process the NOAA GFS forecast dataset
+
+
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/forecast/latest.zarr?email=optional@email.com")
+ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+    </code></pre>
+                <div class="example-notes">
+                    <p>
+                        <strong>What this example does:</strong>
+                        This code demonstrates accessing the NOAA GFS forecast dataset and processing its data.</p>
+                    <p>
+                        <strong>Key components:</strong>
+                        Data loading, processing, and potentially visualization of the dataset variables.</p>
+                </div>
+            </div>
+        
+        
+            <div class="notebook-content">
+                <h3>Python notebook example usage:</h3>
+                
+                <div class="example-source">Source:
+                    <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb">https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb</a>
+                </div>
+                <pre>{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "# Quickstart: NOAA GFS forecast - dynamical.org Zarr\n",
+        "A brief introduction to the NOAA GFS forecast dataset transformed into an analysis-ready, cloud-optimized format by dynamical.org.\n",
+        "\n",
+        "Dataset documentation: https://dynamical.org/catalog/noaa-gfs-forecast/"
+      ],
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# If running locally, follow README.md for simple dependency installation.\n",
+        "# If using Google Colab, run this cell and then restart the notebook.\n",
+        "%pip install \"xarray[complete]>=2025.1.2\" \"zarr>=3.0.4\" requests aiohttp"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 58,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "import xarray as xr\n",
+        "\n",
+        "ds = xr.open_zarr(\"https://data.dynamical.org/noaa/gfs/forecast/latest.zarr?email=optional@email.com\", decode_timedelta=True, chunks=None)\n",
+        "ds"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 70,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Plot one precipitation forecast in Shanghai\n",
+        "plot_ds = ds.sel(init_time=\"2024-09-15T00\", latitude=31.2, longitude=121.4, method=\"nearest\")\n",
+        "_ = plot_ds[\"precipitation_surface\"].plot(x=\"valid_time\", figsize=(10, 5))"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 60,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# 4 day ahead forecast of 2 meter air temperature from the 2025-02-01 00:00 UTC model initialization\n",
+        "(\n",
+        "    ds[\"temperature_2m\"]\n",
+        "    .sel(init_time=\"2025-02-01T00\", lead_time=\"4d\")\n",
+        "    .sel(latitude=slice(60, -60), longitude=slice(-160, -20))\n",
+        "    .plot(figsize=(8, 8))\n",
+        ")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 61,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "from IPython.display import HTML\n",
+        "from matplotlib.animation import FuncAnimation\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "# An interactive animation of the February 2024 atmospheric river in the Pacific Ocean\n",
+        "\n",
+        "data = (\n",
+        "    ds[\"precipitable_water_atmosphere\"]\n",
+        "    .sel(\n",
+        "        init_time=\"2024-01-28T00\",\n",
+        "        lead_time=slice(\"0h\", \"4d\"),\n",
+        "        latitude=slice(60, 20),  \n",
+        "        longitude=slice(-170, -100), \n",
+        "    ).load()\n",
+        ")\n",
+        "\n",
+        "dpi=150\n",
+        "fig, ax = plt.subplots(figsize=(data.longitude.size/(dpi/2), data.latitude.size/(dpi/2)), dpi=dpi)\n",
+        "fig.subplots_adjust(left=0, right=1, top=1, bottom=0)\n",
+        "ax.axis(\"off\")\n",
+        "\n",
+        "img = ax.imshow(data.isel(lead_time=0), cmap='magma')\n",
+        "anim = FuncAnimation(fig=fig, frames=data, func=lambda frame: img.set_data(frame), interval=80)\n",
+        "\n",
+        "HTML(anim.to_jshtml())"
+      ]
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": ".venv",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.12.6"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 2
+}</pre>
+            </div>
+        
+    </div>
+
+    <div class="content catalog-item">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
             <h1>NOAA GEFS forecast, 35 day</h1>
         </div>
         <table>
@@ -349,9 +799,9 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         </p>
 
         <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gefs-analysis">NOAA GEFS analysis</a>
+        dataset.
         </p>
       
         </p>
@@ -590,6 +1040,13 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         latitude and longitude dimensions (e.g. <code>array[::2, ::2]</code>).
         </p>
 
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
         <h3>Compression</h3>
         <p>
         The data values in this dataset have been rounded in their binary
@@ -814,14 +1271,8 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
 
         <p>
         This dataset is designed to be used in conjunction with the
-        <a href="/catalog/noaa-gefs-forecast-35-day">GEFS forecast 35 day</a>
+        <a href="/catalog/noaa-gefs-forecast-35-day">NOAA GEFS forecast, 35 day</a>
         dataset.
-        </p>
-
-        <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       
         </p>
@@ -1067,6 +1518,13 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         to a 3-hourly timestep if necessary. The original, uninterpolated data can be obtained
         by selecting latitudes and longitudes evenly divisible by 1 and, in case 1), time steps
         whose hour is divisible by 6.
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
 
         <h3>Compression</h3>

@@ -53,12 +53,20 @@ let entries = [
         </p>
 
         <p>
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gfs-forecast">NOAA GFS forecast</a>
+        dataset.
+        </p>
+      `,
+    descriptionDetails: `
+        <h3>Storage</h3>
+        <p>
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
-      `,
-    descriptionDetails: `
+
+        <h3>Compression</h3>
         <p>
         The data values in this dataset have been rounded in their binary
         representation to improve compression. We round to retain 9 bits of
@@ -87,6 +95,60 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
   },
 
+  // noaa-gfs-forecast
+  {
+    modelId: "noaa-gfs",
+    descriptionSummary: `
+        <p>
+        This dataset is an archive of past and present GFS forecasts. Forecasts
+        are identified by an initialization time (<code>init_time</code>) denoting the
+        start time of the model run. Each forecast steps forward in time along the
+        <code>lead_time</code> dimension.
+        </p>
+
+        <p>
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gfs-analysis-hourly">NOAA GFS analysis, hourly</a>
+        dataset.
+        </p>
+      `,
+    descriptionDetails: `
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gfs/forecast/template_config.py">reformatting code</a>.
+        </p>
+      `,
+    url: "https://data.dynamical.org/noaa/gfs/forecast/latest.zarr",
+    status: "coming soon",
+    examples: [
+      {
+        title: "Maximum temperature in a forecast",
+        code: `
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/forecast/latest.zarr?email=optional@email.com")
+ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb",
+  },
+
   // noaa-gefs-forecast-35-day
   {
     modelId: "noaa-gefs",
@@ -101,9 +163,9 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         </p>
 
         <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gefs-analysis">NOAA GEFS analysis</a>
+        dataset.
         </p>
       `,
     descriptionDetails: `
@@ -117,6 +179,13 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         0.5-degree data to a 0.25-degree grid. The original 0.5-degree values can be
         retrieved by selecting every other pixel starting from offset 0 in both the
         latitude and longitude dimensions (e.g. <code>array[::2, ::2]</code>).
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
 
         <h3>Compression</h3>
@@ -160,14 +229,8 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
 
         <p>
         This dataset is designed to be used in conjunction with the
-        <a href="/catalog/noaa-gefs-forecast-35-day">GEFS forecast 35 day</a>
+        <a href="/catalog/noaa-gefs-forecast-35-day">NOAA GEFS forecast, 35 day</a>
         dataset.
-        </p>
-
-        <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
       `,
     descriptionDetails: `
@@ -223,6 +286,13 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         to a 3-hourly timestep if necessary. The original, uninterpolated data can be obtained
         by selecting latitudes and longitudes evenly divisible by 1 and, in case 1), time steps
         whose hour is divisible by 6.
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
         </p>
 
         <h3>Compression</h3>

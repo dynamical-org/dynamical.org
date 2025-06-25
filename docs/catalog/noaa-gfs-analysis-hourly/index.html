@@ -128,9 +128,9 @@
         </p>
 
         <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gfs-forecast">NOAA GFS forecast</a>
+        dataset.
         </p>
       </p>
 
@@ -297,6 +297,14 @@
   <h2>Details</h2>
   <p>
     
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
         <p>
         The data values in this dataset have been rounded in their binary
         representation to improve compression. We round to retain 9 bits of
@@ -329,7 +337,7 @@
           <script>
             (function () {
               const popup = document.getElementById('latest-popup');
-              const latestDate = "Fri Jun 13 2025 19:00:00 GMT-0500 (Central Daylight Time)";
+              const latestDate = "Fri Jun 13 2025 20:00:00 GMT-0400 (Eastern Daylight Time)";
               const seenDate = localStorage.getItem('latestPopupDate');
               // if we've already seen this or something newer, hide the popup immediately
               if (seenDate && seenDate >= latestDate) {
