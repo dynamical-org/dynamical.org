@@ -39,6 +39,18 @@ module.exports = function (eleventyConfig) {
     );
   });
 
+  // Override the RSS plugin's dateToRfc822 filter to properly handle UTC conversion
+  eleventyConfig.addFilter("dateToRfc822", (dateObj) => {
+    // Convert to UTC using Luxon to ensure proper timezone handling
+    const utcDate = DateTime.fromJSDate(dateObj, { zone: "utc" });
+    return utcDate.toFormat("ccc, dd LLL yyyy HH:mm:ss '+0000'");
+  });
+
+  // Add ISO date filter for consistent UTC output
+  eleventyConfig.addFilter("isoDate", (dateObj) => {
+    return DateTime.fromJSDate(dateObj, { zone: "utc" }).toISO();
+  });
+
   eleventyConfig.addGlobalData("contributors", async () => {
     // Fetch all repos for the org
     const repos = await fetch(
