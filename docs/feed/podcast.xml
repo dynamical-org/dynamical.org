@@ -8,7 +8,7 @@
     <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
     <link>https://dynamical.org//podcast</link>
     <language>en-us</language>
-    <lastBuildDate>Wed, 11 Jun 2025 19:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 29 Jun 2025 19:00:00 +0000</lastBuildDate>
     <itunes:author>Marshall, Marta, and Alden</itunes:author>
     <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
     <itunes:category text="Science">
@@ -17,6 +17,42 @@
     <itunes:category text="Technology"/>
     <itunes:explicit>no</itunes:explicit>
     <itunes:image href="https://dynamical.org//assets/weathering/weathering_logo.png"/>
+      
+      <item>
+        <title>End-to-end data-driven weather prediction</title>
+        <description>
+          
+            Where does the end begin? Where does the end end? And what the HELL is happening in the middle? These are some of the questions we tackle in this episode as we explore Aardvark Weather, an end-to-end...
+          
+        </description>
+        <content:encoded>
+          <![CDATA[&lt;p&gt;Where does the end begin? Where does the end end? And what the HELL is happening in the middle?&lt;/p&gt;
+&lt;p&gt;These are some of the questions we tackle in this episode as we explore Aardvark Weather, an end-to-end forecasting system. End-to-end models are super cool, and likely to be the future of weather forecasting—but they also revitalize old questions about transparency, end-user trust, and the fidelity &amp;amp; availability of raw observations.&lt;/p&gt;
+&lt;p&gt;Join us as we unpack what an end-to-end model is, the Aardvark Weather approach, and how these models at-large might shape the landscape of forecasting (And books. Always books.)&lt;/p&gt;
+&lt;h2&gt;Featured paper&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.nature.com/articles/s41586-025-08897-0#Sec2&quot;&gt;&lt;strong&gt;End-to-end data-driven weather prediction&lt;/strong&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;h2&gt;Additional reading&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;The Forest Unseen&lt;/em&gt; by David George Haskell&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;“&lt;a href=&quot;https://harpers.org/archive/2024/07/the-gods-of-logic-benjamin-labatut-ai/&quot;&gt;The Gods of Logic&lt;/a&gt;”&lt;/em&gt; by Benjamín Labatut&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Moon of the Crusted Snow&lt;/em&gt; by Waubgeshig Rice&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;“&lt;a href=&quot;http://www.incompleteideas.net/IncIdeas/BitterLesson.html&quot;&gt;The Bitter Lesson&lt;/a&gt;”&lt;/em&gt; by Rich Sutton&lt;/li&gt;
+&lt;/ul&gt;
+]]>
+        </content:encoded>
+        <link>https://dynamical.org/podcast/002/</link>
+        <guid>https://dynamical.org/podcast/002/</guid>
+        <pubDate>Sun, 29 Jun 2025 19:00:00 +0000</pubDate>
+        
+          <enclosure url="https://dynamical.org/assets/weathering/002.mp3" type="audio/mpeg" length="0"/>
+        
+        
+        <itunes:author>Marshall, Marta, and Alden</itunes:author>
+        <itunes:explicit>no</itunes:explicit>
+        
+          <itunes:episode>002</itunes:episode>
+        
+      </item>
       
       <item>
         <title>The limits of predictability</title>
