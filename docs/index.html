@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
+    <title>dynamical.org - home</title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        <li>
+          <span style="font-size: 0.8em; color: #666; font-weight: normal;">🎙️ check 1 2... &gt;&gt;&gt;</span>
+          <a href="/podcast">podcast</a>
+        </li>
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
+      </ul>
+    </nav>
+    
+<style>
+  .frame {
+    margin: 8rem auto;
+  }
+</style>
+
+<div class="frame" style="margin-top: 4rem">
+  <div class="frameHeader">
+    <div class="frameHeaderTitle">dynamical.org</div>
+    <div class="frameHeaderSubtitle">GEFS analysis</div>
+  </div>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/analysis/latest.zarr"</span><span class="token punctuation">)</span></code></pre></code></pre>
+</div>
+
+<div class="content centered">
+  Weather data is hard to work with. What if it wasn't?
+</div>
+<div class="content centered"><a href="/catalog">See the catalog ↗</a></div>
+
+<div class="frame">
+  <div class="frameHeader">
+    <div class="frameHeaderTitle">dynamical.org</div>
+    <div class="frameHeaderSubtitle">
+      7-day lead of 25th-percentile temperature over Europe
+    </div>
+  </div>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr"</span><span class="token punctuation">)</span>
+<span class="token punctuation">(</span>
+    ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span>
+    <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>init_time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>lead_time<span class="token operator">=</span><span class="token string">"7d"</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>latitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token number">70</span><span class="token punctuation">,</span> <span class="token number">20</span><span class="token punctuation">)</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">50</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>quantile<span class="token punctuation">(</span><span class="token number">0.25</span><span class="token punctuation">,</span> dim<span class="token operator">=</span><span class="token string">"ensemble_member"</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span></code></pre></code></pre>
+  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr"</span><span class="token punctuation">)</span>
+<span class="token punctuation">(</span>
+    ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span>
+    <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>init_time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>lead_time<span class="token operator">=</span><span class="token string">"7d"</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>latitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token number">70</span><span class="token punctuation">,</span> <span class="token number">20</span><span class="token punctuation">)</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token builtin">slice</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">50</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>quantile<span class="token punctuation">(</span><span class="token number">0.25</span><span class="token punctuation">,</span> dim<span class="token operator">=</span><span class="token string">"ensemble_member"</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span></code></pre></code></pre>
+  <img
+    class="frameResult"
+    src="./assets/gefs_temperature_q25_europe.png"
+    alt="A plot showing precipitation in Mongolia for 2024-04-01"
+  />
+</div>
+
+<div class="frame">
+  <div class="frameHeader">
+    <div class="frameHeaderTitle">dynamical.org</div>
+    <div class="frameHeaderSubtitle">
+      Precipitation over time in Ulaanbaatar, Mongolia
+    </div>
+  </div>
+  <pre class="frameContent frameContentDesktop"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/analysis/latest.zarr"</span><span class="token punctuation">)</span>
+ds<span class="token punctuation">[</span><span class="token string">"precipitation_surface"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>latitude<span class="token operator">=</span><span class="token number">47.9</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">106.9</span><span class="token punctuation">,</span> method<span class="token operator">=</span><span class="token string">"nearest"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+  <pre class="frameContent frameContentMobile"><code><pre class="language-py" tabindex="0"><code class="language-py">ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/analysis/latest.zarr"</span><span class="token punctuation">)</span>
+ds<span class="token punctuation">[</span><span class="token string">"precipitation_surface"</span><span class="token punctuation">]</span> \
+  <span class="token punctuation">.</span>sel<span class="token punctuation">(</span>latitude<span class="token operator">=</span><span class="token number">47.9</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">106.9</span><span class="token punctuation">,</span> method<span class="token operator">=</span><span class="token string">"nearest"</span><span class="token punctuation">)</span> \
+  <span class="token punctuation">.</span>plot<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+  <img
+    class="frameResult"
+    src="./assets/gefs_precipitation_surface_2024-04-01T00-00.png"
+    alt="A plot showing precipitation in Mongolia for 2024-04-01"
+  />
+</div>
+
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">🎙️ New podcast episode</span>
+          <button id="latest-close" class="popup-close">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "2025-06-30T00:00:00.000Z";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/podcast/002/" class="popup-title">End-to-end data-driven weather prediction</a>
+        <div class="popup-date">2025-06-30</div>
+      </div>
+    
+  </body>
+</html>

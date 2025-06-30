@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
+    <title>dynamical.org - September update</title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        <li>
+          <span style="font-size: 0.8em; color: #666; font-weight: normal;">🎙️ check 1 2... &gt;&gt;&gt;</span>
+          <a href="/podcast">podcast</a>
+        </li>
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
+      </ul>
+    </nav>
+    <p>Ahoy weatherheads! It’s been a busy few months for us as we shift gears from dreaming to building.</p>
+<h3>Catalog updates</h3>
+<ul>
+<li>Our dataset for <a href="https://dynamical.org/catalog/noaa-gfs-analysis-hourly/">NOAA GFS analysis</a> has getting some awesome usage! Thanks to everyone who has tested it out.</li>
+<li>We are prepping to launch <strong>NOAA GEFS</strong> <strong>forecasts</strong> as the second entry to <a href="http://dynamical.org/catalog">dynamical.org/catalog</a>. It will include a large historical forecast record and update in real-time. Dealing with GEFS in its standard format has, in the past, broken my spirit; and I suppose it’s part of why we are so passionate about making weather data easier to work with! So… thank you GEFS? Excited for this one.
+<img src="/assets/gefs-dlwrf-img-only.png" alt="GEFS ensemble average downward long-wave radiation flux.">
+<em>GEFS ensemble average downward long-wave radiation flux.</em></li>
+<li>We plan to fast-follow GEFS with <strong>GFS</strong> (forecasts vs our current analysis) and <strong>HRRR</strong> from NOAA as well as <strong>GDPS</strong> and <strong>HRDPS</strong> from ECCC (Environment and Climate Change Canada). As part of these releases we will be announcing our first <strong>catalog sponsor</strong>!</li>
+</ul>
+<h3>GFS analysis feedback</h3>
+<p>A hearty thank you to everyone who filled out our <a href="https://docs.google.com/forms/d/e/1FAIpQLSeqDiWRfTQfZgejPWWfNoBwcm4m2wxa9qxgSZIunsnbhH15XQ/viewform">GFS survey</a>. Common themes included the value of live updating and forecast data, and a clear preference for reading data with python + xarray. That aligned with our expectations (wonderful) and is reflected in our roadmap above. We did see more desire for long history (re)analysis data than we had anticipated -- we'll be moving up a true reanalysis dataset in priority thanks to this feedback. Reply to this email if there's a specific reanalysis you'd like!</p>
+<h3>Assembling our Steering Committee</h3>
+<p>We are officially launching our steering committee, which will be comprised of industry users and experts in the technical and scientific domain. The committee will meet quarterly to evaluate and influence the catalog and open-source roadmap and advise potential collaborations and partnerships.</p>
+<p>If you’re interested in joining or nominating someone else, please respond to this email or email <a href="mailto:marshall@dynamical.org">marshall@dynamical.org</a>!</p>
+<h3>What we’ve been reading</h3>
+<blockquote>
+<p>My souls, how the wind did scream along! And every second or two there’d come a glare that lit up the white-caps for a half a mile around, and you’d see the islands looking dusty through the rain, and the trees thrashing around in the wind; then comes a <em>h-whack!</em>—bum! bum! bumble-umble-um-bum-bum-bum-bum—and the thunder would go rumbling and grumbling away, and quit—and then <em>rip</em> comes another flash and another sockdolager.</p>
+</blockquote>
+<p>I’m reading <em>Adventures of Huckleberry Finn</em>, which has some stellar meteorological descriptions. Should we petition NOAA to make their detailed forecasts use “h-wack!-bum! bum!” and “sockdolager?” I think yes.</p>
+<p>We enjoyed Dr. Jack Kelly’s post on the vision this community shares, where he outlined a complimentary route to solving major pain points. Thanks for the <a href="http://dynamical.org">dynamical.org</a> shoutouts, Jack! Definitely check it out here: <a href="https://openclimatefix.org/post/lazy-loading-making-it-easier-to-access-vast-datasets-of-weather-satellite-data">https://openclimatefix.org/post/lazy-loading-making-it-easier-to-access-vast-datasets-of-weather-satellite-data</a></p>
+<p>We were thrilled to see our pals at <strong>Brightband</strong> <a href="https://www.brightband.com/blog/introducing-brightband">announce themselves to the world</a>. The field of AI meteorological forecasts is progressing at quite the clip - three cheers for more open source models! We also enjoyed <strong>Zeus AI</strong>'s cool work <a href="https://myzeus.ai/earthnet-a-multi-modal-foundation-model-for-global-data-assimilation-of-earth-observations/">synthesizing multiple, sparse data sources into a single gap filled analysis state</a>.</p>
+<hr>
+<p>Enjoy the <a href="https://open.spotify.com/track/1rJi8cf8OWsrX4CqBnMSoQ?si=d985266a142a4669">weather</a>!</p>
+
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">🎙️ New podcast episode</span>
+          <button id="latest-close" class="popup-close">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "2025-06-30T00:00:00.000Z";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/podcast/002/" class="popup-title">End-to-end data-driven weather prediction</a>
+        <div class="popup-date">2025-06-30</div>
+      </div>
+    
+  </body>
+</html>

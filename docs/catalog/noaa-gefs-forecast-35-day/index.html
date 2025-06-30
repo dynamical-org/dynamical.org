@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
+    <title>dynamical.org - NOAA GEFS forecast, 35 day</title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        <li>
+          <span style="font-size: 0.8em; color: #666; font-weight: normal;">🎙️ check 1 2... &gt;&gt;&gt;</span>
+          <a href="/podcast">podcast</a>
+        </li>
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
+      </ul>
+    </nav>
+    
+<style>
+  .content.catalog-item {
+    font-size: 1.4rem;
+  }
+  .metadata-comment {
+    font-size: 80%;
+  }
+  .metadata-comment td {
+    padding-top: 0;
+  }
+  .metadata-comment span {
+    background-color: rgb(250, 250, 250);
+    color: rgb(45, 45, 45);
+  }
+</style>
+<script>
+  function copyUrl() {
+    const input = document.getElementById('catalog-entry-url');
+    input.select();
+    document.execCommand('copy');
+  }
+</script>
+<div class="content catalog-item">
+  <div>
+    <a href="/catalog">Catalog</a>
+    
+      
+      
+        >
+        <a href="/catalog/models/gefs">NOAA GEFS</a>
+      
+    
+    > NOAA GEFS forecast, 35 day
+  </div>
+  
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+    <h1>NOAA GEFS forecast, 35 day</h1>
+    
+<span style="background-color: rgb(120, 250, 100);">updating</span>
+
+  </div>
+  <table>
+    <tr>
+      <td>Spatial domain</td>
+      <td>Global</td>
+    </tr>
+    <tr>
+      <td>Spatial resolution</td>
+      <td>0-240 hours: 0.25 degrees (~20km), 243-840 hours: 0.5 degrees (~40km)</td>
+    </tr>
+    <tr>
+      <td>Time domain</td>
+      <td>Forecasts initialized 2020-10-01 00:00:00 UTC to Present</td>
+    </tr>
+    <tr>
+      <td>Time resolution</td>
+      <td>Forecasts initialized every 24 hours.</td>
+    </tr>
+    
+      <tr>
+        <td>Forecast domain</td>
+        <td>Forecast lead time 0-840 hours (0-35 days) ahead</td>
+      </tr>
+      <tr>
+        <td>Forecast resolution</td>
+        <td>Forecast step 0-240 hours: 3 hourly, 243-840 hours: 6 hourly</td>
+      </tr>
+    
+  </table>
+  <p>
+    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com" style="width: 91ch; max-width: 100%;"/>
+    <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
+    <div class="metadata-comment">
+      <span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org
+        supported for the long-term. For catalog updates follow
+        <a href='/updates'>here</a>.</span>
+    </div>
+  </p>
+  <p style="text-wrap: balance">
+        <p>
+        This dataset is an archive of past and present GEFS forecasts. Forecasts
+        are identified by an initialization time (<code>init_time</code>) denoting the
+        start time of the model run as well as by the <code>ensemble_member</code>.
+        Each forecast has a 3 hourly forecast step along the <code>lead_time</code>
+        dimension. This dataset contains only the 00 hour UTC initialization times
+        which produce the full length, 35 day forecast.
+        </p>
+
+        <p>
+        This dataset is designed to be used in conjunction with the
+        <a href="/catalog/noaa-gefs-analysis">NOAA GEFS analysis</a>
+        dataset.
+        </p>
+      </p>
+
+  
+    
+    
+  
+
+  <h2>Dimensions</h2>
+  <div class="table-container">
+    <table class="data">
+      <tr>
+        <th/>
+        <th>min</th>
+        <th>max</th>
+        <th>units</th>
+      </tr>
+      
+        <tr>
+          <td>
+            <strong>ensemble_member</strong>
+          </td>
+          <td>0</td>
+          <td>30</td>
+          <td>realization</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="4">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>init_time</strong>
+          </td>
+          <td>2020-10-01T00:00:00</td>
+          <td>Present</td>
+          <td>seconds since 1970-01-01</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="4">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>latitude</strong>
+          </td>
+          <td>-90</td>
+          <td>90</td>
+          <td>degrees_north</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="4">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>lead_time</strong>
+          </td>
+          <td>0 days 00:00:00</td>
+          <td>35 days 00:00:00</td>
+          <td>seconds</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="4">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>longitude</strong>
+          </td>
+          <td>-180</td>
+          <td>179.75</td>
+          <td>degrees_east</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="4">
+            <span></span>
+          </td>
+        </tr>
+      
+    </table>
+  </div>
+  <h2>Variables</h2>
+  <div class="table-container">
+    <table class="data">
+      <tr>
+        <th/>
+        <th>units</th>
+        <th>dimensions</th>
+      </tr>
+      
+        <tr>
+          <td>
+            <strong>categorical_freezing_rain_surface</strong>
+            <p class="metadata-comment">Categorical freezing rain</p>
+            
+          </td>
+          <td>0=no; 1=yes</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>categorical_ice_pellets_surface</strong>
+            <p class="metadata-comment">Categorical ice pellets</p>
+            
+          </td>
+          <td>0=no; 1=yes</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>categorical_rain_surface</strong>
+            <p class="metadata-comment">Categorical rain</p>
+            
+          </td>
+          <td>0=no; 1=yes</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>categorical_snow_surface</strong>
+            <p class="metadata-comment">Categorical snow</p>
+            
+          </td>
+          <td>0=no; 1=yes</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>downward_long_wave_radiation_flux_surface</strong>
+            <p class="metadata-comment">Surface downward long-wave radiation flux</p>
+            
+              <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
+            
+          </td>
+          <td>W/(m^2)</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>downward_short_wave_radiation_flux_surface</strong>
+            <p class="metadata-comment">Surface downward short-wave radiation flux</p>
+            
+              <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
+            
+          </td>
+          <td>W/(m^2)</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>expected_forecast_length</strong>
+            <p class="metadata-comment"></p>
+            
+          </td>
+          <td>seconds</td>
+          <td>init_time</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>geopotential_height_cloud_ceiling</strong>
+            <p class="metadata-comment">Geopotential height</p>
+            
+          </td>
+          <td>gpm</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>ingested_forecast_length</strong>
+            <p class="metadata-comment"></p>
+            
+          </td>
+          <td>seconds</td>
+          <td>init_time × ensemble_member</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>maximum_temperature_2m</strong>
+            <p class="metadata-comment">Maximum temperature</p>
+            
+          </td>
+          <td>C</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>minimum_temperature_2m</strong>
+            <p class="metadata-comment">Minimum temperature</p>
+            
+          </td>
+          <td>C</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>percent_frozen_precipitation_surface</strong>
+            <p class="metadata-comment">Percent frozen precipitation</p>
+            
+              <p class="metadata-comment">Contains the value -50 when there is no precipitation.</p>
+            
+          </td>
+          <td>%</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>precipitable_water_atmosphere</strong>
+            <p class="metadata-comment">Precipitable water</p>
+            
+          </td>
+          <td>kg/(m^2)</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>precipitation_surface</strong>
+            <p class="metadata-comment">Total Precipitation</p>
+            
+              <p class="metadata-comment">Average precipitation rate since the previous forecast step.</p>
+            
+          </td>
+          <td>mm/s</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>pressure_reduced_to_mean_sea_level</strong>
+            <p class="metadata-comment">Pressure reduced to MSL</p>
+            
+          </td>
+          <td>Pa</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>pressure_surface</strong>
+            <p class="metadata-comment">Surface pressure</p>
+            
+          </td>
+          <td>Pa</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>relative_humidity_2m</strong>
+            <p class="metadata-comment">2 metre relative humidity</p>
+            
+          </td>
+          <td>%</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>temperature_2m</strong>
+            <p class="metadata-comment">2 metre temperature</p>
+            
+          </td>
+          <td>C</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>total_cloud_cover_atmosphere</strong>
+            <p class="metadata-comment">Total Cloud Cover</p>
+            
+              <p class="metadata-comment">Average value in the last 6 hour period (00, 06, 12, 18 UTC) or 3 hour period (03, 09, 15, 21 UTC).</p>
+            
+          </td>
+          <td>%</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>valid_time</strong>
+            <p class="metadata-comment"></p>
+            
+          </td>
+          <td>seconds since 1970-01-01</td>
+          <td>init_time × lead_time</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>wind_u_100m</strong>
+            <p class="metadata-comment">100 metre U wind component</p>
+            
+          </td>
+          <td>m/s</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>wind_u_10m</strong>
+            <p class="metadata-comment">10 metre U wind component</p>
+            
+          </td>
+          <td>m/s</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>wind_v_100m</strong>
+            <p class="metadata-comment">100 metre V wind component</p>
+            
+          </td>
+          <td>m/s</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+        <tr>
+          <td>
+            <strong>wind_v_10m</strong>
+            <p class="metadata-comment">10 metre V wind component</p>
+            
+          </td>
+          <td>m/s</td>
+          <td>init_time × ensemble_member × lead_time × latitude × longitude</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      
+    </table>
+  </div>
+  <p class="metadata-comment">
+    Don't see what you're looking for? Let us know at
+    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
+  </p>
+  <h2>Examples</h2>
+  <table>
+    
+      <tr>
+        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
+        <td>
+          <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb">Open notebook in github</a>
+        </td>
+      </tr>
+    
+    
+      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
+      <td>
+        <a href="https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb">Open notebook in colab</a>
+      </td>
+    
+  </table>
+  
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org - NOAA GEFS forecast, 35 day</div>
+        <div class="frameHeaderSubtitle">Maximum temperature in ensemble forecast</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr  <span class="token comment"># xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support</span><br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">'temperature_2m'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>init_time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">,</span> latitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token builtin">max</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+    </div>
+  
+  <h2>Details</h2>
+  <p>
+    
+        <h3>Interpolation</h3>
+        <p>
+        Source data is available at both 0.25-degree and 0.5-degree resolutions.
+        All variables except the 100m wind components are derived
+        from a 0.25-degree grid for the first 240 hours of each forecast and from a
+        0.5-degree grid for the remainder. 100m wind components are derived from
+        a 0.5-degree grid for all lead times. Bilinear interpolation is used to convert
+        0.5-degree data to a 0.25-degree grid. The original 0.5-degree values can be
+        retrieved by selecting every other pixel starting from offset 0 in both the
+        latitude and longitude dimensions (e.g. <code>array[::2, ::2]</code>).
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gefs/common_gefs_template_config.py">reformatting code</a>.
+        </p>
+      
+  </p>
+</div>
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">🎙️ New podcast episode</span>
+          <button id="latest-close" class="popup-close">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "2025-06-30T00:00:00.000Z";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/podcast/002/" class="popup-title">End-to-end data-driven weather prediction</a>
+        <div class="popup-date">2025-06-30</div>
+      </div>
+    
+  </body>
+</html>
