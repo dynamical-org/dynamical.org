@@ -23,11 +23,7 @@ permalink: /feed/podcast.xml
     {%- for episode in collections.podcast | reverse %}
       {% set absoluteEpisodeUrl %}{{ episode.url | htmlBaseUrl(metadata.url) }}{% endset %}
       <item>
-        <title>
-          {% if episode.data.episode_number %}
-            {{ episode.data.episode_number }}.
-          {% endif %}
-          {{ episode.data.title }}</title>
+        <title>{{ episode.data.title }}</title>
         <description>
           {% if episode.data.summary %}
             {{ episode.data.summary }}
