@@ -37,20 +37,9 @@ concatenated into a single page designed to be read by an LLM or AI assistant.
         <p>
             
         <p>
-        This dataset is an "analysis" containing the model's best estimate of
-        each value at each timestep. In other words, it does not contain a
-        forecast dimension. GFS starts a new model run every 6 hours and
-        dynamical.org has created this analysis by concatenating the first 6
-        hours of each forecast. Before 2021-02-27 GFS had a 3 hourly step at
-        early forecast hours. In this reanalysis we have used linear
-        interpolation in the time dimension to fill in the two timesteps between
-        the three-hourly values prior to 2021-02-27.
-        </p>
-
-        <p>
-        This dataset is designed to be used in conjunction with the
-        <a href="/catalog/noaa-gfs-forecast">NOAA GFS forecast</a>
-        dataset.
+        This analysis dataset is an archive of the model's best estimate of past weather.
+        It is created by concatenating the first few hours of each historical forecast to
+        provide a dataset with dimensions time, latitude, and longitude.
         </p>
       
         </p>
@@ -137,6 +126,21 @@ concatenated into a single page designed to be read by an LLM or AI assistant.
         <h2>Details</h2>
         <p>
             
+        <h3>Construction</h3>
+        <p>
+        GFS starts a new model run every 6 hours and
+        dynamical.org has created this analysis by concatenating the first 6
+        hours of each forecast along the time dimension.
+        </p>
+
+        <h3>Interpolation</h3>
+        <p>
+        Before 2021-02-27 GFS had a 3 hourly step at early forecast hours.
+        In this reanalysis we have used linear interpolation in the time
+        dimension to fill in the two timesteps between the three-hourly
+        values prior to 2021-02-27.
+        </p>
+
         <h3>Storage</h3>
         <p>
         Storage for this dataset is generously provided by
@@ -352,12 +356,6 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         are identified by an initialization time (<code>init_time</code>) denoting the
         start time of the model run. Each forecast steps forward in time along the
         <code>lead_time</code> dimension.
-        </p>
-
-        <p>
-        This dataset is designed to be used in conjunction with the
-        <a href="/catalog/noaa-gfs-analysis-hourly">NOAA GFS analysis, hourly</a>
-        dataset.
         </p>
       
         </p>
@@ -805,12 +803,6 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         Each forecast has a 3 hourly forecast step along the <code>lead_time</code>
         dimension. This dataset contains only the 00 hour UTC initialization times
         which produce the full length, 35 day forecast.
-        </p>
-
-        <p>
-        This dataset is designed to be used in conjunction with the
-        <a href="/catalog/noaa-gefs-analysis">NOAA GEFS analysis</a>
-        dataset.
         </p>
       
         </p>
@@ -1276,12 +1268,6 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         This analysis dataset is an archive of the model's best estimate of past weather.
         It is created by concatenating the first few hours of each historical forecast to
         provide a dataset with dimensions time, latitude, and longitude.
-        </p>
-
-        <p>
-        This dataset is designed to be used in conjunction with the
-        <a href="/catalog/noaa-gefs-forecast-35-day">NOAA GEFS forecast, 35 day</a>
-        dataset.
         </p>
       
         </p>

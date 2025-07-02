@@ -72,11 +72,8 @@
   <div>
     <a href="/catalog">Catalog</a>
     
-      
-      
-        >
-        <a href="/catalog/models/gfs">NOAA GFS</a>
-      
+      >
+      <a href="/catalog/models/gfs">NOAA GFS</a>
     
     > NOAA GFS analysis, hourly
   </div>
@@ -106,6 +103,7 @@
     </tr>
     
   </table>
+  
   <p>
     <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=optional@email.com" style="width: 90ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
@@ -115,30 +113,74 @@
         <a href='/updates'>here</a>.</span>
     </div>
   </p>
+
+  
+    <p style="text-wrap: balance">
+      <p>
+      The Global Forecast System (GFS) is a National Oceanic and Atmospheric
+      Administration (NOAA) National Centers for Environmental Prediction
+      (NCEP) weather forecast model that generates data for dozens of
+      atmospheric and land-soil variables, including temperatures, winds,
+      precipitation, soil moisture, and atmospheric ozone concentration. The
+      system couples four separate models (atmosphere, ocean model, land/soil
+      model, and sea ice) that work together to depict weather conditions.
+      </p>
+    </p>
+  
+  
   <p style="text-wrap: balance">
         <p>
-        This dataset is an "analysis" containing the model's best estimate of
-        each value at each timestep. In other words, it does not contain a
-        forecast dimension. GFS starts a new model run every 6 hours and
-        dynamical.org has created this analysis by concatenating the first 6
-        hours of each forecast. Before 2021-02-27 GFS had a 3 hourly step at
-        early forecast hours. In this reanalysis we have used linear
-        interpolation in the time dimension to fill in the two timesteps between
-        the three-hourly values prior to 2021-02-27.
-        </p>
-
-        <p>
-        This dataset is designed to be used in conjunction with the
-        <a href="/catalog/noaa-gfs-forecast">NOAA GFS forecast</a>
-        dataset.
+        This analysis dataset is an archive of the model's best estimate of past weather.
+        It is created by concatenating the first few hours of each historical forecast to
+        provide a dataset with dimensions time, latitude, and longitude.
         </p>
       </p>
-
-  
-    
     
   
-
+    <h3>Related Datasets</h3>
+    <ul>
+      
+        
+      
+        
+          <li>
+            
+              <a href="/catalog/noaa-gfs-forecast">NOAA GFS forecast</a>
+            
+            - Weather forecasts from the Global Forecast System (GFS) operated by NOAA NWS NCEP.
+          </li>
+        
+      
+    </ul>
+  
+  
+  <h2>Examples</h2>
+  <table>
+    
+      <tr>
+        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
+        <td>
+          <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb">Open notebook in github</a>
+        </td>
+      </tr>
+    
+    
+      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
+      <td>
+        <a href="https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb">Open notebook in colab</a>
+      </td>
+    
+  </table>
+  
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org - NOAA GFS analysis, hourly</div>
+        <div class="frameHeaderSubtitle">Mean temperature for a single day</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr<br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-06-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
+    </div>
+  
+  
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">
@@ -268,35 +310,25 @@
     Don't see what you're looking for? Let us know at
     <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
   </p>
-  <h2>Examples</h2>
-  <table>
-    
-      <tr>
-        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
-        <td>
-          <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb">Open notebook in github</a>
-        </td>
-      </tr>
-    
-    
-      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
-      <td>
-        <a href="https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb">Open notebook in colab</a>
-      </td>
-    
-  </table>
-  
-    <div class="frame">
-      <div class="frameHeader">
-        <div class="frameHeaderTitle">dynamical.org - NOAA GFS analysis, hourly</div>
-        <div class="frameHeaderSubtitle">Mean temperature for a single day</div>
-      </div>
-      <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr<br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-06-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
-    </div>
   
   <h2>Details</h2>
   <p>
     
+        <h3>Construction</h3>
+        <p>
+        GFS starts a new model run every 6 hours and
+        dynamical.org has created this analysis by concatenating the first 6
+        hours of each forecast along the time dimension.
+        </p>
+
+        <h3>Interpolation</h3>
+        <p>
+        Before 2021-02-27 GFS had a 3 hourly step at early forecast hours.
+        In this reanalysis we have used linear interpolation in the time
+        dimension to fill in the two timesteps between the three-hourly
+        values prior to 2021-02-27.
+        </p>
+
         <h3>Storage</h3>
         <p>
         Storage for this dataset is generously provided by
