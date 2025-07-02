@@ -102,7 +102,7 @@ eleventyComputed:
             {% else %}
               {{ dataset.name }} ({{ dataset.status }})
             {% endif %}
-            - {{ dataset.description | striptags | truncate(100) }}
+            - {{ dataset.description | safe }}
           </li>
         {% endif %}
       {% endfor %}
