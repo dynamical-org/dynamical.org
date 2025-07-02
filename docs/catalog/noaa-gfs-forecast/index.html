@@ -84,7 +84,7 @@
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>NOAA GFS forecast</h1>
     
-<span style="background-color: rgb(240, 240, 240);">coming soon</span>
+<span style="background-color: rgb(120, 250, 100);">updating</span>
 
   </div>
   <table>
@@ -226,6 +226,8 @@
             <strong>categorical_freezing_rain_surface</strong>
             <p class="metadata-comment">Categorical freezing rain</p>
             
+              <p class="metadata-comment">Presence/absence over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
+            
           </td>
           <td>0=no; 1=yes</td>
           <td>init_time × lead_time × latitude × longitude</td>
@@ -240,6 +242,8 @@
           <td>
             <strong>categorical_ice_pellets_surface</strong>
             <p class="metadata-comment">Categorical ice pellets</p>
+            
+              <p class="metadata-comment">Presence/absence over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
             
           </td>
           <td>0=no; 1=yes</td>
@@ -256,6 +260,8 @@
             <strong>categorical_rain_surface</strong>
             <p class="metadata-comment">Categorical rain</p>
             
+              <p class="metadata-comment">Presence/absence over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
+            
           </td>
           <td>0=no; 1=yes</td>
           <td>init_time × lead_time × latitude × longitude</td>
@@ -270,6 +276,8 @@
           <td>
             <strong>categorical_snow_surface</strong>
             <p class="metadata-comment">Categorical snow</p>
+            
+              <p class="metadata-comment">Presence/absence over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
             
           </td>
           <td>0=no; 1=yes</td>
@@ -286,6 +294,8 @@
             <strong>downward_long_wave_radiation_flux_surface</strong>
             <p class="metadata-comment">Surface downward long-wave radiation flux</p>
             
+              <p class="metadata-comment">Average over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
+            
           </td>
           <td>W/(m^2)</td>
           <td>init_time × lead_time × latitude × longitude</td>
@@ -300,6 +310,8 @@
           <td>
             <strong>downward_short_wave_radiation_flux_surface</strong>
             <p class="metadata-comment">Surface downward short-wave radiation flux</p>
+            
+              <p class="metadata-comment">Average over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
             
           </td>
           <td>W/(m^2)</td>
@@ -361,6 +373,8 @@
             <strong>maximum_temperature_2m</strong>
             <p class="metadata-comment">Maximum temperature</p>
             
+              <p class="metadata-comment">Maximum over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
+            
           </td>
           <td>C</td>
           <td>init_time × lead_time × latitude × longitude</td>
@@ -375,6 +389,8 @@
           <td>
             <strong>minimum_temperature_2m</strong>
             <p class="metadata-comment">Minimum temperature</p>
+            
+              <p class="metadata-comment">Minimum over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
             
           </td>
           <td>C</td>
@@ -497,6 +513,8 @@
           <td>
             <strong>total_cloud_cover_atmosphere</strong>
             <p class="metadata-comment">Total Cloud Cover</p>
+            
+              <p class="metadata-comment">Average over the previous 1–6 hours, reset every 6-hour forecast step (00Z, 06Z, 12Z, 18Z).</p>
             
           </td>
           <td>%</td>

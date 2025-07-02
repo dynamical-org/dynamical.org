@@ -131,7 +131,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         </p>
       `,
     url: "https://data.dynamical.org/noaa/gfs/forecast/latest.zarr",
-    status: "coming soon",
+    status: "live",
     examples: [
       {
         title: "Maximum temperature in a forecast",
