@@ -32,14 +32,12 @@ eleventyComputed:
   }
 </script>
 <div class="content catalog-item">
+  {%- set model = catalog.models | find('id', entry.modelId) %}
   <div>
     <a href="/catalog">Catalog</a>
-    {% if entry.model %}
-      {% set model = catalog.models | find('id', entry.modelId) %}
-      {% if model %}
-        >
-        <a href="/catalog/models/{{ model.shortName | slugify }}">{{ model.name }}</a>
-      {% endif %}
+    {% if model %}
+      >
+      <a href="/catalog/models/{{ model.shortName | slugify }}">{{ model.name }}</a>
     {% endif %}
     > {{ entry.name }}
   </div>
@@ -76,6 +74,7 @@ eleventyComputed:
       </tr>
     {% endif %}
   </table>
+  
   <p>
     <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=optional@email.com" style="width: {{ entry.url.length + 27 }}ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
@@ -85,34 +84,58 @@ eleventyComputed:
         <a href='/updates'>here</a>.</span>
     </div>
   </p>
-  <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
 
-  {% if entry.model %}
-    {% set model = catalog.models[entry.model] %}
-    {% if model %}
-      <h2>About {{ model.name }}</h2>
-      <p style="text-wrap: balance">{{ model.description | safe }}</p>
-      
-      {% if model.datasets.length > 1 %}
-        <h3>Related Datasets</h3>
-        <ul>
-          {% for dataset in model.datasets %}
-            {% if dataset.dataset_id != entry.dataset_id %}
-              <li>
-                {% if dataset.status == 'live' or dataset.status == 'available' %}
-                  <a href="/catalog/{{ dataset.dataset_id | slugify }}">{{ dataset.name }}</a>
-                {% else %}
-                  {{ dataset.name }}
-                {% endif %}
-                - {{ dataset.descriptionSummary | striptags | truncate(100) }}
-              </li>
-            {% endif %}
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endif %}
+  {% if model %}
+    <p style="text-wrap: balance">{{ model.description | safe }}</p>
   {% endif %}
-
+  
+  <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
+    
+  {% if model.datasets.length > 1 %}
+    <h3>Related Datasets</h3>
+    <ul>
+      {% for dataset in model.datasets %}
+        {% if dataset.dataset_id != entry.dataset_id %}
+          <li>
+            {% if dataset.status == 'live' or dataset.status == 'available' %}
+              <a href="/catalog/{{ dataset.dataset_id | slugify }}">{{ dataset.name }}</a>
+            {% else %}
+              {{ dataset.name }} ({{ dataset.status }})
+            {% endif %}
+            - {{ dataset.description | safe }}
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+  
+  <h2>Examples</h2>
+  <table>
+    {% if entry.githubUrl %}
+      <tr>
+        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
+        <td>
+          <a href="{{ entry.githubUrl }}">Open notebook in github</a>
+        </td>
+      </tr>
+    {% endif %}
+    {% if entry.colabUrl %}
+      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
+      <td>
+        <a href="{{ entry.colabUrl }}">Open notebook in colab</a>
+      </td>
+    {% endif %}
+  </table>
+  {% for example in entry.examples %}
+    <div class="frame">
+      <div class="frameHeader">
+        <div class="frameHeaderTitle">dynamical.org - {{ entry.name }}</div>
+        <div class="frameHeaderSubtitle">{{ example.title }}</div>
+      </div>
+      <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
+    </div>
+  {% endfor %}
+  
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">
@@ -171,32 +194,7 @@ eleventyComputed:
     Don't see what you're looking for? Let us know at
     <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
   </p>
-  <h2>Examples</h2>
-  <table>
-    {% if entry.githubUrl %}
-      <tr>
-        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
-        <td>
-          <a href="{{ entry.githubUrl }}">Open notebook in github</a>
-        </td>
-      </tr>
-    {% endif %}
-    {% if entry.colabUrl %}
-      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
-      <td>
-        <a href="{{ entry.colabUrl }}">Open notebook in colab</a>
-      </td>
-    {% endif %}
-  </table>
-  {% for example in entry.examples %}
-    <div class="frame">
-      <div class="frameHeader">
-        <div class="frameHeaderTitle">dynamical.org - {{ entry.name }}</div>
-        <div class="frameHeaderSubtitle">{{ example.title }}</div>
-      </div>
-      <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
-    </div>
-  {% endfor %}
+  
   <h2>Details</h2>
   <p>
     {{ entry.descriptionDetails | safe }}
