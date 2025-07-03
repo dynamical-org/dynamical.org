@@ -111,6 +111,8 @@ module.exports = function (eleventyConfig) {
     return array.find((item) => item[property] === value);
   });
 
+  
+
   return {
     dir: {
       input: "content",

@@ -1,0 +1,104 @@
+---
+layout: base
+pagination:
+  data: scorecard.index.states
+  size: 1
+  alias: state
+permalink: /scorecard/{{ state | slug }}/
+---
+
+<div class="content">
+  <div>
+    <a href="/scorecard">Scorecard</a>
+    > {{ state }}
+  </div>
+  
+  <h1>Scorecard for {{ state }}</h1>
+
+  <h2>Overall Metrics for {{ state }}</h2>
+  
+  <div class="table-container">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Model</th>
+          <th class='right'>Yesterday</th>
+          <th class='right'>Last 3 Days</th>
+          <th class='right'>Last 7 Days</th>
+          <th class='right'>Last 14 Days</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="2">MAE</td><td>GEFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.yesterday.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last3days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last7days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last14days.mae }}</td></tr>
+        <tr><td>GFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.yesterday.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last3days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last7days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last14days.mae }}</td></tr>
+        <tr><td rowspan="2">RMSE</td><td>GEFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.yesterday.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last3days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last7days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last14days.rmse }}</td></tr>
+        <tr><td>GFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.yesterday.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last3days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last7days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last14days.rmse }}</td></tr>
+        <tr><td rowspan="2">Bias</td><td>GEFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.yesterday.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last3days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last7days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last14days.bias }}</td></tr>
+        <tr><td>GFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.yesterday.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last3days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last7days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last14days.bias }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;">
+    <!-- D3.js map will be rendered here -->
+  </div>
+
+  <div id="station-list">
+    <h2>Stations in {{ state }}</h2>
+    <ul>
+      {% for station in scorecard.index.stations %}
+        {% if station.state == state %}
+          <li><a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a></li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3"></script>
+<script>
+  const width = 975;
+  const height = 610;
+  const stateName = "{{ state }}";
+
+  const svg = d3.select("#map-container").append("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .attr("width", "100%")
+      .attr("height", "auto")
+      .attr("style", "max-width: 100%;");
+
+  d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
+    const state = topojson.feature(us, us.objects.states).features.find(d => d.properties.name === stateName);
+    const projection = d3.geoIdentity().reflectY(true);
+    const path = d3.geoPath(projection);
+
+    projection.fitExtent([[0, 0], [width, height]], state);
+
+    svg.append("g")
+        .attr("fill", "#fff")
+        .attr("stroke", "#000")
+      .selectAll("path")
+      .data([state])
+      .join("path")
+        .attr("d", path);
+
+    const stations = {{ scorecard.index.stations | dump | safe }};
+    const filteredStations = stations.filter(s => s.state === "{{ state }}");
+
+    svg.selectAll(".station")
+      .data(filteredStations)
+      .enter().append("a")
+        .attr("xlink:href", d => `/scorecard/station/${d.id}/`)
+      .append("circle")
+        .attr("class", "station")
+        .attr("cx", d => projection([d.longitude, d.latitude])[0])
+        .attr("cy", d => projection([d.longitude, d.latitude])[1])
+        .attr("r", 5)
+        .attr("fill", "blue")
+        .style("cursor", "pointer")
+        .append("title")
+          .text(d => d.name);
+  });
+</script>

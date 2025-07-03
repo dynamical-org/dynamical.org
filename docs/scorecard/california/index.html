@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
+    <title>dynamical.org </title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        <li>
+          <span style="font-size: 0.8em; color: #666; font-weight: normal;">🎙️ check 1 2... &gt;&gt;&gt;</span>
+          <a href="/podcast">podcast</a>
+        </li>
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
+      </ul>
+    </nav>
+    
+<div class="content">
+  <div>
+    <a href="/scorecard">Scorecard</a>
+    > California
+  </div>
+  
+  <h1>Scorecard for California</h1>
+
+  <h2>Overall Metrics for California</h2>
+  
+  <div class="table-container">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Model</th>
+          <th class='right'>Yesterday</th>
+          <th class='right'>Last 3 Days</th>
+          <th class='right'>Last 7 Days</th>
+          <th class='right'>Last 14 Days</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="2">MAE</td><td>GEFS</td><td class="numeric">0.5</td><td class="numeric">0.6</td><td class="numeric">0.7</td><td class="numeric">0.8</td></tr>
+        <tr><td>GFS</td><td class="numeric">0.4</td><td class="numeric">0.5</td><td class="numeric">0.6</td><td class="numeric">0.7</td></tr>
+        <tr><td rowspan="2">RMSE</td><td>GEFS</td><td class="numeric">0.7</td><td class="numeric">0.8</td><td class="numeric">0.9</td><td class="numeric">1</td></tr>
+        <tr><td>GFS</td><td class="numeric">0.6</td><td class="numeric">0.7</td><td class="numeric">0.8</td><td class="numeric">0.9</td></tr>
+        <tr><td rowspan="2">Bias</td><td>GEFS</td><td class="numeric">0.1</td><td class="numeric">0.2</td><td class="numeric">0.3</td><td class="numeric">0.4</td></tr>
+        <tr><td>GFS</td><td class="numeric">0.05</td><td class="numeric">0.15</td><td class="numeric">0.25</td><td class="numeric">0.35</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;">
+    <!-- D3.js map will be rendered here -->
+  </div>
+
+  <div id="station-list">
+    <h2>Stations in California</h2>
+    <ul>
+      
+        
+          <li><a href="/scorecard/station/station1/">Station 1</a></li>
+        
+      
+        
+      
+        
+          <li><a href="/scorecard/station/station3/">Station 3</a></li>
+        
+      
+    </ul>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3"></script>
+<script>
+  const width = 975;
+  const height = 610;
+  const stateName = "California";
+
+  const svg = d3.select("#map-container").append("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .attr("width", "100%")
+      .attr("height", "auto")
+      .attr("style", "max-width: 100%;");
+
+  d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
+    const state = topojson.feature(us, us.objects.states).features.find(d => d.properties.name === stateName);
+    const projection = d3.geoIdentity().reflectY(true);
+    const path = d3.geoPath(projection);
+
+    projection.fitExtent([[0, 0], [width, height]], state);
+
+    svg.append("g")
+        .attr("fill", "#fff")
+        .attr("stroke", "#000")
+      .selectAll("path")
+      .data([state])
+      .join("path")
+        .attr("d", path);
+
+    const stations = [{"id":"station1","name":"Station 1","state":"California","latitude":34.0522,"longitude":-118.2437},{"id":"station2","name":"Station 2","state":"New York","latitude":40.7128,"longitude":-74.006},{"id":"station3","name":"Station 3","state":"California","latitude":37.7749,"longitude":-122.4194}];
+    const filteredStations = stations.filter(s => s.state === "California");
+
+    svg.selectAll(".station")
+      .data(filteredStations)
+      .enter().append("a")
+        .attr("xlink:href", d => `/scorecard/station/${d.id}/`)
+      .append("circle")
+        .attr("class", "station")
+        .attr("cx", d => projection([d.longitude, d.latitude])[0])
+        .attr("cy", d => projection([d.longitude, d.latitude])[1])
+        .attr("r", 5)
+        .attr("fill", "blue")
+        .style("cursor", "pointer")
+        .append("title")
+          .text(d => d.name);
+  });
+</script>
+
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">🎙️ New podcast episode</span>
+          <button id="latest-close" class="popup-close">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "2025-06-30T00:00:00.000Z";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/podcast/002/" class="popup-title">End-to-end data-driven weather prediction</a>
+        <div class="popup-date">2025-06-30</div>
+      </div>
+    
+  </body>
+</html>

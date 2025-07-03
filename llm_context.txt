@@ -1,0 +1,40 @@
+
+**Project Context Summary**
+
+**Project Name:** dynamical.org (Eleventy Static Site)
+
+**Current Task:** Implement a new "Scorecard" section to display weather station data and forecast metrics.
+
+**File Structure (Relevant Parts):**
+- `_data/`: Contains global data for the Eleventy site.
+  - `_data/catalog.js`: Existing data file.
+  - `_data/metadata.js`: Existing data file.
+  - `_data/scorecard/`: New directory for scorecard-related data.
+    - `_data/scorecard/index.js`: Contains station metadata (id, name, state, lat, lon), overall summary metrics, and per-model summary metrics. Also exports a list of unique states.
+    - `_data/scorecard/station1.js`: Example station-specific metrics, structured by catalog entry (e.g., GEFS, GFS) and period (yesterday, last3days, etc.).
+- `_includes/`: Contains Nunjucks templates for reusable components.
+  - `_includes/base.njk`: Main layout template, modified to include "Scorecard" in navigation.
+- `content/`: Contains the main content pages, processed by Eleventy.
+  - `content/scorecard.njk`: Main scorecard index page. Displays overall metrics and a map of the US with station dots. Links to state-specific and station-specific pages.
+  - `content/scorecard-state.njk`: Template for state-specific scorecard pages. Displays metrics for the selected state and a map of that state with its stations.
+  - `content/scorecard-station.njk`: Template for individual station pages. Displays station details, a map of its state with the station's location, and per-model metrics for that station.
+- `.eleventy.js`: Eleventy configuration file.
+  - Modified to remove a custom "states" collection, as state data is now derived directly from `_data/scorecard/index.js`.
+
+**Key Changes Implemented:**
+- Created `_data/scorecard/` directory and initial data files (`index.js`, `station1.js`).
+- Added "Scorecard" link to the main navigation (`_includes/base.njk`).
+- Created `content/scorecard.njk` for the main scorecard page, including:
+    - Overall metrics table (now per-model).
+    - Interactive US map with clickable states (linking to state pages) and station dots (linking to station pages).
+- Created `content/scorecard-state.njk` for state-specific pages, including:
+    - Per-model metrics for the selected state.
+    - Map showing only the selected state with its stations.
+    - Dynamic `viewBox` calculation for state maps to prevent stretching (attempted, then reverted, then re-attempted with `fitExtent` and dynamic `viewBox` based on `path.bounds`).
+- Created `content/scorecard-station.njk` for individual station pages, including:
+    - Station details and per-model metrics.
+    - Map showing the station's state and its location.
+    - Applied `.table-container` and `table.data` CSS styles to all metric tables for consistent appearance.
+
+**Outstanding Issues/Next Steps (from previous interactions):**
+- The stretching issue on state maps was addressed by dynamically calculating the `viewBox` and using `fitExtent`. This was attempted, reverted, and then re-attempted. The user indicated it still didn't work, and the last action was to revert the change. This remains an open issue.
