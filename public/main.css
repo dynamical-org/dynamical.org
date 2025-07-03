@@ -73,14 +73,9 @@ table.data th {
   border-right: 1px dotted black;
 }
 
-table.data tr td,
-table.data tr th {
+table.data tr td.right,
+table.data tr th.right {
   text-align: right;
-}
-
-table.data tr td:first-of-type,
-table.data tr th:first-of-type {
-  text-align: left;
 }
 
 caption {
