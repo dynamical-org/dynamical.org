@@ -11,6 +11,14 @@
   },
   "items": [
     {
+      "id": "https://dynamical.org/updates/2025-07-02/",
+      "url": "https://dynamical.org/updates/2025-07-02/",
+      "title": "🟢 GFS is live",
+      "content_html": "<h2>GFS forecasts are live</h2>\n<p>GFS is GEFS' less ambiguous older sibling. The archive is processed and the updater is chugging: 4 years of 16 day forecasts, hourly step, released 4 times a day. GFS might be wrong, but at least its confident!</p>\n<p>A note from Alden, Chef de cuisine</p>\n<blockquote>\n<p>Tonight, I've prepared for you a dataset I think you will enjoy. Check out the example notebook linked in the <a href=\"https://dynamical.org/catalog/noaa-gfs-forecast/\">docs</a> to make your own interactive animation of an atmospheric river with buttery smooth hourly resolution. The way atmospheric rivers move reminds me of how <a href=\"https://publicdomainreview.org/collection/maps-of-the-lower-mississippi-harold-fisk/\">rivers move on land</a>, only on a time scale of hours not years. Served as a semifreddo with a peach compote.</p>\n</blockquote>\n<div style=\"text-align: center;\">\n    <picture>\n        <!-- modern -->\n        <source type=\"image/webp\" srcset=\"https://dynamical.org/assets/gfs_atmospheric_river_feb_2024_precipitable_water_atmosphere.webp\">\n        <!-- fallback animation -->\n        <img src=\"https://dynamical.org/assets/gfs_atmospheric_river_feb_2024_precipitable_water_atmosphere.gif\" width=\"600\" alt=\"Visual of GFS precipitable water showing atmospheric river\" style=\"display: inline-block; border: 0;\">\n    </picture>\n</div>\n<h2>Steering committee</h2>\n<p>The dynamical.org steering committee met and talked about [1] Data and [2] Things About Data Beyond My Comprehension. <a href=\"https://dynamical.org/meetings/steering_committee_2025-06-04\">Read the summary notes</a></p>\n<h2>podcast</h2>\n<p>Did you catch episode number two of <em>weathering</em>? This time we talked about Aardvark Weather. As Marta put it: &quot;Where does the end begin? Where does the end end? And what the HELL is happening in the middle?&quot;</p>\n<p><a href=\"https://dynamical.org/podcast/002\">Check it out</a>. Like (in your heart) and subscribe (to our beliefs).</p>\n",
+      "date_published": "2025-07-02T00:00:00Z"
+    }
+    ,
+    {
       "id": "https://dynamical.org/updates/2025-06-14/",
       "url": "https://dynamical.org/updates/2025-06-14/",
       "title": "introducing a new pod; GFS forecasts incoming",
