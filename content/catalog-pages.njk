@@ -141,18 +141,18 @@ eleventyComputed:
     <table class="data">
       <tr>
         <th/>
-        <th>min</th>
-        <th>max</th>
-        <th>units</th>
+        <th class='right'>min</th>
+        <th class='right'>max</th>
+        <th class='right'>units</th>
       </tr>
       {% for dim in entry.dimensions %}
         <tr>
           <td>
             <strong>{{ dim.name }}</strong>
           </td>
-          <td>{{ dim.statistics_approximate.min }}</td>
-          <td>{{ dim.statistics_approximate.max }}</td>
-          <td>{{ dim.units }}</td>
+          <td class='right'>{{ dim.statistics_approximate.min }}</td>
+          <td class='right'>{{ dim.statistics_approximate.max }}</td>
+          <td class='right'>{{ dim.units }}</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="4">
@@ -167,8 +167,8 @@ eleventyComputed:
     <table class="data">
       <tr>
         <th/>
-        <th>units</th>
-        <th>dimensions</th>
+        <th class='right'>units</th>
+        <th class='right'>dimensions</th>
       </tr>
       {% for variable in entry.variables %}
         <tr>
@@ -179,8 +179,8 @@ eleventyComputed:
               <p class="metadata-comment">{{ variable.comment }}</p>
             {% endif %}
           </td>
-          <td>{{ variable.units }}</td>
-          <td>{{ variable.dimension_names.join(' × ') }}</td>
+          <td class='right'>{{ variable.units }}</td>
+          <td class='right'>{{ variable.dimension_names.join(' × ') }}</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
