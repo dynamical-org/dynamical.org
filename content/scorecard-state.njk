@@ -4,19 +4,17 @@ pagination:
   data: scorecard.index.states
   size: 1
   alias: state
-permalink: /scorecard/{{ state | slug }}/
+permalink: /scorecard/{{ state.abbr | slug }}/
 ---
 
 <div class="content">
   <div>
     <a href="/scorecard">Scorecard</a>
-    > {{ state }}
+    > {{ state.name }}
   </div>
-  
-  <h1>Scorecard for {{ state }}</h1>
 
-  <h2>Overall Metrics for {{ state }}</h2>
-  
+  <h1>Scorecard for {{ state.name }}</h1>
+
   <div class="table-container">
     <table class="data">
       <thead>
@@ -45,10 +43,10 @@ permalink: /scorecard/{{ state | slug }}/
   </div>
 
   <div id="station-list">
-    <h2>Stations in {{ state }}</h2>
+    <h2>Stations in {{ state.name }}</h2>
     <ul>
       {% for station in scorecard.index.stations %}
-        {% if station.state == state %}
+        {% if station.state_abbr == state.abbr %}
           <li><a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a></li>
         {% endif %}
       {% endfor %}
@@ -61,7 +59,7 @@ permalink: /scorecard/{{ state | slug }}/
 <script>
   const width = 975;
   const height = 610;
-  const stateName = "{{ state }}";
+  const stateName = "{{ state.name }}";
 
   const svg = d3.select("#map-container").append("svg")
       .attr("viewBox", [0, 0, width, height])
@@ -85,7 +83,7 @@ permalink: /scorecard/{{ state | slug }}/
         .attr("d", path);
 
     const stations = {{ scorecard.index.stations | dump | safe }};
-    const filteredStations = stations.filter(s => s.state === "{{ state }}");
+    const filteredStations = stations.filter(s => s.state_abbr === "{{ state.abbr }}");
 
     svg.selectAll(".station")
       .data(filteredStations)

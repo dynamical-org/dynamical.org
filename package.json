@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "build": "npx @11ty/eleventy",
-    "start": "npx @11ty/eleventy --serve"
+    "start": "npx @11ty/eleventy --serve",
+    "clean": "rm -r docs .cache"
   },
   "repository": {
     "type": "git",
@@ -23,7 +24,9 @@
     "@11ty/eleventy-img": "^4.0.2",
     "@11ty/eleventy-plugin-rss": "^1",
     "@11ty/eleventy-plugin-syntaxhighlight": "^5.0.0",
+    "@turf/turf": "^7.2.0",
     "lodash": "^4.17.21",
-    "luxon": "^3.4.4"
+    "luxon": "^3.4.4",
+    "topojson-client": "^3.1.0"
   }
 }

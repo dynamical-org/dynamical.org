@@ -26,60 +26,19 @@ title: Scorecard
 <div class="content">
   <h1>Scorecard</h1>
 
-  <h2>Overall Metrics</h2>
-  {% for model_id, metrics_data in scorecard.index.summaryByModel %}
-    <h3>{{ model_id | upper }}</h3>
-    <div class="table-container">
-      <table class="data">
-        <thead>
-          <tr>
-            <th>Period</th>
-            <th>MAE</th>
-            <th>RMSE</th>
-            <th>Bias</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Yesterday</td>
-            <td>{{ metrics_data.yesterday.mae }}</td>
-            <td>{{ metrics_data.yesterday.rmse }}</td>
-            <td>{{ metrics_data.yesterday.bias }}</td>
-          </tr>
-          <tr>
-            <td>Last 3 Days</td>
-            <td>{{ metrics_data.last3days.mae }}</td>
-            <td>{{ metrics_data.last3days.rmse }}</td>
-            <td>{{ metrics_data.last3days.bias }}</td>
-          </tr>
-          <tr>
-            <td>Last 7 Days</td>
-            <td>{{ metrics_data.last7days.mae }}</td>
-            <td>{{ metrics_data.last7days.rmse }}</td>
-            <td>{{ metrics_data.last7days.bias }}</td>
-          </tr>
-          <tr>
-            <td>Last 14 Days</td>
-            <td>{{ metrics_data.last14days.mae }}</td>
-            <td>{{ metrics_data.last14days.rmse }}</td>
-            <td>{{ metrics_data.last14days.bias }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  {% endfor %}
-
   <div id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;">
     <!-- D3.js map will be rendered here -->
   </div>
 
   <div id="station-list">
-    <h2>All Stations</h2>
-    <ul>
-      {% for station in scorecard.index.stations %}
+    {% for state, stations_in_state in scorecard.index.stations | groupby("state_name") %}
+      <h3>{{ state }}</h3>
+      <ul>
+      {% for station in stations_in_state %}
         <li><a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a></li>
       {% endfor %}
-    </ul>
+      </ul>
+    {% endfor %}
   </div>
 </div>
 
@@ -120,7 +79,9 @@ title: Scorecard
 
     svg.selectAll(".station")
       .data(stations)
-      .enter().append("a")
+      .enter()
+      .filter(d => projection([d.longitude, d.latitude]))
+      .append("a")
         .attr("xlink:href", d => `/scorecard/station/${d.id}/`)
       .append("circle")
         .attr("class", "station")
