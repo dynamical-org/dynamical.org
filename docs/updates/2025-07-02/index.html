@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
+    <title>dynamical.org - 🟢 GFS is live</title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        <li>
+          <span style="font-size: 0.8em; color: #666; font-weight: normal;">🎙️ check 1 2... &gt;&gt;&gt;</span>
+          <a href="/podcast">podcast</a>
+        </li>
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
+      </ul>
+    </nav>
+    <h2>GFS forecasts are live</h2>
+<p>GFS is GEFS' less ambiguous older sibling. The archive is processed and the updater is chugging: 4 years of 16 day forecasts, hourly step, released 4 times a day. GFS might be wrong, but at least it's confident!</p>
+<p>A note from Alden, Chef de cuisine</p>
+<blockquote>
+<p>Tonight, I've prepared for you a dataset I think you will enjoy. Check out the example notebook linked in the <a href="https://dynamical.org/catalog/noaa-gfs-forecast/">docs</a> to make your own interactive animation of an atmospheric river with buttery smooth hourly resolution. The way atmospheric rivers move reminds me of how <a href="https://publicdomainreview.org/collection/maps-of-the-lower-mississippi-harold-fisk/">rivers move on land</a>, only on a time scale of hours not years. Served as a semifreddo with a peach compote.</p>
+</blockquote>
+<div style="text-align: center;">
+    <picture>
+        <!-- modern -->
+        <source
+            type="image/webp"
+            srcset="https://dynamical.org/assets/gfs_atmospheric_river_feb_2024_precipitable_water_atmosphere.webp">
+        <!-- fallback animation -->
+        <img
+            src="https://dynamical.org/assets/gfs_atmospheric_river_feb_2024_precipitable_water_atmosphere.gif"
+            width="600"
+            alt="Visual of GFS precipitable water showing atmospheric river"
+            style="display: inline-block; border: 0;">
+    </picture>
+</div>
+<h2>Steering committee</h2>
+<p>The dynamical.org steering committee met and talked about [1] Data and [2] Things About Data Beyond My Comprehension. <a href="https://dynamical.org/meetings/steering_committee_2025-06-04">Read the summary notes</a></p>
+<h2>podcast</h2>
+<p>Did you catch episode number two of <em>weathering</em>? This time we talked about Aardvark Weather. As Marta put it: &quot;Where does the end begin? Where does the end end? And what the HELL is happening in the middle?&quot;</p>
+<p><a href="https://dynamical.org/podcast/002">Check it out</a>. Like (in your heart) and subscribe (to our obsessions).</p>
+
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">📰 Latest update</span>
+          <button id="latest-close" class="popup-close">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "2025-07-02T00:00:00.000Z";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/updates/2025-07-02/" class="popup-title">🟢 GFS is live</a>
+        <div class="popup-date">2025-07-02</div>
+      </div>
+    
+  </body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
+    <title>dynamical.org - Let there be zarr: GFS hourly analysis is live</title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        <li>
+          <span style="font-size: 0.8em; color: #666; font-weight: normal;">🎙️ check 1 2... &gt;&gt;&gt;</span>
+          <a href="/podcast">podcast</a>
+        </li>
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
+      </ul>
+    </nav>
+    <p>Last week, we announced <a href="http://dynamical.org/">dynamical.org</a> to the world. The response was unexpected*: in just seven days, over a hundred nerds registered themselves as testers with many more following along for the ride.</p>
+<p>Apparently, we are not alone in our frustration with yesterday's weather data. Together we can create a future of well-organized data about our most beloved chaotic system!</p>
+<p><strong>Today, we are excited to announce the first entry into dynamical’s catalog: <a href="https://dynamical.org/catalog/noaa-gfs-analysis-hourly/">an hourly GFS analysis</a> from 2015-01-15 to present.</strong></p>
+<p>Testers! Fire up your rigs - in the catalog entry above, we've included documentation and an example notebook. If you run into any issues, email us at <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>. As our very first release, we’re expecting there will be lots of additions and refinement based on community input.</p>
+<p>Our pals at <a href="https://source.coop/">Source Cooperative</a> are generously providing storage for this first catalog entry. Their team is wonderful and their mission is badass - check them and the broader <a href="https://radiant.earth/">Radiant Earth</a> organization out.</p>
+<p>Enjoy the <a href="https://www.youtube.com/watch?v=GvnbpG_NA2Y">weather</a>^!</p>
+<p>MM</p>
+<p>* or expected, depending on how long you've been working with yesterday's weather data</p>
+<p>^ courtesy of Alex M.</p>
+
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">📰 Latest update</span>
+          <button id="latest-close" class="popup-close">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "2025-07-02T00:00:00.000Z";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/updates/2025-07-02/" class="popup-title">🟢 GFS is live</a>
+        <div class="popup-date">2025-07-02</div>
+      </div>
+    
+  </body>
+</html>
