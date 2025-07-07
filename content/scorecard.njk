@@ -22,75 +22,86 @@ title: Scorecard
     background-color: #f2f2f2;
   }
 </style>
-
 <div class="content">
   <h1>Scorecard</h1>
-
-  <div id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;">
-    <!-- D3.js map will be rendered here -->
+  <div
+    id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;"><!-- D3.js map will be rendered here -->
   </div>
-
   <div id="station-list">
     {% for state, stations_in_state in scorecard.index.stations | groupby("state_name") %}
       <h3>{{ state }}</h3>
       <ul>
-      {% for station in stations_in_state %}
-        <li><a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a></li>
-      {% endfor %}
+        {% for station in stations_in_state %}
+          <li>
+            <a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a>
+          </li>
+        {% endfor %}
       </ul>
     {% endfor %}
   </div>
 </div>
-
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
   const width = 975;
   const height = 610;
-
-  const projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
+  const projection = d3
+    .geoAlbersUsa()
+    .scale(1300)
+    .translate([487.5, 305]);
   const path = d3.geoPath(projection);
-
-  const svg = d3.select("#map-container").append("svg")
-      .attr("viewBox", [0, 0, width, height])
-      .attr("width", "100%")
-      .attr("height", "auto")
-      .attr("style", "max-width: 100%;");
-
+  const svg = d3
+    .select("#map-container")
+    .append("svg")
+    .attr("viewBox", [0, 0, width, height])
+    .attr("width", "100%")
+    .attr("height", "auto")
+    .attr("style", "max-width: 100%;");
   d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
-    svg.append("g")
-        .attr("fill", "#fff")
-        .attr("stroke", "#000")
+    svg
+      .append("g")
+      .attr("fill", "#fff")
+      .attr("stroke", "#000")
       .selectAll("path")
       .data(topojson.feature(us, us.objects.states).features)
       .join("path")
-        .attr("d", path)
-        .on("click", (event, d) => {
-          window.location.href = `/scorecard/${d.properties.name.toLowerCase().replace(/\s+/g, '-')}/`;
-        });
-
-    svg.append("path")
-        .attr("fill", "none")
-        .attr("stroke", "#000")
-        .attr("stroke-linejoin", "round")
-        .attr("d", path(topojson.mesh(us, us.objects.states, (a, b) => a !== b)));
-
+      .attr("d", path)
+      .on("click", (event, d) => {
+        const states = {{ scorecard.index.states | dump | safe }};
+        const state = states.find(s => s.name === d.properties.name);
+        const stateSlug = state
+          ? state.abbr.toLowerCase()
+          : d
+            .properties
+            .name
+            .toLowerCase()
+            .replace(/\s+/g, '-');
+        window.location.href = `/scorecard/${stateSlug}/`;
+      });
+    svg
+      .append("path")
+      .attr("fill", "none")
+      .attr("stroke", "#000")
+      .attr("stroke-linejoin", "round")
+      .attr("d", path(topojson.mesh(us, us.objects.states, (a, b) => a !== b)));
     const stations = {{ scorecard.index.stations | dump | safe }};
-
-    svg.selectAll(".station")
+    svg
+      .selectAll(".station")
       .data(stations)
       .enter()
       .filter(d => projection([d.longitude, d.latitude]))
       .append("a")
-        .attr("xlink:href", d => `/scorecard/station/${d.id}/`)
+      .attr("xlink:href", d => `/scorecard/station/${
+        d.id
+      }/`)
       .append("circle")
-        .attr("class", "station")
-        .attr("cx", d => projection([d.longitude, d.latitude])[0])
-        .attr("cy", d => projection([d.longitude, d.latitude])[1])
-        .attr("r", 5)
-        .attr("fill", "blue")
-        .style("cursor", "pointer")
-        .append("title")
-          .text(d => d.name);
+      .attr("class", "station")
+      .attr("cx", d => projection([d.longitude, d.latitude])[0])
+      .attr("cy", d => projection([d.longitude, d.latitude])[1])
+      .attr("r", 5)
+      .attr("fill", "blue")
+      .style("cursor", "pointer")
+      .append("title")
+      .text(d => d.name);
   });
 </script>
