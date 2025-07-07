@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npx @11ty/eleventy",
     "start": "npx @11ty/eleventy --serve",
-    "clean": "rm -r docs .cache"
+    "clean": "rm -r _site .cache"
   },
   "repository": {
     "type": "git",

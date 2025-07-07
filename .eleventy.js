@@ -118,7 +118,7 @@ module.exports = function (eleventyConfig) {
       input: "content",
       includes: "../_includes",
       data: "../_data",
-      output: "docs",
+      output: "_site",
     },
   };
 };
