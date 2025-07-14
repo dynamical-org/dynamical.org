@@ -15,28 +15,12 @@ permalink: /scorecard/{{ state.abbr | slug }}/
 
   <h1>Scorecard for {{ state.name }}</h1>
 
-  <div class="table-container">
-    <table class="data">
-      <thead>
-        <tr>
-          <th>Metric</th>
-          <th>Model</th>
-          <th class='right'>Yesterday</th>
-          <th class='right'>Last 3 Days</th>
-          <th class='right'>Last 7 Days</th>
-          <th class='right'>Last 14 Days</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td rowspan="2">MAE</td><td>GEFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.yesterday.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last3days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last7days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last14days.mae }}</td></tr>
-        <tr><td>GFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.yesterday.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last3days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last7days.mae }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last14days.mae }}</td></tr>
-        <tr><td rowspan="2">RMSE</td><td>GEFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.yesterday.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last3days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last7days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last14days.rmse }}</td></tr>
-        <tr><td>GFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.yesterday.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last3days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last7days.rmse }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last14days.rmse }}</td></tr>
-        <tr><td rowspan="2">Bias</td><td>GEFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.yesterday.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last3days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last7days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gefs.last14days.bias }}</td></tr>
-        <tr><td>GFS</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.yesterday.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last3days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last7days.bias }}</td><td class="numeric">{{ scorecard.index.summaryByModel.gfs.last14days.bias }}</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <img
+    id="variable-image"
+    src="https://sa.dynamical.org/state_{{ state.abbr }}_temperature_2m_rmse_by_lead_time_latest.png"
+    alt="Temperature RMSE by lead time for {{ station.name }}"
+    style="max-width: 100%; height: auto;"
+  />
 
   <div id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;">
     <!-- D3.js map will be rendered here -->
