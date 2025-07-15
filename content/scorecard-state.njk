@@ -12,75 +12,100 @@ permalink: /scorecard/{{ state.abbr | slug }}/
     <a href="/scorecard">Scorecard</a>
     > {{ state.name }}
   </div>
-
-  <h1>Scorecard for {{ state.name }}</h1>
-
+  <div
+    id="map-container" style="margin: 40px 0; width: 100%; max-width: 975px; overflow: hidden;"><!-- D3.js map will be rendered here -->
+  </div>
   <img
     id="variable-image"
-    src="https://sa.dynamical.org/state_{{ state.abbr }}_temperature_2m_rmse_by_lead_time_latest.png"
+    src="https://sa.dynamical.org/state_{{ state.abbr | lower }}_temperature_2m_rmse_by_lead_time_latest.png"
     alt="Temperature RMSE by lead time for {{ station.name }}"
-    style="max-width: 100%; height: auto;"
-  />
-
-  <div id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;">
-    <!-- D3.js map will be rendered here -->
-  </div>
-
+    style="max-width: 100%; height: auto;"/>
   <div id="station-list">
     <h2>Stations in {{ state.name }}</h2>
     <ul>
       {% for station in scorecard.index.stations %}
         {% if station.state_abbr == state.abbr %}
-          <li><a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a></li>
+          <li>
+            <a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a>
+          </li>
         {% endif %}
       {% endfor %}
     </ul>
   </div>
 </div>
-
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
   const width = 975;
   const height = 610;
   const stateName = "{{ state.name }}";
-
-  const svg = d3.select("#map-container").append("svg")
-      .attr("viewBox", [0, 0, width, height])
-      .attr("width", "100%")
-      .attr("height", "auto")
-      .attr("style", "max-width: 100%;");
-
+  const stateAbbr = "{{ state.abbr }}";
+  const svg = d3
+    .select("#map-container")
+    .append("svg")
+    .attr("viewBox", [0, 0, width, height])
+    .attr("width", "100%")
+    .attr("height", "auto")
+    .attr("style", "max-width: 100%;");
   d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
-    const state = topojson.feature(us, us.objects.states).features.find(d => d.properties.name === stateName);
-    const projection = d3.geoIdentity().reflectY(true);
+    const state = topojson
+      .feature(us, us.objects.states)
+      .features
+      .find(d => d.properties.name === stateName);
+    let projection = d3.geoIdentity().reflectY(true).fitExtent([
+      [
+        0, 0
+      ],
+      [
+        width, height
+      ]
+    ], state);
+    if (stateAbbr === "AK" || stateAbbr === "HI") {
+      projection = d3.geoAlbersUsa().fitExtent([
+        [
+          0, 0
+        ],
+        [
+          width, height
+        ]
+      ], state);
+    }
+
     const path = d3.geoPath(projection);
+    // 2. Draw the state
+    svg
+      .append("path")
+      .datum(state)
+      .attr("d", path)
+      .attr("fill", "#fff")
+      .attr("stroke", "#000");
 
-    projection.fitExtent([[0, 0], [width, height]], state);
 
-    svg.append("g")
-        .attr("fill", "#fff")
-        .attr("stroke", "#000")
-      .selectAll("path")
-      .data([state])
-      .join("path")
-        .attr("d", path);
-
-    const stations = {{ scorecard.index.stations | dump | safe }};
-    const filteredStations = stations.filter(s => s.state_abbr === "{{ state.abbr }}");
-
-    svg.selectAll(".station")
-      .data(filteredStations)
-      .enter().append("a")
-        .attr("xlink:href", d => `/scorecard/station/${d.id}/`)
+    // 3. Project stations
+    const stations = {{ scorecard.index.stations | dump | safe }}.filter(s => s.state_abbr === stateAbbr);
+    svg
+      .selectAll(".station")
+      .data(stations)
+      .enter()
+      .append("a")
+      .attr("xlink:href", d => `/scorecard/station/${
+        d.id
+      }/`)
       .append("circle")
-        .attr("class", "station")
-        .attr("cx", d => projection([d.longitude, d.latitude])[0])
-        .attr("cy", d => projection([d.longitude, d.latitude])[1])
-        .attr("r", 5)
-        .attr("fill", "blue")
-        .style("cursor", "pointer")
-        .append("title")
-          .text(d => d.name);
+      .attr("class", "station")
+      .attr("r", 5)
+      .attr("fill", "blue")
+      .attr("cx", d => projection([d.longitude, d.latitude])[0])
+      .attr("cy", d => projection([d.longitude, d.latitude])[1])
+      .append("title")
+      .text(d => d.name);
+
+    // Crop SVG viewBox to the state's vertical bounds to remove extra whitespace
+    const bounds = path.bounds(state);
+    const y0 = bounds[0][1];
+    const y1 = bounds[1][1];
+    const shapeHeight = y1 - y0;
+    console.log(shapeHeight)
+    svg.attr("viewBox", [0, y0, width, shapeHeight * 1.1]);
   });
 </script>

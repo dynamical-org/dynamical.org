@@ -124,14 +124,14 @@
   <h2>Temperature</h2>
 
   <img
-    id="variable-image"
+    id="temperature_2m-obs"
     src="https://sa.dynamical.org/station_997687-99999_temperature_2m_obs_latest.png"
     alt="Temperature obs for BURLINGTON DEL RIVER"
     style="max-width: 100%; height: auto;"
   />
 
   <img
-    id="variable-image"
+    id="temperature_2m-score"
     src="https://sa.dynamical.org/station_997687-99999_temperature_2m_rmse_by_lead_time_latest.png"
     alt="Temperature RMSE by lead time for BURLINGTON DEL RIVER"
     style="max-width: 100%; height: auto;"
@@ -179,6 +179,29 @@
         .attr("cy", projection([station.longitude, station.latitude])[1])
         .attr("r", 5)
         .attr("fill", "blue");
+  });
+
+  // Fallback placeholder for temperature images on error
+  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+    const img = document.getElementById(id);
+    if (img) {
+      img.onerror = () => {
+        // Create fallback div
+        const box = document.createElement('div')
+        Object.assign(box.style, {
+          width: '100%',
+          maxWidth: '800px',
+          height: '240px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#f0f0f0',
+          marginBottom: '10px',
+        });
+        box.textContent = 'Data not available in past 14 days';
+        img.parentNode.replaceChild(box, img);
+      };
+    }
   });
 </script>
 
