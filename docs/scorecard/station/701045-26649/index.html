@@ -110,7 +110,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250711</td>
+          <td>20250713</td>
         </tr>
       </table>
     </div>
@@ -137,12 +137,28 @@
     style="max-width: 100%; height: auto;"
   />
 
+  <h2>Precipitation</h2>
+
+  <img
+    id="precipitation_surface-obs"
+    src="https://sa.dynamical.org/station_701045-26649_precipitation_surface_obs_latest.png"
+    alt="Precipitation obs for RED DOG AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
+  <img
+    id="precipitation_surface-score"
+    src="https://sa.dynamical.org/station_701045-26649_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for RED DOG AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"701045-26649","country":"US","usaf":"701045","wban":"26649","name":"RED DOG AIRPORT","state_abbr":"AK","state_name":"Alaska","latitude":68.03,"longitude":-162.903,"elev":296.9,"begin":"20060103","end":"20250711"};
+  const station = {"id":"701045-26649","country":"US","usaf":"701045","wban":"26649","name":"RED DOG AIRPORT","state_abbr":"AK","state_name":"Alaska","latitude":68.03,"longitude":-162.903,"elev":296.9,"begin":"20060103","end":"20250713"};
   const width = 600;
   const height = 400;
 
@@ -182,7 +198,7 @@
   });
 
   // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {

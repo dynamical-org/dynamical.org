@@ -19,7 +19,11 @@ permalink: /feed/podcast.xml
     </itunes:category>
     <itunes:category text="Technology"/>
     <itunes:explicit>no</itunes:explicit>
-    <itunes:image href="{{ metadata.url }}/assets/weathering/weathering_logo.png"/>
+    <itunes:owner>
+      <itunes:name>Marshall Moutenot</itunes:name>
+      <itunes:email>marshall@dynamical.org</itunes:email>
+    </itunes:owner>
+    <itunes:image href="https://weathering.dynamical.org/weathering_logo.png"/>
     {%- for episode in collections.podcast | reverse %}
       {% set absoluteEpisodeUrl %}{{ episode.url | htmlBaseUrl(metadata.url) }}{% endset %}
       <item>

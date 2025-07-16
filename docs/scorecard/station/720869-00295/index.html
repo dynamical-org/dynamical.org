@@ -110,7 +110,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250712</td>
+          <td>20250714</td>
         </tr>
       </table>
     </div>
@@ -137,12 +137,28 @@
     style="max-width: 100%; height: auto;"
   />
 
+  <h2>Precipitation</h2>
+
+  <img
+    id="precipitation_surface-obs"
+    src="https://sa.dynamical.org/station_720869-00295_precipitation_surface_obs_latest.png"
+    alt="Precipitation obs for JESSE VIERTEL MEMORIAL AIRPOR"
+    style="max-width: 100%; height: auto;"
+  />
+
+  <img
+    id="precipitation_surface-score"
+    src="https://sa.dynamical.org/station_720869-00295_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for JESSE VIERTEL MEMORIAL AIRPOR"
+    style="max-width: 100%; height: auto;"
+  />
+
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"720869-00295","country":"US","usaf":"720869","wban":"00295","name":"JESSE VIERTEL MEMORIAL AIRPOR","state_abbr":"MO","state_name":"Missouri","latitude":38.94,"longitude":-92.683,"elev":218.2,"begin":"20101203","end":"20250712"};
+  const station = {"id":"720869-00295","country":"US","usaf":"720869","wban":"00295","name":"JESSE VIERTEL MEMORIAL AIRPOR","state_abbr":"MO","state_name":"Missouri","latitude":38.94,"longitude":-92.683,"elev":218.2,"begin":"20101203","end":"20250714"};
   const width = 600;
   const height = 400;
 
@@ -182,7 +198,7 @@
   });
 
   // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {

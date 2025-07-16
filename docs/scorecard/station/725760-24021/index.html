@@ -110,7 +110,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250711</td>
+          <td>20250714</td>
         </tr>
       </table>
     </div>
@@ -137,12 +137,28 @@
     style="max-width: 100%; height: auto;"
   />
 
+  <h2>Precipitation</h2>
+
+  <img
+    id="precipitation_surface-obs"
+    src="https://sa.dynamical.org/station_725760-24021_precipitation_surface_obs_latest.png"
+    alt="Precipitation obs for HUNT FIELD AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
+  <img
+    id="precipitation_surface-score"
+    src="https://sa.dynamical.org/station_725760-24021_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for HUNT FIELD AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"725760-24021","country":"US","usaf":"725760","wban":"24021","name":"HUNT FIELD AIRPORT","state_abbr":"WY","state_name":"Wyoming","latitude":42.81,"longitude":-108.726,"elev":1698.5,"begin":"19730101","end":"20250711"};
+  const station = {"id":"725760-24021","country":"US","usaf":"725760","wban":"24021","name":"HUNT FIELD AIRPORT","state_abbr":"WY","state_name":"Wyoming","latitude":42.81,"longitude":-108.726,"elev":1698.5,"begin":"19730101","end":"20250714"};
   const width = 600;
   const height = 400;
 
@@ -182,7 +198,7 @@
   });
 
   // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {

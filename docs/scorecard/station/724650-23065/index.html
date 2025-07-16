@@ -110,7 +110,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250712</td>
+          <td>20250714</td>
         </tr>
       </table>
     </div>
@@ -137,12 +137,28 @@
     style="max-width: 100%; height: auto;"
   />
 
+  <h2>Precipitation</h2>
+
+  <img
+    id="precipitation_surface-obs"
+    src="https://sa.dynamical.org/station_724650-23065_precipitation_surface_obs_latest.png"
+    alt="Precipitation obs for RENNER FIELD/GOODLAND MINI AI"
+    style="max-width: 100%; height: auto;"
+  />
+
+  <img
+    id="precipitation_surface-score"
+    src="https://sa.dynamical.org/station_724650-23065_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for RENNER FIELD/GOODLAND MINI AI"
+    style="max-width: 100%; height: auto;"
+  />
+
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"724650-23065","country":"US","usaf":"724650","wban":"23065","name":"RENNER FIELD/GOODLAND MINI AI","state_abbr":"KS","state_name":"Kansas","latitude":39.36,"longitude":-101.693,"elev":1110.5,"begin":"19730101","end":"20250712"};
+  const station = {"id":"724650-23065","country":"US","usaf":"724650","wban":"23065","name":"RENNER FIELD/GOODLAND MINI AI","state_abbr":"KS","state_name":"Kansas","latitude":39.36,"longitude":-101.693,"elev":1110.5,"begin":"19730101","end":"20250714"};
   const width = 600;
   const height = 400;
 
@@ -182,7 +198,7 @@
   });
 
   // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {

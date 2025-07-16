@@ -137,6 +137,22 @@
     style="max-width: 100%; height: auto;"
   />
 
+  <h2>Precipitation</h2>
+
+  <img
+    id="precipitation_surface-obs"
+    src="https://sa.dynamical.org/station_720537-00163_precipitation_surface_obs_latest.png"
+    alt="Precipitation obs for HOLYOKE AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
+  <img
+    id="precipitation_surface-score"
+    src="https://sa.dynamical.org/station_720537-00163_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for HOLYOKE AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -182,7 +198,7 @@
   });
 
   // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {

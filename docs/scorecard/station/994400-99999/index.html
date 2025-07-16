@@ -110,7 +110,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250711</td>
+          <td>20250713</td>
         </tr>
       </table>
     </div>
@@ -137,12 +137,28 @@
     style="max-width: 100%; height: auto;"
   />
 
+  <h2>Precipitation</h2>
+
+  <img
+    id="precipitation_surface-obs"
+    src="https://sa.dynamical.org/station_994400-99999_precipitation_surface_obs_latest.png"
+    alt="Precipitation obs for THOMAS POINT"
+    style="max-width: 100%; height: auto;"
+  />
+
+  <img
+    id="precipitation_surface-score"
+    src="https://sa.dynamical.org/station_994400-99999_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for THOMAS POINT"
+    style="max-width: 100%; height: auto;"
+  />
+
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"994400-99999","country":"US","usaf":"994400","wban":"99999","name":"THOMAS POINT","state_abbr":"MD","state_name":"Maryland","latitude":38.89,"longitude":-76.436,"elev":12,"begin":"19851205","end":"20250711"};
+  const station = {"id":"994400-99999","country":"US","usaf":"994400","wban":"99999","name":"THOMAS POINT","state_abbr":"MD","state_name":"Maryland","latitude":38.89,"longitude":-76.436,"elev":12,"begin":"19851205","end":"20250713"};
   const width = 600;
   const height = 400;
 
@@ -182,7 +198,7 @@
   });
 
   // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {

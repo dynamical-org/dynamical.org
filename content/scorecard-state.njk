@@ -20,6 +20,11 @@ permalink: /scorecard/{{ state.abbr | slug }}/
     src="https://sa.dynamical.org/state_{{ state.abbr | lower }}_temperature_2m_rmse_by_lead_time_latest.png"
     alt="Temperature RMSE by lead time for {{ station.name }}"
     style="max-width: 100%; height: auto;"/>
+  <img
+    id="variable-image"
+    src="https://sa.dynamical.org/state_{{ state.abbr | lower }}_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for {{ station.name }}"
+    style="max-width: 100%; height: auto;"/>
   <div id="station-list">
     <h2>Stations in {{ state.name }}</h2>
     <ul>

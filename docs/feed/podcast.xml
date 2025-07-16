@@ -16,7 +16,11 @@
     </itunes:category>
     <itunes:category text="Technology"/>
     <itunes:explicit>no</itunes:explicit>
-    <itunes:image href="https://dynamical.org//assets/weathering/weathering_logo.png"/>
+    <itunes:owner>
+      <itunes:name>Marshall Moutenot</itunes:name>
+      <itunes:email>marshall@dynamical.org</itunes:email>
+    </itunes:owner>
+    <itunes:image href="https://weathering.dynamical.org/weathering_logo.png"/>
       
       <item>
         <title>End-to-end data-driven weather prediction</title>
@@ -44,7 +48,7 @@
         <guid>https://dynamical.org/podcast/002/</guid>
         <pubDate>Sun, 29 Jun 2025 19:00:00 +0000</pubDate>
         
-          <enclosure url="https://dynamical.org/assets/weathering/002.mp3" type="audio/mpeg" length="0"/>
+          <enclosure url="https://weathering.dynamical.org/002.mp3" type="audio/mpeg" length="0"/>
         
         
         <itunes:author>Marshall, Marta, and Alden</itunes:author>
@@ -97,7 +101,7 @@
         <guid>https://dynamical.org/podcast/001/</guid>
         <pubDate>Wed, 11 Jun 2025 19:00:00 +0000</pubDate>
         
-          <enclosure url="https://dynamical.org/assets/weathering/001.mp3" type="audio/mpeg" length="0"/>
+          <enclosure url="https://weathering.dynamical.org/001.mp3" type="audio/mpeg" length="0"/>
         
         
         <itunes:author>Marshall, Marta, and Alden</itunes:author>

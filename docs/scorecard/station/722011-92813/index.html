@@ -110,7 +110,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250712</td>
+          <td>20250715</td>
         </tr>
       </table>
     </div>
@@ -137,12 +137,28 @@
     style="max-width: 100%; height: auto;"
   />
 
+  <h2>Precipitation</h2>
+
+  <img
+    id="precipitation_surface-obs"
+    src="https://sa.dynamical.org/station_722011-92813_precipitation_surface_obs_latest.png"
+    alt="Precipitation obs for KISSIMMEE GATEWAY AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
+  <img
+    id="precipitation_surface-score"
+    src="https://sa.dynamical.org/station_722011-92813_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for KISSIMMEE GATEWAY AIRPORT"
+    style="max-width: 100%; height: auto;"
+  />
+
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"722011-92813","country":"US","usaf":"722011","wban":"92813","name":"KISSIMMEE GATEWAY AIRPORT","state_abbr":"FL","state_name":"Florida","latitude":28.29,"longitude":-81.437,"elev":25,"begin":"20060101","end":"20250712"};
+  const station = {"id":"722011-92813","country":"US","usaf":"722011","wban":"92813","name":"KISSIMMEE GATEWAY AIRPORT","state_abbr":"FL","state_name":"Florida","latitude":28.29,"longitude":-81.437,"elev":25,"begin":"20060101","end":"20250715"};
   const width = 600;
   const height = 400;
 
@@ -182,7 +198,7 @@
   });
 
   // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score"].forEach(id => {
+  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {

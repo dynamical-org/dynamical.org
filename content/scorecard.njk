@@ -33,6 +33,12 @@ title: Scorecard
     alt="Temperature RMSE by lead time for {{ station.name }}"
     style="max-width: 100%; height: auto;"
   />
+  <img
+    id="variable-image"
+    src="https://sa.dynamical.org/country_us_precipitation_surface_rmse_by_lead_time_latest.png"
+    alt="Precipitation RMSE by lead time for {{ station.name }}"
+    style="max-width: 100%; height: auto;"
+  />
   <div id="station-list">
     {% for state, stations_in_state in scorecard.index.stations | groupby("state_name") %}
       <h3><a href='/scorecard/{{ stations_in_state[0].state_abbr }}'>{{ state }}</a></h3>
