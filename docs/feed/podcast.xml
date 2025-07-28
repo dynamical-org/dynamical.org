@@ -8,7 +8,7 @@
     <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
     <link>https://dynamical.org//podcast</link>
     <language>en-us</language>
-    <lastBuildDate>Sun, 29 Jun 2025 19:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 27 Jul 2025 19:00:00 +0000</lastBuildDate>
     <itunes:author>Marshall, Marta, and Alden</itunes:author>
     <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
     <itunes:category text="Science">
@@ -21,6 +21,58 @@
       <itunes:email>marshall@dynamical.org</itunes:email>
     </itunes:owner>
     <itunes:image href="https://weathering.dynamical.org/weathering_logo.png"/>
+      
+      <item>
+        <title>NeuralGCM and the Hybrid Approach</title>
+        <description>
+          
+            Machine learning dominates the conversation, but what will happen to the centuries-old physical equations that built our understanding of the atmosphere? How are the two approaches at odds? How might...
+          
+        </description>
+        <content:encoded>
+          <![CDATA[&lt;p&gt;Machine learning dominates the conversation, but what will happen to the centuries-old physical equations that built our understanding of the atmosphere? How are the two approaches at odds? How might they coexist?&lt;/p&gt;
+&lt;p&gt;Today’s paper, &lt;em&gt;NeuralGCM&lt;/em&gt;, sheds light on how physics-based and AI approaches might be a powerful pairing for weather forecasting. For the first truly hybrid model we’ve discussed, it’s only fitting that we’ve also taken a hybrid approach in this conversation. So join us for hybrid models, data compression, &lt;em&gt;Dragon Ball Z&lt;/em&gt;, and the strange future of primitive equations.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2&gt;Featured paper&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;&lt;a href=&quot;https://www.nature.com/articles/s41586-024-07744-y&quot;&gt;Neural general circulation models for weather and climate&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2&gt;Chapters&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;00:00 Intro&lt;/li&gt;
+&lt;li&gt;01:31 Weather report &amp;amp; books&lt;/li&gt;
+&lt;li&gt;18:01 Paper time&lt;/li&gt;
+&lt;li&gt;25:26 A theory of compression&lt;/li&gt;
+&lt;li&gt;48:07 Closing thoughts: Resolution, interpretability, &amp;amp; the future of primitive equations&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2&gt;Recommended reading&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;Chaos: Making a New Science&lt;/em&gt; — &lt;strong&gt;James Gleick&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Landmarks&lt;/em&gt; — &lt;strong&gt;Robert McFarlane&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Dandelion Wine&lt;/em&gt; — &lt;strong&gt;Ray Bradbury&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.google.com/url?q=https://www.websters1913.com/words/Wind&quot;&gt;&lt;em&gt;Webster’s 1913 Dictionary&lt;/em&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://www.incompleteideas.net/IncIdeas/BitterLesson.html&quot;&gt;“&lt;strong&gt;The Bitter Lesson&lt;/strong&gt;”&lt;/a&gt; — &lt;strong&gt;Rich Sutton&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Gray Nearing&lt;/strong&gt; — paper on physical constraints in ML models&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Charisma and Disenchantment&lt;/em&gt; — &lt;strong&gt;Max Weber&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2&gt;Keywords (for Spotify etc.)&lt;/h2&gt;
+&lt;p&gt;NeuralGCM, Neural general circulation models, Weather, Weather prediction, Climate, Forecasting, AI, Artificial intelligence, End-to-end models, Differential equations, Physics, End-to-end forecasting, Atmospheric science, Meteorology, AI models, Natural language processing, Machine learning, Ensemble forecasting, Neural networks, Meteorological data, Philosophy&lt;/p&gt;
+]]>
+        </content:encoded>
+        <link>https://dynamical.org/podcast/003/</link>
+        <guid>https://dynamical.org/podcast/003/</guid>
+        <pubDate>Sun, 27 Jul 2025 19:00:00 +0000</pubDate>
+        
+          <enclosure url="https://weathering.dynamical.org/003.mp3" type="audio/mpeg" length="0"/>
+        
+        
+        <itunes:author>Marshall, Marta, and Alden</itunes:author>
+        <itunes:explicit>no</itunes:explicit>
+        
+          <itunes:episode>003</itunes:episode>
+        
+      </item>
       
       <item>
         <title>End-to-end data-driven weather prediction</title>
