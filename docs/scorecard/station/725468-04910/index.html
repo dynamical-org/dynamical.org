@@ -121,7 +121,7 @@
     </div>
   </div>
 
-  <div style="display: flex; justify-content: space-between; align-items: center;">
+  <div class='responsive-flex'>
     <h2>Temperature</h2>
     <div>
       <input type="radio" id="temp_180" name="temp_window" value="180" checked>
@@ -133,7 +133,7 @@
 
   <img
     id="temperature_2m-obs"
-    src="https://sa.dynamical.org/station_725468-04910_temperature_2m_obs_180_day_latest.png"
+    src="https://sa.dynamical.org/station_725468-04910_temperature_2m_180_day_latest.png"
     alt="Temperature obs for ARTHUR N. NEU AIRPORT"
     style="max-width: 100%; height: auto;"
   />
@@ -145,7 +145,7 @@
     style="max-width: 100%; height: auto;"
   />
 
-  <div style="display: flex; justify-content: space-between; align-items: center;">
+  <div class='responsive-flex'>
     <h2>Precipitation</h2>
     <div>
       <input type="radio" id="precip_180" name="precip_window" value="180" checked>
@@ -157,7 +157,7 @@
 
   <img
     id="precipitation_surface-obs"
-    src="https://sa.dynamical.org/station_725468-04910_precipitation_surface_obs_180_day_latest.png"
+    src="https://sa.dynamical.org/station_725468-04910_precipitation_surface_180_day_latest.png"
     alt="Precipitation obs for ARTHUR N. NEU AIRPORT"
     style="max-width: 100%; height: auto;"
   />
@@ -221,7 +221,7 @@
     radios.forEach(radio => {
       radio.addEventListener('change', () => {
         const window = radio.value;
-        obsImg.src = `https://sa.dynamical.org/station_725468-04910_${varName}_obs_${window}_day_latest.png`;
+        obsImg.src = `https://sa.dynamical.org/station_725468-04910_${varName}_${window}_day_latest.png`;
         scoreImg.src = `https://sa.dynamical.org/station_725468-04910_${varName}_rmse_by_lead_time_${window}_day_latest.png`;
       });
     });
