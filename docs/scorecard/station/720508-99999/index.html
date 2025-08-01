@@ -110,7 +110,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250727</td>
+          <td>20250729</td>
         </tr>
       </table>
     </div>
@@ -121,34 +121,50 @@
     </div>
   </div>
 
-  <h2>Temperature</h2>
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Temperature</h2>
+    <div>
+      <input type="radio" id="temp_180" name="temp_window" value="180" checked>
+      <label for="temp_180">180 days</label>
+      <input type="radio" id="temp_14" name="temp_window" value="14">
+      <label for="temp_14">14 days</label>
+    </div>
+  </div>
 
   <img
     id="temperature_2m-obs"
-    src="https://sa.dynamical.org/station_720508-99999_temperature_2m_latest.png"
+    src="https://sa.dynamical.org/station_720508-99999_temperature_2m_obs_180_day_latest.png"
     alt="Temperature obs for MERKEL FLD SYLACAUGA MUNI"
     style="max-width: 100%; height: auto;"
   />
 
   <img
     id="temperature_2m-score"
-    src="https://sa.dynamical.org/station_720508-99999_temperature_2m_rmse_by_lead_time_latest.png"
+    src="https://sa.dynamical.org/station_720508-99999_temperature_2m_rmse_by_lead_time_180_day_latest.png"
     alt="Temperature RMSE by lead time for MERKEL FLD SYLACAUGA MUNI"
     style="max-width: 100%; height: auto;"
   />
 
-  <h2>Precipitation</h2>
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Precipitation</h2>
+    <div>
+      <input type="radio" id="precip_180" name="precip_window" value="180" checked>
+      <label for="precip_180">180 days</label>
+      <input type="radio" id="precip_14" name="precip_window" value="14">
+      <label for="precip_14">14 days</label>
+    </div>
+  </div>
 
   <img
     id="precipitation_surface-obs"
-    src="https://sa.dynamical.org/station_720508-99999_precipitation_surface_latest.png"
+    src="https://sa.dynamical.org/station_720508-99999_precipitation_surface_obs_180_day_latest.png"
     alt="Precipitation obs for MERKEL FLD SYLACAUGA MUNI"
     style="max-width: 100%; height: auto;"
   />
 
   <img
     id="precipitation_surface-score"
-    src="https://sa.dynamical.org/station_720508-99999_precipitation_surface_rmse_by_lead_time_latest.png"
+    src="https://sa.dynamical.org/station_720508-99999_precipitation_surface_rmse_by_lead_time_180_day_latest.png"
     alt="Precipitation RMSE by lead time for MERKEL FLD SYLACAUGA MUNI"
     style="max-width: 100%; height: auto;"
   />
@@ -158,7 +174,7 @@
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"720508-99999","country":"US","usaf":"720508","wban":"99999","name":"MERKEL FLD SYLACAUGA MUNI","state_abbr":"AL","state_name":"Alabama","latitude":33.17,"longitude":-86.306,"elev":173.4,"begin":"20140114","end":"20250727"};
+  const station = {"id":"720508-99999","country":"US","usaf":"720508","wban":"99999","name":"MERKEL FLD SYLACAUGA MUNI","state_abbr":"AL","state_name":"Alabama","latitude":33.17,"longitude":-86.306,"elev":173.4,"begin":"20140114","end":"20250729"};
   const width = 600;
   const height = 400;
 
@@ -197,6 +213,23 @@
         .attr("fill", "blue");
   });
 
+  function setupRadioListeners(kind, varName) {
+    const radios = document.querySelectorAll(`input[name="${kind}_window"]`);
+    const obsImg = document.getElementById(`${varName}-obs`);
+    const scoreImg = document.getElementById(`${varName}-score`);
+
+    radios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        const window = radio.value;
+        obsImg.src = `https://sa.dynamical.org/station_720508-99999_${varName}_obs_${window}_day_latest.png`;
+        scoreImg.src = `https://sa.dynamical.org/station_720508-99999_${varName}_rmse_by_lead_time_${window}_day_latest.png`;
+      });
+    });
+  }
+
+  setupRadioListeners('temp', 'temperature_2m');
+  setupRadioListeners('precip', 'precipitation_surface');
+
   // Fallback placeholder for temperature images on error
   ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(id => {
     const img = document.getElementById(id);
@@ -214,7 +247,7 @@
           backgroundColor: '#f0f0f0',
           marginBottom: '10px',
         });
-        box.textContent = 'Data not available in past 14 days';
+        box.textContent = 'Data not available';
         img.parentNode.replaceChild(box, img);
       };
     }

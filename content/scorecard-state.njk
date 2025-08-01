@@ -12,18 +12,24 @@ permalink: /scorecard/{{ state.abbr | slug }}/
     <a href="/scorecard">Scorecard</a>
     > {{ state.name }}
   </div>
+  <div>
+    <input type="radio" id="window_180" name="window" value="180" checked>
+    <label for="window_180">180 days</label>
+    <input type="radio" id="window_14" name="window" value="14">
+    <label for="window_14">14 days</label>
+  </div>
   <div
     id="map-container" style="margin: 40px 0; width: 100%; max-width: 975px; overflow: hidden;"><!-- D3.js map will be rendered here -->
   </div>
   <img
-    id="variable-image"
-    src="https://sa.dynamical.org/state_{{ state.abbr | lower }}_temperature_2m_rmse_by_lead_time_latest.png"
-    alt="Temperature RMSE by lead time for {{ station.name }}"
+    id="temperature-image"
+    src="https://sa.dynamical.org/state_{{ state.abbr | lower }}_temperature_2m_rmse_by_lead_time_180_day_latest.png"
+    alt="Temperature RMSE by lead time"
     style="max-width: 100%; height: auto;"/>
   <img
-    id="variable-image"
-    src="https://sa.dynamical.org/state_{{ state.abbr | lower }}_precipitation_surface_rmse_by_lead_time_latest.png"
-    alt="Precipitation RMSE by lead time for {{ station.name }}"
+    id="precipitation-image"
+    src="https://sa.dynamical.org/state_{{ state.abbr | lower }}_precipitation_surface_rmse_by_lead_time_180_day_latest.png"
+    alt="Precipitation RMSE by lead time"
     style="max-width: 100%; height: auto;"/>
   <div id="station-list">
     <h2>Stations in {{ state.name }}</h2>
@@ -100,17 +106,20 @@ permalink: /scorecard/{{ state.abbr | slug }}/
       .attr("class", "station")
       .attr("r", 5)
       .attr("fill", "blue")
-      .attr("cx", d => projection([d.longitude, d.latitude])[0])
-      .attr("cy", d => projection([d.longitude, d.latitude])[1])
       .append("title")
       .text(d => d.name);
+  });
 
-    // Crop SVG viewBox to the state's vertical bounds to remove extra whitespace
-    const bounds = path.bounds(state);
-    const y0 = bounds[0][1];
-    const y1 = bounds[1][1];
-    const shapeHeight = y1 - y0;
-    console.log(shapeHeight)
-    svg.attr("viewBox", [0, y0, width, shapeHeight * 1.1]);
+  const radios = document.querySelectorAll('input[name="window"]');
+  const tempImg = document.getElementById('temperature-image');
+  const precipImg = document.getElementById('precipitation-image');
+  const stateAbbr = "{{ state.abbr | lower }}";
+
+  radios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      const window = radio.value;
+      tempImg.src = `https://sa.dynamical.org/state_${stateAbbr}_temperature_2m_rmse_by_lead_time_${window}_day_latest.png`;
+      precipImg.src = `https://sa.dynamical.org/state_${stateAbbr}_precipitation_surface_rmse_by_lead_time_${window}_day_latest.png`;
+    });
   });
 </script>
