@@ -261,7 +261,7 @@ nav ul li {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 0 ;
+  padding: 1rem 0;
 }
 
 @media screen and (max-width: 1000px) {
