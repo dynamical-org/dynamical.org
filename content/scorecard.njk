@@ -49,7 +49,7 @@ title: Scorecard
   />
   <div id="station-list">
     {% for state, stations_in_state in scorecard.index.stations | groupby("state_name") %}
-      <h3><a href='/scorecard/{{ stations_in_state[0].state_abbr }}'>{{ state }}</a></h3>
+      <h3><a href='/scorecard/{{ stations_in_state[0].state_abbr | slug }}'>{{ state }}</a></h3>
       <ul>
         {% for station in stations_in_state %}
           <li>
