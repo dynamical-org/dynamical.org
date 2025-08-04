@@ -49,7 +49,7 @@ title: Scorecard
   />
   <div id="station-list">
     {% for state, stations_in_state in scorecard.index.stations | groupby("state_name") %}
-      <h3><a href='/scorecard/{{ stations_in_state[0].state_abbr | slug }}'>{{ state }}</a></h3>
+      <h3><a href='/scorecard/us-state/{{ stations_in_state[0].state_abbr | slug }}'>{{ state }}</a></h3>
       <ul>
         {% for station in stations_in_state %}
           <li>
@@ -90,7 +90,7 @@ title: Scorecard
         .attr("xlink:href", d => {
           const states = {{ scorecard.index.states | dump | safe }};
           const stateObj = states.find(s => s.name === d.properties.name);
-          return stateObj ? `/scorecard/${stateObj.abbr.toLowerCase()}/` : null;
+          return stateObj ? `/scorecard/us-state/${stateObj.abbr.toLowerCase()}/` : null;
         })
         .style("cursor", "pointer")
       .append("path")
@@ -114,6 +114,7 @@ title: Scorecard
       .attr("cy", d => projection([d.longitude, d.latitude])[1])
       .attr("r", 5)
       .attr("fill", "blue")
+      .style("pointer-events", "none")
       .append("title")
       .text(d => d.name);
   });
