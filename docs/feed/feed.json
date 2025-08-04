@@ -11,14 +11,6 @@
   },
   "items": [
     {
-      "id": "https://dynamical.org/updates/2025-08-03/",
-      "url": "https://dynamical.org/updates/2025-08-03/",
-      "title": "August update",
-      "content_html": "",
-      "date_published": "2025-08-01T00:00:00Z"
-    }
-    ,
-    {
       "id": "https://dynamical.org/updates/2025-07-02/",
       "url": "https://dynamical.org/updates/2025-07-02/",
       "title": "🟢 GFS is live",
