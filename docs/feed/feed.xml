@@ -4,12 +4,22 @@
   <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
   <link href="https://dynamical.org/feed/feed.xml" rel="self" />
   <link href="https://dynamical.org/" />
-  <updated>2025-07-02T00:00:00Z</updated>
+  <updated>2025-08-01T00:00:00Z</updated>
   <id>https://dynamical.org/</id>
   <author>
     <name>dynamical.org</name>
     <email>marshall@dynamical.org</email>
   </author> 
+  <entry>
+    <title>August update</title>
+    <link href="https://dynamical.org/updates/2025-08-03/" />
+    <updated>2025-08-01T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2025-08-03/</id>
+    <content
+      type="html"
+      ></content
+    >
+  </entry> 
   <entry>
     <title>🟢 GFS is live</title>
     <link href="https://dynamical.org/updates/2025-07-02/" />

@@ -111,7 +111,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250731</td>
+          <td>20250802</td>
         </tr>
       </table>
     </div>
@@ -175,7 +175,7 @@
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"723980-93720","country":"US","usaf":"723980","wban":"93720","name":"SALBRY-OCN CTY WICO RGNL AP","state_abbr":"MD","state_name":"Maryland","latitude":38.34,"longitude":-75.513,"elev":14.4,"begin":"20050101","end":"20250731"};
+  const station = {"id":"723980-93720","country":"US","usaf":"723980","wban":"93720","name":"SALBRY-OCN CTY WICO RGNL AP","state_abbr":"MD","state_name":"Maryland","latitude":38.34,"longitude":-75.513,"elev":14.4,"begin":"20050101","end":"20250802"};
   const width = 600;
   const height = 400;
 
@@ -269,14 +269,14 @@
     
       <div id="latest-popup">
         <div class="popup-header">
-          <span class="popup-type">🎙️ New podcast episode</span>
+          <span class="popup-type">📰 Latest update</span>
           <button id="latest-close" class="popup-close">
             &times;
           </button>
           <script>
             (function () {
               const popup = document.getElementById('latest-popup');
-              const latestDate = "2025-07-28T00:00:00.000Z";
+              const latestDate = "2025-08-01T00:00:00.000Z";
               const seenDate = localStorage.getItem('latestPopupDate');
               // if we've already seen this or something newer, hide the popup immediately
               if (seenDate && seenDate >= latestDate) {
@@ -291,8 +291,8 @@
             })();
           </script>
         </div>
-        <a href="/podcast/003/" class="popup-title">NeuralGCM and the Hybrid Approach</a>
-        <div class="popup-date">2025-07-28</div>
+        <a href="/updates/2025-08-03/" class="popup-title">August update</a>
+        <div class="popup-date">2025-08-01</div>
       </div>
     
   </body>
