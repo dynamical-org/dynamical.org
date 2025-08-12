@@ -3,8 +3,7 @@ layout: base.njk
 title: catalog
 ---
 
-<style>
-</style>
+<style></style>
 <div class="content">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>Catalog</h1>
@@ -12,7 +11,6 @@ title: catalog
       <a href="/catalog/llms">🤖</a>
     </div>
   </div>
-
   <div id="models-view" class="view-content">
     {% for model in catalog.models %}
       <div class="model-group">
@@ -42,7 +40,7 @@ title: catalog
       </div>
     {% endfor %}
   </div>
-  <hr style="margin: 6rem 0;" />
+  <hr style="margin: 6rem 0;"/>
   <h2>Roadmap, Phase 1</h2>
   <p>Each of these items includes both live-updating forecasts and derived analysis/climatology datasets.</p>
   <ul class="catalog-list">
@@ -52,15 +50,15 @@ title: catalog
       <em>(in progress)</em>
     </li>
     <li>
-      <strong>NOAA GFS
-      </strong>
+      <strong>DWD ICON-EU</strong>
+      <em>(in progress)</em>
+    </li>
+    <li>
+      <strong>ECMWF ENS, 15 day, 1x day</strong>
       <em>(in progress)</em>
     </li>
     <li>
       <strong>ECMWF AIFS</strong>
-    </li>
-    <li>
-      <strong>ECMWF ENS, 15 day, 1x day</strong>
     </li>
     <li>
       <strong>ECCC HRDPS</strong>

@@ -47,53 +47,56 @@ async function getStations() {
       const latitude = parseFloat(line.substring(55, 63));
       const longitude = parseFloat(line.substring(64, 73));
 
-      // We only want active US stations
-      if (country === 'US' && usaf !== '999999' && end >= '20250601') {
+      // We only want active stations with a valid location
+      if (usaf !== '999999' && end >= '20250601' && isFinite(latitude) && isFinite(longitude)) {
         let name = line.substring(13, 42).trim();
         
-        if (!state) {
-          const potentialState = name.slice(-2);
-          if (stateAbbrToName[potentialState]) {
-            state = potentialState;
-            name = name.slice(0, -2).trim();
+        if (country === 'US') {
+          // Normalize name/state for US stations only (keeps existing behavior)
+          if (!state) {
+            const potentialState = name.slice(-2);
+            if (stateAbbrToName[potentialState]) {
+              state = potentialState;
+              name = name.slice(0, -2).trim();
+            }
+          } else if (name.endsWith(` ${state}`)) {
+            name = name.slice(0, -3).trim();
           }
-        } else if (name.endsWith(` ${state}`)) {
-          name = name.slice(0, -3).trim();
-        }
 
-        if (!state && latitude && longitude) {
-          const point = turf.point([longitude, latitude]);
-          for (const stateFeature of stateFeatures) {
-            if (turf.booleanPointInPolygon(point, stateFeature)) {
-              const stateName = stateFeature.properties.name;
-              for (const abbr in stateAbbrToName) {
-                if (stateAbbrToName[abbr] === stateName) {
-                  state = abbr;
-                  break;
+          if (!state && latitude && longitude) {
+            const point = turf.point([longitude, latitude]);
+            for (const stateFeature of stateFeatures) {
+              if (turf.booleanPointInPolygon(point, stateFeature)) {
+                const stateName = stateFeature.properties.name;
+                for (const abbr in stateAbbrToName) {
+                  if (stateAbbrToName[abbr] === stateName) {
+                    state = abbr;
+                    break;
+                  }
                 }
+                break;
               }
-              break;
             }
           }
         }
 
-        if (state) {
-          const station = {
-            id: `${usaf}-${wban}`,
-            country,
-            usaf,
-            wban, 
-            name,
-            state_abbr: state,
-            state_name: stateAbbrToName[state] || state,
-            latitude,
-            longitude,
-            elev: parseFloat(line.substring(74, 81)),
-            begin: line.substring(82, 90).trim(),
-            end: end,
-          };
-          stations.push(station);
-        }
+        const station = {
+          id: `${usaf}-${wban}`,
+          country,
+          usaf,
+          wban, 
+          name,
+          state_abbr: state || undefined,
+          state_name: stateAbbrToName[state] || state || undefined,
+          latitude,
+          longitude,
+          elev: parseFloat(line.substring(74, 81)),
+          begin: line.substring(82, 90).trim(),
+          end: end,
+        };
+
+        // Keep station (global); US stations may include state info
+        stations.push(station);
       }
     }
   }
@@ -102,6 +105,17 @@ async function getStations() {
 
 module.exports = async function() {
   const stations = await getStations();
+
+  // Derive unique countries from stations (use 2-letter code from ISD file)
+  const countries = Object.keys(
+    stations.reduce((acc, s) => {
+      if (s.country) acc[s.country] = true;
+      return acc;
+    }, {})
+  )
+    .sort()
+    .map(code => ({ code, slug: code.toLowerCase() }));
+
   const states = Object.values(stations.reduce((acc, s) => {
     if (s.state_name && !acc[s.state_name]) {
       acc[s.state_name] = { name: s.state_name, abbr: s.state_abbr };
@@ -112,5 +126,6 @@ module.exports = async function() {
   return {
     stations,
     states,
+    countries,
   };
 };

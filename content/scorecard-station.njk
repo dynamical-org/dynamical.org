@@ -28,7 +28,11 @@ permalink: /scorecard/station/{{ station.id }}/
 <div class="content">
   <div>
     <a href="/scorecard">Scorecard</a>
-    > <a href="/scorecard/us-state/{{ station.state_abbr | slug }}/">{{ station.state_name }}</a>
+    {% if station.state_abbr %}
+      > <a href="/scorecard/us-state/{{ station.state_abbr | slug }}/">{{ station.state_name }}</a>
+    {% else %}
+      > Country {{ station.country }}
+    {% endif %}
     > {{ station.name }}
   </div>
   
@@ -145,33 +149,42 @@ permalink: /scorecard/station/{{ station.id }}/
       .attr("height", "auto")
       .attr("style", "max-width: 100%;");
 
-  d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
-    const state = topojson.feature(us, us.objects.states).features.find(d => d.properties.name === station.state_name);
+  d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json").then(world => {
+    const countries = topojson.feature(world, world.objects.countries).features;
 
-    if (!state) {
-      console.error("Could not find state for station:", station);
-      return;
-    }
+    // Find the country containing the station point
+    const pt = [station.longitude, station.latitude];
+    let feature = countries.find(f => d3.geoContains(f, pt));
 
-    const projection = d3.geoIdentity().reflectY(true);
+    const projection = d3.geoNaturalEarth1();
     const path = d3.geoPath(projection);
 
-    // Fit the projection to the state
-    projection.fitExtent([[0, 0], [width, height]], state);
+    projection.fitExtent([[0, 0], [width, height]], feature || { type: 'Sphere' });
 
-    svg.append("g")
+    // Draw feature (or globe background)
+    if (feature) {
+      svg.append("path")
+        .datum(feature)
+        .attr("d", path)
         .attr("fill", "#fff")
-        .attr("stroke", "#000")
-      .selectAll("path")
-      .data([state])
-      .join("path")
-        .attr("d", path);
+        .attr("stroke", "#000");
+    } else {
+      svg.append("path")
+        .datum({ type: 'Sphere' })
+        .attr("d", path)
+        .attr("fill", "#e6f2ff")
+        .attr("stroke", "#000");
+    }
 
-    svg.append("circle")
-        .attr("cx", projection([station.longitude, station.latitude])[0])
-        .attr("cy", projection([station.longitude, station.latitude])[1])
+    // Station point
+    const p = projection(pt);
+    if (Array.isArray(p)) {
+      svg.append("circle")
+        .attr("cx", p[0])
+        .attr("cy", p[1])
         .attr("r", 5)
         .attr("fill", "blue");
+    }
   });
 
   function setupRadioListeners(kind, varName) {
@@ -196,7 +209,6 @@ permalink: /scorecard/station/{{ station.id }}/
     const img = document.getElementById(id);
     if (img) {
       img.onerror = () => {
-        // Create fallback div
         const box = document.createElement('div')
         Object.assign(box.style, {
           width: '100%',
