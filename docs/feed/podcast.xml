@@ -8,7 +8,7 @@
     <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
     <link>https://dynamical.org//podcast</link>
     <language>en-us</language>
-    <lastBuildDate>Sun, 27 Jul 2025 19:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 21 Sep 2025 19:00:00 +0000</lastBuildDate>
     <itunes:author>Marshall, Marta, and Alden</itunes:author>
     <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
     <itunes:category text="Science">
@@ -21,6 +21,59 @@
       <itunes:email>marshall@dynamical.org</itunes:email>
     </itunes:owner>
     <itunes:image href="https://weathering.dynamical.org/weathering_logo.png"/>
+      
+      <item>
+        <title>Determinism is dead, chaos reigns, and the night is long</title>
+        <description>
+          
+            While staring into uncertainty might sound abyssal and frightening, ensemble models have proven (to us, at least) that this isn’t the case. In today’s episode, we’re exploring two papers with...
+          
+        </description>
+        <content:encoded>
+          <![CDATA[&lt;p&gt;While staring into uncertainty might sound abyssal and frightening, ensemble models have proven (to us, at least) that this isn’t the case. In today’s episode, we’re exploring two papers with different approaches to ensemble forecasting. This &amp;quot;choir&amp;quot; approach to weather prediction is one that embraces chaos rather than striving to chart a single line of truth on a graph by generating dozens or even hundreds of slightly different predictions that together map a full range of possible outcomes.&lt;/p&gt;
+&lt;p&gt;We’re unpacking FGN, the latest variant of AIFS, and their differing approaches to the same challenge: &lt;strong&gt;how can we create a confident forecast of an assuredly uncertain future.&lt;/strong&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2&gt;Featured Papers&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;&lt;a href=&quot;https://arxiv.org/abs/2506.10772&quot;&gt;Skillful joint probabilistic weather forecasting from marginals&lt;/a&gt;&lt;/em&gt;, Alet et al.&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;&lt;a href=&quot;https://arxiv.org/html/2412.15832v1&quot;&gt;AIFS-CRPS: Ensemble forecasting using a model trained with a loss function based on the Continuous Ranked Probability Score&lt;/a&gt;&lt;/em&gt;, Lang et al.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2&gt;Chapters&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;00:00&lt;/strong&gt; — Intro&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;01:38&lt;/strong&gt; — Abstract (Meet the paper!)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;10:17&lt;/strong&gt; — Weather report &amp;amp; reading list&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;19:37&lt;/strong&gt; — A lil history (Newton, Blake, Goethe, &amp;amp; voices of dissent)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;28:43&lt;/strong&gt; — Paper time!&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2&gt;Further Reading&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;The Solace of Open Spaces&lt;/em&gt; by Gretel Ehrlich (especially “On Water”)&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;North Woods&lt;/em&gt; by Daniel Mason&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Frederick&lt;/em&gt; by Leo Lionni&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Hyperion&lt;/em&gt; and &lt;em&gt;The Fall of Hyperion&lt;/em&gt; by Dan Simmons&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;&lt;a href=&quot;https://www.tate.org.uk/art/artworks/blake-newton-n05058&quot;&gt;Newton&lt;/a&gt;&lt;/em&gt; by William Blake&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=iv-5mZ_9CPY&quot;&gt;But how do AI images and videos actually work?&lt;/a&gt;&lt;/em&gt; by WelchLabs and 3Blue1Brown (video)&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Chaos: Making a New Science&lt;/em&gt; by James Gleick&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.upstream.tech/posts/from-chaos-to-clarity-seasonal-forecasts-for-confident-risk-management&quot;&gt;“From chaos to clarity: Seasonal forecasts for confident risk management”&lt;/a&gt; with Marshall, Alden, and Phil Butcher from the HydroForecast team&lt;/li&gt;
+&lt;/ul&gt;
+]]>
+        </content:encoded>
+        <link>https://dynamical.org/podcast/004/</link>
+        <guid>https://dynamical.org/podcast/004/</guid>
+        <pubDate>Sun, 21 Sep 2025 19:00:00 +0000</pubDate>
+        
+          <enclosure url="https://weathering.dynamical.org/004.mp3" type="audio/mpeg" length="0"/>
+        
+        
+        <itunes:author>Marshall, Marta, and Alden</itunes:author>
+        <itunes:explicit>no</itunes:explicit>
+        
+          <itunes:episode>004</itunes:episode>
+        
+      </item>
       
       <item>
         <title>NeuralGCM and the Hybrid Approach</title>
