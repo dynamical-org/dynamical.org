@@ -613,10 +613,10 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
 # This code demonstrates how to access and process the NOAA GFS forecast dataset
 
 
-import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/forecast/latest.zarr?email=optional@email.com")
-ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     </code></pre>
                 <div class="example-notes">
                     <p>
@@ -1073,10 +1073,10 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
 # This code demonstrates how to access and process the NOAA GEFS forecast, 35 day dataset
 
 
-import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com")
-ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     </code></pre>
                 <div class="example-notes">
                     <p>
@@ -1548,10 +1548,10 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
 # This code demonstrates how to access and process the NOAA GEFS analysis dataset
 
 
-import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com")
-ds['temperature_2m'].sel(time="2025-01-01T00", latitude=0, longitude=0).compute()
+ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute()
     </code></pre>
                 <div class="example-notes">
                     <p>
@@ -1710,6 +1710,356 @@ ds['temperature_2m'].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
   "nbformat": 4,
   "nbformat_minor": 2
 }</pre>
+            </div>
+        
+    </div>
+
+    <div class="content catalog-item">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <h1>NOAA HRRR forecast, 48 hour</h1>
+        </div>
+        <table>
+            <tr>
+                <td>Dataset url</td>
+                <td>https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr</td>
+            </tr>
+            <tr>
+                <td>Spatial domain</td>
+                <td>CONUS</td>
+            </tr>
+            <tr>
+                <td>Spatial resolution</td>
+                <td>3km</td>
+            </tr>
+            <tr>
+                <td>Time domain</td>
+                <td>Forecasts initialized 2018-07-13 12:00:00 UTC to Present</td>
+            </tr>
+            <tr>
+                <td>Time resolution</td>
+                <td>Forecasts initialized every 6 hours.</td>
+            </tr>
+            
+                <tr>
+                    <td>Forecast domain</td>
+                    <td>Forecast lead time 0-48 hours ahead</td>
+                </tr>
+                <tr>
+                    <td>Forecast resolution</td>
+                    <td>Hourly</td>
+                </tr>
+            
+        </table>
+        <h2>Description</h2>
+        <p>
+            
+        <p>
+        This dataset is an archive of past and present HRRR forecasts. Forecasts
+        are identified by an initialization time (<code>init_time</code>) denoting the
+        start time of the model run.
+        Each forecast has an hourly forecast step along the <code>lead_time</code>
+        dimension. This dataset contains only the 00, 06, 12, and 18 hour UTC
+        initialization times which produce the full length, 48 hour forecast.
+        </p>
+
+        <p>
+        This dataset is provided in the native HRRR Lambert Conformal Conic
+        projection and indexed spatially by <code>x</code> and <code>y</code> dimensions.
+        The example notebook demonstrates how to use the embedded spatial reference
+        information to select your geographic areas of interest.
+        </p>
+      
+        </p>
+        <!-- Structured metadata for LLMs -->
+        <div class="llm-metadata">
+            <pre class="llm-metadata">
+{
+    "dataset_name": "NOAA HRRR forecast, 48 hour",
+    "description_short": "Weather forecasts from the High Resolution Rapid Refresh (HRRR) model operated by NOAA NWS NCEP.",
+    "url": "https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr",
+    "spatial_domain": "CONUS",
+    "spatial_resolution": "3km",
+    "time_domain": "Forecasts initialized 2018-07-13 12:00:00 UTC to Present",
+    "time_resolution": "Forecasts initialized every 6 hours.",
+    "forecast_domain": "Forecast lead time 0-48 hours ahead",
+    "forecast_resolution": "Hourly",
+    "dimensions": [
+        {
+            "name": "init_time",
+            "min": "2018-07-13T12:00:00",
+            "max": "Present",
+            "units": "seconds since 1970-01-01"
+        },
+        {
+            "name": "lead_time",
+            "min": "0 days 00:00:00",
+            "max": "2 days 00:00:00",
+            "units": "seconds"
+        },
+        {
+            "name": "x",
+            "min": "-2700000",
+            "max": "2700000",
+            "units": "m"
+        },
+        {
+            "name": "y",
+            "min": "-1600000",
+            "max": "1600000",
+            "units": "m"
+        }
+    ],
+    "variables": [
+        {
+            "name": "categorical_freezing_rain_surface",
+            "long_name": "Categorical freezing rain",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "categorical_ice_pellets_surface",
+            "long_name": "Categorical ice pellets",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "categorical_rain_surface",
+            "long_name": "Categorical rain",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "categorical_snow_surface",
+            "long_name": "Categorical snow",
+            "units": "0=no; 1=yes",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "composite_reflectivity",
+            "long_name": "Composite reflectivity",
+            "units": "dBZ",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "downward_long_wave_radiation_flux_surface",
+            "long_name": "Surface downward long-wave radiation flux",
+            "units": "W/(m^2)",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "downward_short_wave_radiation_flux_surface",
+            "long_name": "Surface downward short-wave radiation flux",
+            "units": "W/(m^2)",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "expected_forecast_length",
+            "long_name": "",
+            "units": "seconds",
+            "dimensions": "init_time"
+        },
+        {
+            "name": "geopotential_height_cloud_ceiling",
+            "long_name": "Geopotential height",
+            "units": "gpm",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "ingested_forecast_length",
+            "long_name": "",
+            "units": "seconds",
+            "dimensions": "init_time"
+        },
+        {
+            "name": "latitude",
+            "long_name": "",
+            "units": "degrees_north",
+            "dimensions": "y × x"
+        },
+        {
+            "name": "longitude",
+            "long_name": "",
+            "units": "degrees_east",
+            "dimensions": "y × x"
+        },
+        {
+            "name": "percent_frozen_precipitation_surface",
+            "long_name": "Percent frozen precipitation",
+            "units": "%",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "precipitable_water_atmosphere",
+            "long_name": "Precipitable water",
+            "units": "kg/(m^2)",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "precipitation_surface",
+            "long_name": "Total Precipitation",
+            "units": "mm/s",
+            "comment": "Average precipitation rate since the previous forecast step.",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "pressure_reduced_to_mean_sea_level",
+            "long_name": "Pressure reduced to MSL",
+            "units": "Pa",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "pressure_surface",
+            "long_name": "Surface pressure",
+            "units": "Pa",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "relative_humidity_2m",
+            "long_name": "2 metre relative humidity",
+            "units": "%",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "temperature_2m",
+            "long_name": "2 metre temperature",
+            "units": "C",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "total_cloud_cover_atmosphere",
+            "long_name": "Total Cloud Cover",
+            "units": "%",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "valid_time",
+            "long_name": "",
+            "units": "seconds since 1970-01-01",
+            "dimensions": "init_time × lead_time"
+        },
+        {
+            "name": "wind_u_10m",
+            "long_name": "10 metre U wind component",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "wind_u_80m",
+            "long_name": "U-component of wind (80 m above ground)",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "wind_v_10m",
+            "long_name": "10 metre V wind component",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × y × x"
+        },
+        {
+            "name": "wind_v_80m",
+            "long_name": "V-component of wind (80 m above ground)",
+            "units": "m/s",
+            "dimensions": "init_time × lead_time × y × x"
+        }
+    ]
+}
+            </pre>
+        </div>
+        <h2>For LLMs & AI Assistants</h2>
+        <div class="llm-context-info">
+            <p>
+                <strong>Dataset summary:</strong>
+                NOAA HRRR forecast, 48 hour is a dataset containing 25 variables across 4
+                dimensions, covering
+                CONUS at 3km resolution and
+                Forecasts initialized 2018-07-13 12:00:00 UTC to Present at Forecasts initialized every 6 hours. resolution.
+            </p>
+            <p>
+                <strong>Key use cases:</strong>
+                This dataset is suitable for
+                forecasting and prediction models,
+                
+                data analysis, visualization, and scientific research related to this domain.
+            </p>
+            <p>
+                <strong>Access pattern:</strong>
+                Use this URL with optional email parameter to access this dataset programmatically: https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr
+            </p>
+        </div>
+        <h2>Details</h2>
+        <p>
+            
+        <h3>Sources</h3>
+        <p>
+        The source grib files this archive is contructed from are provided by
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemniation (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-hrrr-pds/">AWS Open Data Registry</a>.
+        </p>
+
+        <h3>Data availability</h3>
+        <p>
+        From the start of this dataset through the 2020-12-02T06 UTC initialization time
+        data is only available for the first 36 hours of each forecast and forecast steps
+        37-48 are filled with NaNs. From the 2020-12-02T12 UTC initialization time onward
+        forecasts are available for the full 48 hours.
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/">reformatting code</a>.
+        </p>
+
+      
+        </p>
+        <h2>Examples</h2>
+        <h3>Brief example usage:</h3>
+        
+            <div class="frame">
+                <div class="frameHeader">
+                    <div class="frameHeaderTitle">dynamical.org - NOAA HRRR forecast, 48 hour</div>
+                    <div class="frameHeaderSubtitle">Maximum temperature in a forecast</div>
+                </div>
+                <pre class="frameContent frameContentDesktop"><code class="language-python">
+# Example: Maximum temperature in a forecast
+# Dataset: NOAA HRRR forecast, 48 hour
+# This code demonstrates how to access and process the NOAA HRRR forecast, 48 hour dataset
+
+
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr?email=optional@email.com")
+ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").max().compute()
+    </code></pre>
+                <div class="example-notes">
+                    <p>
+                        <strong>What this example does:</strong>
+                        This code demonstrates accessing the NOAA HRRR forecast, 48 hour dataset and processing its data.</p>
+                    <p>
+                        <strong>Key components:</strong>
+                        Data loading, processing, and potentially visualization of the dataset variables.</p>
+                </div>
+            </div>
+        
+        
+            <div class="notebook-content">
+                <h3>Python notebook example usage:</h3>
+                
+                <div class="example-source">Source:
+                    <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb">https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb</a>
+                </div>
+                <p>Error loading notebook content: Bad response for https://raw.githubusercontent.com/dynamical-org/notebooks/refs/heads/main/noaa-hrrr-forecast-48-hour.ipynb (404): Not Found</p>
             </div>
         
     </div>

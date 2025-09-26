@@ -33,6 +33,22 @@ const models = {
     `,
     agency: "NOAA",
     type: "Global Ensemble Weather Model"
+  },
+  "noaa-hrrr": {
+    name: "NOAA HRRR",
+    shortName: "HRRR",
+    description: `
+      <p>
+      The High-Resolution Rapid Refresh (HRRR) is a NOAA real-time 3-km resolution,
+      hourly updated, cloud-resolving, convection-allowing atmospheric model,
+      initialized by 3km grids with 3km radar assimilation. Radar data is
+      assimilated in the HRRR every 15 min over a 1-h period adding further
+      detail to that provided by the hourly data assimilation from the 13km
+      radar-enhanced Rapid Refresh.
+      </p>
+    `,
+    agency: "NOAA",
+    type: "Regional Weather Model"
   }
 };
 
@@ -134,10 +150,10 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
       {
         title: "Maximum temperature in a forecast",
         code: `
-import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/forecast/latest.zarr?email=optional@email.com")
-ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `,
       },
     ],
@@ -196,10 +212,10 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       {
         title: "Maximum temperature in ensemble forecast",
         code: `
-import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com")
-ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `,
       },
     ],
@@ -298,10 +314,10 @@ ds['temperature_2m'].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       {
         title: "Temperature at a specific place and time",
         code: `
-import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.4 for zarr v3 support
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com")
-ds['temperature_2m'].sel(time="2025-01-01T00", latitude=0, longitude=0).compute()
+ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute()
     `,
       },
     ],
@@ -309,6 +325,79 @@ ds['temperature_2m'].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
+  },
+
+  // noaa-hrrr-forecast-48-hour
+  {
+    modelId: "noaa-hrrr",
+    descriptionSummary: `
+        <p>
+        This dataset is an archive of past and present HRRR forecasts. Forecasts
+        are identified by an initialization time (<code>init_time</code>) denoting the
+        start time of the model run.
+        Each forecast has an hourly forecast step along the <code>lead_time</code>
+        dimension. This dataset contains only the 00, 06, 12, and 18 hour UTC
+        initialization times which produce the full length, 48 hour forecast.
+        </p>
+
+        <p>
+        This dataset is provided in the native HRRR Lambert Conformal Conic
+        projection and indexed spatially by <code>x</code> and <code>y</code> dimensions.
+        The example notebook demonstrates how to use the embedded spatial reference
+        information to select your geographic areas of interest.
+        </p>
+      `,
+    descriptionDetails: `
+        <h3>Sources</h3>
+        <p>
+        The source grib files this archive is contructed from are provided by
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemniation (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-hrrr-pds/">AWS Open Data Registry</a>.
+        </p>
+
+        <h3>Data availability</h3>
+        <p>
+        From the start of this dataset through the 2020-12-02T06 UTC initialization time
+        data is only available for the first 36 hours of each forecast and forecast steps
+        37-48 are filled with NaNs. From the 2020-12-02T12 UTC initialization time onward
+        forecasts are available for the full 48 hours.
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/">reformatting code</a>.
+        </p>
+
+      `,
+    url: "https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr",
+    status: "coming soon",
+    examples: [
+      {
+        title: "Maximum temperature in a forecast",
+        code: `
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr?email=optional@email.com")
+ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").max().compute()
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
   },
 ].filter((entry) => !entry.hide);
 

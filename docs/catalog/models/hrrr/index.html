@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="author" content="Dynamical Team"/>
+    <meta name="keywords" content="Weather, data, zarr"/>
+    <title>dynamical.org - NOAA HRRR</title>
+    <meta name="description" content="Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data."/>
+    <meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="dynamical.org"/>
+    <meta property="og:site_name" content="dynamical.org"/>
+    <meta property="og:type" content="website"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link rel="alternate" href="/feed/feed.xml" type="application/atom+xml" title="dynamical.org"/>
+    <link rel="alternate" href="/feed/feed.json" type="application/json" title="dynamical.org"/>
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li>
+          <a href="/">dynamical.org</a>
+        </li>
+        <li>
+          <a href="/catalog">catalog</a>
+        </li>
+        <li>
+          <a href="/about">about</a>
+        </li>
+        <li>
+          <a href="/updates">updates</a>
+        </li>
+        <li>
+          <a href="/scorecard">scorecard</a>
+        </li>
+        <li>
+          <span style="font-size: 0.8em; color: #666; font-weight: normal;">🎙️ check 1 2... &gt;&gt;&gt;</span>
+          <a href="/podcast">podcast</a>
+        </li>
+        <li>
+          <a href="https://github.com/dynamical-org">code</a>
+        </li>
+      </ul>
+    </nav>
+    
+<style></style>
+<div class="content">
+    <div>
+        <a href="/catalog">Catalog</a>
+        > NOAA HRRR
+    </div>
+    <div>
+        <h1>NOAA HRRR</h1>
+        <table>
+            <tr>
+                <td>
+                    <strong>Agency:</strong>
+                </td>
+                <td>NOAA</td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Type</strong>
+                </td>
+                <td>Regional Weather Model</td>
+            </tr>
+        </table>
+        <div>
+      <p>
+      The High-Resolution Rapid Refresh (HRRR) is a NOAA real-time 3-km resolution,
+      hourly updated, cloud-resolving, convection-allowing atmospheric model,
+      initialized by 3km grids with 3km radar assimilation. Radar data is
+      assimilated in the HRRR every 15 min over a 1-h period adding further
+      detail to that provided by the hourly data assimilation from the 13km
+      radar-enhanced Rapid Refresh.
+      </p>
+    </div>
+    </div>
+    <h2>Available Datasets</h2>
+    <ul class="catalog-list">
+        
+            <li>
+                <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+                    <strong>
+                        
+                            NOAA HRRR forecast, 48 hour
+                        
+                    </strong>
+                    <br/> 
+<span style="background-color: rgb(240, 240, 240);">coming soon</span>
+
+                </div>
+                <p>Weather forecasts from the High Resolution Rapid Refresh (HRRR) model operated by NOAA NWS NCEP.</p>
+            </li>
+        
+    </ul>
+</div>
+    <!-- Latest content popup -->
+    
+    
+    
+    
+      
+        
+        
+        
+      
+    
+    
+      <div id="latest-popup">
+        <div class="popup-header">
+          <span class="popup-type">🎙️ New podcast episode</span>
+          <button id="latest-close" class="popup-close">
+            &times;
+          </button>
+          <script>
+            (function () {
+              const popup = document.getElementById('latest-popup');
+              const latestDate = "2025-09-22T00:00:00.000Z";
+              const seenDate = localStorage.getItem('latestPopupDate');
+              // if we've already seen this or something newer, hide the popup immediately
+              if (seenDate && seenDate >= latestDate) {
+                popup.style.display = 'none';
+                return;
+              }
+              // on close, record that we've seen this date
+              document.getElementById('latest-close').addEventListener('click', () => {
+                localStorage.setItem('latestPopupDate', latestDate);
+                popup.style.display = 'none';
+              });
+            })();
+          </script>
+        </div>
+        <a href="/podcast/004/" class="popup-title">Determinism is dead, chaos reigns, and the night is long</a>
+        <div class="popup-date">2025-09-22</div>
+      </div>
+    
+  </body>
+</html>
