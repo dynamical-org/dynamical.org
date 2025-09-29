@@ -113,7 +113,7 @@
         </tr>
         <tr>
           <th>End</th>
-          <td>20250811</td>
+          <td>20250827</td>
         </tr>
       </table>
     </div>
@@ -177,7 +177,7 @@
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 <script>
-  const station = {"id":"727918-94298","country":"US","usaf":"727918","wban":"94298","name":"PEARSON FIELD AIRPORT","state_abbr":"WA","state_name":"Washington","latitude":45.62,"longitude":-122.654,"elev":6.6,"begin":"20060101","end":"20250811"};
+  const station = {"id":"727918-94298","country":"US","usaf":"727918","wban":"94298","name":"PEARSON FIELD AIRPORT","state_abbr":"WA","state_name":"Washington","latitude":45.62,"longitude":-122.654,"elev":6.6,"begin":"20060101","end":"20250827"};
   const width = 600;
   const height = 400;
 
@@ -271,14 +271,14 @@
     
       <div id="latest-popup">
         <div class="popup-header">
-          <span class="popup-type">🎙️ New podcast episode</span>
+          <span class="popup-type">📰 Latest update</span>
           <button id="latest-close" class="popup-close">
             &times;
           </button>
           <script>
             (function () {
               const popup = document.getElementById('latest-popup');
-              const latestDate = "2025-09-22T00:00:00.000Z";
+              const latestDate = "2025-09-29T00:00:00.000Z";
               const seenDate = localStorage.getItem('latestPopupDate');
               // if we've already seen this or something newer, hide the popup immediately
               if (seenDate && seenDate >= latestDate) {
@@ -293,8 +293,8 @@
             })();
           </script>
         </div>
-        <a href="/podcast/004/" class="popup-title">Determinism is dead, chaos reigns, and the night is long</a>
-        <div class="popup-date">2025-09-22</div>
+        <a href="/updates/2025-09-29/" class="popup-title">Wake up, babe. A new zarr just dropped.</a>
+        <div class="popup-date">2025-09-29</div>
       </div>
     
   </body>

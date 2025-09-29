@@ -4,12 +4,51 @@
   <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
   <link href="https://dynamical.org/feed/feed.xml" rel="self" />
   <link href="https://dynamical.org/" />
-  <updated>2025-07-02T00:00:00Z</updated>
+  <updated>2025-09-29T00:00:00Z</updated>
   <id>https://dynamical.org/</id>
   <author>
     <name>dynamical.org</name>
     <email>marshall@dynamical.org</email>
   </author> 
+  <entry>
+    <title>Wake up, babe. A new zarr just dropped.</title>
+    <link href="https://dynamical.org/updates/2025-09-29/" />
+    <updated>2025-09-29T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2025-09-29/</id>
+    <content
+      type="html"
+      >&lt;p&gt;The last time I wrote you all, the summer sweltered, determinism was still alive (now &lt;a href=&quot;https://dynamical.org/podcast/&quot;&gt;it is dead&lt;/a&gt;, and only 11 AI weather papers had been published in Nature (now the total is up to 188,732).&lt;/p&gt;
+&lt;p&gt;If I keep it up y&#39;all are never going to take me seriously. But lo, some seriously new stuff!&lt;/p&gt;
+&lt;h1&gt;HRRR go brrr&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;https://media.dynamical.org/hrrr_wind_speed_10m_2025-05-25T00_conus.webp&quot; alt=&quot;HRRR wind speed @ 10m, 2025-05-25&quot;&gt;&lt;/p&gt;
+&lt;p&gt;HRRR forecasts are live and updating! Check out the release trailer (lol) &lt;a href=&quot;https://www.linkedin.com/posts/marshallmoutenot_hrrr-is-live-the-forecast-archive-from-activity-7378448846290575360-dRMZ?utm_source=share&amp;amp;utm_medium=member_desktop&amp;amp;rcm=ACoAAAOgBWEBfMMmd2xB6DueOM-OrcPrj2eIBlM&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Gice it a try! It&#39;ll be like that time in high school when you played too much Elder Scrolls Oblivion during a long weekend, and when you finally stepped outside into &lt;em&gt;nature&lt;/em&gt; you thought to yourself &amp;quot;woah, these graphics are incredible.&amp;quot;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://dynamical.org/catalog/noaa-hrrr-forecast-48-hour/&quot;&gt;Catalog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Notebook: &lt;a href=&quot;https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb&quot;&gt;Github&lt;/a&gt; | &lt;a href=&quot;https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb&quot;&gt;Colab&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/dynamical-org/reformatters/tree/main/src/reformatters/noaa/hrrr&quot;&gt;Reformatter code&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A massive thanks to Alden, Tony, Alex and Sam for getting this one out there!&lt;/p&gt;
+&lt;h1&gt;Icechunk support&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;https://assets.buttondown.email/images/e40436c1-8757-411a-90f6-4d939577d0bd.png?w=320&quot; alt=&quot;Screenshot 2025-09-26 at 10.37.38 PM.png&quot;&gt;&lt;/p&gt;
+&lt;p&gt;We&#39;ve also launched &lt;s&gt;Earthchunk&lt;/s&gt; &lt;em&gt;Icechunk&lt;/em&gt; versions of the GFS and HRRR forecasts. It&#39;s internal only until we sort out a few final details, but if you&#39;d feel the &lt;em&gt;need for speed&lt;/em&gt; and are prerelease-tolerant let us know and we can hook you up.&lt;/p&gt;
+&lt;h1&gt;weathering&lt;/h1&gt;
+&lt;p&gt;In case you missed it we have a &lt;a href=&quot;https://dynamical.org/podcast&quot;&gt;podcast&lt;/a&gt; now! We so far have covered:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The limits of predictability&lt;/li&gt;
+&lt;li&gt;End-to-end data-driven weather prediction (Aardvark Weather)&lt;/li&gt;
+&lt;li&gt;The Hybrid Approach (NeuralGCN)&lt;/li&gt;
+&lt;li&gt;Efficient AI ensemble forecasts (ECMWF AIFS-CRPS, DeepMind FGN)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;5 papers down, 188,727 to go! No new AI weather papers allowed.&lt;/p&gt;
+&lt;h1&gt;Scorecard&lt;/h1&gt;
+&lt;p&gt;Hey, wouldn&#39;t you know it. Having stuff in this here catalog makes it easier to build things. I was tired of stats against reanalysis as &amp;quot;truth&amp;quot; so Alden and I hacked out a very simple &lt;a href=&quot;https://dynamical.org/scorecard&quot;&gt;scorecard&lt;/a&gt;. When I say simple, I mean simple. For now it&#39;s just RMSE for 2m temp and precip. Of course, a few weeks after this went live, ISD-lite was killed in favor of GHCN so I gotta flip that over to keep things live-updating! URGH.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://assets.buttondown.email/images/38062496-0e9f-4f28-8d72-5db0922d307d.png?w=300&amp;amp;fit=max&quot; alt=&quot;Screenshot 2025-09-26 at 10.55.44 PM.png&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Enjoy the &lt;a href=&quot;https://www.youtube.com/watch?v=RgACAdw_K2I&quot;&gt;weather&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;MM&lt;/p&gt;
+</content
+    >
+  </entry> 
   <entry>
     <title>🟢 GFS is live</title>
     <link href="https://dynamical.org/updates/2025-07-02/" />
