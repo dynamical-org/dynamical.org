@@ -341,10 +341,10 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
         </p>
 
         <p>
-        This dataset is provided in the native HRRR Lambert Conformal Conic
-        projection and indexed spatially by <code>x</code> and <code>y</code> dimensions.
-        The example notebook demonstrates how to use the embedded spatial reference
-        information to select your geographic areas of interest.
+        This dataset uses the native HRRR Lambert Conformal Conic projection,
+        with spatial indexing along the <code>x</code> and <code>y</code> dimensions.
+        The example notebook shows how to use the embedded spatial reference to
+        select geographic areas of interest.
         </p>
       `,
     descriptionDetails: `
@@ -357,10 +357,9 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
 
         <h3>Data availability</h3>
         <p>
-        From the start of this dataset through the 2020-12-02T06 UTC initialization time
-        data is only available for the first 36 hours of each forecast and forecast steps
-        37-48 are filled with NaNs. From the 2020-12-02T12 UTC initialization time onward
-        forecasts are available for the full 48 hours.
+        Forecasts initialized through 2020-12-02T06 UTC include data
+        only for the first 36 hours; steps 37–48 are filled with NaNs. Starting with
+        the 2020-12-02T12 UTC initialization, forecasts cover the full 48 hours.
         </p>
 
         <h3>Storage</h3>
