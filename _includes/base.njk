@@ -89,7 +89,11 @@
             })();
           </script>
         </div>
-        <a href="{{ latestContent.url }}" class="popup-title">{{ latestContent.data.title }}</a>
+        {% if not isPodcast %}
+          <a href="/updates" class="popup-title">{{ latestContent.data.title }}</a>
+        {% else %}
+          <a href="{{ latestContent.url }}" class="popup-title">{{ latestContent.data.title }}</a>
+        {% endif %}
         <div class="popup-date">{{ latestContent.date | readableDate }}</div>
       </div>
     {% endif %}
