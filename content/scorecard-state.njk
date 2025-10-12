@@ -77,7 +77,7 @@ permalink: /scorecard/us-state/{{ state.abbr | slug }}/
               width, height
             ]
           ], state);
-        if (stateAbbr === "AK" || stateAbbr === "HI") {
+        if (stateAbbr === "AK") {
           projection = d3.geoAlbersUsa().fitExtent([
             [
               0, 0
@@ -86,7 +86,17 @@ permalink: /scorecard/us-state/{{ state.abbr | slug }}/
               width, height
             ]
           ], state);
+        } else if (stateAbbr === "HI") {
+         projection = d3.geoMercator().fitExtent([
+            [
+              0, 0
+            ],
+            [
+              width, height
+            ]
+          ], state);
         }
+
         const path = d3.geoPath(projection);
         // 2. Draw the state fill (no border yet)
         svg

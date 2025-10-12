@@ -53,7 +53,7 @@ title: Scorecard
       <ul>
         {% for station in stations_in_state %}
           <li>
-            <a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a>
+            <a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a> <span style='color: gray;'>[{{ station.id }}]</span>
           </li>
         {% endfor %}
       </ul>
@@ -112,7 +112,7 @@ title: Scorecard
       .attr("class", "station")
       .attr("cx", d => projection([d.longitude, d.latitude])[0])
       .attr("cy", d => projection([d.longitude, d.latitude])[1])
-      .attr("r", 5)
+      .attr("r", 3)
       .attr("fill", "blue")
       .style("pointer-events", "none")
       .append("title")

@@ -20,7 +20,7 @@ const stateAbbrToName = {
 
 async function getStations() {
   const [text, us] = await Promise.all([
-    fetch("https://www.ncei.noaa.gov/pub/data/noaa/isd-history.txt", {
+    fetch("https://www.ncei.noaa.gov/oa/global-historical-climatology-network/hourly/doc/ghcnh-station-list.txt", {
       duration: "1d", // Cache for 1 day
       type: "text",
     }),
@@ -35,21 +35,27 @@ async function getStations() {
 
   const stations = [];
   const lines = text.split('\n');
-  // Skip header lines
-  for (let i = 22; i < lines.length; i++) {
+  // Process each line (no header lines to skip in GHCNh format)
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (line.length > 90) { // Basic check for a valid data line
-      const country = line.substring(43, 45).trim();
-      const usaf = line.substring(0, 6).trim();
-      const wban = line.substring(7, 12).trim();
-      const end = line.substring(91, 99).trim();
-      let state = line.substring(48, 50).trim();
-      const latitude = parseFloat(line.substring(55, 63));
-      const longitude = parseFloat(line.substring(64, 73));
+    if (line.length >= 90) { // Basic check for a valid data line
+      const ghcnId = line.substring(0, 11).trim();
+      const countryCode = ghcnId.substring(0, 2);
+      const networkCode = ghcnId.substring(2, 3);
+      const stationId = ghcnId.substring(3);
+      
+      let state = line.substring(38, 40).trim();
+      const latitude = parseFloat(line.substring(12, 20));
+      const longitude = parseFloat(line.substring(21, 30));
 
-      // We only want active US stations
-      if (country === 'US' && usaf !== '999999' && end >= '20250601') {
-        let name = line.substring(13, 42).trim();
+      // We only want US stations
+      if (countryCode === 'US' && !isNaN(latitude) && !isNaN(longitude)) {
+        let name = line.substring(41, 71).trim();
+        const elevation = parseFloat(line.substring(31, 37));
+        const gsnFlag = line.substring(72, 75).trim();
+        const hcnCrnFlag = line.substring(76, 79).trim();
+        const wmoId = line.substring(80, 85).trim();
+        const icao = line.substring(86, 90).trim();
         
         if (!state) {
           const potentialState = name.slice(-2);
@@ -79,18 +85,21 @@ async function getStations() {
 
         if (state) {
           const station = {
-            id: `${usaf}-${wban}`,
-            country,
-            usaf,
-            wban, 
+            id: ghcnId,
+            ghcn_id: ghcnId,
+            country_code: countryCode,
+            network_code: networkCode,
+            station_id: stationId,
             name,
             state_abbr: state,
             state_name: stateAbbrToName[state] || state,
             latitude,
             longitude,
-            elev: parseFloat(line.substring(74, 81)),
-            begin: line.substring(82, 90).trim(),
-            end: end,
+            elev: isNaN(elevation) ? null : elevation,
+            gsn_flag: gsnFlag,
+            hcn_crn_flag: hcnCrnFlag,
+            wmo_id: wmoId,
+            icao: icao,
           };
           stations.push(station);
         }
