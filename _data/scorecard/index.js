@@ -1,6 +1,4 @@
 const fetch = require("@11ty/eleventy-fetch");
-const turf = require("@turf/turf");
-const topojson = require("topojson-client");
 
 const stateAbbrToName = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
@@ -19,77 +17,39 @@ const stateAbbrToName = {
 };
 
 async function getStations() {
-  const [text, us] = await Promise.all([
-    fetch("https://www.ncei.noaa.gov/oa/global-historical-climatology-network/hourly/doc/ghcnh-station-list.txt", {
-      duration: "1d", // Cache for 1 day
-      type: "text",
-    }),
-    fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json", {
-      duration: "1d",
-      type: "json"
-    })
-  ]);
-
-  const statesGeoJson = topojson.feature(us, us.objects.states);
-  const stateFeatures = statesGeoJson.features;
+  const csvText = await fetch("https://sa.dynamical.org/stations.csv", {
+    duration: "1d", // Cache for 1 day
+    type: "text",
+  });
 
   const stations = [];
-  const lines = text.split('\n');
-  // Process each line (no header lines to skip in GHCNh format)
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.length >= 90) { // Basic check for a valid data line
-      const ghcnId = line.substring(0, 11).trim();
-      const countryCode = ghcnId.substring(0, 2);
-      const networkCode = ghcnId.substring(2, 3);
-      const stationId = ghcnId.substring(3);
+  const lines = csvText.split('\n');
+  
+  // Skip header line and process data rows
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line) {
+      const columns = line.split(',');
       
-      let state = line.substring(38, 40).trim();
-      const latitude = parseFloat(line.substring(12, 20));
-      const longitude = parseFloat(line.substring(21, 30));
-
-      // We only want US stations
-      if (countryCode === 'US' && !isNaN(latitude) && !isNaN(longitude)) {
-        let name = line.substring(41, 71).trim();
-        const elevation = parseFloat(line.substring(31, 37));
-        const gsnFlag = line.substring(72, 75).trim();
-        const hcnCrnFlag = line.substring(76, 79).trim();
-        const wmoId = line.substring(80, 85).trim();
-        const icao = line.substring(86, 90).trim();
+      if (columns.length >= 11) {
+        const stationId = columns[0].trim();
+        const latitude = parseFloat(columns[1]);
+        const longitude = parseFloat(columns[2]);
+        const elevation = parseFloat(columns[3]);
+        const state = columns[4].trim();
+        const name = columns[5].trim();
+        const gsnFlag = columns[6].trim();
+        const hcnCrnFlag = columns[7].trim();
+        const wmoId = columns[8].trim();
+        const icao = columns[9].trim();
+        const countryCode = columns[10].trim();
         
-        if (!state) {
-          const potentialState = name.slice(-2);
-          if (stateAbbrToName[potentialState]) {
-            state = potentialState;
-            name = name.slice(0, -2).trim();
-          }
-        } else if (name.endsWith(` ${state}`)) {
-          name = name.slice(0, -3).trim();
-        }
-
-        if (!state && latitude && longitude) {
-          const point = turf.point([longitude, latitude]);
-          for (const stateFeature of stateFeatures) {
-            if (turf.booleanPointInPolygon(point, stateFeature)) {
-              const stateName = stateFeature.properties.name;
-              for (const abbr in stateAbbrToName) {
-                if (stateAbbrToName[abbr] === stateName) {
-                  state = abbr;
-                  break;
-                }
-              }
-              break;
-            }
-          }
-        }
-
-        if (state) {
+        if (countryCode === 'US' && !isNaN(latitude) && !isNaN(longitude) && state) {
+          // Extract network and station components from station ID (format: USXXXXXXXX)
+          
           const station = {
-            id: ghcnId,
-            ghcn_id: ghcnId,
+            id: stationId,
             country_code: countryCode,
-            network_code: networkCode,
-            station_id: stationId,
             name,
             state_abbr: state,
             state_name: stateAbbrToName[state] || state,
