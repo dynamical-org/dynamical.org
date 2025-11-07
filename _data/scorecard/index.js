@@ -70,7 +70,7 @@ async function getStations() {
 }
 
 module.exports = async function() {
-  const stations = await getStations();
+  const stations = []; // TODO: revert to await getStations() when stations.csv is updated.
   const states = Object.values(stations.reduce((acc, s) => {
     if (s.state_name && !acc[s.state_name]) {
       acc[s.state_name] = { name: s.state_name, abbr: s.state_abbr };
