@@ -49,6 +49,22 @@ const models = {
     `,
     agency: "NOAA",
     type: "Regional Weather Model"
+  },
+  "ecmwf-ifs": {
+    name: "ECMWF IFS",
+    shortName: "IFS",
+    description: `
+      <p>
+       The Integrated Forecasting System (IFS) is a global forecast model developed 
+       by ECMWF. It consists of a numerical model of the Earth system, including an
+       atmospheric model at its heart, coupled with models of other Earth system 
+       components such as the ocean. The data assimilation system combines 
+       the latest weather observations with a recent forecast to obtain the best 
+       possible estimate of the current state of the Earth system.
+      </p>
+    `,
+    agency: "ECMWF",
+    type: "Global Weather Model"
   }
 };
 
@@ -397,6 +413,89 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
+  },
+
+  // ecmwf-ifs-ens-forecast-15-day-0-25-degree
+  {
+    modelId: "ecmwf-ifs-ens",
+    descriptionSummary: `
+        <p>
+        This dataset is an archive of past and present ECMWF IFS Ensemble (ENS) forecasts.
+        ENS is one of several configurations of forecasts produced by IFS.
+        Forecasts are identified by an initialization time (<code>init_time</code>) 
+        denoting the start time of the model run, as well as by the 
+        <code>ensemble_member</code>. Along the <code>lead_time</code> dimension, 
+        each forecast begins at a 3 hourly forecast step (0-144 hours) and switches 
+        to a 6 hourly step for days 6 through 15 of the forecast (hours 144-360).
+        </p>
+      `,
+    descriptionDetails: `
+        <h3>Source</h3>
+        <p>
+        The source grib files this archive is contructed from are provided by
+        <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF Open Data</a>
+        and accessed from the <a href="https://registry.opendata.aws/ecmwf-forecasts//">AWS Open Data Registry</a>.
+        </p>
+
+        <h3>Data availability</h3>
+        <p>
+        This dataset contains only forecasts initialized on or after 2024-04-01, 
+        which are available at the full 0.25 degree (~9km) resolution.
+        All variables are available for the full period, save for 
+        <code>precipitation_surface</code>, which is filled with NaNs 
+        until 2024-11-13 UTC, when it first becomes available (coinciding 
+        with a model update, IFS Cycle 49r1).
+        </p>
+
+        <h3>Ensemble members</h3>
+        <p>
+        Each forecast contains 51 ensemble members, including a control member (0) 
+        and 50 perturbed members (1-50). The control forecast is produced with 
+        the best available data and unperturbed models. The other 50 members 
+        are each produced with slight perturbations of initial conditions 
+        and of the models. Taken together, ensemble of 51 forecasts shows 
+        the range of possible outcomes and the likelihood of their occurrence.
+
+        As of November 2024 (IFS Cycle 49r1), the control member for the 
+        ensemble is scientifically, structurally and computationally identical 
+        to ECMWF's HRES forecast. This control member may be referred to as 
+        "Ensemble Control", "IFS-CF", or "ex-HRES". 
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/ecmwf/ifs_ens/forecast_15_day_0_25_degree/template_config.py">reformatting code</a>.
+        </p>
+      `,
+    // url: "https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr",
+    status: "coming soon",
+//     examples: [
+//       {
+//         title: "Maximum temperature in ensemble forecast",
+//         code: `
+// import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
+
+// ds = xr.open_zarr("https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr?email=optional@email.com")
+// ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
+//     `,
+//       },
+//     ],
+    // githubUrl:
+    //   "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree.ipynb",
+    // colabUrl:
+    //   "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree.ipynb",
   },
 ].filter((entry) => !entry.hide);
 
