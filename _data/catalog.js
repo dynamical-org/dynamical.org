@@ -398,7 +398,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
 
       `,
     url: "https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr",
-    status: "live",
+    status: "coming soon",
     examples: [
       {
         title: "Maximum temperature in a forecast",
