@@ -76,7 +76,7 @@
     <a href="/catalog">Catalog</a>
     
       >
-      <a href="/catalog/models/ifs-ens">ECMWF IFS Ensemble (ENS)</a>
+      <a href="/catalog/models/ifs-ens">ECMWF IFS ENS</a>
     
     > ECMWF IFS ENS Forecast, 15 day, 0.25 degree
   </div>
@@ -130,20 +130,19 @@
     <p style="text-wrap: balance">
       <p>
        The Integrated Forecasting System (IFS) is a global forecast model developed 
-       by ECMWF. It consists of a numerical model of the Earth system, which includes
+       by ECMWF. ENS is an ensemble configuration of IFS, containing 51 ensemble members.
+       IFS consists of a numerical model of the Earth system, which includes
        an atmospheric model at its heart, coupled with models of other Earth system 
        components such as the ocean. The data assimilation system combines 
        the latest weather observations with a recent forecast to obtain the best 
        possible estimate of the current state of the Earth system.
-       The IFS Ensemble (ENS) is one of several configurations of forecasts produced,
-       and contains 51 ensemble members (one control member and 50 perturbed members).
       </p>
     </p>
   
   
   <p style="text-wrap: balance">
         <p>
-        This dataset is an archive of past and present ECMWF IFS Ensemble (ENS) forecasts.
+        This dataset is an archive of past and present ECMWF IFS ENS forecasts.
         Forecasts are identified by an initialization time (<code>init_time</code>) 
         denoting the start time of the model run, as well as by the 
         <code>ensemble_member</code>. Along the <code>lead_time</code> dimension, 
@@ -175,8 +174,8 @@
   
     <div class="frame">
       <div class="frameHeader">
-        <div class="frameHeaderTitle">dynamical.org - ECMWF IFS ENS Forecast, 15 day, 0.25 degree</div>
-        <div class="frameHeaderSubtitle">Maximum temperature in ensemble forecast</div>
+        <div class="frameHeaderTitle">dynamical.org - ECMWF IFS ENS Forecast, 15 day...</div>
+        <div class="frameHeaderSubtitle">Maximum temperature in ensemble</div>
       </div>
       <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr  <span class="token comment"># xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support</span><br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>init_time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">,</span> latitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token builtin">max</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
     </div>

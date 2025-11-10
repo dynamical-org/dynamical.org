@@ -129,7 +129,7 @@ eleventyComputed:
   {% for example in entry.examples %}
     <div class="frame">
       <div class="frameHeader">
-        <div class="frameHeaderTitle">dynamical.org - {{ entry.name }}</div>
+        <div class="frameHeaderTitle">dynamical.org - {{ entry.name | truncate(30, true, '...') }}</div>
         <div class="frameHeaderSubtitle">{{ example.title }}</div>
       </div>
       <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
