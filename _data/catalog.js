@@ -51,18 +51,17 @@ const models = {
     type: "Regional Weather Model"
   },
   "ecmwf-ifs-ens": {
-    name: "ECMWF IFS Ensemble (ENS)",
+    name: "ECMWF IFS ENS",
     shortName: "IFS ENS",
     description: `
       <p>
        The Integrated Forecasting System (IFS) is a global forecast model developed 
-       by ECMWF. It consists of a numerical model of the Earth system, which includes
+       by ECMWF. ENS is an ensemble configuration of IFS, containing 51 ensemble members.
+       IFS consists of a numerical model of the Earth system, which includes
        an atmospheric model at its heart, coupled with models of other Earth system 
        components such as the ocean. The data assimilation system combines 
        the latest weather observations with a recent forecast to obtain the best 
        possible estimate of the current state of the Earth system.
-       The IFS Ensemble (ENS) is one of several configurations of forecasts produced,
-       and contains 51 ensemble members (one control member and 50 perturbed members).
       </p>
     `,
     agency: "ECMWF",
@@ -422,7 +421,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
     modelId: "ecmwf-ifs-ens",
     descriptionSummary: `
         <p>
-        This dataset is an archive of past and present ECMWF IFS Ensemble (ENS) forecasts.
+        This dataset is an archive of past and present ECMWF IFS ENS forecasts.
         Forecasts are identified by an initialization time (<code>init_time</code>) 
         denoting the start time of the model run, as well as by the 
         <code>ensemble_member</code>. Along the <code>lead_time</code> dimension, 
@@ -479,7 +478,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
     status: "coming soon",
     examples: [
       {
-        title: "Maximum temperature in ensemble forecast",
+        title: "Maximum temperature in ensemble",
         code: `
 import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
