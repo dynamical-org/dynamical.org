@@ -65,7 +65,7 @@ const models = {
       </p>
     `,
     agency: "ECMWF",
-    type: "Global Weather Model"
+    type: "Global Weather Model",
   }
 };
 
@@ -431,6 +431,13 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         </p>
       `,
     descriptionDetails: `
+        <h3>License</h3>
+        <p>
+        This data is based on data and products of the European Centre for
+        Medium-Range Weather Forecasts (ECMWF). Use is governed by the CC-BY-4.0
+        license and the ECMWF <a href='https://apps.ecmwf.int/datasets/licences/general/'>Terms of Use</a>.
+        </p>
+
         <h3>Source</h3>
         <p>
         The source grib files this archive is contructed from are provided by
@@ -475,7 +482,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         </p>
       `,
     url: "https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr",
-    status: "coming soon",
+    status: "live",
     examples: [
       {
         title: "Maximum temperature in ensemble",

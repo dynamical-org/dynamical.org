@@ -41,10 +41,9 @@ eleventyComputed:
     {% endif %}
     > {{ entry.name }}
   </div>
-  
-  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-    <h1>{{ entry.name }}</h1>
+  <div style="margin: 3rem 0;">
     {% include "catalog-entry-status.njk" %}
+    <h1 style="margin-top: 0;">{{ entry.name }}</h1>
   </div>
   <table>
     <tr>
@@ -74,9 +73,8 @@ eleventyComputed:
       </tr>
     {% endif %}
   </table>
-  
   <p>
-    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}?email=optional@email.com" style="width: {{ entry.url.length + 27 }}ch; max-width: 100%;"/>
+    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}" style="width: {{ entry.url.length + 2 }}ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
     <div class="metadata-comment">
       <span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org
@@ -84,13 +82,10 @@ eleventyComputed:
         <a href='/updates'>here</a>.</span>
     </div>
   </p>
-
   {% if model %}
     <p style="text-wrap: balance">{{ model.description | safe }}</p>
   {% endif %}
-  
   <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
-    
   {% if model.datasets.length > 1 %}
     <h3>Related Datasets</h3>
     <ul>
@@ -108,19 +103,20 @@ eleventyComputed:
       {% endfor %}
     </ul>
   {% endif %}
-  
   <h2>Examples</h2>
   <table>
     {% if entry.githubUrl %}
       <tr>
-        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
+        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/>
+        </td>
         <td>
           <a href="{{ entry.githubUrl }}">Open notebook in github</a>
         </td>
       </tr>
     {% endif %}
     {% if entry.colabUrl %}
-      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
+      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/>
+      </td>
       <td>
         <a href="{{ entry.colabUrl }}">Open notebook in colab</a>
       </td>
@@ -135,7 +131,6 @@ eleventyComputed:
       <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
     </div>
   {% endfor %}
-  
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">
@@ -194,7 +189,6 @@ eleventyComputed:
     Don't see what you're looking for? Let us know at
     <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
   </p>
-  
   <h2>Details</h2>
   <p>
     {{ entry.descriptionDetails | safe }}

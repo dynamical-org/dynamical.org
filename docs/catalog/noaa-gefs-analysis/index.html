@@ -80,12 +80,11 @@
     
     > NOAA GEFS analysis
   </div>
-  
-  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-    <h1>NOAA GEFS analysis</h1>
+  <div style="margin: 3rem 0;">
     
 <span style="background-color: rgb(120, 250, 100);">updating</span>
 
+    <h1 style="margin-top: 0;">NOAA GEFS analysis</h1>
   </div>
   <table>
     <tr>
@@ -106,9 +105,8 @@
     </tr>
     
   </table>
-  
   <p>
-    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com" style="width: 84ch; max-width: 100%;"/>
+    <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/gefs/analysis/latest.zarr" style="width: 59ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
     <div class="metadata-comment">
       <span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org
@@ -116,7 +114,6 @@
         <a href='/updates'>here</a>.</span>
     </div>
   </p>
-
   
     <p style="text-wrap: balance">
       <p>
@@ -127,7 +124,6 @@
       </p>
     </p>
   
-  
   <p style="text-wrap: balance">
         <p>
         This analysis dataset is an archive of the model's best estimate of past weather.
@@ -135,7 +131,6 @@
         provide a dataset with dimensions time, latitude, and longitude.
         </p>
       </p>
-    
   
     <h3>Related Datasets</h3>
     <ul>
@@ -153,19 +148,20 @@
       
     </ul>
   
-  
   <h2>Examples</h2>
   <table>
     
       <tr>
-        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/> </td>
+        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/>
+        </td>
         <td>
           <a href="https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb">Open notebook in github</a>
         </td>
       </tr>
     
     
-      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/> </td>
+      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/>
+      </td>
       <td>
         <a href="https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb">Open notebook in colab</a>
       </td>
@@ -179,7 +175,6 @@
       </div>
       <pre class="frameContent frameContentDesktop"><code><pre class="language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr  <span class="token comment"># xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support</span><br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2025-01-01T00"</span><span class="token punctuation">,</span> latitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">,</span> longitude<span class="token operator">=</span><span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre></code></pre>
     </div>
-  
   
   <h2>Dimensions</h2>
   <div class="table-container">
@@ -575,7 +570,6 @@
     Don't see what you're looking for? Let us know at
     <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
   </p>
-  
   <h2>Details</h2>
   <p>
     
