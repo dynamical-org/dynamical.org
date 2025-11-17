@@ -5,7 +5,7 @@ const { uniq } = require("lodash");
 const models = {
   "noaa-gfs": {
     name: "NOAA GFS",
-    shortName: "GFS", 
+    shortName: "GFS",
     description: `
       <p>
       The Global Forecast System (GFS) is a National Oceanic and Atmospheric
@@ -18,10 +18,10 @@ const models = {
       </p>
     `,
     agency: "NOAA",
-    type: "Global Weather Model"
+    type: "Global Weather Model",
   },
   "noaa-gefs": {
-    name: "NOAA GEFS", 
+    name: "NOAA GEFS",
     shortName: "GEFS",
     description: `
       <p>
@@ -32,7 +32,7 @@ const models = {
       </p>
     `,
     agency: "NOAA",
-    type: "Global Ensemble Weather Model"
+    type: "Global Ensemble Weather Model",
   },
   "noaa-hrrr": {
     name: "NOAA HRRR",
@@ -48,7 +48,7 @@ const models = {
       </p>
     `,
     agency: "NOAA",
-    type: "Regional Weather Model"
+    type: "Regional Weather Model",
   },
   "ecmwf-ifs-ens": {
     name: "ECMWF IFS ENS",
@@ -66,7 +66,7 @@ const models = {
     `,
     agency: "ECMWF",
     type: "Global Weather Model",
-  }
+  },
 };
 
 let entries = [
@@ -367,7 +367,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
     descriptionDetails: `
         <h3>Sources</h3>
         <p>
-        The source grib files this archive is contructed from are provided by
+        The source grib files this archive is constructed from are provided by
         <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemniation (NODD)</a>
         and accessed from the <a href="https://registry.opendata.aws/noaa-hrrr-pds/">AWS Open Data Registry</a>.
         </p>
@@ -444,6 +444,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF Open Data</a>
         and accessed from the <a href="https://registry.opendata.aws/ecmwf-forecasts/">AWS Open Data Registry</a>.
         </p>
+        <p>ECMWF does not provide user support for the free & open datasets. Users should refer to the public <a href='https://apps.ecmwf.int/forum/'>User Forum</a> for any questions related to the source meterial.</p>
 
         <h3>Data availability</h3>
         <p>
@@ -529,13 +530,13 @@ module.exports = async function () {
 
   // Group datasets by model
   const modelGroups = {};
-  entries.forEach(dataset => {
+  entries.forEach((dataset) => {
     if (dataset.modelId) {
       if (!modelGroups[dataset.modelId]) {
         modelGroups[dataset.modelId] = {
           ...models[dataset.modelId],
           id: dataset.modelId,
-          datasets: []
+          datasets: [],
         };
       }
       modelGroups[dataset.modelId].datasets.push(dataset);
@@ -543,21 +544,21 @@ module.exports = async function () {
   });
 
   // Add related datasets to each entry
-  entries.forEach(dataset => {
+  entries.forEach((dataset) => {
     if (dataset.modelId && modelGroups[dataset.modelId]) {
       dataset.relatedDatasets = modelGroups[dataset.modelId].datasets
-        .filter(d => d.dataset_id !== dataset.dataset_id)
-        .map(d => ({
+        .filter((d) => d.dataset_id !== dataset.dataset_id)
+        .map((d) => ({
           name: d.name,
           dataset_id: d.dataset_id,
-          descriptionSummary: d.descriptionSummary
+          descriptionSummary: d.descriptionSummary,
         }));
       dataset.model = models[dataset.modelId];
     }
   });
 
-  return { 
-    entries, 
+  return {
+    entries,
     models: Object.values(modelGroups),
   };
 };
