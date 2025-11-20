@@ -11,6 +11,14 @@
   },
   "items": [
     {
+      "id": "https://dynamical.org/updates/2025-11-20/",
+      "url": "https://dynamical.org/updates/2025-11-20/",
+      "title": "🟢 ECMWF IFS ENS live and updating",
+      "content_html": "<p>Colder temps may be here (where I live, at least), but ensembles are <em>so hot right now</em>. Can we agree on that? No? Ha ha get it!?</p>\n<p>As of this week The European Centre's IFS ENS forecast is live and updating in <a href=\"https://dynamical.org/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/\">our catalog</a>. See the catalog for init times, spatiotemporal domain, and the variable list.</p>\n<p><img src=\"https://dynamical.org/assets/ecmwf_ifs_ens_tmp.png\" alt=\"ECMWF IFS ENS Temperature_2m 2025-07-09T00_00\"></p>\n<p>I suppose with that HRRR <a href=\"https://www.linkedin.com/posts/marshallmoutenot_hrrr-is-live-the-forecast-archive-from-activity-7378448846290575360-dRMZ?utm_source=share&amp;utm_medium=member_desktop&amp;rcm=ACoAAAOgBWEBfMMmd2xB6DueOM-OrcPrj2eIBlM\">&quot;release trailer&quot;</a> I've signed myself up for something completely unsustainable -- but until that time comes, when the catalog entries cometh faster than I can splice together sci fi video clips... -- ENS has a release trailer <a href=\"https://www.linkedin.com/posts/marshallmoutenot_ecmwf-ifs-ens-forecast-is-live-on-dynamicalorg-activity-7396224185951211520-3vy_?utm_source=share&amp;utm_medium=member_desktop&amp;rcm=ACoAAAOgBWEBfMMmd2xB6DueOM-OrcPrj2eIBlM\">too</a>.</p>\n<h1>Icechunk</h1>\n<p>Icechunk versions are available to select groups for testing (and will likely be our default in the future). If you want to try them out please respond.</p>\n<p>I've actually been a little surprised at the lack of Icechunk inquiries. Are y'all even drinking the cutting edge data format koolaide?!</p>\n<hr>\n<p>Sending from an airship above the clouds. Enjoy the <a href=\"https://www.youtube.com/playlist?list=OLAK5uy_lh-6QK6sDCdAE4QLOdU8wjjBOmfWR3M_Y\">weather</a>. End transmission.</p>\n<p>MM</p>\n",
+      "date_published": "2025-11-20T00:00:00Z"
+    }
+    ,
+    {
       "id": "https://dynamical.org/updates/2025-09-29/",
       "url": "https://dynamical.org/updates/2025-09-29/",
       "title": "Wake up, babe. A new zarr just dropped.",

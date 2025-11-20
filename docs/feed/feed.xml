@@ -4,12 +4,32 @@
   <subtitle>Advancing humanity&#39;s ability to access, understand, and act on accurate weather and climate data.</subtitle>
   <link href="https://dynamical.org/feed/feed.xml" rel="self" />
   <link href="https://dynamical.org/" />
-  <updated>2025-09-29T00:00:00Z</updated>
+  <updated>2025-11-20T00:00:00Z</updated>
   <id>https://dynamical.org/</id>
   <author>
     <name>dynamical.org</name>
     <email>marshall@dynamical.org</email>
   </author> 
+  <entry>
+    <title>🟢 ECMWF IFS ENS live and updating</title>
+    <link href="https://dynamical.org/updates/2025-11-20/" />
+    <updated>2025-11-20T00:00:00Z</updated>
+    <id>https://dynamical.org/updates/2025-11-20/</id>
+    <content
+      type="html"
+      >&lt;p&gt;Colder temps may be here (where I live, at least), but ensembles are &lt;em&gt;so hot right now&lt;/em&gt;. Can we agree on that? No? Ha ha get it!?&lt;/p&gt;
+&lt;p&gt;As of this week The European Centre&#39;s IFS ENS forecast is live and updating in &lt;a href=&quot;https://dynamical.org/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/&quot;&gt;our catalog&lt;/a&gt;. See the catalog for init times, spatiotemporal domain, and the variable list.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://dynamical.org/assets/ecmwf_ifs_ens_tmp.png&quot; alt=&quot;ECMWF IFS ENS Temperature_2m 2025-07-09T00_00&quot;&gt;&lt;/p&gt;
+&lt;p&gt;I suppose with that HRRR &lt;a href=&quot;https://www.linkedin.com/posts/marshallmoutenot_hrrr-is-live-the-forecast-archive-from-activity-7378448846290575360-dRMZ?utm_source=share&amp;amp;utm_medium=member_desktop&amp;amp;rcm=ACoAAAOgBWEBfMMmd2xB6DueOM-OrcPrj2eIBlM&quot;&gt;&amp;quot;release trailer&amp;quot;&lt;/a&gt; I&#39;ve signed myself up for something completely unsustainable -- but until that time comes, when the catalog entries cometh faster than I can splice together sci fi video clips... -- ENS has a release trailer &lt;a href=&quot;https://www.linkedin.com/posts/marshallmoutenot_ecmwf-ifs-ens-forecast-is-live-on-dynamicalorg-activity-7396224185951211520-3vy_?utm_source=share&amp;amp;utm_medium=member_desktop&amp;amp;rcm=ACoAAAOgBWEBfMMmd2xB6DueOM-OrcPrj2eIBlM&quot;&gt;too&lt;/a&gt;.&lt;/p&gt;
+&lt;h1&gt;Icechunk&lt;/h1&gt;
+&lt;p&gt;Icechunk versions are available to select groups for testing (and will likely be our default in the future). If you want to try them out please respond.&lt;/p&gt;
+&lt;p&gt;I&#39;ve actually been a little surprised at the lack of Icechunk inquiries. Are y&#39;all even drinking the cutting edge data format koolaide?!&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;Sending from an airship above the clouds. Enjoy the &lt;a href=&quot;https://www.youtube.com/playlist?list=OLAK5uy_lh-6QK6sDCdAE4QLOdU8wjjBOmfWR3M_Y&quot;&gt;weather&lt;/a&gt;. End transmission.&lt;/p&gt;
+&lt;p&gt;MM&lt;/p&gt;
+</content
+    >
+  </entry> 
   <entry>
     <title>Wake up, babe. A new zarr just dropped.</title>
     <link href="https://dynamical.org/updates/2025-09-29/" />

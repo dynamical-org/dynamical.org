@@ -2559,7 +2559,9 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         "# Quickstart: ECMWF IFS ENS forecast, 15 day, 0.25 degree - dynamical.org Zarr\n",
         "A brief introduction to the ECMWF IFS Ensemble forecast dataset transformed into an analysis-ready, cloud-optimized format by dynamical.org.\n",
         "\n",
-        "Dataset documentation: https://dynamical.org/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/\n"
+        "Dataset documentation: https://dynamical.org/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/\n",
+        "\n",
+        "Dataset licenced [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) and [ECMWF Terms of Use](https://apps.ecmwf.int/datasets/licences/general/)\n"
       ],
       "outputs": []
     },
@@ -2580,18 +2582,6 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       "cell_type": "code",
       "execution_count": 1,
       "metadata": {
-        "id": "_xwPoADHx_dp"
-      },
-      "outputs": [],
-      "source": [
-        "import xarray as xr\n",
-        "import matplotlib.pyplot as plt"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": 2,
-      "metadata": {
         "colab": {
           "base_uri": "https://localhost:8080/",
           "height": 732
@@ -2601,13 +2591,15 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       },
       "outputs": [],
       "source": [
+        "import xarray as xr\n",
+        "\n",
         "ds = xr.open_zarr(\"https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr?email=optional@email.com\", chunks=None)\n",
         "ds"
       ]
     },
     {
       "cell_type": "code",
-      "execution_count": null,
+      "execution_count": 2,
       "metadata": {
         "colab": {
           "base_uri": "https://localhost:8080/",
@@ -2625,7 +2617,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     },
     {
       "cell_type": "code",
-      "execution_count": 4,
+      "execution_count": 3,
       "metadata": {
         "colab": {
           "base_uri": "https://localhost:8080/",
@@ -2637,6 +2629,9 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       "outputs": [],
       "source": [
         "# Getting a little fancier with our plotting: a nicer visualization of the ensemble for that same forecast\n",
+        "\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
         "plot_ds = ds.sel(init_time=\"2024-08-21T00\", latitude=19.75, longitude=-155.0, method=\"nearest\")\n",
         "fig, ax = plt.subplots(1, 1, figsize=(10, 6))\n",
         "\n",
@@ -2659,7 +2654,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     },
     {
       "cell_type": "code",
-      "execution_count": 5,
+      "execution_count": 4,
       "metadata": {
         "colab": {
           "base_uri": "https://localhost:8080/",
@@ -2681,7 +2676,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     },
     {
       "cell_type": "code",
-      "execution_count": 6,
+      "execution_count": 5,
       "metadata": {
         "colab": {
           "base_uri": "https://localhost:8080/",
@@ -2705,7 +2700,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     },
     {
       "cell_type": "code",
-      "execution_count": 7,
+      "execution_count": 6,
       "metadata": {
         "colab": {
           "base_uri": "https://localhost:8080/",
