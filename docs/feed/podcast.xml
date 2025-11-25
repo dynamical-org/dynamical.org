@@ -8,7 +8,7 @@
     <description>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden.</description>
     <link>https://dynamical.org//podcast</link>
     <language>en-us</language>
-    <lastBuildDate>Sun, 21 Sep 2025 17:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 24 Nov 2025 18:00:00 +0000</lastBuildDate>
     <itunes:author>Marshall, Marta, and Alden</itunes:author>
     <itunes:summary>At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather.</itunes:summary>
     <itunes:category text="Science">
@@ -21,6 +21,63 @@
       <itunes:email>marshall@dynamical.org</itunes:email>
     </itunes:owner>
     <itunes:image href="https://weathering.dynamical.org/weathering_logo.png"/>
+      
+      <item>
+        <title>A taxonomy of bias: sensemaking, heretical physics, and the Tom Hanks/Bill Murray multiverse</title>
+        <description>
+          
+            Bias has a pretty well-known definition in the world of AI/ML programming. But today’s paper asks us to expand that definition and consider how cultural, organizational, and human forces can intersect...
+          
+        </description>
+        <content:encoded>
+          <![CDATA[&lt;p&gt;Bias has a pretty well-known definition in the world of AI/ML programming. But today’s paper asks us to expand that definition and consider how cultural, organizational, and human forces can intersect with development. The authors of “Identifying and Categorizing Bias in AI/ML for Earth Sciences” argue that, beyond considering bias and before mitigating bias, developers ought to be able to identify bias in all its modes &amp;amp; forms. Their taxonomy of bias is helpful, and inspired us to create an actionable check list of our own.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2&gt;Paper&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;&lt;a href=&quot;https://journals.ametsoc.org/view/journals/bams/105/3/BAMS-D-23-0196.1.xml&quot;&gt;Identifying and Categorizing Bias in AI/ML for Earth Sciences&lt;/a&gt;&lt;/strong&gt;, McGovern et al&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2&gt;Chapters&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;00:00:03&lt;/strong&gt; - Intro&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;00:02:39&lt;/strong&gt; - Abstract&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;00:03:33&lt;/strong&gt; - Discussion of framing&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;00:09:03&lt;/strong&gt; - A taxonomy of bias 09:03&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;00:47:52&lt;/strong&gt; - Our proposed check list for mitigating bias&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;01:08:14&lt;/strong&gt; - Reading recs&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;strong&gt;A check list for mitigating bias (in developing AI or for really any kind of technological development)&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Use the language of “bias”, acknowledging both social and technical bias&lt;/li&gt;
+&lt;li&gt;Define your specific user and use case early&lt;/li&gt;
+&lt;li&gt;Establish a clear baseline for comparison&lt;/li&gt;
+&lt;li&gt;Ensure diversity of perspectives on your team&lt;/li&gt;
+&lt;li&gt;Practice reflexivity (question your assumptions, and continue that line of questioning throughout the development process.)&lt;/li&gt;
+&lt;li&gt;Examine your incentives vs. end-user incentives&lt;/li&gt;
+&lt;li&gt;Prioritize transparency (in your decision-making and in your incentives &amp;amp; goals.)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Recommended reading&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://backup.ai2es.org/&quot;&gt;AI2ES Newsletter&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Groundhog Day&lt;/em&gt; (film &lt;em&gt;AND&lt;/em&gt; musical theater adaptation)&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://sociology.sas.upenn.edu/sites/default/files/Weber-Science-as-a-Vocation.pdf&quot;&gt;“Science as a Vocation&lt;/a&gt;” by Max Weber&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Book of the New Sun&lt;/em&gt; by Gene Wolfe (four-book series)&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;Infinite Powers&lt;/em&gt; by Steven Strogatz&lt;/li&gt;
+&lt;/ul&gt;
+]]>
+        </content:encoded>
+        <link>https://dynamical.org/podcast/005/</link>
+        <guid>https://dynamical.org/podcast/005/</guid>
+        <pubDate>Mon, 24 Nov 2025 18:00:00 +0000</pubDate>
+        
+          <enclosure url="https://weathering.dynamical.org/005.mp3" type="audio/mpeg" length="0"/>
+        
+        
+        <itunes:author>Marshall, Marta, and Alden</itunes:author>
+        <itunes:explicit>no</itunes:explicit>
+        
+          <itunes:episode>005</itunes:episode>
+        
+      </item>
       
       <item>
         <title>Determinism is dead, chaos reigns, and the night is long</title>
@@ -63,7 +120,7 @@
         </content:encoded>
         <link>https://dynamical.org/podcast/004/</link>
         <guid>https://dynamical.org/podcast/004/</guid>
-        <pubDate>Sun, 21 Sep 2025 17:00:00 +0000</pubDate>
+        <pubDate>Sun, 21 Sep 2025 19:00:00 +0000</pubDate>
         
           <enclosure url="https://weathering.dynamical.org/004.mp3" type="audio/mpeg" length="0"/>
         
@@ -112,7 +169,7 @@
         </content:encoded>
         <link>https://dynamical.org/podcast/003/</link>
         <guid>https://dynamical.org/podcast/003/</guid>
-        <pubDate>Sun, 27 Jul 2025 17:00:00 +0000</pubDate>
+        <pubDate>Sun, 27 Jul 2025 19:00:00 +0000</pubDate>
         
           <enclosure url="https://weathering.dynamical.org/003.mp3" type="audio/mpeg" length="0"/>
         
@@ -148,7 +205,7 @@
         </content:encoded>
         <link>https://dynamical.org/podcast/002/</link>
         <guid>https://dynamical.org/podcast/002/</guid>
-        <pubDate>Sun, 29 Jun 2025 17:00:00 +0000</pubDate>
+        <pubDate>Sun, 29 Jun 2025 19:00:00 +0000</pubDate>
         
           <enclosure url="https://weathering.dynamical.org/002.mp3" type="audio/mpeg" length="0"/>
         
@@ -201,7 +258,7 @@
         </content:encoded>
         <link>https://dynamical.org/podcast/001/</link>
         <guid>https://dynamical.org/podcast/001/</guid>
-        <pubDate>Wed, 11 Jun 2025 17:00:00 +0000</pubDate>
+        <pubDate>Wed, 11 Jun 2025 19:00:00 +0000</pubDate>
         
           <enclosure url="https://weathering.dynamical.org/001.mp3" type="audio/mpeg" length="0"/>
         
