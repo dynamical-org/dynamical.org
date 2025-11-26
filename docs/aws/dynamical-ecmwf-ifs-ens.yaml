@@ -11,7 +11,9 @@ Description: |
        possible estimate of the current state of the Earth system.
       </p>
     
+  <p>
   These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.
+  </p>
   <ul>
   
   <li><a href="https://dynamical.org/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/">ECMWF IFS ENS Forecast, 15 day, 0.25 degree</a> - Ensemble weather forecasts from the ECMWF Integrated Forecasting System (IFS).</li>

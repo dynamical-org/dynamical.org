@@ -10,7 +10,9 @@ Description: |
       radar-enhanced Rapid Refresh.
       </p>
     
+  <p>
   These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.
+  </p>
   <ul>
   
   <li><a href="https://dynamical.org/catalog/noaa-hrrr-forecast-48-hour/">NOAA HRRR forecast, 48 hour</a> - Weather forecasts from the High Resolution Rapid Refresh (HRRR) model operated by NOAA NWS NCEP.</li>

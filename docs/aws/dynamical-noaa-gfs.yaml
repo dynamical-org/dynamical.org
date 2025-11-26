@@ -11,7 +11,9 @@ Description: |
       model, and sea ice) that work together to depict weather conditions.
       </p>
     
+  <p>
   These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.
+  </p>
   <ul>
   
   <li><a href="https://dynamical.org/catalog/noaa-gfs-forecast/">NOAA GFS forecast</a> - Weather forecasts from the Global Forecast System (GFS) operated by NOAA NWS NCEP.</li>

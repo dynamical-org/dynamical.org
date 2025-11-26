@@ -8,7 +8,9 @@ Description: |
       forecasts (ensemble members) to describe the range of forecast uncertainty.
       </p>
     
+  <p>
   These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.
+  </p>
   <ul>
   
   </ul>
