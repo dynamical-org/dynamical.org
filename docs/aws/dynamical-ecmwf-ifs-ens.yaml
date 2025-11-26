@@ -1,5 +1,6 @@
 Name: ECMWF IFS ENS
 Description: |
+  <div>
   
       <p>
        The Integrated Forecasting System (IFS) is a global forecast model developed 
@@ -11,18 +12,18 @@ Description: |
        possible estimate of the current state of the Earth system.
       </p>
     
-  <p>
-  These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.
-  </p>
+  <p>These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.</p>
+  <p>When Icechunk 2.0 is released, these datasets will be updated correspondingly, and updated client libraries will be required for access. To be notified of dataset updates, subscribe to the <a href='https://dynamical.org/updates/'>mailing list</a>.</p>
   <ul>
   
   <li><a href="https://dynamical.org/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/">ECMWF IFS ENS Forecast, 15 day, 0.25 degree</a> - Ensemble weather forecasts from the ECMWF Integrated Forecasting System (IFS).</li>
   
   </ul>
+  </div>
 Documentation: https://dynamical.org/catalog/ifs-ens/'
 Contact: feedback@dynamical.org
 ManagedBy: "[dynamical.org](https://dynamical.org)"
-UpdateFrequency: ECMWF IFS ENS Forecast, 15 day, 0.25 degree: Forecasts initialized every 24 hours
+UpdateFrequency: "ECMWF IFS ENS Forecast, 15 day, 0.25 degree: Forecasts initialized every 24 hours"
 Tags:
   - weather
   - atmosphere
@@ -40,7 +41,7 @@ Resources:
       - "[Browse Bucket](https://dynamical-ecmwf-ifs-ens.s3.amazonaws.com/index.html)"
 DataAtWork:
   Tutorials:
-  - Title: ECMWF IFS ENS Forecast, 15 day, 0.25 degree python quickstart notebook
+    - Title: ECMWF IFS ENS Forecast, 15 day, 0.25 degree python quickstart notebook
       NotebookURL: https://github.com/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree-icechunk.ipynb
       AuthorName: dynamical.org
       AuthorURL: https://dynamical.org

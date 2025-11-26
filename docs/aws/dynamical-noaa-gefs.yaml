@@ -1,5 +1,6 @@
 Name: NOAA GEFS
 Description: |
+  <div>
   
       <p>
       The Global Ensemble Forecast System (GEFS) is a National Oceanic and
@@ -8,16 +9,16 @@ Description: |
       forecasts (ensemble members) to describe the range of forecast uncertainty.
       </p>
     
-  <p>
-  These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.
-  </p>
+  <p>These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.</p>
+  <p>When Icechunk 2.0 is released, these datasets will be updated correspondingly, and updated client libraries will be required for access. To be notified of dataset updates, subscribe to the <a href='https://dynamical.org/updates/'>mailing list</a>.</p>
   <ul>
   
   </ul>
+  </div>
 Documentation: https://dynamical.org/catalog/gefs/'
 Contact: feedback@dynamical.org
 ManagedBy: "[dynamical.org](https://dynamical.org)"
-UpdateFrequency: 
+UpdateFrequency: ""
 Tags:
   - weather
   - atmosphere
@@ -35,6 +36,6 @@ Resources:
       - "[Browse Bucket](https://dynamical-noaa-gefs.s3.amazonaws.com/index.html)"
 DataAtWork:
   Tutorials:
-  
+    
 ADXCategories:
   - Environmental Data
