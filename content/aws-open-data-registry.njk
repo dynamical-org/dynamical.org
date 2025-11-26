@@ -3,7 +3,7 @@ pagination:
   data: catalog.models 
   alias: model
   size: 1
-permalink: 'aws/{{model.shortName | slugify}}.yaml'
+permalink: 'aws/dynamical-{{model.id}}.yaml'
 ---
 {%- set entries = model.datasets | selectattr('githubIcechunkUrl') | list -%}
 Name: {{model.name}}
