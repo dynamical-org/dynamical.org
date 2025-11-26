@@ -176,6 +176,8 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     ],
     githubUrl:
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast-icechunk.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb",
   },
@@ -412,6 +414,8 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
     ],
     githubUrl:
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour-icechunk.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
   },
@@ -497,6 +501,8 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     ],
     githubUrl:
       "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree-icechunk.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree.ipynb",
   },

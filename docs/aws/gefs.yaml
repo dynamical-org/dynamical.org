@@ -1,0 +1,39 @@
+
+Name: NOAA GEFS
+Description: |
+  
+      <p>
+      The Global Ensemble Forecast System (GEFS) is a National Oceanic and
+      Atmospheric Administration (NOAA) National Centers for Environmental
+      Prediction (NCEP) weather forecast model. GEFS creates 31 separate
+      forecasts (ensemble members) to describe the range of forecast uncertainty.
+      </p>
+    
+  These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.
+  <ul>
+  
+  </ul>
+Documentation: https://dynamical.org/catalog/gefs/'
+Contact: feedback@dynamical.org
+ManagedBy: "[dynamical.org](https://dynamical.org)"
+UpdateFrequency: 
+Tags:
+  - weather
+  - atmosphere
+  - meteorological
+  - climate
+  - forecast
+  - zarr
+License: "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
+Resources:
+  - Description: NOAA GEFS Icechunk Zarr data
+    ARN: arn:aws:s3:::dynamical-gefs
+    Region: us-west-2
+    Type: S3 Bucket
+    Explore:
+      - "[Browse Bucket](https://dynamical-gefs.s3.amazonaws.com/index.html)"
+DataAtWork:
+  Tutorials:
+  
+ADXCategories:
+  - Environmental Data
