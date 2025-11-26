@@ -1,4 +1,3 @@
-
 Name: ECMWF IFS ENS
 Description: |
   
@@ -32,18 +31,16 @@ Tags:
 License: "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
 Resources:
   - Description: ECMWF IFS ENS Icechunk Zarr data
-    ARN: arn:aws:s3:::dynamical-ifs-ens
+    ARN: arn:aws:s3:::dynamical-ecmwf-ifs-ens
     Region: us-west-2
     Type: S3 Bucket
     Explore:
-      - "[Browse Bucket](https://dynamical-ifs-ens.s3.amazonaws.com/index.html)"
+      - "[Browse Bucket](https://dynamical-ecmwf-ifs-ens.s3.amazonaws.com/index.html)"
 DataAtWork:
   Tutorials:
-  
-    - Title: ECMWF IFS ENS Forecast, 15 day, 0.25 degree python quickstart notebook
+  - Title: ECMWF IFS ENS Forecast, 15 day, 0.25 degree python quickstart notebook
       NotebookURL: https://github.com/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree-icechunk.ipynb
       AuthorName: dynamical.org
       AuthorURL: https://dynamical.org
-  
 ADXCategories:
   - Environmental Data

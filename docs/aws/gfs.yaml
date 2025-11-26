@@ -1,4 +1,3 @@
-
 Name: NOAA GFS
 Description: |
   
@@ -32,18 +31,16 @@ Tags:
 License: "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
 Resources:
   - Description: NOAA GFS Icechunk Zarr data
-    ARN: arn:aws:s3:::dynamical-gfs
+    ARN: arn:aws:s3:::dynamical-noaa-gfs
     Region: us-west-2
     Type: S3 Bucket
     Explore:
-      - "[Browse Bucket](https://dynamical-gfs.s3.amazonaws.com/index.html)"
+      - "[Browse Bucket](https://dynamical-noaa-gfs.s3.amazonaws.com/index.html)"
 DataAtWork:
   Tutorials:
-  
-    - Title: NOAA GFS forecast python quickstart notebook
+  - Title: NOAA GFS forecast python quickstart notebook
       NotebookURL: https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast-icechunk.ipynb
       AuthorName: dynamical.org
       AuthorURL: https://dynamical.org
-  
 ADXCategories:
   - Environmental Data

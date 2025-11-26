@@ -1,4 +1,3 @@
-
 Name: NOAA GEFS
 Description: |
   
@@ -27,11 +26,11 @@ Tags:
 License: "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
 Resources:
   - Description: NOAA GEFS Icechunk Zarr data
-    ARN: arn:aws:s3:::dynamical-gefs
+    ARN: arn:aws:s3:::dynamical-noaa-gefs
     Region: us-west-2
     Type: S3 Bucket
     Explore:
-      - "[Browse Bucket](https://dynamical-gefs.s3.amazonaws.com/index.html)"
+      - "[Browse Bucket](https://dynamical-noaa-gefs.s3.amazonaws.com/index.html)"
 DataAtWork:
   Tutorials:
   

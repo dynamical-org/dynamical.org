@@ -1,4 +1,3 @@
-
 Name: NOAA HRRR
 Description: |
   
@@ -31,18 +30,16 @@ Tags:
 License: "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
 Resources:
   - Description: NOAA HRRR Icechunk Zarr data
-    ARN: arn:aws:s3:::dynamical-hrrr
+    ARN: arn:aws:s3:::dynamical-noaa-hrrr
     Region: us-west-2
     Type: S3 Bucket
     Explore:
-      - "[Browse Bucket](https://dynamical-hrrr.s3.amazonaws.com/index.html)"
+      - "[Browse Bucket](https://dynamical-noaa-hrrr.s3.amazonaws.com/index.html)"
 DataAtWork:
   Tutorials:
-  
-    - Title: NOAA HRRR forecast, 48 hour python quickstart notebook
+  - Title: NOAA HRRR forecast, 48 hour python quickstart notebook
       NotebookURL: https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour-icechunk.ipynb
       AuthorName: dynamical.org
       AuthorURL: https://dynamical.org
-  
 ADXCategories:
   - Environmental Data

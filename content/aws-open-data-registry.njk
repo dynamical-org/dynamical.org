@@ -1,11 +1,11 @@
 ---
 pagination:
-  data: catalog.models
+  data: catalog.models 
   alias: model
   size: 1
 permalink: 'aws/{{model.shortName | slugify}}.yaml'
 ---
-{% set entries = model.datasets | selectattr('githubIcechunkUrl') | list %}
+{%- set entries = model.datasets | selectattr('githubIcechunkUrl') | list -%}
 Name: {{model.name}}
 Description: |
   {{model.description | safe}}
@@ -29,18 +29,18 @@ Tags:
 License: "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
 Resources:
   - Description: {{model.name}} Icechunk Zarr data
-    ARN: arn:aws:s3:::dynamical-{{model.shortName | slugify}}
+    ARN: arn:aws:s3:::dynamical-{{model.id}}
     Region: us-west-2
     Type: S3 Bucket
     Explore:
-      - "[Browse Bucket](https://dynamical-{{model.shortName | slugify}}.s3.amazonaws.com/index.html)"
+      - "[Browse Bucket](https://dynamical-{{model.id}}.s3.amazonaws.com/index.html)"
 DataAtWork:
   Tutorials:
-  {% for entry in entries %}
+  {% for entry in entries -%}
     - Title: {{entry.name}} python quickstart notebook
       NotebookURL: {{entry.githubIcechunkUrl}}
       AuthorName: dynamical.org
       AuthorURL: https://dynamical.org
-  {% endfor %}
+  {%- endfor %}
 ADXCategories:
   - Environmental Data
