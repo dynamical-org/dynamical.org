@@ -37,7 +37,7 @@ eleventyComputed:
     <a href="/catalog">Catalog</a>
     {% if model %}
       >
-      <a href="/catalog/models/{{ model.shortName | slugify }}">{{ model.name }}</a>
+      <a href="/catalog/models/{{ model.id }}">{{ model.name }}</a>
     {% endif %}
     > {{ entry.name }}
   </div>
