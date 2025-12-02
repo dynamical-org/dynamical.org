@@ -4,7 +4,7 @@ pagination:
   data: catalog.models
   alias: model
   size: 1
-permalink: 'catalog/models/{{model.shortName | slugify}}/'
+permalink: 'catalog/models/{{model.id | slugify}}/'
 eleventyComputed:
   title: '{{model.name}}'
 ---

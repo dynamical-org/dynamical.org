@@ -19,7 +19,7 @@ Description: |
     {% endfor -%}
     </ul>
   </div>
-Documentation: https://dynamical.org/catalog/{{model.shortName | slugify}}/
+Documentation: https://dynamical.org/catalog/models/{{ model.id }}/
 Contact: feedback@dynamical.org
 ManagedBy: "[dynamical.org](https://dynamical.org)"
 UpdateFrequency: "{% for entry in entries %}{{entry.name}}: {{ entry.time_resolution }}{% if not loop.last %}; {% endif %}{% endfor %}"

@@ -18,7 +18,7 @@ title: catalog
       <div class="model-group">
         <div class="model-header">
           <h2>
-            <a href="/catalog/models/{{ model.shortName | slugify }}">{{ model.name }}</a>
+            <a href="/catalog/models/{{ model.id }}">{{ model.name }}</a>
           </h2>
           <p>{{ model.description | striptags | truncate(150) }}</p>
         </div>
