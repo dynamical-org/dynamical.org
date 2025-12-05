@@ -29,8 +29,8 @@ title: Scorecard
     <div>
       <input type="radio" id="window_180" name="window" value="180" checked>
       <label for="window_180">180 days</label>
-      <input type="radio" id="window_14" name="window" value="14">
-      <label for="window_14">14 days</label>
+      <input type="radio" id="window_90" name="window" value="90">
+      <label for="window_90">90 days</label>
     </div>
   </div>
   <div
@@ -49,7 +49,7 @@ title: Scorecard
     style="max-width: 100%; height: auto;"
   />
   <div id="station-list">
-    {% for state, stations_in_state in scorecard.index.stations | groupby("state_name") %}
+    {% for state, stations_in_state in scorecard.index.stations | sort(attribute="state_name") | groupby("state_name") %}
       <h3><a href='/scorecard/us-state/{{ stations_in_state[0].state_abbr | slug }}'>{{ state }}</a></h3>
       <ul>
         {% for station in stations_in_state %}

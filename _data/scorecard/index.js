@@ -32,16 +32,17 @@ async function getStations() {
       const columns = line.split(',');
       
       if (columns.length >= 11) {
+        // CSV structure: station_id,STATION NAME,latitude,longitude,elevation,ST,wmoId,icao,gsnFlag,hcnCrnFlag,CTRY,...
         const stationId = columns[0].trim();
-        const latitude = parseFloat(columns[1]);
-        const longitude = parseFloat(columns[2]);
-        const elevation = parseFloat(columns[3]);
-        const state = columns[4].trim();
-        const name = columns[5].trim();
-        const gsnFlag = columns[6].trim();
-        const hcnCrnFlag = columns[7].trim();
-        const wmoId = columns[8].trim();
-        const icao = columns[9].trim();
+        const name = columns[1].trim();
+        const latitude = parseFloat(columns[2]);
+        const longitude = parseFloat(columns[3]);
+        const elevation = parseFloat(columns[4]);
+        const state = columns[5].trim();
+        const wmoId = columns[6].trim();
+        const icao = columns[7].trim();
+        const gsnFlag = columns[8].trim();
+        const hcnCrnFlag = columns[9].trim();
         const countryCode = columns[10].trim();
         
         if (countryCode === 'US' && !isNaN(latitude) && !isNaN(longitude) && state) {
@@ -70,7 +71,7 @@ async function getStations() {
 }
 
 module.exports = async function() {
-  const stations = []; // TODO: revert to await getStations() when stations.csv is updated.
+  const stations = await getStations();
   const states = Object.values(stations.reduce((acc, s) => {
     if (s.state_name && !acc[s.state_name]) {
       acc[s.state_name] = { name: s.state_name, abbr: s.state_abbr };
