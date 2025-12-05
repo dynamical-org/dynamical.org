@@ -27,107 +27,114 @@ title: Scorecard
     <h1>Scorecard</h1>
     <div>
       <input type="radio" id="window_180" name="window" value="180" checked>
-      <label for="window_180">180 days</label>
-      <input type="radio" id="window_90" name="window" value="90">
-      <label for="window_90">90 days</label>
-    </div>
-  </div>
-  <div
-    id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;"><!-- D3.js map will be rendered here -->
-  </div>
-  <img
-    id="temperature-image"
-    src="https://sa.dynamical.org/country_US_temperature_2m_RMSE_by_lead_time_180_day_latest.png"
-    alt="Temperature RMSE by lead time"
-    style="max-width: 100%; height: auto;"
-  />
-  <img
-    id="precipitation-image"
-    src="https://sa.dynamical.org/country_US_precipitation_surface_RMSE_by_lead_time_180_day_latest.png"
-    alt="Precipitation RMSE by lead time"
-    style="max-width: 100%; height: auto;"
-  />
-  <div id="station-list">
-    {% for state, stations_in_state in scorecard.index.stations | sort(attribute="state_name") | groupby("state_name") %}
-      <h3><a href='/scorecard/us-state/{{ stations_in_state[0].state_abbr | slug }}'>{{ state }}</a></h3>
-      <ul>
-        {% for station in stations_in_state %}
-          <li>
-            <a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a> <span style='color: gray;'>[{{ station.id }}]</span>
-          </li>
+        <label for="window_180">180 days</label>
+        <input type="radio" id="window_90" name="window" value="90">
+          <label for="window_90">90 days</label>
+        </div>
+      </div>
+      <div
+        id="map-container" style="width: 100%; max-width: 975px; overflow: hidden;"><!-- D3.js map will be rendered here -->
+      </div>
+      <div>
+        <p>Station and observation data from NOAA NCEI's
+          <a href="https://www.ncei.noaa.gov/products/global-historical-climatology-network-hourly">Global Historical Climatology
+            Network hourly (GHCNh)</a>.</p>
+      </div>
+      <img
+        id="temperature-image"
+        src="https://sa.dynamical.org/country_US_temperature_2m_RMSE_by_lead_time_180_day_latest.png"
+        alt="Temperature RMSE by lead time"
+        style="max-width: 100%; height: auto;"/>
+      <img
+        id="precipitation-image"
+        src="https://sa.dynamical.org/country_US_precipitation_surface_RMSE_by_lead_time_180_day_latest.png"
+        alt="Precipitation RMSE by lead time"
+        style="max-width: 100%; height: auto;"/>
+      <div id="station-list">
+        {% for state, stations_in_state in scorecard.index.stations | sort(attribute="state_name") | groupby("state_name") %}
+          <h3>
+            <a href='/scorecard/us-state/{{ stations_in_state[0].state_abbr | slug }}'>{{ state }}</a>
+          </h3>
+          <ul>
+            {% for station in stations_in_state %}
+              <li>
+                <a href="/scorecard/station/{{ station.id }}/">{{ station.name }}</a>
+                <span style='color: gray;'>[{{ station.id }}]</span>
+              </li>
+            {% endfor %}
+          </ul>
         {% endfor %}
-      </ul>
-    {% endfor %}
-  </div>
-</div>
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<script src="https://unpkg.com/topojson-client@3"></script>
-<script>
-  const width = 975;
-  const height = 610;
-  const projection = d3
-    .geoAlbersUsa()
-    .scale(1300)
-    .translate([487.5, 305]);
-  const path = d3.geoPath();
-  const svg = d3
-    .select("#map-container")
-    .append("svg")
-    .attr("viewBox", [0, 0, width, height])
-    .attr("width", "100%")
-    .attr("height", "auto")
-    .attr("style", "max-width: 100%;");
-  d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json").then(us => {
-    svg
-      .append("g")
-      .attr("fill", "#fff")
-      .attr("stroke", "#000")
-      // Create <a> elements and link each to its state page, then append the path inside
-      .selectAll("a.state-link")
-      .data(topojson.feature(us, us.objects.states).features)
-      .join("a")
-        .attr("class", "state-link")
-        .attr("xlink:href", d => {
-          const states = {{ scorecard.index.states | dump | safe }};
-          const stateObj = states.find(s => s.name === d.properties.name);
-          return stateObj ? `/scorecard/us-state/${stateObj.abbr.toLowerCase()}/` : null;
-        })
-        .style("cursor", "pointer")
-      .append("path")
-        .attr("d", path);
-
-    svg
-      .append("path")
-      .attr("fill", "none")
-      .attr("stroke", "#000")
-      .attr("stroke-linejoin", "round")
-      .attr("d", path(topojson.mesh(us, us.objects.states, (a, b) => a !== b)));
-    const stations = {{ scorecard.index.stations | dump | safe }};
-    svg
-      .selectAll(".station")
-      .data(stations)
-      .enter()
-      .filter(d => projection([d.longitude, d.latitude]))
-      .append("circle")
-      .attr("class", "station")
-      .attr("cx", d => projection([d.longitude, d.latitude])[0])
-      .attr("cy", d => projection([d.longitude, d.latitude])[1])
-      .attr("r", 3)
-      .attr("fill", "blue")
-      .style("pointer-events", "none")
-      .append("title")
-      .text(d => d.name);
-  });
-
-  const radios = document.querySelectorAll('input[name="window"]');
-  const tempImg = document.getElementById('temperature-image');
-  const precipImg = document.getElementById('precipitation-image');
-
-  radios.forEach(radio => {
-    radio.addEventListener('change', () => {
-      const window = radio.value;
-      tempImg.src = `https://sa.dynamical.org/country_us_temperature_2m_rmse_by_lead_time_${window}_day_latest.png`;
-      precipImg.src = `https://sa.dynamical.org/country_us_precipitation_surface_rmse_by_lead_time_${window}_day_latest.png`;
-    });
-  });
-</script>
+      </div>
+    </div>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+    <script>
+      const width = 975;
+      const height = 610;
+      const projection = d3
+        .geoAlbersUsa()
+        .scale(1300)
+        .translate([487.5, 305]);
+      const path = d3.geoPath();
+      const svg = d3
+        .select("#map-container")
+        .append("svg")
+        .attr("viewBox", [0, 0, width, height])
+        .attr("width", "100%")
+        .attr("height", "auto")
+        .attr("style", "max-width: 100%;");
+      d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json").then(us => {
+        svg
+          .append("g")
+          .attr("fill", "#fff")
+          .attr("stroke", "#000")
+          // Create <a> elements and link each to its state page, then append the path inside
+          .selectAll("a.state-link")
+          .data(topojson.feature(us, us.objects.states).features)
+          .join("a")
+          .attr("class", "state-link")
+          .attr("xlink:href", d => {
+            const states = {{ scorecard.index.states | dump | safe }};
+            const stateObj = states.find(s => s.name === d.properties.name);
+            return stateObj
+              ? `/scorecard/us-state/${
+                stateObj.abbr.toLowerCase()
+              }/`
+              : null;
+          })
+          .style("cursor", "pointer")
+          .append("path")
+          .attr("d", path);
+        svg
+          .append("path")
+          .attr("fill", "none")
+          .attr("stroke", "#000")
+          .attr("stroke-linejoin", "round")
+          .attr("d", path(topojson.mesh(us, us.objects.states, (a, b) => a !== b)));
+        const stations = {{ scorecard.index.stations | dump | safe }};
+        svg
+          .selectAll(".station")
+          .data(stations)
+          .enter()
+          .filter(d => projection([d.longitude, d.latitude]))
+          .append("circle")
+          .attr("class", "station")
+          .attr("cx", d => projection([d.longitude, d.latitude])[0])
+          .attr("cy", d => projection([d.longitude, d.latitude])[1])
+          .attr("r", 3)
+          .attr("fill", "blue")
+          .style("pointer-events", "none")
+          .append("title")
+          .text(d => d.name);
+      });
+      const radios = document.querySelectorAll('input[name="window"]');
+      const tempImg = document.getElementById('temperature-image');
+      const precipImg = document.getElementById('precipitation-image');
+      radios.forEach(radio => {
+        radio.addEventListener('change', () => {
+          const window = radio.value;
+          tempImg.src = `https://sa.dynamical.org/country_us_temperature_2m_rmse_by_lead_time_${window}_day_latest.png`;
+          precipImg.src = `https://sa.dynamical.org/country_us_precipitation_surface_rmse_by_lead_time_${window}_day_latest.png`;
+        });
+      });
+    </script>

@@ -49,7 +49,7 @@
       </ul>
     </nav>
     
-<div class="content"> 
+<div class="content">
   <div>
     <a href="/scorecard">Scorecard</a>
     > Kentucky
@@ -66,14 +66,19 @@
       <div
         id="map-container" style="margin: 40px 0; width: 100%; max-width: 975px; overflow: hidden;"><!-- D3.js map will be rendered here -->
       </div>
+      <div>
+        <p>Station and observation data from NOAA NCEI's
+          <a href="https://www.ncei.noaa.gov/products/global-historical-climatology-network-hourly">Global Historical Climatology
+            Network hourly (GHCNh)</a>.</p>
+      </div>
       <img
         id="temperature-image"
-        src="https://sa.dynamical.org/state_ky_temperature_2m_RMSE_by_lead_time_180_day_latest.png"
+        src="https://sa.dynamical.org/state_KY_temperature_2m_RMSE_by_lead_time_180_day_latest.png"
         alt="Temperature RMSE by lead time"
         style="max-width: 100%; height: auto;"/>
       <img
         id="precipitation-image"
-        src="https://sa.dynamical.org/state_ky_precipitation_surface_RMSE_by_lead_time_180_day_latest.png"
+        src="https://sa.dynamical.org/state_KY_precipitation_surface_RMSE_by_lead_time_180_day_latest.png"
         alt="Precipitation RMSE by lead time"
         style="max-width: 100%; height: auto;"/>
       <div id="station-list">
@@ -5869,7 +5874,7 @@
             ]
           ], state);
         } else if (stateAbbr === "HI") {
-         projection = d3.geoMercator().fitExtent([
+          projection = d3.geoMercator().fitExtent([
             [
               0, 0
             ],
@@ -5878,7 +5883,6 @@
             ]
           ], state);
         }
-
         const path = d3.geoPath(projection);
         // 2. Draw the state fill (no border yet)
         svg
@@ -5887,13 +5891,11 @@
           .attr("d", path)
           .attr("fill", "#fff")
           .attr("stroke", "none");
-
         // 2b. Draw county boundaries within the state
         d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json").then(usCounties => {
           const counties = topojson.feature(usCounties, usCounties.objects.counties).features;
           const stateIdStr = String(state.id).padStart(2, "0");
           const countiesInState = counties.filter(c => String(c.id).padStart(5, "0").startsWith(stateIdStr));
-
           svg
             .append("g")
             .attr("class", "counties")
@@ -5905,7 +5907,6 @@
             .attr("fill", "none")
             .attr("stroke", "#bbb")
             .attr("stroke-width", 0.5);
-
           // Draw the state border on top for clarity
           svg
             .append("path")
@@ -5933,7 +5934,6 @@
           .attr("cy", d => projection([d.longitude, d.latitude])[1])
           .append("title")
           .text(d => d.name);
-
         // Crop SVG viewBox to the state's vertical bounds to remove extra whitespace
         const bounds = path.bounds(state);
         const y0 = bounds[0][1];
@@ -5947,11 +5947,9 @@
           shapeHeight * 1.1
         ]);
       });
-
       const radios = document.querySelectorAll('input[name="window"]');
       const tempImg = document.getElementById('temperature-image');
       const precipImg = document.getElementById('precipitation-image');
-
       radios.forEach(radio => {
         radio.addEventListener('change', () => {
           const window = radio.value;
