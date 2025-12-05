@@ -26,7 +26,6 @@ permalink: /scorecard/station/{{ station.id }}/
 </style>
 
 <div class="content">
-  <mark>SCORECARD MIGRATION TO GHCNh IS IN PROGRESS. DATA CURRENTLY UNAVAILABLE.</mark>
   <div>
     <a href="/scorecard">Scorecard</a>
     > <a href="/scorecard/us-state/{{ station.state_abbr | slug }}/">{{ station.state_name }}</a>
@@ -90,7 +89,7 @@ permalink: /scorecard/station/{{ station.id }}/
 
   <img
     id="temperature_2m-score"
-    src="https://sa.dynamical.org/station_{{ station.id }}_temperature_2m_rmse_by_lead_time_180_day_latest.png"
+    src="https://sa.dynamical.org/station_{{ station.id }}_temperature_2m_RMSE_by_lead_time_180_day_latest.png"
     alt="Temperature RMSE by lead time for {{ station.name }}"
     style="max-width: 100%; height: auto;"
   />
@@ -114,7 +113,7 @@ permalink: /scorecard/station/{{ station.id }}/
 
   <img
     id="precipitation_surface-score"
-    src="https://sa.dynamical.org/station_{{ station.id }}_precipitation_surface_rmse_by_lead_time_180_day_latest.png"
+    src="https://sa.dynamical.org/station_{{ station.id }}_precipitation_surface_RMSE_by_lead_time_180_day_latest.png"
     alt="Precipitation RMSE by lead time for {{ station.name }}"
     style="max-width: 100%; height: auto;"
   />
