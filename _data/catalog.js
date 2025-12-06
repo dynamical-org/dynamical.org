@@ -149,6 +149,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -386,6 +387,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -474,6 +476,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>

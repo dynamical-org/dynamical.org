@@ -115,13 +115,36 @@ eleventyComputed:
       </tr>
     {% endif %}
     {% if entry.colabUrl %}
-      <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/>
-      </td>
-      <td>
-        <a href="{{ entry.colabUrl }}">Open notebook in colab</a>
-      </td>
+      <tr>
+        <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/>
+        </td>
+        <td>
+          <a href="{{ entry.colabUrl }}">Open notebook in colab</a>
+        </td>
+      </tr>
+    {% endif %}
+    {% if entry.githubIcechunkUrl %}
+      <tr>
+        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/>
+        </td>
+        <td>
+          <a href="{{ entry.githubIcechunkUrl }}">Icechunk example usage notebook ***</a>
+        </td>
+      </tr>
     {% endif %}
   </table>
+  {% if entry.githubIcechunkUrl %}
+    <p>
+      <strong>***:</strong>
+      Icechunk examples are pre-release for feedback. Subscribe to our
+      <a href="/updates">newsletter</a>
+      to be notified about two small breaking changes that we will implement:
+      <ol>
+        <li>URLs will be updated to stable long-term URLs</li>
+        <li>Users will need to update Icechunk client to version 2 when it is released.</li>
+      </ol>
+    </p>
+  {% endif %}
   {% for example in entry.examples %}
     <div class="frame">
       <div class="frameHeader">
