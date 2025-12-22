@@ -13,6 +13,36 @@ const CACHE_DIR = path.join(__dirname, ".cache");
 const CACHE_FILE = path.join(CACHE_DIR, "github-contributors.json");
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
+function mergeClasses(existingClasses, extraClasses) {
+  const existing = String(existingClasses || "")
+    .split(/\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const extra = String(extraClasses || "")
+    .split(/\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return Array.from(new Set([...extra, ...existing])).join(" ");
+}
+
+function injectPreClasses(html, extraPreClasses) {
+  if (!extraPreClasses) return html;
+  if (typeof html !== "string") return html;
+
+  // Inject classes into the *first* <pre ...> tag produced by the syntaxhighlight plugin.
+  return html.replace(/<pre\b([^>]*)>/, (fullMatch, attrs) => {
+    if (/\bclass\s*=/.test(attrs)) {
+      const updatedAttrs = attrs.replace(/\bclass="([^"]*)"/, (m, cls) => {
+        return `class="${mergeClasses(cls, extraPreClasses)}"`;
+      });
+      return `<pre${updatedAttrs}>`;
+    }
+
+    // attrs includes any leading whitespace (e.g. ` tabindex="0"`), so this stays valid.
+    return `<pre class="${extraPreClasses}"${attrs}>`;
+  });
+}
+
 module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
@@ -22,9 +52,19 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addPlugin(pluginSyntaxHighlight, {
     preAttributes: { tabindex: 0 },
   });
-  eleventyConfig.addFilter("highlight", function (content, language) {
-    return pairedShortcode(content, language);
+  // Filter form: {{ code | highlight("py", "extra classes...") }}
+  eleventyConfig.addFilter("highlight", function (content, language, preClasses) {
+    return injectPreClasses(pairedShortcode(content, language), preClasses);
   });
+
+  // Paired-shortcode form:
+  // {% frameHighlight "py", "frameContent frameContentDesktop" %}...{% endframeHighlight %}
+  eleventyConfig.addPairedShortcode(
+    "frameHighlight",
+    function (content, language, preClasses) {
+      return injectPreClasses(pairedShortcode(content, language), preClasses);
+    }
+  );
 
   eleventyConfig.addPlugin(pluginImages);
 

@@ -15,9 +15,9 @@ redirects_from: /index.html
     <div class="frameHeaderTitle">dynamical.org</div>
     <div class="frameHeaderSubtitle">GEFS analysis</div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
+  {% frameHighlight "py", "frameContent frameContentDesktop" %}
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
-    {% endhighlight %}</code></pre>
+  {% endframeHighlight %}
 </div>
 
 <div class="content centered">
@@ -32,7 +32,7 @@ ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
       7-day lead of 25th-percentile temperature over Europe
     </div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
+  {% frameHighlight "py", "frameContent frameContentDesktop" %}
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr")
 (
     ds["temperature_2m"]
@@ -42,8 +42,8 @@ ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.z
     .quantile(0.25, dim="ensemble_member")
     .plot()
 )
-    {% endhighlight %}</code></pre>
-  <pre class="frameContent frameContentMobile"><code>{% highlight py %}
+  {% endframeHighlight %}
+  {% frameHighlight "py", "frameContent frameContentMobile" %}
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr")
 (
     ds["temperature_2m"]
@@ -53,7 +53,7 @@ ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.z
     .quantile(0.25, dim="ensemble_member")
     .plot()
 )
-    {% endhighlight %}</code></pre>
+  {% endframeHighlight %}
   <img
     class="frameResult"
     src="./assets/gefs_temperature_q25_europe.png"
@@ -68,16 +68,16 @@ ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.z
       Precipitation over time in Ulaanbaatar, Mongolia
     </div>
   </div>
-  <pre class="frameContent frameContentDesktop"><code>{% highlight py %}
+  {% frameHighlight "py", "frameContent frameContentDesktop" %}
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
 ds["precipitation_surface"].sel(latitude=47.9, longitude=106.9, method="nearest").plot()
-    {% endhighlight %}</code></pre>
-  <pre class="frameContent frameContentMobile"><code>{% highlight py %}
+  {% endframeHighlight %}
+  {% frameHighlight "py", "frameContent frameContentMobile" %}
 ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
 ds["precipitation_surface"] \
   .sel(latitude=47.9, longitude=106.9, method="nearest") \
   .plot()
-    {% endhighlight %}</code></pre>
+  {% endframeHighlight %}
   <img
     class="frameResult"
     src="./assets/gefs_precipitation_surface_2024-04-01T00-00.png"

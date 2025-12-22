@@ -151,7 +151,7 @@ eleventyComputed:
         <div class="frameHeaderTitle">dynamical.org - {{ entry.name | truncate(30, true, '...') }}</div>
         <div class="frameHeaderSubtitle">{{ example.title }}</div>
       </div>
-      <pre class="frameContent frameContentDesktop"><code>{{ example.code | highlight('py') | safe }}</code></pre>
+      {{ example.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
     </div>
   {% endfor %}
   <h2>Dimensions</h2>
