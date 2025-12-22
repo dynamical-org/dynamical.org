@@ -121,7 +121,7 @@ let entries = [
         code: `
 import xarray as xr
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr")
 ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
     `,
       },
@@ -170,7 +170,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         code: `
 import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/forecast/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/forecast/latest.zarr")
 ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `,
       },
@@ -234,7 +234,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         code: `
 import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr")
 ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `,
       },
@@ -336,7 +336,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         code: `
 import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
 ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute()
     `,
       },
@@ -409,7 +409,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
         code: `
 import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
-ds = xr.open_zarr("https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr")
 ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").max().compute()
     `,
       },
@@ -497,7 +497,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         code: `
 import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
-ds = xr.open_zarr("https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr?email=optional@email.com")
+ds = xr.open_zarr("https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr")
 ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `,
       },
