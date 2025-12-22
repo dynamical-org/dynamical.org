@@ -25,22 +25,32 @@ function mergeClasses(existingClasses, extraClasses) {
   return Array.from(new Set([...extra, ...existing])).join(" ");
 }
 
-function injectPreClasses(html, extraPreClasses) {
-  if (!extraPreClasses) return html;
+function postprocessHighlightedHtml(html, extraPreClasses) {
   if (typeof html !== "string") return html;
 
-  // Inject classes into the *first* <pre ...> tag produced by the syntaxhighlight plugin.
-  return html.replace(/<pre\b([^>]*)>/, (fullMatch, attrs) => {
-    if (/\bclass\s*=/.test(attrs)) {
-      const updatedAttrs = attrs.replace(/\bclass="([^"]*)"/, (m, cls) => {
-        return `class="${mergeClasses(cls, extraPreClasses)}"`;
-      });
-      return `<pre${updatedAttrs}>`;
-    }
+  let out = html;
 
-    // attrs includes any leading whitespace (e.g. ` tabindex="0"`), so this stays valid.
-    return `<pre class="${extraPreClasses}"${attrs}>`;
-  });
+  if (extraPreClasses) {
+    // Inject classes into the *first* <pre ...> tag produced by the syntaxhighlight plugin.
+    out = out.replace(/<pre\b([^>]*)>/, (fullMatch, attrs) => {
+      if (/\bclass\s*=/.test(attrs)) {
+        const updatedAttrs = attrs.replace(/\bclass="([^"]*)"/, (m, cls) => {
+          return `class="${mergeClasses(cls, extraPreClasses)}"`;
+        });
+        return `<pre${updatedAttrs}>`;
+      }
+
+      // attrs includes any leading whitespace (e.g. ` tabindex="0"`), so this stays valid.
+      return `<pre class="${extraPreClasses}"${attrs}>`;
+    });
+  }
+
+  // Eleventy syntaxhighlight outputs <br> tags for line breaks. That's fragile if any
+  // client-side code ever reads/writes `.textContent` (which drops <br>), collapsing
+  // the entire block into one line. Convert <br> to literal newlines to be robust.
+  out = out.replace(/<br\s*\/?>/gi, "\n");
+
+  return out;
 }
 
 module.exports = function (eleventyConfig) {
@@ -54,7 +64,7 @@ module.exports = function (eleventyConfig) {
   });
   // Filter form: {{ code | highlight("py", "extra classes...") }}
   eleventyConfig.addFilter("highlight", function (content, language, preClasses) {
-    return injectPreClasses(pairedShortcode(content, language), preClasses);
+    return postprocessHighlightedHtml(pairedShortcode(content, language), preClasses);
   });
 
   // Paired-shortcode form:
@@ -62,7 +72,7 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addPairedShortcode(
     "frameHighlight",
     function (content, language, preClasses) {
-      return injectPreClasses(pairedShortcode(content, language), preClasses);
+      return postprocessHighlightedHtml(pairedShortcode(content, language), preClasses);
     }
   );
 

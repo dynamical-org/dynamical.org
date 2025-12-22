@@ -180,7 +180,10 @@
         <div class="frameHeaderTitle">dynamical.org - NOAA GFS analysis, hourly</div>
         <div class="frameHeaderSubtitle">Mean temperature for a single day</div>
       </div>
-      <pre class="frameContent frameContentDesktop language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr<br><br>ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"</span><span class="token punctuation">)</span><br>ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-06-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre>
+      <pre class="frameContent frameContentDesktop language-py"><code class="language-py"><span class="token keyword">import</span> xarray <span class="token keyword">as</span> xr
+
+ds <span class="token operator">=</span> xr<span class="token punctuation">.</span>open_zarr<span class="token punctuation">(</span><span class="token string">"https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr"</span><span class="token punctuation">)</span>
+ds<span class="token punctuation">[</span><span class="token string">"temperature_2m"</span><span class="token punctuation">]</span><span class="token punctuation">.</span>sel<span class="token punctuation">(</span>time<span class="token operator">=</span><span class="token string">"2024-06-01T00:00"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>mean<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>compute<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre>
     </div>
   
   <h2>Dimensions</h2>
