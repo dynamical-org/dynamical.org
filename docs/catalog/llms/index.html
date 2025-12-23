@@ -2380,6 +2380,12 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
             "dimensions": "init_time"
         },
         {
+            "name": "geopotential_height_500hpa",
+            "long_name": "Geopotential height",
+            "units": "gpm",
+            "dimensions": "init_time × lead_time × ensemble_member × latitude × longitude"
+        },
+        {
             "name": "ingested_forecast_length",
             "long_name": "",
             "units": "seconds",
@@ -2448,7 +2454,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         <div class="llm-context-info">
             <p>
                 <strong>Dataset summary:</strong>
-                ECMWF IFS ENS Forecast, 15 day, 0.25 degree is a dataset containing 15 variables across 5
+                ECMWF IFS ENS Forecast, 15 day, 0.25 degree is a dataset containing 16 variables across 5
                 dimensions, covering
                 Global at 0.25 degrees (~20km) resolution and
                 Forecasts initialized 2024-04-01 00:00:00 UTC to Present at Forecasts initialized every 24 hours resolution.
