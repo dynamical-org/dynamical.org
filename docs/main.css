@@ -381,6 +381,13 @@ article img {
     padding: 2rem 1rem;
   }
 
+  /* Mobile nav: site title on first line, menu on next */
+  nav ul li:first-child {
+    flex: 0 0 100%;
+    width: 100%;
+    margin-right: 0;
+  }
+
   .frame {
     margin: 4rem auto;
   }
