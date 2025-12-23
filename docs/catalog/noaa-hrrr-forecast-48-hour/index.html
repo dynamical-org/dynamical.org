@@ -82,7 +82,7 @@
   </div>
   <div style="margin: 3rem 0;">
     
-<span style="background-color: rgb(120, 250, 100);">updating</span>
+<span class="status-pill status-pill--updating">updating</span>
 
     <h1 style="margin-top: 0;">NOAA HRRR forecast, 48 hour</h1>
   </div>
@@ -117,11 +117,6 @@
   <p>
     <input id="catalog-entry-url" readonly name="url" value="https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr" style="width: 67ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
-    <div class="metadata-comment">
-      <span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org
-        supported for the long-term. For catalog updates follow
-        <a href='/updates'>here</a>.</span>
-    </div>
   </p>
   
     <p style="text-wrap: balance">
@@ -705,6 +700,24 @@ ds<span class="token punctuation">[</span><span class="token string">"temperatur
       
   </p>
 </div>
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="site-footer__inner">
+        <div class="site-footer__links">
+          <a href="https://github.com/dynamical-org">GitHub</a>
+          <span class="site-footer__sep">·</span>
+          <a href="/feed/feed.xml">Atom</a>
+          <span class="site-footer__sep">·</span>
+          <a href="/feed/feed.json">RSS JSON</a>
+        </div>
+        <div class="site-footer__meta">
+          <span>dynamical.org</span>
+          <span class="site-footer__sep">·</span>
+          <span>Built 2025-12-23T03:31:35.810Z</span>
+        </div>
+      </div>
+    </footer>
+
     <!-- Latest content popup -->
     
     

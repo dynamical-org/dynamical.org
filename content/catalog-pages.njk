@@ -76,11 +76,6 @@ eleventyComputed:
   <p>
     <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}" style="width: {{ entry.url.length + 2 }}ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
-    <div class="metadata-comment">
-      <span>* Email optional. Providing your email as a query param helps us understand usage and impact to keep dynamical.org
-        supported for the long-term. For catalog updates follow
-        <a href='/updates'>here</a>.</span>
-    </div>
   </p>
   {% if model %}
     <p style="text-wrap: balance">{{ model.description | safe }}</p>

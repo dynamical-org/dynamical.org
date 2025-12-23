@@ -25,6 +25,12 @@
   --muted-text: #666666;
   --muted-text-2: #999999;
   --shadow-color: rgba(0, 0, 0, 0.15);
+
+  --pill-available-bg: #78fa64;
+  --pill-available-fg: #081a08;
+  --pill-muted-bg: #f0f0f0;
+  --pill-muted-fg: #111111;
+  --pill-muted-border: #d0d0d0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,6 +52,10 @@
     --muted-text: #b5b5b5;
     --muted-text-2: #8f8f93;
     --shadow-color: rgba(0, 0, 0, 0.5);
+
+    --pill-muted-bg: #2a2a2d;
+    --pill-muted-fg: #e8e8ea;
+    --pill-muted-border: #3a3a3d;
   }
 }
 
@@ -71,6 +81,28 @@ body {
   line-height: 1.6;
   color: var(--text-color);
   background-color: var(--bg-color);
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.05em 0.55em;
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+}
+
+.status-pill--available,
+.status-pill--updating {
+  background: var(--pill-available-bg);
+  color: var(--pill-available-fg);
+}
+
+.status-pill--other {
+  background: var(--pill-muted-bg);
+  color: var(--pill-muted-fg);
+  border-color: var(--pill-muted-border);
 }
 
 a {
@@ -149,6 +181,36 @@ nav,
 .frame {
   max-width: 78rem;
   margin: auto;
+}
+
+.site-footer {
+  max-width: 78rem;
+  margin: 6rem auto 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--popup-border);
+  color: var(--muted-text);
+  font-size: 1.4rem;
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.site-footer__links a {
+  color: inherit;
+}
+
+.site-footer__links a:hover {
+  color: var(--text-color);
+}
+
+.site-footer__sep {
+  opacity: 0.7;
+  padding: 0 0.4rem;
 }
 
 article {
@@ -351,5 +413,17 @@ nav ul li {
     height: auto;
     line-height: 1.3;
     white-space: normal;
+  }
+
+  .site-footer__inner {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  img[src$="/assets/github-mark.svg"],
+  img[src$="github-mark.svg"] {
+    filter: invert(1);
   }
 }

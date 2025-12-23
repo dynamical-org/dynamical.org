@@ -49,6 +49,24 @@
       </ul>
     </nav>
     {{ content | safe }}
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="site-footer__inner">
+        <div class="site-footer__links">
+          <a href="https://github.com/dynamical-org">GitHub</a>
+          <span class="site-footer__sep">·</span>
+          <a href="/feed/feed.xml">Atom</a>
+          <span class="site-footer__sep">·</span>
+          <a href="/feed/feed.json">RSS JSON</a>
+        </div>
+        <div class="site-footer__meta">
+          <span>dynamical.org</span>
+          <span class="site-footer__sep">·</span>
+          <span>Built {% currentBuildDate %}</span>
+        </div>
+      </div>
+    </footer>
+
     <!-- Latest content popup -->
     {% set latestUpdate = collections.updates | reverse | first %}
     {% set latestPodcast = collections.podcast | reverse | first %}

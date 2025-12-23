@@ -1,8 +1,8 @@
 {% if entry.status == 'live' %}
-<span style="background-color: rgb(120, 250, 100);">updating</span>
+<span class="status-pill status-pill--updating">updating</span>
 {% elseif entry.status == 'available' %}
-<span style="background-color: rgb(120, 250, 100);">available</span>
+<span class="status-pill status-pill--available">available</span>
 {% else %}
-<span style="background-color: rgb(240, 240, 240);">{{entry.status}}</span>
+<span class="status-pill status-pill--other">{{entry.status}}</span>
 {% endif -%}
 
