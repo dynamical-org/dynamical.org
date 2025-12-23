@@ -340,7 +340,22 @@ ds<span class="token punctuation">[</span><span class="token string">"temperatur
         <a href="/feed/feed.json">RSS JSON</a>
       </div>
       <div>
-        dynamical.org · Built 2025-12-23T13:19:21.132Z
+        dynamical.org · Built <time id="site-built-at" datetime=""></time>
+        <script>
+          (function () {
+            const el = document.getElementById('site-built-at');
+            if (!el) return;
+            fetch('/build-info.json', { cache: 'no-store' })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((data) => {
+                const builtAt = data && data.builtAt;
+                if (!builtAt) return;
+                el.setAttribute('datetime', builtAt);
+                el.textContent = builtAt;
+              })
+              .catch(() => {});
+          })();
+        </script>
       </div>
     </footer>
 
