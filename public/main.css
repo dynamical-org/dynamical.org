@@ -113,6 +113,16 @@ a:visited {
   color: var(--link-visited-color);
 }
 
+/* Prevent visited-link styling from recoloring interactive SVG maps (e.g. scorecard). */
+#map-container svg a:link,
+#map-container svg a:visited,
+#map-container svg a:hover,
+#map-container svg a:active {
+  fill: inherit;
+  stroke: inherit;
+  color: inherit;
+}
+
 h1,
 h2,
 h3,
