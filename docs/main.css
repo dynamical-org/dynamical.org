@@ -219,6 +219,17 @@ footer > div + div {
   margin-top: 0.5rem;
 }
 
+#footer-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  margin: 6rem auto 2rem;
+}
+
+#footer-frame[style*="height"] {
+  overflow: hidden;
+}
+
 
 
 article {
@@ -379,6 +390,15 @@ article img {
 @media screen and (max-width: 1000px) {
   body {
     padding: 2rem 1rem;
+  }
+
+  nav ul {
+    justify-content: flex-start;
+  }
+
+  nav ul li:first-child {
+    flex-basis: 100%;
+    margin-right: 0;
   }
 
   .frame {

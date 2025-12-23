@@ -230,16 +230,28 @@
   );
 </script>
 
-    <footer role="contentinfo">
-      <div>
-        <a href="https://github.com/dynamical-org">GitHub</a> ·
-        <a href="/feed/feed.xml">Atom</a> ·
-        <a href="/feed/feed.json">RSS JSON</a>
-      </div>
-      <div>
-        dynamical.org · Built 2025-12-23T04:16:33.936Z
-      </div>
-    </footer>
+    <iframe
+      id="footer-frame"
+      title="Footer"
+      src="/_footer.html"
+      scrolling="no"
+      loading="lazy"
+    ></iframe>
+    <script>
+      (function () {
+        const frame = document.getElementById("footer-frame");
+        if (!frame) return;
+
+        window.addEventListener("message", (event) => {
+          if (event.origin !== window.location.origin) return;
+          const data = event.data || {};
+          if (data.type !== "dynamical:footerHeight") return;
+          const h = Number(data.height);
+          if (!Number.isFinite(h) || h <= 0) return;
+          frame.style.height = `${h}px`;
+        });
+      })();
+    </script>
 
     <!-- Latest content popup -->
     

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="stylesheet" type="text/css" href="/main.css"/>
+    <style>
+      /* This file is embedded via iframe; reset page-level layout from main.css */
+      html, body { margin: 0; padding: 0; background: transparent; }
+      body { padding: 0; }
+
+      footer {
+        margin: 0 auto;
+        padding: 0;
+        border-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <footer role="contentinfo">
+      <div>
+        <a href="https://github.com/dynamical-org">GitHub</a> ·
+        <a href="/feed/feed.xml">Atom</a> ·
+        <a href="/feed/feed.json">RSS JSON</a>
+      </div>
+      <div>
+        dynamical.org · Built 2025-12-23T18:32:16.617Z
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        function postHeight() {
+          var h = Math.max(
+            document.body ? document.body.scrollHeight : 0,
+            document.documentElement ? document.documentElement.scrollHeight : 0
+          );
+          window.parent.postMessage({ type: "dynamical:footerHeight", height: h }, window.location.origin);
+        }
+
+        if (window.ResizeObserver) {
+          try {
+            new ResizeObserver(postHeight).observe(document.body);
+          } catch (e) {}
+        }
+
+        window.addEventListener("load", postHeight);
+        window.addEventListener("resize", postHeight);
+        postHeight();
+      })();
+    </script>
+  </body>
+</html>
+
+
