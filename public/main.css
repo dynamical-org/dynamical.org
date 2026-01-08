@@ -139,6 +139,19 @@ p {
   margin-bottom: 1.2rem;
 }
 
+.small-note {
+  font-size: 0.9em;
+  color: var(--muted-text);
+}
+
+.small-note a {
+  color: inherit;
+}
+
+.small-note a:visited {
+  color: inherit;
+}
+
 .table-container {
   overflow-x: auto;
 }
