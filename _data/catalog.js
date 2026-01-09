@@ -428,7 +428,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
     descriptionSummary: `
         <p>
         This analysis dataset is an archive of the model's best estimate of past weather.
-        It is created by concatenating the first few hours of each historical forecast to
+        It is created by concatenating the first hour of each historical forecast to
         provide a dataset with dimensions time, x, and y.
         </p>
 
