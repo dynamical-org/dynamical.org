@@ -443,8 +443,10 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         <h3>Construction</h3>
         <p>
         HRRR starts a new model run every hour and
-        dynamical.org has created this analysis by concatenating the first hour
-        of each forecast along the time dimension.
+        dynamical.org has created this analysis by concatenating the first step
+        of each forecast along the time dimension. Accumulated variables
+        (e.g. precipitation) are read from the second step of the previous
+        hour's forecast.
         </p>
 
         <h3>Sources</h3>
@@ -459,6 +461,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -487,6 +490,8 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
     ],
     githubUrl:
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis-icechunk.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis.ipynb",
   },
