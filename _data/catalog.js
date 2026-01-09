@@ -422,6 +422,80 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
   },
 
+  // noaa-hrrr-analysis
+  {
+    modelId: "noaa-hrrr",
+    descriptionSummary: `
+        <p>
+        This analysis dataset is an archive of the model's best estimate of past weather.
+        It is created by concatenating the first hour of each historical forecast to
+        provide a dataset with dimensions time, x, and y.
+        </p>
+
+        <p>
+        This dataset uses the native HRRR Lambert Conformal Conic projection,
+        with spatial indexing along the <code>x</code> and <code>y</code> dimensions.
+        The example notebook shows how to use the embedded spatial reference to
+        select geographic areas of interest.
+        </p>
+      `,
+    descriptionDetails: `
+        <h3>Construction</h3>
+        <p>
+        HRRR starts a new model run every hour and
+        dynamical.org has created this analysis by concatenating the first step
+        of each forecast along the time dimension. Accumulated variables
+        (e.g. precipitation) are read from the second step of the previous
+        hour's forecast.
+        </p>
+
+        <h3>Sources</h3>
+        <p>
+        The source grib files this archive is constructed from are provided by
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-hrrr-pds/">AWS Open Data Registry</a>.
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/">reformatting code</a>.
+        </p>
+
+      `,
+    url: "https://data.dynamical.org/noaa/hrrr/analysis/latest.zarr",
+    status: "live",
+    examples: [
+      {
+        title: "Temperature at a specific place and time",
+        code: `
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/hrrr/analysis/latest.zarr")
+ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compute()
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis-icechunk.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis.ipynb",
+  },
+
   // ecmwf-ifs-ens-forecast-15-day-0-25-degree
   {
     modelId: "ecmwf-ifs-ens",
