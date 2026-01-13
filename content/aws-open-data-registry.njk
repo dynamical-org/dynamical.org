@@ -45,7 +45,7 @@ Resources:
     Type: SNS Topic
 DataAtWork:
   Tutorials:
-    {% for entry in entries -%}
+    {%- for entry in entries %}
     - Title: {{entry.name}} python quickstart notebook
       URL: {{entry.githubIcechunkUrl}}
       NotebookURL: {{entry.githubIcechunkUrl}}
