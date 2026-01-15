@@ -1,6 +1,13 @@
 const fetch = require("@11ty/eleventy-fetch");
 const { uniq } = require("lodash");
 
+const CC_BY_4 = `
+        <p>
+        Dataset licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+        Attribution can be found in the dataset's metadata, e.g. <code>ds.attrs["attribution"]</code>.
+        </p>
+`
+
 // Model definitions for grouping datasets
 const models = {
   "noaa-gfs": {
@@ -115,6 +122,7 @@ let entries = [
       `,
     url: "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
     status: "available",
+    license: CC_BY_4,
     examples: [
       {
         title: "Mean temperature for a single day",
@@ -164,6 +172,7 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
       `,
     url: "https://data.dynamical.org/noaa/gfs/forecast/latest.zarr",
     status: "live",
+    license: CC_BY_4,
     examples: [
       {
         title: "Maximum temperature in a forecast",
@@ -228,6 +237,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       `,
     url: "https://data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr",
     status: "live",
+    license: CC_BY_4,
     examples: [
       {
         title: "Maximum temperature in ensemble forecast",
@@ -241,6 +251,8 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     ],
     githubUrl:
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day-icechunk.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
   },
@@ -330,6 +342,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
       `,
     url: "https://data.dynamical.org/noaa/gefs/analysis/latest.zarr",
     status: "live",
+    license: CC_BY_4,
     examples: [
       {
         title: "Temperature at a specific place and time",
@@ -343,6 +356,8 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
     ],
     githubUrl:
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis-icechunk.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
   },
@@ -403,6 +418,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
       `,
     url: "https://data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr",
     status: "live",
+    license: CC_BY_4,
     examples: [
       {
         title: "Maximum temperature in a forecast",
@@ -477,6 +493,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
       `,
     url: "https://data.dynamical.org/noaa/hrrr/analysis/latest.zarr",
     status: "live",
+    license: CC_BY_4,
     examples: [
       {
         title: "Temperature at a specific place and time",
@@ -511,13 +528,6 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
         </p>
       `,
     descriptionDetails: `
-        <h3>License</h3>
-        <p>
-        This data is based on data and products of the European Centre for
-        Medium-Range Weather Forecasts (ECMWF). Use is governed by the CC-BY-4.0
-        license and the ECMWF <a href='https://apps.ecmwf.int/datasets/licences/general/'>Terms of Use</a>.
-        </p>
-
         <h3>Source</h3>
         <p>
         The source grib files this archive is contructed from are provided by
@@ -565,6 +575,14 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
       `,
     url: "https://data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr",
     status: "live",
+    license: `
+        <p>
+        This data is based on data and products of the European Centre for
+        Medium-Range Weather Forecasts (ECMWF). Use is governed by the
+        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> license
+        and the ECMWF <a href='https://apps.ecmwf.int/datasets/licences/general/'>Terms of Use</a>.
+        </p>
+    `,
     examples: [
       {
         title: "Maximum temperature in ensemble",
