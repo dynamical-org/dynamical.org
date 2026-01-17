@@ -172,8 +172,8 @@ permalink: /scorecard/us-state/{{ state.abbr | slug }}/
       radios.forEach(radio => {
         radio.addEventListener('change', () => {
           const window = radio.value;
-          tempImg.src = `https://sa.dynamical.org/state_{{state.abbr | slug}}_temperature_2m_rmse_by_lead_time_${window}_day_latest.png`;
-          precipImg.src = `https://sa.dynamical.org/state_{{state.abbr | slug}}_precipitation_surface_rmse_by_lead_time_${window}_day_latest.png`;
+          tempImg.src = `https://sa.dynamical.org/state_{{state.abbr}}_temperature_2m_RMSE_by_lead_time_${window}_day_latest.png`;
+          precipImg.src = `https://sa.dynamical.org/state_{{state.abbr}}_precipitation_surface_RMSE_by_lead_time_${window}_day_latest.png`;
         });
       });
     </script>
