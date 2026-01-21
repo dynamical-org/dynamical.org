@@ -223,6 +223,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -327,6 +328,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -603,7 +605,66 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
   },
 ].filter((entry) => !entry.hide);
 
+/**
+ * Convert HTML descriptionDetails to markdown
+ * @param {string} html - HTML string to convert
+ * @returns {string} - Markdown string
+ */
+function htmlToMarkdown(html) {
+  if (!html) return "";
+
+  let md = html;
+  // Replace <a href="url">text</a> with [text](url)
+  md = md.replace(/<a href="([^"]+)">(.*?)<\/a>/g, "[$2]($1)");
+  // Replace <code>text</code> with `text`
+  md = md.replace(/<code>(.*?)<\/code>/g, "`$1`");
+  // Replace <h1>title</h1> with # title\n
+  md = md.replace(/<h1>(.*?)<\/h1>/g, "# $1\n");
+  // Replace <h2>title</h2> with ## title\n
+  md = md.replace(/<h2>(.*?)<\/h2>/g, "## $1\n");
+  // Replace <h3>title</h3> with ### title\n
+  md = md.replace(/<h3>(.*?)<\/h3>/g, "### $1\n");
+  // Replace <h4>title</h4> with #### title\n
+  md = md.replace(/<h4>(.*?)<\/h4>/g, "#### $1\n");
+  // Replace <p> with newline
+  md = md.replace(/<p>/g, "\n");
+  // Replace </p> with newline
+  md = md.replace(/<\/p>/g, "\n");
+  // Replace <ul> with newline
+  md = md.replace(/<ul>/g, "\n");
+  // Replace </ul> with newline
+  md = md.replace(/<\/ul>/g, "\n");
+  // Replace <li> with - (markdown list item)
+  md = md.replace(/<li>/g, "* ");
+  // Replace </li> with newline
+  md = md.replace(/<\/li>/g, "\n");
+
+  // Clean up whitespace: split into lines, trim each, remove excessive blank lines
+  const lines = md.split("\n").map(line => line.trim());
+  const cleanedLines = [];
+  let prevWasEmpty = false;
+
+  for (const line of lines) {
+    const isEmpty = line === "";
+    if (isEmpty && prevWasEmpty) {
+      // Skip consecutive empty lines
+      continue;
+    }
+    cleanedLines.push(line);
+    prevWasEmpty = isEmpty;
+  }
+
+  return cleanedLines.join("\n").trim();
+}
+
 module.exports = async function () {
+  // Convert descriptionDetails to markdown for each entry
+  entries.forEach((entry) => {
+    if (entry.descriptionDetails) {
+      entry.descriptionDetailsMd = htmlToMarkdown(entry.descriptionDetails);
+    }
+  });
+
   for (let i = 0; i < entries.length; i++) {
     if (!entries[i].url) {
       continue;
