@@ -1,0 +1,47 @@
+---
+pagination:
+  data: catalog.entries
+  alias: entry
+  size: 1
+  filter:
+    entry.githubIcechunkUrl
+permalink: 'earthmover/{{entry.dataset_id}}.md'
+---
+{%- set model = catalog.models | find('id', entry.modelId) -%}
+
+{{ entry.description }}
+
+| | |
+|-------|-------|
+| Spatial domain | {{ entry.spatial_domain }} |
+| Spatial resolution | {{ entry.spatial_resolution }} |
+| Time domain | {{ entry.time_domain }} |
+| Time resolution | {{ entry.time_resolution }} |
+{%- if entry.forecast_domain %}
+| Forecast domain | {{ entry.forecast_domain }} |
+| Forecast resolution | {{ entry.forecast_resolution }} |
+{% endif %}
+
+{{ model.description | striptags }}
+
+{{ entry.descriptionSummary | striptags }}
+
+> dynmical.org Icechunk datasets are in preview until Icechunk 2 is released, at which point users will need
+> to update their client libraries to Icechunk 2. Subscribe to our
+> [newsletter](https://dynamical.org/updates/) to be notified when that happens.
+
+## Examples
+
+* [Open notebook in github]({{ entry.githubIcechunkUrl }})
+* [Open notebook in colab]({{ entry.githubIcechunkUrl | replace("https://github.com/", "https://colab.research.google.com/github/") }})
+
+## Contact
+
+Don't see what your looking for or have a question? Contact feedback@dynamical.org.
+
+## Details
+
+### License
+{{ entry.license | striptags }}
+
+{{ entry.descriptionDetailsMd }}
