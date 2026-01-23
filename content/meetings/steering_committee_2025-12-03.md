@@ -10,6 +10,7 @@ date: 2025-12-03
 - Jacob Zwart  
 - Joe Hamman  
 - Jack Kelly  
+- Stephan Hoyer
 - Alden Keefe Sampson  
 
 ---

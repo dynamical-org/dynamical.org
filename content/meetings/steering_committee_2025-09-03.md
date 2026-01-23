@@ -7,9 +7,9 @@ date: 2025-09-03
 **Date:** September 3, 2025  
 
 **Members present:**  
-- Jacob Zwart  
 - Joe Hamman  
 - Jack Kelly  
+- Stephan Hoyer
 - Alden Keefe Sampson  
 
 ---
