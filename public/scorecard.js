@@ -1,0 +1,225 @@
+// Client-side scorecard charts: DuckDB-WASM for parquet queries, Observable Plot for rendering.
+
+const STATS_URL = "https://sa.dynamical.org/statistics.parquet";
+const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
+
+const MODEL_ORDER = ["ECMWF IFS ENS", "NOAA GEFS", "NOAA GFS"];
+const MODEL_COLORS = ["#029E73", "#0173B2", "#56B4E9"];
+const OBS_COLORS = { temperature_2m: "#591e71", precipitation_surface: "#253494" };
+const VAR_LABELS = { temperature_2m: "Temperature", precipitation_surface: "Precipitation" };
+const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };
+const RMSE_HEIGHT = 360;
+const OBS_HEIGHT = 300;
+
+function showLoading(container, height) {
+  const w = Math.min(container.clientWidth || 600, 600);
+  container.replaceChildren();
+  Object.assign(container.style, {
+    height: `${height}px`,
+    maxWidth: `${w}px`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "14px 40px",
+    color: "var(--muted-text-2, #999)",
+    backgroundColor: "var(--popup-bg, #fafafa)",
+  });
+  container.textContent = "Loading\u2026";
+}
+
+function clearLoading(container) {
+  container.style.cssText = "";
+}
+
+let _dbReady = null;
+
+function initDB() {
+  if (_dbReady) return _dbReady;
+  _dbReady = (async () => {
+    const duckdb = await import(
+      "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm"
+    );
+    const bundles = duckdb.getJsDelivrBundles();
+    const bundle = await duckdb.selectBundle(bundles);
+    const workerUrl = URL.createObjectURL(
+      new Blob([`importScripts("${bundle.mainWorker}");`], {
+        type: "text/javascript",
+      })
+    );
+    const worker = new Worker(workerUrl);
+    const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
+    const db = new duckdb.AsyncDuckDB(logger, worker);
+    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    URL.revokeObjectURL(workerUrl);
+    return db;
+  })();
+  return _dbReady;
+}
+
+async function query(sql) {
+  const db = await initDB();
+  const conn = await db.connect();
+  try {
+    const table = await conn.query(sql);
+    return table.toArray().map((row) => {
+      const obj = {};
+      for (const field of table.schema.fields) {
+        let v = row[field.name];
+        if (typeof v === "bigint") v = Number(v);
+        obj[field.name] = v;
+      }
+      return obj;
+    });
+  } finally {
+    await conn.close();
+  }
+}
+
+let _Plot = null;
+async function getPlot() {
+  if (!_Plot)
+    _Plot = await import(
+      "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm"
+    );
+  return _Plot;
+}
+
+// ── RMSE bar chart ──────────────────────────────────────────────────────────
+
+export async function renderRMSE(
+  container,
+  { variable, stationIds, windowDays }
+) {
+  showLoading(container, RMSE_HEIGHT);
+  try {
+    const Plot = await getPlot();
+
+    let stationFilter = "";
+    if (stationIds && stationIds.length > 0) {
+      const ids = stationIds.map((id) => `'${id}'`).join(",");
+      stationFilter = `AND station_id IN (${ids})`;
+    }
+
+    const data = await query(`
+      SELECT
+        CAST(lead_time / 86400000000000 AS INTEGER) AS lead_time_days,
+        model,
+        AVG(RMSE) AS rmse
+      FROM '${STATS_URL}'
+      WHERE variable = '${variable}'
+        AND "window" / 86400000000000 = ${windowDays}
+        ${stationFilter}
+      GROUP BY lead_time_days, model
+      ORDER BY lead_time_days, model
+    `);
+
+    if (data.length === 0) {
+      clearLoading(container);
+      container.textContent = "No data available";
+      return;
+    }
+
+    const units = variable === "temperature_2m" ? "°C" : "mm/s";
+    const chart = Plot.plot({
+      title: `${VAR_LABELS[variable]} RMSE by Forecast Lead Time`,
+      width: Math.min(container.clientWidth || 600, 600),
+      height: RMSE_HEIGHT,
+      ...CHART_MARGINS,
+      fx: { label: "Forecast lead time (days)", padding: 0.2 },
+      x: { axis: null, padding: 0.1 },
+      y: { label: `RMSE [${units}]`, grid: true },
+      color: { legend: true, domain: MODEL_ORDER, range: MODEL_COLORS },
+      marks: [
+        Plot.barY(data, {
+          fx: "lead_time_days",
+          x: "model",
+          y: "rmse",
+          fill: "model",
+          tip: false,
+        }),
+        Plot.ruleY([0]),
+      ],
+    });
+
+    clearLoading(container);
+    container.replaceChildren(chart);
+  } catch (e) {
+    console.error("renderRMSE failed:", e);
+    clearLoading(container);
+    container.textContent = "Failed to load chart";
+  }
+}
+
+// ── Observation timeseries ──────────────────────────────────────────────────
+
+export async function renderObs(
+  container,
+  { station, variable, windowDays }
+) {
+  showLoading(container, OBS_HEIGHT);
+  try {
+    const Plot = await getPlot();
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - windowDays);
+    const urls = [];
+    for (let y = startDate.getFullYear(); y <= now.getFullYear(); y++) {
+      urls.push(`'${ASOS_BASE}/year=${y}/data.parquet'`);
+    }
+    const col = variable === "temperature_2m" ? "tmpc" : "p01m";
+    const q = `
+      SELECT valid AS t, station, ${col} AS value
+      FROM read_parquet([${urls.join(", ")}])
+      WHERE station = '${station}'
+        AND valid >= '${startDate.toISOString()}'
+      ORDER BY valid
+    `;
+    console.log(q);
+    const data = await query(q);
+
+    if (data.length === 0) {
+      clearLoading(container);
+      container.textContent = "No observation data available";
+      return;
+    }
+
+    data.forEach((d) => {
+      d.t = new Date(d.t);
+    });
+
+    const color = OBS_COLORS[variable] || "#333";
+    let marks;
+    let yLabel;
+
+    if (variable === "temperature_2m") {
+      yLabel = "Temperature [°C]";
+      marks = [
+        Plot.line(data, { x: "t", y: "value", stroke: color, strokeWidth: 1 }),
+      ];
+    } else {
+      yLabel = "Precipitation [mm]";
+      const wet = data.filter((d) => d.value > 0);
+      marks = [
+        Plot.ruleX(wet, { x: "t", y: "value", stroke: color }),
+        Plot.ruleY([0]),
+      ];
+    }
+
+    const chart = Plot.plot({
+      title: `${VAR_LABELS[variable]} Observations`,
+      width: Math.min(container.clientWidth || 600, 600),
+      height: OBS_HEIGHT,
+      ...CHART_MARGINS,
+      x: { label: null },
+      y: { label: yLabel, grid: true },
+      marks,
+    });
+
+    clearLoading(container);
+    container.replaceChildren(chart);
+  } catch (e) {
+    console.error("renderObs failed:", e);
+    clearLoading(container);
+    container.textContent = "Failed to load observation data";
+  }
+}

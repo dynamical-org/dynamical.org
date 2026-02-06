@@ -69,7 +69,8 @@ permalink: /scorecard/station/{{ station.id }}/
   </div>
   <div>
     <p class="small-note">
-      Station and observation data are from ASOS. See
+      Station and observation data are from
+      <a href="/catalog/asos-parquet/">asos-parquet</a>. See
       <a href="/scorecard/observation-data/">observation data details</a>.
     </p>
   </div>
@@ -82,16 +83,8 @@ permalink: /scorecard/station/{{ station.id }}/
       <label for="temp_90">90 days</label>
     </div>
   </div>
-  <img
-    id="temperature_2m-obs"
-    src="https://sa.dynamical.org/station_{{ station.id }}_temperature_2m_180_day_latest.png"
-    alt="Temperature obs for {{ station.name }}"
-    style="max-width: 100%; height: auto;"/>
-  <img
-    id="temperature_2m-score"
-    src="https://sa.dynamical.org/station_{{ station.id }}_temperature_2m_RMSE_by_lead_time_180_day_latest.png"
-    alt="Temperature RMSE by lead time for {{ station.name }}"
-    style="max-width: 100%; height: auto;"/>
+  <div id="temperature_2m-obs" style="max-width: 600px;"></div>
+  <div id="temperature_2m-score" style="max-width: 600px;"></div>
   <div class='responsive-flex'>
     <h2>Precipitation</h2>
     <div>
@@ -101,16 +94,8 @@ permalink: /scorecard/station/{{ station.id }}/
       <label for="precip_90">90 days</label>
     </div>
   </div>
-  <img
-    id="precipitation_surface-obs"
-    src="https://sa.dynamical.org/station_{{ station.id }}_precipitation_surface_180_day_latest.png"
-    alt="Precipitation obs for {{ station.name }}"
-    style="max-width: 100%; height: auto;"/>
-  <img
-    id="precipitation_surface-score"
-    src="https://sa.dynamical.org/station_{{ station.id }}_precipitation_surface_RMSE_by_lead_time_180_day_latest.png"
-    alt="Precipitation RMSE by lead time for {{ station.name }}"
-    style="max-width: 100%; height: auto;"/>
+  <div id="precipitation_surface-obs" style="max-width: 600px;"></div>
+  <div id="precipitation_surface-score" style="max-width: 600px;"></div>
 </div>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
@@ -164,42 +149,30 @@ permalink: /scorecard/station/{{ station.id }}/
       .attr("r", 5)
       .attr("fill", "blue");
   });
-  function setupRadioListeners(kind, varName) {
-    const radios = document.querySelectorAll(`input[name="${kind}_window"]`);
-    const obsImg = document.getElementById(`${varName}-obs`);
-    const scoreImg = document.getElementById(`${varName}-score`);
-    radios.forEach(radio => {
+
+</script>
+<script type="module">
+  import { renderRMSE, renderObs } from '/scorecard.js';
+  const stationId = '{{ station.id }}';
+  const charts = {
+    temp: { obs: document.getElementById('temperature_2m-obs'), score: document.getElementById('temperature_2m-score'), variable: 'temperature_2m', windowDays: 180 },
+    precip: { obs: document.getElementById('precipitation_surface-obs'), score: document.getElementById('precipitation_surface-score'), variable: 'precipitation_surface', windowDays: 180 },
+  };
+  function renderVar(kind) {
+    const c = charts[kind];
+    renderObs(c.obs, { station: stationId, variable: c.variable, windowDays: c.windowDays });
+    renderRMSE(c.score, { variable: c.variable, stationIds: [stationId], windowDays: c.windowDays });
+  }
+  renderVar('temp');
+  renderVar('precip');
+  function setupRadio(kind) {
+    document.querySelectorAll(`input[name="${kind}_window"]`).forEach(radio => {
       radio.addEventListener('change', () => {
-        const window = radio.value;
-        obsImg.src = `https://sa.dynamical.org/station_{{ station.id }}_${varName}_${window}_day_latest.png`;
-        scoreImg.src = `https://sa.dynamical.org/station_{{ station.id }}_${varName}_RMSE_by_lead_time_${window}_day_latest.png`;
+        charts[kind].windowDays = Number(radio.value);
+        renderVar(kind);
       });
     });
   }
-  setupRadioListeners('temp', 'temperature_2m');
-  setupRadioListeners('precip', 'precipitation_surface');
-  // Fallback placeholder for temperature images on error
-  ["temperature_2m-obs", "temperature_2m-score", "precipitation_surface-obs", "precipitation_surface-score"].forEach(
-    id => {
-      const img = document.getElementById(id);
-      if (img) {
-        img.onerror = () => {
-          // Create fallback div
-          const box = document.createElement('div')
-          Object.assign(box.style, {
-            width: '100%',
-            maxWidth: '800px',
-            height: '240px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#f0f0f0',
-            marginBottom: '10px'
-          });
-          box.textContent = 'Data not available';
-          img.parentNode.replaceChild(box, img);
-        };
-      }
-    }
-  );
+  setupRadio('temp');
+  setupRadio('precip');
 </script>

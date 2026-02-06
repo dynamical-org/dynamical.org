@@ -37,20 +37,13 @@ title: Scorecard
       </div>
       <div>
         <p class="small-note">
-          Station and observation data are from ASOS. See
+          Station and observation data are from
+          <a href="/catalog/asos-parquet/">asos-parquet</a>. See
           <a href="/scorecard/observation-data/">observation data details</a>.
         </p>
       </div>
-      <img
-        id="temperature-image"
-        src="https://sa.dynamical.org/country_US_temperature_2m_RMSE_by_lead_time_180_day_latest.png"
-        alt="Temperature RMSE by lead time"
-        style="max-width: 100%; height: auto;"/>
-      <img
-        id="precipitation-image"
-        src="https://sa.dynamical.org/country_US_precipitation_surface_RMSE_by_lead_time_180_day_latest.png"
-        alt="Precipitation RMSE by lead time"
-        style="max-width: 100%; height: auto;"/>
+      <div id="temperature-chart" style="max-width: 600px;"></div>
+      <div id="precipitation-chart" style="max-width: 600px;"></div>
       <div id="station-list">
         {% for state, stations_in_state in scorecard.index.stations | sort(attribute="state_name") | groupby("state_name") %}
           <h3>
@@ -128,14 +121,21 @@ title: Scorecard
           .append("title")
           .text(d => d.name);
       });
-      const radios = document.querySelectorAll('input[name="window"]');
-      const tempImg = document.getElementById('temperature-image');
-      const precipImg = document.getElementById('precipitation-image');
-      radios.forEach(radio => {
+    </script>
+    <script type="module">
+      import { renderRMSE } from '/scorecard.js';
+      const tempEl = document.getElementById('temperature-chart');
+      const precipEl = document.getElementById('precipitation-chart');
+      let windowDays = 180;
+      function render() {
+        renderRMSE(tempEl, { variable: 'temperature_2m', windowDays });
+        renderRMSE(precipEl, { variable: 'precipitation_surface', windowDays });
+      }
+      render();
+      document.querySelectorAll('input[name="window"]').forEach(radio => {
         radio.addEventListener('change', () => {
-          const window = radio.value;
-          tempImg.src = `https://sa.dynamical.org/country_US_temperature_2m_RMSE_by_lead_time_${window}_day_latest.png`;
-          precipImg.src = `https://sa.dynamical.org/country_US_precipitation_surface_RMSE_by_lead_time_${window}_day_latest.png`;
+          windowDays = Number(radio.value);
+          render();
         });
       });
     </script>

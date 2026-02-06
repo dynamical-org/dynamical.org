@@ -1,0 +1,559 @@
+---
+layout: base.njk
+title: Global Observations GeoParquet
+permalink: /catalog/asos-parquet/
+---
+
+<style>
+  .content.catalog-item {
+    font-size: 1.4rem;
+  }
+</style>
+<script>
+  function copyUrl() {
+    const input = document.getElementById('catalog-entry-url');
+    input.select();
+    document.execCommand('copy');
+  }
+</script>
+<div class="content catalog-item">
+  <div>
+    <a href="/catalog">Catalog</a> > Global Observations GeoParquet
+  </div>
+  <div style="margin: 3rem 0;">
+    <span class="status-pill status-pill--other">experimental</span>
+    <h1 style="margin-top: 0;">Global Airport Observations (ASOS/AWOS)</h1>
+  </div>
+  <table>
+    <tr>
+      <td>Spatial domain</td>
+      <td>Global ASOS/AWOS stations</td>
+    </tr>
+    <tr>
+      <td>Time domain</td>
+      <td>1940&ndash;present</td>
+    </tr>
+    <tr>
+      <td>Time resolution</td>
+      <td>Hourly (METAR)</td>
+    </tr>
+    <tr>
+      <td>Update frequency</td>
+      <td>Hourly</td>
+    </tr>
+    <tr>
+      <td>Format</td>
+      <td>GeoParquet (year-partitioned)</td>
+    </tr>
+  </table>
+  <p>
+    <input id="catalog-entry-url" readonly name="url" value="https://data.source.coop/dynamical/asos-parquet/year={YYYY}/data.parquet" style="width: 72ch; max-width: 100%;"/>
+    <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
+  </p>
+  <p>
+    Historical and near-real-time METAR observations from global airports.
+    Observation data is retrieved from the
+    <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>,
+    maintained by Iowa State University, which archives and distributes ASOS data.
+  </p>
+
+  <h2>Data</h2>
+  <p>
+    Each file contains the full set of decoded METAR fields for all global
+    ASOS/AWOS stations in a given year, including temperature, dewpoint,
+    precipitation, wind, visibility, cloud cover, pressure, and present-weather
+    codes. Latitude and longitude columns are included as a GeoParquet geometry,
+    enabling spatial queries and direct use with geospatial tools.
+  </p>
+  <p>
+    The dataset is partitioned by year using Hive-style paths
+    (<code>year={YYYY}/data.parquet</code>). This allows efficient access to
+    specific time ranges without scanning the entire archive.
+  </p>
+
+  <h2>Processing</h2>
+  <p>
+    Observations are stored as received from the Iowa Environmental Mesonet
+    with no resampling, interpolation, or quality-control filtering applied.
+    The raw METAR reports are decoded into tabular columns and written to
+    GeoParquet with Snappy compression. Updates are ingested hourly as new
+    reports become available.
+  </p>
+
+  <h3>Storage</h3>
+  <p>
+    Storage for this dataset is generously provided by
+    <a href="https://source.coop/">Source Cooperative</a>,
+    a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+  </p>
+
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">dynamical.org - Global Observations</div>
+      <div class="frameHeaderSubtitle">Open all shards with Python</div>
+    </div>
+    {% frameHighlight "py", "frameContent" %}
+import pyarrow.parquet as pq
+import pyarrow.fs as fs
+
+s3 = fs.S3FileSystem(region="us-east-2", anonymous=True)
+dataset = pq.ParquetDataset(
+    "data.source.coop/dynamical/asos-parquet/",
+    filesystem=s3,
+)
+table = dataset.read()
+df = table.to_pandas()
+    {% endframeHighlight %}
+  </div>
+
+  <h2>Query Builder</h2>
+  <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem;">
+    <div>
+      <label for="startDate">Start</label><br>
+      <input type="date" id="startDate">
+    </div>
+    <div>
+      <label for="endDate">End</label><br>
+      <input type="date" id="endDate">
+    </div>
+    <div>
+      <label for="stationId">Station</label><br>
+      <input type="text" id="stationId" value="BNA" style="width: 6rem; text-transform: uppercase;">
+    </div>
+    <button id="applyBtn">Apply</button>
+    <select id="exampleSelect">
+      <option value="">Examples...</option>
+    </select>
+  </div>
+
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">SQL Query</div>
+      <div class="frameHeaderSubtitle" id="status">Initializing...</div>
+    </div>
+    <div class="frameContent">
+      <textarea id="sqlQuery" style="width: 100%; height: 8rem; font-family: inherit; font-size: inherit; padding: 1rem; border: none; background: #1d1f21; color: #c5c8c6; resize: vertical;"></textarea>
+    </div>
+  </div>
+  <p><button id="runQueryBtn" disabled>Run Query</button></p>
+
+  <div id="stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 1rem; margin: 1rem 0;"></div>
+  <div id="tempChart"></div>
+  <div id="precipChart"></div>
+</div>
+
+<script type="module">
+  const duckdb = await import('https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm');
+  const Plot = await import('https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.13/+esm');
+
+  const DATA_BASE_URL = 'https://data.source.coop/dynamical/asos-parquet';
+
+  let db = null;
+  let conn = null;
+
+  function formatDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function parseDate(str) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function getDefaultDates() {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - 3);
+    return { start: formatDate(start), end: formatDate(end) };
+  }
+
+  const defaultDates = getDefaultDates();
+  const currentYear = new Date().getFullYear();
+
+  function generateExampleQueries() {
+    return {
+      'default_ytd': {
+        label: currentYear + ' YTD - Nashville (BNA)',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station = 'BNA'
+ORDER BY valid`
+      },
+      'last_30_days': {
+        label: 'Last 30 days - Nashville (BNA)',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station = 'BNA'
+  AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
+ORDER BY valid`
+      },
+      'multi_station': {
+        label: 'Compare cities - Last 30 days',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station IN ('BNA', 'ORD', 'LAX', 'JFK')
+  AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
+ORDER BY station, valid`
+      },
+      'bbox_query': {
+        label: 'Spatial: Tennessee bbox',
+        query: `-- Stations within Tennessee bounding box
+SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE longitude BETWEEN -90.3 AND -81.6
+  AND latitude BETWEEN 35.0 AND 36.7
+  AND valid >= '${formatDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))}'
+ORDER BY station, valid`
+      },
+      'historical_1940': {
+        label: 'Historical - Nashville 1940',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=1940/data.parquet')
+WHERE station = 'BNA'
+ORDER BY valid`
+      }
+    };
+  }
+
+  const EXAMPLE_QUERIES = generateExampleQueries();
+  const DEFAULT_QUERY = EXAMPLE_QUERIES['default_ytd'].query;
+
+  function generatePartitionUrls(startDate, endDate) {
+    const urls = [];
+    const startYear = parseDate(startDate).getFullYear();
+    const endYear = parseDate(endDate).getFullYear();
+    for (let year = startYear; year <= endYear; year++) {
+      urls.push(`'${DATA_BASE_URL}/year=${year}/data.parquet'`);
+    }
+    return urls;
+  }
+
+  function generateQueryFromInputs() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    const station = document.getElementById('stationId').value.trim().toUpperCase();
+    if (!startDate || !endDate || !station) return null;
+
+    const urls = generatePartitionUrls(startDate, endDate);
+    const urlList = urls.length === 1 ? urls[0] : `[\n  ${urls.join(',\n  ')}\n]`;
+
+    return `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet(${urlList})
+WHERE station = '${station}'
+ORDER BY valid`;
+  }
+
+  function parseQueryToInputs(query) {
+    const yearMatches = query.match(/year=(\d{4})/g);
+    if (yearMatches) {
+      const years = yearMatches.map(m => parseInt(m.replace('year=', '')));
+      const minYear = Math.min(...years);
+      const maxYear = Math.max(...years);
+      document.getElementById('startDate').value = minYear + '-01-01';
+      document.getElementById('endDate').value = maxYear + '-12-31';
+    }
+
+    const startMatch = query.match(/valid\s*>=?\s*'(\d{4}-\d{2}-\d{2})'/);
+    const endMatch = query.match(/valid\s*<?=?\s*'(\d{4}-\d{2}-\d{2})'/);
+    if (startMatch) document.getElementById('startDate').value = startMatch[1];
+    if (endMatch) document.getElementById('endDate').value = endMatch[1];
+
+    const stationMatch = query.match(/station\s*=\s*'([A-Z]{3,4})'/);
+    if (stationMatch) document.getElementById('stationId').value = stationMatch[1];
+
+    const inMatch = query.match(/station\s+IN\s*\(\s*'([A-Z]{3,4})'/);
+    if (inMatch) document.getElementById('stationId').value = inMatch[1] + '+';
+  }
+
+  function applyInputsToQuery() {
+    const newQuery = generateQueryFromInputs();
+    if (newQuery) document.getElementById('sqlQuery').value = newQuery;
+  }
+
+  async function initDuckDB() {
+    try {
+      updateStatus('Initializing...');
+      const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+      const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+
+      const worker_url = URL.createObjectURL(
+        new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
+      );
+
+      const worker = new Worker(worker_url);
+      const logger = new duckdb.ConsoleLogger();
+
+      db = new duckdb.AsyncDuckDB(logger, worker);
+      await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+      URL.revokeObjectURL(worker_url);
+
+      conn = await db.connect();
+
+      const select = document.getElementById('exampleSelect');
+      for (const [key, example] of Object.entries(EXAMPLE_QUERIES)) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = example.label;
+        select.appendChild(option);
+      }
+
+      document.getElementById('sqlQuery').value = DEFAULT_QUERY;
+      document.getElementById('runQueryBtn').disabled = false;
+      updateStatus('Ready');
+    } catch (error) {
+      updateStatus('Failed: ' + error.message);
+      console.error(error);
+    }
+  }
+
+  function updateStatus(message) {
+    document.getElementById('status').textContent = message;
+  }
+
+  function createStatElement(value, label) {
+    const div = document.createElement('div');
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    const br = document.createElement('br');
+    const span = document.createElement('span');
+    span.style.fontSize = '80%';
+    span.style.color = '#888';
+    span.textContent = label;
+    div.appendChild(strong);
+    div.appendChild(br);
+    div.appendChild(span);
+    return div;
+  }
+
+  async function runCustomQuery() {
+    const query = document.getElementById('sqlQuery').value.trim();
+    if (!query) { updateStatus('Enter a query'); return; }
+
+    try {
+      const btn = document.getElementById('runQueryBtn');
+      btn.disabled = true;
+      btn.textContent = 'Loading...';
+      updateStatus('Running...');
+
+      // Clear previous results
+      document.getElementById('tempChart').replaceChildren();
+      document.getElementById('precipChart').replaceChildren();
+      document.getElementById('stats').replaceChildren();
+
+      const result = await conn.query(query);
+      const data = result.toArray().map(row => {
+        let timestamp = null;
+        if (row.valid) {
+          const val = Number(row.valid);
+          timestamp = val > 4102444800000 ? new Date(val / 1000) : new Date(val);
+        }
+        return {
+          timestamp,
+          temp_f: row.temp_f !== null && row.temp_f !== undefined ? Number(row.temp_f) : null,
+          dewpoint_f: row.dewpoint_f !== null && row.dewpoint_f !== undefined ? Number(row.dewpoint_f) : null,
+          precip_inches: row.precip_inches !== null && row.precip_inches !== undefined ? Number(row.precip_inches) : null,
+          station: row.station
+        };
+      });
+
+      if (data.length === 0) {
+        updateStatus('No results');
+        document.getElementById('tempChart').replaceChildren();
+        document.getElementById('precipChart').replaceChildren();
+        document.getElementById('stats').replaceChildren();
+        return;
+      }
+
+      const tempData = data.filter(d => d.temp_f !== null && d.timestamp !== null);
+
+      const GAP_THRESHOLD_MS = 25 * 60 * 60 * 1000;
+      let segment = 0;
+      for (let i = 0; i < tempData.length; i++) {
+        if (i > 0 && tempData[i].timestamp - tempData[i-1].timestamp > GAP_THRESHOLD_MS) segment++;
+        tempData[i].segment = segment;
+      }
+
+      const stations = [...new Set(data.map(d => d.station).filter(Boolean))];
+      const isMultiStation = stations.length > 1;
+      const stationLabel = isMultiStation ? stations.length + ' stations' : stations[0];
+
+      const timestamps = tempData.map(d => d.timestamp).filter(Boolean);
+      const minDate = new Date(Math.min(...timestamps));
+      const maxDate = new Date(Math.max(...timestamps));
+
+      // Temperature chart
+      const tempChartContainer = document.getElementById('tempChart');
+      const tempHeader = document.createElement('h3');
+      tempHeader.textContent = 'Temperature: ' + stationLabel;
+
+      // More height when legend is shown (many stations = taller legend)
+      const legendRows = isMultiStation ? Math.ceil(stations.length / 10) : 0;
+      const tempChart = Plot.plot({
+        width: 780,
+        height: 200 + legendRows * 20,
+        marginLeft: 40,
+        marginTop: 10,
+        marginBottom: 35,
+        x: { label: null, type: "time", domain: [minDate, maxDate] },
+        y: { label: "°F", grid: true },
+        color: isMultiStation ? { legend: true } : undefined,
+        marks: [
+          Plot.ruleY([32], { stroke: "#888", strokeDasharray: "4,4" }),
+          Plot.lineY(tempData, {
+            x: "timestamp", y: "temp_f",
+            z: isMultiStation ? "station" : "segment",
+            stroke: isMultiStation ? "station" : "#0b57d0",
+            strokeWidth: 1.5
+          }),
+          ...(isMultiStation ? [] : [
+            Plot.lineY(tempData.filter(d => d.dewpoint_f !== null), {
+              x: "timestamp", y: "dewpoint_f", z: "segment",
+              stroke: "#888", strokeWidth: 1, strokeOpacity: 0.7
+            })
+          ])
+        ]
+      });
+
+      tempChartContainer.replaceChildren(tempHeader, tempChart);
+
+      // Precipitation chart
+      const precipChartContainer = document.getElementById('precipChart');
+      const precipFilteredData = data.filter(d => d.precip_inches !== null && d.timestamp !== null);
+      const daySpan = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+
+      // Choose bin interval based on time span (bars need to be visible)
+      let precipInterval;
+      if (daySpan < 30) precipInterval = "hour";
+      else if (daySpan < 90) precipInterval = "3 hours";
+      else if (daySpan < 180) precipInterval = "6 hours";
+      else precipInterval = "day";
+
+      const precipHeader = document.createElement('h3');
+      precipHeader.textContent = 'Precipitation: ' + stationLabel;
+
+      let precipChart;
+      if (isMultiStation) {
+        // Heatmap for multi-station: X=time, Y=station, color=intensity
+        precipChart = Plot.plot({
+          width: 780,
+          height: Math.max(150, 40 + stations.length * 14),
+          marginLeft: 45,
+          marginBottom: 35,
+          marginTop: 30,
+          x: { label: null, type: "time", domain: [minDate, maxDate] },
+          y: { label: null, type: "band", domain: stations.sort() },
+          color: {
+            scheme: "blues",
+            type: "linear",
+            domain: [0, Math.max(0.1, ...precipFilteredData.map(d => d.precip_inches))],
+            legend: true,
+            label: "in"
+          },
+          marks: [
+            Plot.rect(precipFilteredData, Plot.binX(
+              { fill: "sum" },
+              { x: "timestamp", y: "station", fill: "precip_inches",
+                interval: precipInterval, insetTop: 0.5, insetBottom: 0.5 }
+            ))
+          ]
+        });
+      } else {
+        // Bar chart for single station
+        precipChart = Plot.plot({
+          width: 780,
+          height: 100,
+          marginLeft: 40,
+          marginBottom: 20,
+          marginTop: 5,
+          x: { label: null, type: "time", domain: [minDate, maxDate] },
+          y: { label: "in", grid: true, ticks: 2 },
+          marks: [
+            Plot.ruleY([0]),
+            Plot.rectY(precipFilteredData, Plot.binX(
+              { y: "sum" },
+              { x: "timestamp", y: "precip_inches", interval: precipInterval,
+                fill: "#0b57d0" }
+            ))
+          ]
+        });
+      }
+
+      precipChartContainer.replaceChildren(precipHeader, precipChart);
+
+      // Stats
+      const temps = tempData.map(d => d.temp_f);
+      const minTemp = temps.length ? Math.min(...temps) : 0;
+      const maxTemp = temps.length ? Math.max(...temps) : 0;
+      const avgTemp = temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : 0;
+
+      let precipValue, precipLabel;
+      if (isMultiStation) {
+        const precipByStation = {};
+        data.forEach(d => {
+          if (d.station && d.precip_inches) {
+            precipByStation[d.station] = (precipByStation[d.station] || 0) + d.precip_inches;
+          }
+        });
+        const stationTotals = Object.values(precipByStation);
+        precipValue = stationTotals.length ? stationTotals.reduce((a, b) => a + b, 0) / stationTotals.length : 0;
+        precipLabel = 'Mean Precip';
+      } else {
+        precipValue = data.reduce((sum, d) => sum + (d.precip_inches || 0), 0);
+        precipLabel = 'Total Precip';
+      }
+
+      const statsContainer = document.getElementById('stats');
+      statsContainer.replaceChildren(
+        createStatElement(minTemp.toFixed(0) + '°F', 'Min'),
+        createStatElement(avgTemp.toFixed(0) + '°F', 'Avg'),
+        createStatElement(maxTemp.toFixed(0) + '°F', 'Max'),
+        createStatElement(precipValue.toFixed(2) + '"', precipLabel),
+        createStatElement(data.length.toLocaleString(), 'Records')
+      );
+
+      updateStatus(data.length.toLocaleString() + ' records');
+    } catch (error) {
+      let errorMsg = error.message || String(error);
+      if (errorMsg.includes('WebAssembly') || errorMsg.includes('[object')) {
+        const urlMatches = query.match(/https?:\/\/[^\s'")]+/g);
+        if (urlMatches) {
+          console.group('Diagnosing URLs...');
+          for (const url of urlMatches) {
+            try {
+              const resp = await fetch(url, { method: 'HEAD' });
+              console.log((resp.ok ? 'OK' : 'FAIL') + ' ' + url + ' - ' + resp.status);
+            } catch (e) { console.log('FAIL ' + url + ' - ' + e.message); }
+          }
+          console.groupEnd();
+          errorMsg = 'File access error. Check console (F12).';
+        }
+      }
+      updateStatus('Error: ' + errorMsg);
+      console.error(error);
+    } finally {
+      const btn = document.getElementById('runQueryBtn');
+      btn.disabled = false;
+      btn.textContent = 'Run Query';
+    }
+  }
+
+  document.getElementById('runQueryBtn').addEventListener('click', runCustomQuery);
+  document.getElementById('applyBtn').addEventListener('click', applyInputsToQuery);
+  document.getElementById('exampleSelect').addEventListener('change', (e) => {
+    const key = e.target.value;
+    if (key && EXAMPLE_QUERIES[key]) {
+      document.getElementById('sqlQuery').value = EXAMPLE_QUERIES[key].query;
+      parseQueryToInputs(EXAMPLE_QUERIES[key].query);
+      e.target.value = '';
+    }
+  });
+
+  parseQueryToInputs(DEFAULT_QUERY);
+  document.getElementById('startDate').value = currentYear + '-01-01';
+  document.getElementById('endDate').value = defaultDates.end;
+  initDuckDB();
+</script>

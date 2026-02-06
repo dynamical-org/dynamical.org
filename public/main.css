@@ -83,6 +83,10 @@ body {
   background-color: var(--bg-color);
 }
 
+.content {
+  font-size: 1.8rem;
+}
+
 .status-pill {
   display: inline-block;
   padding: 0.05em 0.55em;
@@ -263,10 +267,6 @@ article {
 
 article img {
   max-width: 100%;
-}
-
-.content {
-  font-size: 1.8rem;
 }
 
 .content.centered {
