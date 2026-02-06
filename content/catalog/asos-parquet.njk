@@ -106,21 +106,8 @@ df = table.to_pandas()
     {% endframeHighlight %}
   </div>
 
-  <h2>Query Builder</h2>
-  <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem;">
-    <div>
-      <label for="startDate">Start</label><br>
-      <input type="date" id="startDate">
-    </div>
-    <div>
-      <label for="endDate">End</label><br>
-      <input type="date" id="endDate">
-    </div>
-    <div>
-      <label for="stationId">Station</label><br>
-      <input type="text" id="stationId" value="BNA" style="width: 6rem; text-transform: uppercase;">
-    </div>
-    <button id="applyBtn">Apply</button>
+  <h2>Query</h2>
+  <div style="margin-bottom: 1rem;">
     <select id="exampleSelect">
       <option value="">Examples...</option>
     </select>
@@ -132,7 +119,7 @@ df = table.to_pandas()
       <div class="frameHeaderSubtitle" id="status">Initializing...</div>
     </div>
     <div class="frameContent">
-      <textarea id="sqlQuery" style="width: 100%; height: 8rem; font-family: inherit; font-size: inherit; padding: 1rem; border: none; background: #1d1f21; color: #c5c8c6; resize: vertical;"></textarea>
+      <textarea id="sqlQuery" style="width: 100%; height: 16rem; font-family: inherit; font-size: inherit; padding: 1rem; border: none; background: #1d1f21; color: #c5c8c6; resize: vertical;"></textarea>
     </div>
   </div>
   <p><button id="runQueryBtn" disabled>Run Query</button></p>
@@ -158,20 +145,6 @@ df = table.to_pandas()
     return `${y}-${m}-${d}`;
   }
 
-  function parseDate(str) {
-    const [y, m, d] = str.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }
-
-  function getDefaultDates() {
-    const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const start = new Date(end);
-    start.setMonth(start.getMonth() - 3);
-    return { start: formatDate(start), end: formatDate(end) };
-  }
-
-  const defaultDates = getDefaultDates();
   const currentYear = new Date().getFullYear();
 
   function generateExampleQueries() {
@@ -221,58 +194,6 @@ ORDER BY valid`
 
   const EXAMPLE_QUERIES = generateExampleQueries();
   const DEFAULT_QUERY = EXAMPLE_QUERIES['default_ytd'].query;
-
-  function generatePartitionUrls(startDate, endDate) {
-    const urls = [];
-    const startYear = parseDate(startDate).getFullYear();
-    const endYear = parseDate(endDate).getFullYear();
-    for (let year = startYear; year <= endYear; year++) {
-      urls.push(`'${DATA_BASE_URL}/year=${year}/data.parquet'`);
-    }
-    return urls;
-  }
-
-  function generateQueryFromInputs() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    const station = document.getElementById('stationId').value.trim().toUpperCase();
-    if (!startDate || !endDate || !station) return null;
-
-    const urls = generatePartitionUrls(startDate, endDate);
-    const urlList = urls.length === 1 ? urls[0] : `[\n  ${urls.join(',\n  ')}\n]`;
-
-    return `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
-FROM read_parquet(${urlList})
-WHERE station = '${station}'
-ORDER BY valid`;
-  }
-
-  function parseQueryToInputs(query) {
-    const yearMatches = query.match(/year=(\d{4})/g);
-    if (yearMatches) {
-      const years = yearMatches.map(m => parseInt(m.replace('year=', '')));
-      const minYear = Math.min(...years);
-      const maxYear = Math.max(...years);
-      document.getElementById('startDate').value = minYear + '-01-01';
-      document.getElementById('endDate').value = maxYear + '-12-31';
-    }
-
-    const startMatch = query.match(/valid\s*>=?\s*'(\d{4}-\d{2}-\d{2})'/);
-    const endMatch = query.match(/valid\s*<?=?\s*'(\d{4}-\d{2}-\d{2})'/);
-    if (startMatch) document.getElementById('startDate').value = startMatch[1];
-    if (endMatch) document.getElementById('endDate').value = endMatch[1];
-
-    const stationMatch = query.match(/station\s*=\s*'([A-Z]{3,4})'/);
-    if (stationMatch) document.getElementById('stationId').value = stationMatch[1];
-
-    const inMatch = query.match(/station\s+IN\s*\(\s*'([A-Z]{3,4})'/);
-    if (inMatch) document.getElementById('stationId').value = inMatch[1] + '+';
-  }
-
-  function applyInputsToQuery() {
-    const newQuery = generateQueryFromInputs();
-    if (newQuery) document.getElementById('sqlQuery').value = newQuery;
-  }
 
   async function initDuckDB() {
     try {
@@ -542,18 +463,13 @@ ORDER BY valid`;
   }
 
   document.getElementById('runQueryBtn').addEventListener('click', runCustomQuery);
-  document.getElementById('applyBtn').addEventListener('click', applyInputsToQuery);
   document.getElementById('exampleSelect').addEventListener('change', (e) => {
     const key = e.target.value;
     if (key && EXAMPLE_QUERIES[key]) {
       document.getElementById('sqlQuery').value = EXAMPLE_QUERIES[key].query;
-      parseQueryToInputs(EXAMPLE_QUERIES[key].query);
       e.target.value = '';
     }
   });
 
-  parseQueryToInputs(DEFAULT_QUERY);
-  document.getElementById('startDate').value = currentYear + '-01-01';
-  document.getElementById('endDate').value = defaultDates.end;
   initDuckDB();
 </script>
