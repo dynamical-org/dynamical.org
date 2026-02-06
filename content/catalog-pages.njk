@@ -85,7 +85,7 @@ eleventyComputed:
     <h3>Related Datasets</h3>
     <ul>
       {% for dataset in model.datasets %}
-        {% if dataset.dataset_id != entry.dataset_id %}
+        {% if dataset.dataset_id != entry.dataset_id and dataset.status != "deprecated" %}
           <li>
             {% if dataset.status == 'live' or dataset.status == 'available' %}
               <a href="/catalog/{{ dataset.dataset_id | slugify }}">{{ dataset.name }}</a>

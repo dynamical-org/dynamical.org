@@ -77,6 +77,7 @@ const models = {
 };
 
 let entries = [
+  // This is the deprecated zarr v2 dataset. It has 4 variables, wasn't live updated, and is zarr v2.
   // noaa-gfs-analysis-hourly
   {
     modelId: "noaa-gfs",
@@ -121,7 +122,7 @@ let entries = [
         </p>
       `,
     url: "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
-    status: "available",
+    status: "deprecated",
     license: CC_BY_4,
     examples: [
       {
@@ -138,6 +139,70 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
+  },
+
+  // noaa-gfs-analysis
+  {
+    modelId: "noaa-gfs",
+    descriptionSummary: `
+        <p>
+        This analysis dataset is an archive of the model's best estimate of past weather.
+        It is created by concatenating the first few hours of each historical forecast to
+        provide a dataset with dimensions time, latitude, and longitude.
+        </p>
+      `,
+    descriptionDetails: `
+        <h3>Construction</h3>
+        <p>
+        GFS starts a new model run every 6 hours and
+        dynamical.org has created this analysis by concatenating the first 6
+        hours of each forecast along the time dimension.
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gfs/analysis/template_config.py">reformatting code</a>.
+        </p>
+
+        <h3>Deprecated related dataset</h3>
+        <p>
+        This dataset replaces the deprecated <a href="/catalog/noaa-gfs-analysis-hourly/">NOAA GFS analysis, hourly</a> dataset.
+        This dataset provides more variables and live updates and <a href="/catalog/noaa-gefs-analysis/">NOAA GEFS analysis</a> provides a much longer historical record.
+        </p>
+      `,
+    url: "https://data.dynamical.org/noaa/gfs/analysis/latest.zarr",
+    status: "live",
+    license: CC_BY_4,
+    examples: [
+      {
+        title: "Temperature at a specific place and time",
+        code: `
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis/latest.zarr")
+ds["temperature_2m"].sel(time="2026-01-01T00", latitude=0, longitude=0).compute()
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-icechunk.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis.ipynb",
   },
 
   // noaa-gfs-forecast
