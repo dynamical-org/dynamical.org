@@ -362,18 +362,17 @@ ORDER BY station, valid`
       // Temperature chart
       const tempChartContainer = document.getElementById('tempChart');
       const tempHeader = document.createElement('h3');
-      tempHeader.textContent = 'Temperature: ' + stationLabel;
+      tempHeader.textContent = 'Temperature (°F): ' + stationLabel;
 
       // More height when legend is shown (many stations = taller legend)
       const legendRows = isMultiStation ? Math.ceil(stations.length / 10) : 0;
       const tempChart = Plot.plot({
         width: 780,
         height: 200 + legendRows * 20,
-        marginLeft: 40,
         marginTop: 10,
         marginBottom: 35,
         x: { label: null, type: "time", domain: [minDate, maxDate] },
-        y: { label: "°F", grid: true },
+        y: { grid: true },
         color: isMultiStation ? { legend: true } : undefined,
         marks: [
           Plot.ruleY([32], { stroke: "#888", strokeDasharray: "4,4" }),
@@ -407,7 +406,7 @@ ORDER BY station, valid`
       else precipInterval = "day";
 
       const precipHeader = document.createElement('h3');
-      precipHeader.textContent = 'Precipitation: ' + stationLabel;
+      precipHeader.textContent = 'Precipitation (in): ' + stationLabel;
 
       let precipChart;
       if (isMultiStation) {
@@ -440,12 +439,10 @@ ORDER BY station, valid`
         const maxPrecip = Math.max(0, ...precipFilteredData.map(d => d.precip_inches));
         precipChart = Plot.plot({
           width: 780,
-          height: 100,
-          marginLeft: 40,
-          marginBottom: 20,
-          marginTop: 5,
+          height: 120,
+          marginBottom: 35,
           x: { label: null, type: "time", domain: [minDate, maxDate] },
-          y: { label: "in", grid: true, ticks: 2, domain: [0, maxPrecip || 0.1] },
+          y: { grid: true, ticks: 2, domain: [0, maxPrecip || 0.1] },
           marks: [
             Plot.ruleY([0]),
             Plot.rectY(precipFilteredData, Plot.binX(
