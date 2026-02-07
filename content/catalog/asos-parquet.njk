@@ -188,6 +188,59 @@ ORDER BY station, valid`
 FROM read_parquet('${DATA_BASE_URL}/year=1940/data.parquet')
 WHERE station = 'BNA'
 ORDER BY valid`
+      },
+      'london_ytd': {
+        label: 'London Heathrow (EGLL) - ' + currentYear + ' YTD',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station = 'EGLL'
+ORDER BY valid`
+      },
+      'tokyo_7d': {
+        label: 'Tokyo Haneda (RJTT) - Last 7 days',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station = 'RJTT'
+  AND valid >= '${formatDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))}'
+ORDER BY valid`
+      },
+      'sydney_last_year': {
+        label: 'Sydney (YSSY) - ' + (currentYear - 1),
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear - 1}/data.parquet')
+WHERE station = 'YSSY'
+ORDER BY valid`
+      },
+      'sao_paulo_30d': {
+        label: 'São Paulo (SBGR) - Last 30 days',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station = 'SBGR'
+  AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
+ORDER BY valid`
+      },
+      'cape_town_ytd': {
+        label: 'Cape Town (FACT) - ' + currentYear + ' YTD',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station = 'FACT'
+ORDER BY valid`
+      },
+      'singapore_90d': {
+        label: 'Singapore Changi (WSSS) - Last 90 days',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station = 'WSSS'
+  AND valid >= '${formatDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000))}'
+ORDER BY valid`
+      },
+      'global_cities': {
+        label: 'Global cities comparison - Last 30 days',
+        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
+WHERE station IN ('EGLL', 'RJTT', 'YSSY', 'SBGR', 'FACT', 'JFK')
+  AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
+ORDER BY station, valid`
       }
     };
   }
@@ -384,6 +437,7 @@ ORDER BY valid`
         });
       } else {
         // Bar chart for single station
+        const maxPrecip = Math.max(0, ...precipFilteredData.map(d => d.precip_inches));
         precipChart = Plot.plot({
           width: 780,
           height: 100,
@@ -391,7 +445,7 @@ ORDER BY valid`
           marginBottom: 20,
           marginTop: 5,
           x: { label: null, type: "time", domain: [minDate, maxDate] },
-          y: { label: "in", grid: true, ticks: 2 },
+          y: { label: "in", grid: true, ticks: 2, domain: [0, maxPrecip || 0.1] },
           marks: [
             Plot.ruleY([0]),
             Plot.rectY(precipFilteredData, Plot.binX(
