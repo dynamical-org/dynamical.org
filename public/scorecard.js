@@ -3,8 +3,8 @@
 const STATS_URL = "https://sa.dynamical.org/statistics.parquet";
 const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 
-const MODEL_ORDER = ["ECMWF IFS ENS", "NOAA GEFS", "NOAA GFS"];
-const MODEL_COLORS = ["#029E73", "#0173B2", "#56B4E9"];
+const MODEL_ORDER = ["ECMWF IFS ENS", "NOAA GEFS", "NOAA GFS", "NOAA HRRR"];
+const MODEL_COLORS = ["#029E73", "#0173B2", "#56B4E9", "#DE8F05"];
 const OBS_COLORS = { temperature_2m: "#591e71", precipitation_surface: "#253494" };
 const VAR_LABELS = { temperature_2m: "Temperature", precipitation_surface: "Precipitation" };
 const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };

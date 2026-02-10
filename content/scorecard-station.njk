@@ -40,13 +40,15 @@ permalink: /scorecard/station/{{ station.id }}/
           <td>{{ station.id }}</td>
         </tr>
         <tr>
-          <th>WMO ID</th>
-          <td>{{ station.wmo_id }}</td>
-        </tr>
-        <tr>
           <th>State</th>
           <td>{{ station.state_name }}</td>
         </tr>
+        {% if station.county %}
+        <tr>
+          <th>County</th>
+          <td>{{ station.county }}</td>
+        </tr>
+        {% endif %}
         <tr>
           <th>Latitude</th>
           <td>{{ station.latitude }}</td>
@@ -59,6 +61,18 @@ permalink: /scorecard/station/{{ station.id }}/
           <th>Elevation</th>
           <td>{{ station.elev }} m</td>
         </tr>
+        {% if station.wfo %}
+        <tr>
+          <th>WFO</th>
+          <td>{{ station.wfo }}</td>
+        </tr>
+        {% endif %}
+        {% if station.tzname %}
+        <tr>
+          <th>Timezone</th>
+          <td>{{ station.tzname }}</td>
+        </tr>
+        {% endif %}
       </table>
     </div>
     <div class="station-map">
