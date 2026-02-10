@@ -59,10 +59,11 @@ permalink: /catalog/asos-parquet/
 
   <h2>Data</h2>
   <p>
-    Each file contains the full set of decoded METAR fields for all global
-    ASOS/AWOS stations in a given year, including temperature, dewpoint,
-    precipitation, wind, visibility, cloud cover, pressure, and present-weather
-    codes. Latitude and longitude columns are included as a GeoParquet geometry,
+    Each file contains decoded METAR fields for all global ASOS/AWOS stations
+    in a given year, including temperature, dewpoint, precipitation, wind,
+    visibility, and pressure in both imperial and metric units. Station metadata
+    (name, elevation, state, country, county, WFO, timezone) is embedded in each
+    observation row. Latitude and longitude are included as a GeoParquet geometry,
     enabling spatial queries and direct use with geospatial tools.
   </p>
   <p>
@@ -76,7 +77,7 @@ permalink: /catalog/asos-parquet/
     Observations are stored as received from the Iowa Environmental Mesonet
     with no resampling, interpolation, or quality-control filtering applied.
     The raw METAR reports are decoded into tabular columns and written to
-    GeoParquet with Snappy compression. Updates are ingested hourly as new
+    GeoParquet with zstd compression. Updates are ingested hourly as new
     reports become available.
   </p>
 
@@ -90,19 +91,21 @@ permalink: /catalog/asos-parquet/
   <div class="frame">
     <div class="frameHeader">
       <div class="frameHeaderTitle">dynamical.org - Global Observations</div>
-      <div class="frameHeaderSubtitle">Open all shards with Python</div>
+      <div class="frameHeaderSubtitle">Query with DuckDB</div>
     </div>
     {% frameHighlight "py", "frameContent" %}
-import pyarrow.parquet as pq
-import pyarrow.fs as fs
+import duckdb
+from datetime import datetime
 
-s3 = fs.S3FileSystem(region="us-east-2", anonymous=True)
-dataset = pq.ParquetDataset(
-    "data.source.coop/dynamical/asos-parquet/",
-    filesystem=s3,
-)
-table = dataset.read()
-df = table.to_pandas()
+base = "https://data.source.coop/dynamical/asos-parquet"
+urls = [f"{base}/year={y}/data.parquet" for y in range(1940, datetime.now().year + 1)]
+
+df = duckdb.execute("""
+    SELECT valid, station, name, country, tmpf, dwpf, sknt, p01i
+    FROM read_parquet($1, hive_partitioning=true)
+    WHERE station = 'JFK'
+    ORDER BY valid
+""", [urls]).fetchdf()
     {% endframeHighlight %}
   </div>
 
@@ -151,14 +154,14 @@ df = table.to_pandas()
     return {
       'default_ytd': {
         label: currentYear + ' YTD - Nashville (BNA)',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station = 'BNA'
 ORDER BY valid`
       },
       'last_30_days': {
         label: 'Last 30 days - Nashville (BNA)',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station = 'BNA'
   AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
@@ -166,7 +169,7 @@ ORDER BY valid`
       },
       'multi_station': {
         label: 'Compare cities - Last 30 days',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station IN ('BNA', 'ORD', 'LAX', 'JFK')
   AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
@@ -175,7 +178,7 @@ ORDER BY station, valid`
       'bbox_query': {
         label: 'Spatial: Tennessee bbox',
         query: `-- Stations within Tennessee bounding box
-SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE longitude BETWEEN -90.3 AND -81.6
   AND latitude BETWEEN 35.0 AND 36.7
@@ -184,21 +187,21 @@ ORDER BY station, valid`
       },
       'historical_1940': {
         label: 'Historical - Nashville 1940',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=1940/data.parquet')
 WHERE station = 'BNA'
 ORDER BY valid`
       },
       'london_ytd': {
         label: 'London Heathrow (EGLL) - ' + currentYear + ' YTD',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station = 'EGLL'
 ORDER BY valid`
       },
       'tokyo_7d': {
         label: 'Tokyo Haneda (RJTT) - Last 7 days',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station = 'RJTT'
   AND valid >= '${formatDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))}'
@@ -206,14 +209,14 @@ ORDER BY valid`
       },
       'sydney_last_year': {
         label: 'Sydney (YSSY) - ' + (currentYear - 1),
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear - 1}/data.parquet')
 WHERE station = 'YSSY'
 ORDER BY valid`
       },
       'sao_paulo_30d': {
         label: 'São Paulo (SBGR) - Last 30 days',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station = 'SBGR'
   AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
@@ -221,14 +224,14 @@ ORDER BY valid`
       },
       'cape_town_ytd': {
         label: 'Cape Town (FACT) - ' + currentYear + ' YTD',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station = 'FACT'
 ORDER BY valid`
       },
       'singapore_90d': {
         label: 'Singapore Changi (WSSS) - Last 90 days',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station = 'WSSS'
   AND valid >= '${formatDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000))}'
@@ -236,7 +239,7 @@ ORDER BY valid`
       },
       'global_cities': {
         label: 'Global cities comparison - Last 30 days',
-        query: `SELECT valid, station, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
+        query: `SELECT valid, station, name, country, tmpf as temp_f, dwpf as dewpoint_f, p01i as precip_inches
 FROM read_parquet('${DATA_BASE_URL}/year=${currentYear}/data.parquet')
 WHERE station IN ('EGLL', 'RJTT', 'YSSY', 'SBGR', 'FACT', 'JFK')
   AND valid >= '${formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))}'
