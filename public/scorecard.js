@@ -12,15 +12,12 @@ const RMSE_HEIGHT = 360;
 const OBS_HEIGHT = 300;
 
 function showLoading(container, height) {
-  const w = Math.min(container.clientWidth || 600, 600);
   container.replaceChildren();
   Object.assign(container.style, {
     height: `${height}px`,
-    maxWidth: `${w}px`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    margin: "14px 40px",
     color: "var(--muted-text-2, #999)",
     backgroundColor: "var(--popup-bg, #fafafa)",
   });
@@ -122,7 +119,7 @@ export async function renderRMSE(
     const units = variable === "temperature_2m" ? "°C" : "mm/s";
     const chart = Plot.plot({
       title: `${VAR_LABELS[variable]} RMSE by Forecast Lead Time`,
-      width: Math.min(container.clientWidth || 600, 600),
+      width: container.clientWidth || 600,
       height: RMSE_HEIGHT,
       ...CHART_MARGINS,
       fx: { label: "Forecast lead time (days)", padding: 0.2 },
@@ -207,7 +204,7 @@ export async function renderObs(
 
     const chart = Plot.plot({
       title: `${VAR_LABELS[variable]} Observations`,
-      width: Math.min(container.clientWidth || 600, 600),
+      width: container.clientWidth || 600,
       height: OBS_HEIGHT,
       ...CHART_MARGINS,
       x: { label: null },
