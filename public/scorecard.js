@@ -3,8 +3,14 @@
 const STATS_URL = "https://sa.dynamical.org/statistics.parquet";
 const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 
-const MODEL_ORDER = ["ECMWF IFS ENS", "NOAA GEFS", "NOAA GFS", "NOAA HRRR"];
-const MODEL_COLORS = ["#029E73", "#0173B2", "#56B4E9", "#DE8F05"];
+// Color for each known model. Order here is the preferred display order.
+const MODEL_STYLE = new Map([
+  ["ECMWF IFS ENS", "#029E73"],
+  ["NOAA GEFS", "#0173B2"],
+  ["NOAA GFS", "#56B4E9"],
+  ["NOAA HRRR", "#DE8F05"],
+]);
+const FALLBACK_COLORS = ["#CC79A7", "#D55E00", "#F0E442", "#999999"];
 const OBS_COLORS = { temperature_2m: "#591e71", precipitation_surface: "#253494" };
 const VAR_LABELS = { temperature_2m: "Temperature", precipitation_surface: "Precipitation" };
 const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };
@@ -116,6 +122,24 @@ export async function renderRMSE(
       return;
     }
 
+    // Derive available models from the data rather than a hardcoded list.
+    const knownOrder = [...MODEL_STYLE.keys()];
+    const modelsInData = [...new Set(data.map((d) => d.model))].sort(
+      (a, b) => {
+        const ai = knownOrder.indexOf(a);
+        const bi = knownOrder.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      }
+    );
+    let fallbackIdx = 0;
+    const colorRange = modelsInData.map((m) => {
+      if (MODEL_STYLE.has(m)) return MODEL_STYLE.get(m);
+      return FALLBACK_COLORS[fallbackIdx++ % FALLBACK_COLORS.length];
+    });
+
     const units = variable === "temperature_2m" ? "°C" : "mm/s";
     const chart = Plot.plot({
       title: `${VAR_LABELS[variable]} RMSE by Forecast Lead Time`,
@@ -125,7 +149,7 @@ export async function renderRMSE(
       fx: { label: "Forecast lead time (days)", padding: 0.2 },
       x: { axis: null, padding: 0.1 },
       y: { label: `RMSE [${units}]`, grid: true },
-      color: { legend: true, domain: MODEL_ORDER, range: MODEL_COLORS },
+      color: { legend: true, domain: modelsInData, range: colorRange },
       marks: [
         Plot.barY(data, {
           fx: "lead_time_days",
