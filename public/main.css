@@ -402,6 +402,16 @@ article img {
   margin-top: 0.25rem;
 }
 
+.scorecard-chart {
+  max-width: 600px;
+}
+
+@media screen and (max-width: 768px) {
+  .scorecard-chart {
+    max-width: none;
+  }
+}
+
 .responsive-flex {
   display: flex;
   flex-wrap: wrap;
