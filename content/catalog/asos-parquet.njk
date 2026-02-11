@@ -24,6 +24,9 @@ permalink: /catalog/asos-parquet/
     <span class="status-pill status-pill--other">experimental</span>
     <h1 style="margin-top: 0;">Global Airport Observations (ASOS/AWOS)</h1>
   </div>
+  <p style="background: var(--pill-muted-bg); border: 1px solid var(--pill-muted-border); border-radius: 6px; padding: 1rem 1.2rem;">
+    <strong>Experimental dataset.</strong> This dataset may change or be removed without notice. Experimental datasets are not supported like the rest of the dynamical.org catalog.
+  </p>
   <table>
     <tr>
       <td>Spatial domain</td>
@@ -130,6 +133,7 @@ df = duckdb.execute("""
   <div id="stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 1rem; margin: 1rem 0;"></div>
   <div id="tempChart"></div>
   <div id="precipChart"></div>
+  <div id="resultsTable"></div>
 </div>
 
 <script type="module">
@@ -306,6 +310,56 @@ ORDER BY station, valid`
     return div;
   }
 
+  function renderTable(columns, rows) {
+    const container = document.getElementById('resultsTable');
+    const MAX_ROWS = 500;
+    const truncated = rows.length > MAX_ROWS;
+    const displayRows = truncated ? rows.slice(0, MAX_ROWS) : rows;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'overflow-x: auto; margin: 1rem 0;';
+
+    const table = document.createElement('table');
+    table.style.cssText = 'width: 100%; border-collapse: collapse; font-size: 0.9em;';
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    for (const col of columns) {
+      const th = document.createElement('th');
+      th.textContent = col;
+      th.style.cssText = 'text-align: left; padding: 0.4rem 0.8rem; border-bottom: 2px solid var(--pill-muted-border); white-space: nowrap;';
+      headerRow.appendChild(th);
+    }
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const row of displayRows) {
+      const tr = document.createElement('tr');
+      for (const col of columns) {
+        const td = document.createElement('td');
+        const val = row[col];
+        if (val === null || val === undefined) td.textContent = '';
+        else if (typeof val === 'bigint') td.textContent = val.toString();
+        else td.textContent = String(val);
+        td.style.cssText = 'padding: 0.3rem 0.8rem; border-bottom: 1px solid var(--pill-muted-border); white-space: nowrap;';
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+
+    wrapper.appendChild(table);
+    container.replaceChildren(wrapper);
+
+    if (truncated) {
+      const note = document.createElement('p');
+      note.style.color = '#888';
+      note.textContent = 'Showing first ' + MAX_ROWS.toLocaleString() + ' of ' + rows.length.toLocaleString() + ' rows.';
+      container.appendChild(note);
+    }
+  }
+
   async function runCustomQuery() {
     const query = document.getElementById('sqlQuery').value.trim();
     if (!query) { updateStatus('Enter a query'); return; }
@@ -320,9 +374,26 @@ ORDER BY station, valid`
       document.getElementById('tempChart').replaceChildren();
       document.getElementById('precipChart').replaceChildren();
       document.getElementById('stats').replaceChildren();
+      document.getElementById('resultsTable').replaceChildren();
 
       const result = await conn.query(query);
-      const data = result.toArray().map(row => {
+      const rows = result.toArray();
+
+      if (rows.length === 0) {
+        updateStatus('No results');
+        return;
+      }
+
+      const columns = result.schema.fields.map(f => f.name);
+      const canChart = columns.includes('valid') && columns.includes('temp_f');
+
+      if (!canChart) {
+        renderTable(columns, rows);
+        updateStatus(rows.length.toLocaleString() + ' records');
+        return;
+      }
+
+      const data = rows.map(row => {
         let timestamp = null;
         if (row.valid) {
           const val = Number(row.valid);
@@ -336,14 +407,6 @@ ORDER BY station, valid`
           station: row.station
         };
       });
-
-      if (data.length === 0) {
-        updateStatus('No results');
-        document.getElementById('tempChart').replaceChildren();
-        document.getElementById('precipChart').replaceChildren();
-        document.getElementById('stats').replaceChildren();
-        return;
-      }
 
       const tempData = data.filter(d => d.temp_f !== null && d.timestamp !== null);
 
