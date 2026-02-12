@@ -402,23 +402,13 @@ article img {
   margin-top: 0.25rem;
 }
 
-.scorecard-chart {
-  max-width: 600px;
-}
-
 .scorecard-chart figure {
   margin: 0;
-  max-width: 100%;
 }
 
 .scorecard-chart svg {
-  max-width: 100%;
+  width: 100%;
   height: auto;
-}
-@media screen and (max-width: 768px) {
-  .scorecard-chart {
-    max-width: none;
-  }
 }
 
 .responsive-flex {
