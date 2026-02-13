@@ -123,11 +123,16 @@ module.exports = function (eleventyConfig) {
       });
 
       repoContributors.forEach((contributor) => {
-        contributorsSet.add(contributor.login);
+        if (contributor.type !== "Bot") {
+          contributorsSet.add(contributor.login);
+        }
       });
     }
 
-    const contributorsList = Array.from(contributorsSet).sort();
+    const botLogins = new Set(["dependabot[bot]", "claude", "Copilot"]);
+    const contributorsList = Array.from(contributorsSet)
+      .filter((login) => !botLogins.has(login))
+      .sort();
     return contributorsList;
   });
 
