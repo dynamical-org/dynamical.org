@@ -349,7 +349,8 @@ article img {
   margin: 1rem 0;
 }
 
-.content input {
+.content input,
+.content select {
   font-size: inherit;
 }
 

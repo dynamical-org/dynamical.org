@@ -91,6 +91,7 @@ permalink: /scorecard/station/{{ station.id }}/
   <div class='responsive-flex'>
     <h2>Temperature</h2>
     <div>
+      <select id="temp-metric"></select>
       <input type="radio" id="temp_180" name="temp_window" value="180" checked>
       <label for="temp_180">180 days</label>
       <input type="radio" id="temp_90" name="temp_window" value="90">
@@ -102,6 +103,7 @@ permalink: /scorecard/station/{{ station.id }}/
   <div class='responsive-flex'>
     <h2>Precipitation</h2>
     <div>
+      <select id="precip-metric"></select>
       <input type="radio" id="precip_180" name="precip_window" value="180" checked>
       <label for="precip_180">180 days</label>
       <input type="radio" id="precip_90" name="precip_window" value="90">
@@ -166,19 +168,44 @@ permalink: /scorecard/station/{{ station.id }}/
 
 </script>
 <script type="module">
-  import { renderRMSE, renderObs } from '/scorecard.js';
+  import { renderMetric, renderObs, VARIABLE_METRICS, DEFAULT_METRIC } from '/scorecard.js';
+
+  function populateMetricSelect(selectEl, variable) {
+    const metrics = VARIABLE_METRICS[variable];
+    const defaultMetric = DEFAULT_METRIC[variable];
+    metrics.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m === 'FrequencyBias' ? 'Frequency Bias' : m;
+      if (m === defaultMetric) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  const tempMetricEl = document.getElementById('temp-metric');
+  const precipMetricEl = document.getElementById('precip-metric');
+  populateMetricSelect(tempMetricEl, 'temperature_2m');
+  populateMetricSelect(precipMetricEl, 'precipitation_surface');
+
   const stationId = '{{ station.id }}';
   const charts = {
-    temp: { obs: document.getElementById('temperature_2m-obs'), score: document.getElementById('temperature_2m-score'), variable: 'temperature_2m', windowDays: 180 },
-    precip: { obs: document.getElementById('precipitation_surface-obs'), score: document.getElementById('precipitation_surface-score'), variable: 'precipitation_surface', windowDays: 180 },
+    temp: { obs: document.getElementById('temperature_2m-obs'), score: document.getElementById('temperature_2m-score'), variable: 'temperature_2m', metricEl: tempMetricEl, windowDays: 180 },
+    precip: { obs: document.getElementById('precipitation_surface-obs'), score: document.getElementById('precipitation_surface-score'), variable: 'precipitation_surface', metricEl: precipMetricEl, windowDays: 180 },
   };
+
+  function renderScore(kind) {
+    const c = charts[kind];
+    renderMetric(c.score, { variable: c.variable, metric: c.metricEl.value, stationIds: [stationId], windowDays: c.windowDays });
+  }
   function renderVar(kind) {
     const c = charts[kind];
     renderObs(c.obs, { station: stationId, variable: c.variable, windowDays: c.windowDays });
-    renderRMSE(c.score, { variable: c.variable, stationIds: [stationId], windowDays: c.windowDays });
+    renderScore(kind);
   }
+
   renderVar('temp');
   renderVar('precip');
+
   function setupRadio(kind) {
     document.querySelectorAll(`input[name="${kind}_window"]`).forEach(radio => {
       radio.addEventListener('change', () => {
@@ -189,4 +216,8 @@ permalink: /scorecard/station/{{ station.id }}/
   }
   setupRadio('temp');
   setupRadio('precip');
+
+  // Metric change only re-renders the score chart, not the observation timeseries.
+  tempMetricEl.addEventListener('change', () => renderScore('temp'));
+  precipMetricEl.addEventListener('change', () => renderScore('precip'));
 </script>

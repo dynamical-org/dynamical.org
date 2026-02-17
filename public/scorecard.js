@@ -14,8 +14,29 @@ const FALLBACK_COLORS = ["#CC79A7", "#D55E00", "#F0E442", "#999999"];
 const OBS_COLORS = { temperature_2m: "#591e71", precipitation_surface: "#253494" };
 const VAR_LABELS = { temperature_2m: "Temperature", precipitation_surface: "Precipitation" };
 const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };
-const RMSE_HEIGHT = 360;
+const METRIC_HEIGHT = 360;
 const OBS_HEIGHT = 300;
+
+// Per-metric display configuration.
+const METRIC_CONFIG = {
+  RMSE:          { label: "RMSE",           unitType: "standard", refValue: 0 },
+  MAE:           { label: "MAE",            unitType: "standard", refValue: 0 },
+  Bias:          { label: "Bias",           unitType: "standard", refValue: 0 },
+  CRPS:          { label: "CRPS",           unitType: "standard", refValue: 0 },
+  ETS:           { label: "ETS",            unitType: "unitless", refValue: 0 },
+  FrequencyBias: { label: "Frequency Bias", unitType: "unitless", refValue: 1 },
+};
+
+// Which metrics are available for each variable, and which is the default.
+export const VARIABLE_METRICS = {
+  temperature_2m:       ["RMSE", "MAE", "Bias", "CRPS"],
+  precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias"],
+};
+
+export const DEFAULT_METRIC = {
+  temperature_2m:       "RMSE",
+  precipitation_surface: "MAE",
+};
 
 function showLoading(container, height) {
   container.replaceChildren();
@@ -87,13 +108,16 @@ async function getPlot() {
   return _Plot;
 }
 
-// ── RMSE bar chart ──────────────────────────────────────────────────────────
+// ── Metric bar chart ────────────────────────────────────────────────────────
 
-export async function renderRMSE(
+export async function renderMetric(
   container,
-  { variable, stationIds, windowDays }
+  { variable, metric, stationIds, windowDays }
 ) {
-  showLoading(container, RMSE_HEIGHT);
+  const resolvedMetric = metric || DEFAULT_METRIC[variable] || "RMSE";
+  const cfg = METRIC_CONFIG[resolvedMetric] || METRIC_CONFIG.RMSE;
+
+  showLoading(container, METRIC_HEIGHT);
   try {
     const Plot = await getPlot();
 
@@ -107,9 +131,10 @@ export async function renderRMSE(
       SELECT
         CAST(lead_time / 86400000000000 AS INTEGER) AS lead_time_days,
         model,
-        AVG(RMSE) AS rmse
+        AVG(value) AS value
       FROM '${STATS_URL}'
       WHERE variable = '${variable}'
+        AND metric = '${resolvedMetric}'
         AND "window" / 86400000000000 = ${windowDays}
         ${stationFilter}
       GROUP BY lead_time_days, model
@@ -140,32 +165,36 @@ export async function renderRMSE(
       return FALLBACK_COLORS[fallbackIdx++ % FALLBACK_COLORS.length];
     });
 
-    const units = variable === "temperature_2m" ? "°C" : "mm/s";
+    const varUnits = variable === "temperature_2m" ? "°C" : "mm/s";
+    const yLabel =
+      cfg.unitType === "unitless"
+        ? cfg.label
+        : `${cfg.label} [${varUnits}]`;
+
     const chart = Plot.plot({
-      title: `${VAR_LABELS[variable]} RMSE by Forecast Lead Time`,
       width: container.clientWidth || 600,
-      height: RMSE_HEIGHT,
+      height: METRIC_HEIGHT,
       ...CHART_MARGINS,
       fx: { label: "Forecast lead time (days)", padding: 0.2 },
       x: { axis: null, padding: 0.1 },
-      y: { label: `RMSE [${units}]`, grid: true },
+      y: { label: yLabel, grid: true },
       color: { legend: true, domain: modelsInData, range: colorRange },
       marks: [
         Plot.barY(data, {
           fx: "lead_time_days",
           x: "model",
-          y: "rmse",
+          y: "value",
           fill: "model",
           tip: false,
         }),
-        Plot.ruleY([0]),
+        Plot.ruleY([cfg.refValue]),
       ],
     });
 
     clearLoading(container);
     container.replaceChildren(chart);
   } catch (e) {
-    console.error("renderRMSE failed:", e);
+    console.error("renderMetric failed:", e);
     clearLoading(container);
     container.textContent = "Failed to load chart";
   }
@@ -227,7 +256,6 @@ export async function renderObs(
     }
 
     const chart = Plot.plot({
-      title: `${VAR_LABELS[variable]} Observations`,
       width: container.clientWidth || 600,
       height: OBS_HEIGHT,
       ...CHART_MARGINS,

@@ -42,7 +42,15 @@ title: Scorecard
           <a href="/scorecard/observation-data/">observation data details</a>.
         </p>
       </div>
+      <div class="responsive-flex">
+        <h2>Temperature</h2>
+        <select id="temp-metric"></select>
+      </div>
       <div id="temperature-chart" class="scorecard-chart"></div>
+      <div class="responsive-flex">
+        <h2>Precipitation</h2>
+        <select id="precip-metric"></select>
+      </div>
       <div id="precipitation-chart" class="scorecard-chart"></div>
       <div id="station-list">
         {% for state, stations_in_state in scorecard.index.stations | sort(attribute="state_name") | groupby("state_name") %}
@@ -123,19 +131,46 @@ title: Scorecard
       });
     </script>
     <script type="module">
-      import { renderRMSE } from '/scorecard.js';
+      import { renderMetric, VARIABLE_METRICS, DEFAULT_METRIC } from '/scorecard.js';
+
+      // Populate metric dropdowns
+      function populateMetricSelect(selectEl, variable) {
+        const metrics = VARIABLE_METRICS[variable];
+        const defaultMetric = DEFAULT_METRIC[variable];
+        metrics.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m === 'FrequencyBias' ? 'Frequency Bias' : m;
+          if (m === defaultMetric) opt.selected = true;
+          selectEl.appendChild(opt);
+        });
+      }
+
+      const tempMetricEl = document.getElementById('temp-metric');
+      const precipMetricEl = document.getElementById('precip-metric');
+      populateMetricSelect(tempMetricEl, 'temperature_2m');
+      populateMetricSelect(precipMetricEl, 'precipitation_surface');
+
       const tempEl = document.getElementById('temperature-chart');
       const precipEl = document.getElementById('precipitation-chart');
       let windowDays = 180;
-      function render() {
-        renderRMSE(tempEl, { variable: 'temperature_2m', windowDays });
-        renderRMSE(precipEl, { variable: 'precipitation_surface', windowDays });
+
+      function renderTemp() {
+        renderMetric(tempEl, { variable: 'temperature_2m', metric: tempMetricEl.value, windowDays });
       }
-      render();
+      function renderPrecip() {
+        renderMetric(precipEl, { variable: 'precipitation_surface', metric: precipMetricEl.value, windowDays });
+      }
+      function renderAll() { renderTemp(); renderPrecip(); }
+
+      renderAll();
+
       document.querySelectorAll('input[name="window"]').forEach(radio => {
         radio.addEventListener('change', () => {
           windowDays = Number(radio.value);
-          render();
+          renderAll();
         });
       });
+      tempMetricEl.addEventListener('change', renderTemp);
+      precipMetricEl.addEventListener('change', renderPrecip);
     </script>
