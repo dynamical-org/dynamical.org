@@ -25,12 +25,13 @@ const METRIC_CONFIG = {
   CRPS:          { label: "CRPS",           unitType: "standard", refValue: 0 },
   ETS:           { label: "ETS",            unitType: "unitless", refValue: 0 },
   FrequencyBias: { label: "Frequency Bias", unitType: "unitless", refValue: 1 },
+  HSS:           { label: "HSS",            unitType: "unitless", refValue: 0 },
 };
 
 // Which metrics are available for each variable, and which is the default.
 export const VARIABLE_METRICS = {
   temperature_2m:       ["RMSE", "MAE", "Bias", "CRPS"],
-  precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias"],
+  precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias", "HSS"],
 };
 
 export const DEFAULT_METRIC = {
@@ -177,7 +178,7 @@ export async function renderMetric(
       ...CHART_MARGINS,
       fx: { label: "Forecast lead time (days)", padding: 0.2 },
       x: { axis: null, padding: 0.1 },
-      y: { label: yLabel, grid: true },
+      y: { label: yLabel, grid: true, labelArrow: "none" },
       color: { legend: true, domain: modelsInData, range: colorRange },
       marks: [
         Plot.barY(data, {
@@ -260,7 +261,7 @@ export async function renderObs(
       height: OBS_HEIGHT,
       ...CHART_MARGINS,
       x: { label: null },
-      y: { label: yLabel, grid: true },
+      y: { label: yLabel, grid: true, labelArrow: "none" },
       marks,
     });
 
