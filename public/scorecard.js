@@ -26,12 +26,13 @@ const METRIC_CONFIG = {
   ETS:           { label: "ETS",            unitType: "unitless", refValue: 0 },
   FrequencyBias: { label: "Frequency Bias", unitType: "unitless", refValue: 1 },
   HSS:           { label: "HSS",            unitType: "unitless", refValue: 0 },
+  FSS:           { label: "FSS",            unitType: "unitless", refValue: 0 },
 };
 
 // Which metrics are available for each variable, and which is the default.
 export const VARIABLE_METRICS = {
   temperature_2m:       ["RMSE", "MAE", "Bias", "CRPS"],
-  precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias", "HSS"],
+  precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias", "HSS", "FSS"],
 };
 
 export const DEFAULT_METRIC = {
