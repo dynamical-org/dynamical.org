@@ -10,7 +10,7 @@ permalink: /scorecard/metrics/
 
 Scorecard metrics compare forecast values against surface observations at each station and lead time. All metrics are computed over daily lead-time bins and averaged across initialization times within the selected window (90 or 180 days).
 
-Deterministic metrics (RMSE, MAE, Bias, ETS, Frequency Bias, HSS) are applied to the ensemble mean for ensemble models, or directly for deterministic models. CRPS is the only metric that uses individual ensemble members; for deterministic models it reduces to MAE.
+Deterministic metrics (RMSE, MAE, Bias, ETS, Frequency Bias, HSS, FSS) are applied to the ensemble mean for ensemble models, or directly for deterministic models. CRPS is the only metric that uses individual ensemble members; for deterministic models it reduces to MAE.
 
 For precipitation, both forecast and observed values are first resampled to 6-hour averages before any metric is computed.
 
@@ -114,6 +114,29 @@ def hss(forecast, observed):
     numer = 2 * (h * cn - f * m)
     denom = (h + m) * (m + cn) + (h + f) * (f + cn)
     return numer / denom
+```
+
+## FSS (Fractions Skill Score)
+
+Measures forecast skill by comparing the fractional coverage of precipitation events within a spatial neighborhood, rather than requiring exact grid-point matches. Uses the same 0.1 mm/h precipitation threshold as ETS, Frequency Bias, and HSS. FSS ranges from 0 to 1, where 1 is a perfect forecast and 0 indicates no skill. Unlike point-based categorical metrics, FSS gives credit for forecasts that are close in space, making it more forgiving of small spatial displacement errors. Applied to precipitation only.
+
+FSS is computed by comparing the observed and forecast fractions of precipitation events within a neighborhood:
+
+```python
+def fss(forecast, observed):
+    f_binary = (forecast >= PRECIP_THRESHOLD_MM_S).astype(float)
+    o_binary = (observed >= PRECIP_THRESHOLD_MM_S).astype(float)
+
+    # Compute fractions over the neighborhood (spatial smoothing)
+    f_frac = uniform_filter(f_binary, size=neighborhood_size)
+    o_frac = uniform_filter(o_binary, size=neighborhood_size)
+
+    # Sum counts over daily lead-time bins and init_times
+    f_frac, o_frac = [_daily_mean(x) for x in (f_frac, o_frac)]
+
+    mse = ((f_frac - o_frac) ** 2).mean()
+    ref = (f_frac ** 2).mean() + (o_frac ** 2).mean()
+    return 1 - mse / ref
 ```
 
 ## Contingency Table
