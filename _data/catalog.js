@@ -135,10 +135,11 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
+    // Intentionally removed
+    // githubUrl:
+    //   "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
+    // colabUrl:
+    //   "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
   },
 
   // noaa-gfs-analysis
@@ -530,6 +531,21 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         of each forecast along the time dimension. Accumulated variables
         (e.g. precipitation) are read from the second step of the previous
         hour's forecast.
+        </p>
+
+        <h3>Data availability</h3>
+        <p>
+        There are a significant number of missing source files before August 2018 (HRRR v1 and v2 period),
+        and a small number from August 2018 to December 2020 (HRRR v3 period).
+        </p>
+
+        <p>
+        <code>downward_long_wave_radiation_flux_surface</code> and <code>relative_humidity_2m</code> are
+        unavailable before August 2016 (HRRR v1 period).
+        </p>
+
+        <p>
+        This dataset has NaN values where source data are unavailable.
         </p>
 
         <h3>Sources</h3>
