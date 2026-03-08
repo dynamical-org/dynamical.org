@@ -30,18 +30,41 @@ permalink: 'earthmover/{{entry.dataset_id}}.md'
 > to update their client libraries to Icechunk 2. Subscribe to our
 > [newsletter](https://dynamical.org/updates/) to be notified when that happens.
 
+_Don't see what you're looking for or have a question? Contact feedback@dynamical.org._
+
 ## Examples
 
 * [Open notebook in github]({{ entry.githubIcechunkUrl }})
 * [Open notebook in colab]({{ entry.githubIcechunkUrl | replace("https://github.com/", "https://colab.research.google.com/github/") }})
 
-## Contact
+## Dimensions
 
-Don't see what your looking for or have a question? Contact feedback@dynamical.org.
+| dimension | min | max | units |
+|-------|-------|-------|-------|
+{% for dim in entry.dimensions -%}
+| **{{ dim.name }}** | {{ dim.statistics_approximate.min }} | {{ dim.statistics_approximate.max }} | {{ dim.units }} |
+{% endfor %}
+
+## Variables
+
+| variable | units | dimensions |
+|-------|-------|-------|
+{% for variable in entry.variables -%}
+| **{{ variable.name }}**{% if variable.long_name %}<br>{{ variable.long_name }}{% endif %}{% if variable.comment %}<br>{{ variable.comment }}{% endif %} | {{ variable.units }} | {{ variable.dimension_names.join(' × ') }} |
+{% endfor %}
+
+Contact feedback@dynamical.org to request additional variables.
 
 ## Details
 
 ### License
-{{ entry.license | striptags }}
+{{ entry.licenseMd }}
+
+### Attribution and citation
+_{{ entry.attribution }}_
+
+Or _{{ model.name }} from dynamical.org._
+
+[DOI: 10.5281/zenodo.18777399](https://doi.org/10.5281/zenodo.18777399)
 
 {{ entry.descriptionDetailsMd }}

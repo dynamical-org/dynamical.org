@@ -4,7 +4,6 @@ const { uniq } = require("lodash");
 const CC_BY_4 = `
         <p>
         Dataset licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
-        Attribution can be found in the dataset's metadata, e.g. <code>ds.attrs["attribution"]</code>.
         </p>
 `
 
@@ -160,12 +159,20 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         hours of each forecast along the time dimension.
         </p>
 
+        <h3>Source</h3>
+        <p>
+        The source grib files this archive is constructed from are provided by
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-gfs-bdp-pds/">AWS Open Data Registry</a>.
+        Operational data is additionally accessed from <a href="https://nomads.ncep.noaa.gov/">NOAA NOMADS</a>.
+        </p>
+
         <h3>Storage</h3>
         <p>
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -218,12 +225,20 @@ ds["temperature_2m"].sel(time="2026-01-01T00", latitude=0, longitude=0).compute(
         </p>
       `,
     descriptionDetails: `
+        <h3>Source</h3>
+        <p>
+        The source grib files this archive is constructed from are provided by
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-gfs-bdp-pds/">AWS Open Data Registry</a>.
+        Operational data is additionally accessed from <a href="https://nomads.ncep.noaa.gov/">NOAA NOMADS</a>.
+        </p>
+
         <h3>Storage</h3>
         <p>
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -284,12 +299,20 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         latitude and longitude dimensions (e.g. <code>array[::2, ::2]</code>).
         </p>
 
+        <h3>Source</h3>
+        <p>
+        The source grib files this archive is constructed from are provided by
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-gefs/">AWS Open Data Registry</a>.
+        Operational data is additionally accessed from <a href="https://nomads.ncep.noaa.gov/">NOAA NOMADS</a>.
+        </p>
+
         <h3>Storage</h3>
         <p>
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -346,6 +369,12 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
           <li>From 2020-09-23 to Present we use <a href="https://registry.opendata.aws/noaa-gefs/">GEFS operational forecast archives</a>.</li>
         </ul>
 
+        <p>
+        Source files are provided by <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-gefs/">AWS Open Data Registry</a>.
+        Operational data is additionally accessed from <a href="https://nomads.ncep.noaa.gov/">NOAA NOMADS</a>.
+        </p>
+
         <h3>Variable availability</h3>
         <p>
         Data is available for all variables at all times with the following exceptions.
@@ -394,7 +423,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -451,11 +480,12 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
         </p>
       `,
     descriptionDetails: `
-        <h3>Sources</h3>
+        <h3>Source</h3>
         <p>
         The source grib files this archive is constructed from are provided by
-        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemniation (NODD)</a>
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
         and accessed from the <a href="https://registry.opendata.aws/noaa-hrrr-pds/">AWS Open Data Registry</a>.
+        Operational data is additionally accessed from <a href="https://nomads.ncep.noaa.gov/">NOAA NOMADS</a>.
         </p>
 
         <h3>Data availability</h3>
@@ -470,7 +500,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -548,11 +578,12 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         This dataset has NaN values where source data are unavailable.
         </p>
 
-        <h3>Sources</h3>
+        <h3>Source</h3>
         <p>
         The source grib files this archive is constructed from are provided by
         <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
         and accessed from the <a href="https://registry.opendata.aws/noaa-hrrr-pds/">AWS Open Data Registry</a>.
+        Operational data is additionally accessed from <a href="https://nomads.ncep.noaa.gov/">NOAA NOMADS</a>.
         </p>
 
         <h3>Storage</h3>
@@ -560,7 +591,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -643,7 +674,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
         Storage for this dataset is generously provided by
         <a href="https://source.coop/">Source Cooperative</a>,
         a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        Icechunk storage generously provided by <a href="https://opendata.aws.amazon.com/">AWS Open Data</a>.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
         </p>
 
         <h3>Compression</h3>
@@ -663,7 +694,7 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
         This data is based on data and products of the European Centre for
         Medium-Range Weather Forecasts (ECMWF). Use is governed by the
         <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> license
-        and the ECMWF <a href='https://apps.ecmwf.int/datasets/licences/general/'>Terms of Use</a>.
+        and the ECMWF <a href="https://apps.ecmwf.int/datasets/licences/general/">Terms of Use</a>.
         </p>
     `,
     examples: [
@@ -696,7 +727,7 @@ function htmlToMarkdown(html) {
 
   let md = html;
   // Replace <a href="url">text</a> with [text](url)
-  md = md.replace(/<a href="([^"]+)">(.*?)<\/a>/g, "[$2]($1)");
+  md = md.replace(/<a href=["']([^"']+)["']>(.*?)<\/a>/g, "[$2]($1)");
   // Replace <code>text</code> with `text`
   md = md.replace(/<code>(.*?)<\/code>/g, "`$1`");
   // Replace <h1>title</h1> with # title\n
@@ -743,6 +774,9 @@ module.exports = async function () {
   entries.forEach((entry) => {
     if (entry.descriptionDetails) {
       entry.descriptionDetailsMd = htmlToMarkdown(entry.descriptionDetails);
+    }
+    if (entry.license) {
+      entry.licenseMd = htmlToMarkdown(entry.license);
     }
   });
 

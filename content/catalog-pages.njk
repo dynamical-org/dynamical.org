@@ -208,12 +208,14 @@ eleventyComputed:
     <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
   </p>
   <h2>Details</h2>
-  <p>
     <h3>License</h3>
     {{- entry.license | safe }}
+
+    <h3>Attribution and citation</h3>
+    <p><i>{{ entry.attribution }}</i></p>
+    <p>Or <i>{{ model.name }} from dynamical.org.</i></p>
     <p>
     <a href="https://doi.org/10.5281/zenodo.18777399"><img src="https://zenodo.org/badge/859043226.svg" alt="DOI"/></a>
     </p>
     {{ entry.descriptionDetails | safe }}
-  </p>
 </div>
