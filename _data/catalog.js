@@ -56,6 +56,22 @@ const models = {
     agency: "NOAA",
     type: "Regional Weather Model",
   },
+  "noaa-mrms": {
+    name: "NOAA MRMS",
+    shortName: "MRMS",
+    description: `
+      <p>
+      The NOAA Multi-Radar/Multi-Sensor System (MRMS) integrates data from
+      multiple radars and radar networks, surface observations, numerical
+      weather prediction (NWP) models, and climatology to generate seamless,
+      high spatio-temporal resolution mosaics at low latency focused on hail,
+      wind, tornado, quantitative precipitation estimations, convection, icing,
+      and turbulence.
+      </p>
+    `,
+    agency: "NOAA",
+    type: "Regional Weather Analysis",
+  },
   "ecmwf-ifs-ens": {
     name: "ECMWF IFS ENS",
     shortName: "IFS ENS",
@@ -625,6 +641,64 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
       "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis-icechunk.ipynb",
     colabUrl:
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis.ipynb",
+  },
+
+  // noaa-mrms-conus-analysis-hourly
+  {
+    modelId: "noaa-mrms",
+    descriptionSummary: `
+        <p>
+        This analysis dataset is an archive of MRMS radar and multi-sensor
+        precipitation and weather analyses over the contiguous United States (CONUS).
+        </p>
+      `,
+    descriptionDetails: `
+        <h3>Source</h3>
+        <p>
+        The source files this archive is constructed from are provided by
+        <a href="https://www.noaa.gov/information-technology/open-data-dissemination">NOAA Open Data Dissemination (NODD)</a>
+        and accessed from the <a href="https://registry.opendata.aws/noaa-mrms-pds/">AWS Open Data Registry</a>.
+        Operational data is additionally accessed from <a href="https://mrms.ncep.noaa.gov/">NCEP</a>.
+        </p>
+
+        <h3>Storage</h3>
+        <p>
+        Storage for this dataset is generously provided by
+        <a href="https://source.coop/">Source Cooperative</a>,
+        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
+        Icechunk storage generously provided by <a href="https://aws.amazon.com/opendata/">AWS Open Data</a>.
+        </p>
+
+        <h3>Compression</h3>
+        <p>
+        The data values in this dataset have been rounded in their binary
+        floating point representation to improve compression. See
+        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
+        for more information on this approach. The exact number of rounded bits
+        can be found in our
+        <a href="https://github.com/dynamical-org/reformatters/">reformatting code</a>.
+        </p>
+      `,
+    url: "https://data.dynamical.org/noaa/mrms/conus-analysis-hourly/latest.zarr",
+    status: "live",
+    license: CC_BY_4,
+    examples: [
+      {
+        title: "Precipitation at a place and time",
+        code: `
+import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
+
+ds = xr.open_zarr("https://data.dynamical.org/noaa/mrms/conus-analysis-hourly/latest.zarr")
+ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90, method="nearest").compute()
+    `,
+      },
+    ],
+    githubUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-mrms-conus-analysis-hourly.ipynb",
+    githubIcechunkUrl:
+      "https://github.com/dynamical-org/notebooks/blob/main/noaa-mrms-conus-analysis-hourly-icechunk.ipynb",
+    colabUrl:
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-mrms-conus-analysis-hourly.ipynb",
   },
 
   // ecmwf-ifs-ens-forecast-15-day-0-25-degree
