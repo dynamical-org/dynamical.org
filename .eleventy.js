@@ -159,6 +159,14 @@ module.exports = function (eleventyConfig) {
     }
   });
 
+  eleventyConfig.addFilter("roundIfNumber", function (value, decimals) {
+    if (typeof value === "number") {
+      const factor = Math.pow(10, decimals ?? 0);
+      return Math.round(value * factor) / factor;
+    }
+    return value;
+  });
+
   eleventyConfig.addFilter("find", function (array, property, value) {
     if (!Array.isArray(array)) {
       return undefined;

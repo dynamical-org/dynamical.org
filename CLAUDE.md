@@ -25,7 +25,7 @@ npm run clean      # Remove docs/ and .cache/
   - `scorecard/index.js` - Weather station scorecard data (fetches from external CSV)
 - `_includes/` - Reusable Nunjucks templates (layouts, partials)
 - `public/` - Static assets copied directly to output
-- `docs/` - Build output (deployed to GitHub Pages)
+- `docs/` - Build output (deployed to Cloudflare Pages, not checked in)
 
 ### Data Flow
 
@@ -53,4 +53,4 @@ Templates in `content/catalog-pages.njk` use Eleventy pagination to generate ind
 
 ## Deployment
 
-Commits to `main` automatically deploy to GitHub Pages. The `docs/` directory is the build output and is version controlled.
+Commits to `main` automatically deploy to Cloudflare Pages. The `docs/` directory is the build output and is regenerated each build and is not checked in.
