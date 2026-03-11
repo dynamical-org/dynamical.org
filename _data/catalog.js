@@ -653,6 +653,27 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
         </p>
       `,
     descriptionDetails: `
+        <h3>Spatial coverage</h3>
+        <p>
+        Use this dataset over the land areas of the contiguous United States. Radar-only and
+        precipitation type variables contain <code>NaN</code> values beyond the range of US radar.
+        <code>precipitation_pass_1_surface</code> and <code>precipitation_pass_2_surface</code> extend further
+        into the ocean, but still contain <code>NaN</code> values in the southeast corner of the domain
+        over the Atlantic.
+        </p>
+
+        <h3>Temporal coverage</h3>
+        <p>
+        <code>precipitation_surface</code> combines multiple MRMS products to minimize missing values.
+        Despite this, some hours (particularly early in the record) contain <code>NaN</code> values where
+        data is unavailable.
+        </p>
+
+        <p>
+        <code>precipitation_pass_2_surface</code> and <code>precipitation_pass_1_surface</code> are available
+        starting 2020-10-15. For timestamps prior to this date, these variables are filled with <code>NaN</code>.
+        </p>
+
         <h3>Source</h3>
         <p>
         The source files this archive is constructed from are provided by
