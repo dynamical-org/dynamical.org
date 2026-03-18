@@ -617,9 +617,23 @@ article img {
     display: none;
   }
 
+  .hero-content {
+    text-align: center;
+  }
+
   .hero-stats {
     flex-wrap: wrap;
     gap: 1.6rem 0;
+    justify-content: center;
+  }
+
+  .hero-stat {
+    border-left: none;
+    padding: 0 1.6rem;
+  }
+
+  .hero-stat:first-child {
+    border-left: none;
   }
 
   .frame {
