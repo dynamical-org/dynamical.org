@@ -9,6 +9,9 @@
 
   var DEG2RAD = Math.PI / 180;
   var RAD2DEG = 180 / Math.PI;
+  var TWO_PI = 2 * Math.PI;
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
 
   // --- Hash-based 3D value noise ---
   function hash3(ix, iy, iz) {
@@ -53,19 +56,71 @@
   var angle = 0;
 
   // --- Lighting & rotation ---
-  var ll = Math.sqrt(0.7 * 0.7 + 0.25 * 0.25 + 0.3 * 0.3);
-  var lightX = 0.7 / ll,
-    lightY = 0.25 / ll,
-    lightZ = 0.3 / ll;
+  var lightX = 0, lightY = 0, lightZ = 1; // updated each frame from sun position
 
   var tilt = 0.2;
   var cosT = Math.cos(tilt),
     sinT = Math.sin(tilt);
 
-  // --- Dot color from CSS ---
+  // --- Sun position from UTC timestamp ---
+  function sunPosition(timeStr) {
+    var d = new Date(timeStr);
+    var hour = d.getUTCHours() + d.getUTCMinutes() / 60;
+    var start = new Date(Date.UTC(d.getUTCFullYear(), 0, 0));
+    var dayOfYear = Math.floor((d - start) / 86400000);
+    var sunLon = -(hour - 12) * 15; // degrees
+    var sunLat = 23.45 * Math.sin((TWO_PI / 365) * (dayOfYear - 81));
+    return { lat: sunLat, lon: sunLon };
+  }
+
+  function sunLightDirection(timeStr, cosA, sinA) {
+    var sp = sunPosition(timeStr);
+    var pos = latLonToXYZ(sp.lat, sp.lon, 1);
+    var tr = transform(pos.x, pos.y, pos.z, cosA, sinA);
+    return { x: tr.rx, y: tr.ry, z: tr.rz };
+  }
+
+  // --- Drag interaction state ---
+  var dragging = false;
+  var dragLastX = 0;
+  var sliderDragging = false;
+
+  // --- Timeline slider elements ---
+  var sliderEl = document.getElementById("globe-slider");
+  var timeStartEl = document.getElementById("globe-time-start");
+  var timeEndEl = document.getElementById("globe-time-end");
+
+  // --- Visual config per color scheme ---
+  var THEME = {
+    dark: {
+      landBoost: 0.3,
+      lightWeight: 0.25,    // how much lighting drives dither density
+      brightMin: 0.15,      // minimum land dot brightness (shadow side)
+      brightMult: 1.2,      // brightness amplification
+      oceanThresh: 0.6,     // dither threshold for ocean dots
+      oceanBright: 0.35,    // ocean dot brightness
+      windBright: 0.35,     // wind tracer brightness
+      windDimStep: 0.1,     // brightness reduction per wind layer
+      cloudBright: { min: 0.25, max: 0.8 },
+    },
+    light: {
+      landBoost: 0.15,
+      lightWeight: 0.4,
+      brightMin: 0.0,
+      brightMult: 1.8,
+      oceanThresh: 0.7,
+      oceanBright: 0.5,
+      windBright: 0.35,
+      windDimStep: 0.1,
+      cloudBright: { min: 0.25, max: 0.8 },
+    },
+  };
+
   var dotR = 232,
     dotG = 232,
     dotB = 234;
+  var isDark = true;
+  var cfg = THEME.dark;
 
   function updateColor() {
     var c = getComputedStyle(document.documentElement)
@@ -76,6 +131,10 @@
       dotG = parseInt(c.slice(3, 5), 16);
       dotB = parseInt(c.slice(5, 7), 16);
     }
+    isDark = window.matchMedia
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : true;
+    cfg = isDark ? THEME.dark : THEME.light;
   }
   updateColor();
   if (window.matchMedia) {
@@ -85,28 +144,49 @@
   }
 
   // --- Temperature color mapping ---
-  // Maps temperature (°C) to subtle RGB tint
-  // Cold (-30): blue-ish, Neutral (10): base color, Warm (35): amber-ish
   function tempColor(tempC, brightness) {
     var t = Math.max(0, Math.min(1, (tempC + 30) / 65)); // 0=cold, 1=warm
-    // Interpolate: cold blue (0.6, 0.7, 1.0) → neutral (1,1,1) → warm amber (1.0, 0.85, 0.6)
-    var r, g, b;
-    if (t < 0.5) {
-      var s = t * 2; // 0..1 within cold→neutral
-      r = 0.6 + s * 0.4;
-      g = 0.7 + s * 0.3;
-      b = 1.0;
+
+    if (isDark) {
+      // Dark mode: tint the light base dots
+      var r, g, b;
+      if (t < 0.5) {
+        var s = t * 2;
+        r = 0.6 + s * 0.4;
+        g = 0.7 + s * 0.3;
+        b = 1.0;
+      } else {
+        var s = (t - 0.5) * 2;
+        r = 1.0;
+        g = 1.0 - s * 0.15;
+        b = 1.0 - s * 0.4;
+      }
+      return {
+        r: Math.min(255, (dotR * r * brightness) | 0),
+        g: Math.min(255, (dotG * g * brightness) | 0),
+        b: Math.min(255, (dotB * b * brightness) | 0),
+      };
     } else {
-      var s = (t - 0.5) * 2; // 0..1 within neutral→warm
-      r = 1.0;
-      g = 1.0 - s * 0.15;
-      b = 1.0 - s * 0.4;
+      // Light mode: use actual distinct colors (dark base can't show tints)
+      // Cold: blue (40, 80, 180) → Neutral: dark gray (50,50,50) → Warm: red (180, 50, 30)
+      var r, g, b;
+      if (t < 0.5) {
+        var s = t * 2;
+        r = 40 + s * 10;
+        g = 80 - s * 30;
+        b = 180 - s * 130;
+      } else {
+        var s = (t - 0.5) * 2;
+        r = 50 + s * 130;
+        g = 50 - s * 10;
+        b = 50 - s * 20;
+      }
+      return {
+        r: (r * brightness) | 0,
+        g: (g * brightness) | 0,
+        b: (b * brightness) | 0,
+      };
     }
-    return {
-      r: Math.min(255, (dotR * r * brightness) | 0),
-      g: Math.min(255, (dotG * g * brightness) | 0),
-      b: Math.min(255, (dotB * b * brightness) | 0),
-    };
   }
 
   // --- Grid helpers ---
@@ -203,8 +283,6 @@
   var points = [];
   var cloudPoints = [];
   var windLayers = [];
-  var frameTime = 0; // seconds into the animation cycle
-  var frameDuration = 6; // seconds per data frame (faster timestep cycling)
   var footnoteEl = document.getElementById("globe-footnote");
 
   function initGlobe(data) {
@@ -218,7 +296,7 @@
     for (var i = 0; i < N; i++) {
       var py = 1 - (i / (N - 1)) * 2;
       var pr = Math.sqrt(1 - py * py);
-      var theta = (2 * Math.PI * i) / PHI;
+      var theta = (TWO_PI * i) / PHI;
       var px = Math.cos(theta) * pr;
       var pz = Math.sin(theta) * pr;
 
@@ -236,7 +314,7 @@
         lon: lon,
         land: land,
         noise: noise3d(px * 3, py * 3, pz * 3),
-        fp: Math.random() * Math.PI * 2,
+        fp: Math.random() * TWO_PI,
         fs: 0.3 + Math.random() * 1.5,
       });
     }
@@ -251,7 +329,7 @@
       var cpy = 1 - (ci / (CN - 1)) * 2;
       var cpr = Math.sqrt(1 - cpy * cpy);
       // Use different golden angle offset so cloud points don't overlap land points
-      var ctheta = (2 * Math.PI * ci) / (PHI * PHI);
+      var ctheta = (TWO_PI * ci) / (PHI * PHI);
       var cpx = Math.cos(ctheta) * cpr;
       var cpz = Math.sin(ctheta) * cpr;
 
@@ -309,23 +387,55 @@
     }
 
     globe = data;
+
+    // Populate timeline labels
+    if (timeStartEl && timeEndEl && data.frames.length > 0) {
+      var first = new Date(data.frames[0].time);
+      var last = new Date(data.frames[data.frames.length - 1].time);
+      var spansMultipleDays = first.getUTCDate() !== last.getUTCDate()
+        || first.getUTCMonth() !== last.getUTCMonth();
+      var fmt = function (d) {
+        var time = pad(d.getUTCHours()) + ":00";
+        if (spansMultipleDays) {
+          return pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate()) + " " + time;
+        }
+        return time + " UTC";
+      };
+      timeStartEl.textContent = fmt(first);
+      timeEndEl.textContent = fmt(last);
+    }
   }
 
-  // --- Get interpolated frame data ---
+  // --- Get interpolated frame data (derived from angle) ---
+  var angleOffset = 40 * DEG2RAD; // bias so dayside faces the viewer
   function getFrameData() {
     var nFrames = globe.frames.length;
-    var totalCycle = nFrames * frameDuration;
-    var pos = (frameTime % totalCycle) / frameDuration;
+    var a = (((angle + angleOffset) % TWO_PI) + TWO_PI) % TWO_PI;
+    var pos = (a / TWO_PI) * nFrames;
     var idx0 = Math.floor(pos) % nFrames;
     var idx1 = (idx0 + 1) % nFrames;
     var frac = pos - Math.floor(pos);
     return { f0: globe.frames[idx0], f1: globe.frames[idx1], frac: frac };
   }
 
+  // --- Interpolate timestamp between two frames ---
+  function interpolateTime(fd) {
+    var t0 = new Date(fd.f0.time).getTime();
+    var t1 = new Date(fd.f1.time).getTime();
+    // Handle wrap-around using actual frame step
+    if (t1 < t0) {
+      var step = new Date(globe.frames[1].time).getTime() - new Date(globe.frames[0].time).getTime();
+      t1 = t0 + step;
+    }
+    var t = t0 + (t1 - t0) * fd.frac;
+    return new Date(t).toISOString();
+  }
+
   function updateFootnote(fd) {
     if (!footnoteEl) return;
-    // Show the current frame's time
-    var timeStr = fd.f0.time.replace("T", " ").replace(/\..*/, "");
+    var d = new Date(fd.f0.time);
+    var timeStr = pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate())
+      + " " + pad(d.getUTCHours()) + ":00:00";
     footnoteEl.textContent =
       "GFS analysis · " + timeStr + " UTC · dynamical.org";
   }
@@ -376,7 +486,7 @@
 
   // --- Render loop ---
   var imageData = ctx.createImageData(SIZE, SIZE);
-  var lastFrameUpdate = 0;
+  var lastFootnoteUpdate = 0;
 
   function render(time) {
     if (!globe) {
@@ -385,7 +495,6 @@
     }
 
     var t = time * 0.001;
-    frameTime = t;
     var data = imageData.data;
 
     for (var k = 0; k < data.length; k++) data[k] = 0;
@@ -398,10 +507,46 @@
 
     var fd = getFrameData();
 
-    // Update footnote every ~1 second
-    if (t - lastFrameUpdate > 1) {
+    var sun = sunLightDirection(interpolateTime(fd), cosA, sinA);
+    lightX = sun.x;
+    lightY = sun.y;
+    lightZ = sun.z;
+
+    // Update footnote and slider every ~1 second
+    if (t - lastFootnoteUpdate > 1) {
       updateFootnote(fd);
-      lastFrameUpdate = t;
+      lastFootnoteUpdate = t;
+      // Sync slider position from angle (unless user is dragging the slider)
+      if (sliderEl && !sliderDragging) {
+        var norm = (((angle % TWO_PI) + TWO_PI) % TWO_PI) / TWO_PI;
+        sliderEl.value = Math.round(norm * 1000);
+      }
+    }
+
+    // --- Globe outline (thin circle) ---
+    // Blend text color toward background: faint in both modes
+    var oa = isDark ? 0.08 : 0.06;
+    var bgR = isDark ? 15 : 255;
+    var bgG = isDark ? 15 : 255;
+    var bgB = isDark ? 16 : 255;
+    var outlineR = (dotR * oa + bgR * (1 - oa)) | 0;
+    var outlineG = (dotG * oa + bgG * (1 - oa)) | 0;
+    var outlineB = (dotB * oa + bgB * (1 - oa)) | 0;
+    var r2 = radius * radius;
+    for (var oy = -Math.ceil(radius); oy <= Math.ceil(radius); oy++) {
+      var ox1 = Math.sqrt(Math.max(0, r2 - oy * oy));
+      // Plot two pixels on each side of the circle at this y
+      for (var side = -1; side <= 1; side += 2) {
+        var osx = Math.round(side * ox1 + cx);
+        var osy = Math.round(oy + cy);
+        if (osx >= 0 && osx < SIZE && osy >= 0 && osy < SIZE) {
+          var oidx = (osy * SIZE + osx) * 4;
+          data[oidx] = outlineR;
+          data[oidx + 1] = outlineG;
+          data[oidx + 2] = outlineB;
+          data[oidx + 3] = 255;
+        }
+      }
     }
 
     // --- Sphere points ---
@@ -414,14 +559,18 @@
       var lighting = tr.rx * lightX + tr.ry * lightY + tr.rz * lightZ;
       var flicker = Math.sin(t * p.fs + p.fp) * 0.06;
 
-      var landBoost = p.land * 0.3;
+      var landBoost = p.land * cfg.landBoost;
       var value =
-        lighting * 0.55 + landBoost + tr.rz * 0.05 + p.noise * 0.08 + flicker;
+        lighting * cfg.lightWeight + landBoost + tr.rz * 0.05 + p.noise * 0.05 + flicker;
 
       if (p.land > 0.5) {
-        var bright = Math.max(0.15, Math.min(1.0, value * 1.2));
+        // Dither by density: skip dots on the shadow side instead of dimming
+        if (value < cfg.brightMin) continue;
+        // Use noise as a per-dot dither threshold against the lighting value
+        var ditherThresh = p.noise * 0.5 + 0.25; // 0.25..0.75 per dot
+        if (value < ditherThresh * cfg.brightMult * 0.5) continue;
 
-        // Sample temperature for color tint
+        // Dots that pass the threshold render at full color (no brightness fade)
         var temp = lerpGridSample(
           fd.f0.temperature,
           fd.f1.temperature,
@@ -429,13 +578,15 @@
           p.lat,
           p.lon
         );
-        var col = tempColor(temp, bright);
+        var col = tempColor(temp, 1.0);
       } else {
-        if (value < 0.6) continue;
+        // Ocean: same density-based dither as land
+        var oceanDither = p.noise * 0.5 + 0.25;
+        if (value < oceanDither * cfg.oceanThresh) continue;
         var col = {
-          r: (dotR * 0.35) | 0,
-          g: (dotG * 0.35) | 0,
-          b: (dotB * 0.35) | 0,
+          r: (dotR * cfg.oceanBright) | 0,
+          g: (dotG * cfg.oceanBright) | 0,
+          b: (dotB * cfg.oceanBright) | 0,
         };
       }
 
@@ -465,15 +616,16 @@
 
     // --- Cloud layer (Bayer-dithered) ---
     if (cloudPoints.length > 0 && fd.f0.cloud_cover) {
-      var cR = Math.min(255, dotR);
-      var cG = Math.min(255, dotG);
-      var cB = Math.min(255, dotB);
-
       for (var ci = 0; ci < cloudPoints.length; ci++) {
         var cp = cloudPoints[ci];
         var ctr = transform(cp.x, cp.y, cp.z, cosA, sinA);
 
         if (ctr.rz < 0.02) continue;
+
+        // Lighting-based density dither — hide clouds on shadow side
+        var clight = ctr.rx * lightX + ctr.ry * lightY + ctr.rz * lightZ;
+        var clightVal = clight * cfg.lightWeight + ctr.rz * 0.1;
+        if (clightVal < cp.bt * 0.6) continue;
 
         // Sample cloud cover (0-100) interpolated between frames
         var cc =
@@ -485,13 +637,10 @@
             cp.lon
           ) / 100;
 
-        // Bayer threshold dither: show dot if cloud cover exceeds the
-        // ordered threshold at this point's position
+        // Bayer threshold dither: show dot if cloud cover exceeds threshold
         if (cc < cp.bt) continue;
 
-        // Lighting — clouds catch light too
-        var clight = ctr.rx * lightX + ctr.ry * lightY + ctr.rz * lightZ;
-        var cbright = Math.max(0.25, Math.min(0.8, clight * 0.6 + 0.3));
+        var cbright = Math.max(cfg.cloudBright.min, Math.min(cfg.cloudBright.max, clight * 0.6 + 0.3));
 
         var csx = Math.round(ctr.rx * radius + cx);
         var csy = Math.round(-ctr.ry * radius + cy);
@@ -499,9 +648,9 @@
         if (csx < 0 || csx + 1 >= SIZE || csy < 0 || csy + 1 >= SIZE) continue;
 
         var cidx = (csy * SIZE + csx) * 4;
-        data[cidx] = (cR * cbright) | 0;
-        data[cidx + 1] = (cG * cbright) | 0;
-        data[cidx + 2] = (cB * cbright) | 0;
+        data[cidx] = (dotR * cbright) | 0;
+        data[cidx + 1] = (dotG * cbright) | 0;
+        data[cidx + 2] = (dotB * cbright) | 0;
         data[cidx + 3] = 255;
       }
     }
@@ -512,7 +661,7 @@
       updateWindLayer(wl, fd);
 
       // Wind dots — subtle ghost traces
-      var brightness = 0.35 - wli * 0.1;
+      var brightness = cfg.windBright - wli * cfg.windDimStep;
       var wR = (dotR * brightness) | 0;
       var wG = (dotG * brightness) | 0;
       var wB = (dotB * brightness) | 0;
@@ -524,6 +673,10 @@
           var ttr = transform(tp.x, tp.y, tp.z, cosA, sinA);
 
           if (ttr.rz < 0.05) continue;
+
+          // Lighting density dither — hide wind on shadow side
+          var wlight = ttr.rx * lightX + ttr.ry * lightY + ttr.rz * lightZ;
+          if (wlight * cfg.lightWeight + ttr.rz * 0.1 < 0.15) continue;
 
           var tsx = Math.round(ttr.rx * radius + cx);
           var tsy = Math.round(-ttr.ry * radius + cy);
@@ -541,56 +694,69 @@
 
     ctx.putImageData(imageData, 0, 0);
 
-    angle += 0.0008;
+    if (!dragging && !sliderDragging) {
+      angle += 0.0008;
+    }
     requestAnimationFrame(render);
   }
 
   // --- Load data and start ---
-  // Try inline data first (legacy), then fetch from static file
-  if (window.__windData) {
-    // Convert old format to new
-    var wd = window.__windData;
-    if (wd.frames) {
-      initGlobe(wd);
-    } else {
-      // Old single-frame format — wrap in frames array
-      var frame = { time: wd.time || "", temperature: null, cloud_cover: null };
-      if (wd.layers) {
-        frame.wind_10m = { u: wd.layers[0].u, v: wd.layers[0].v };
-        frame.wind_100m = { u: wd.layers[1].u, v: wd.layers[1].v };
-      } else {
-        frame.wind_10m = { u: wd.u, v: wd.v };
-        frame.wind_100m = { u: wd.u, v: wd.v };
-      }
-      // Generate dummy temp grid if missing
-      if (!frame.temperature) {
-        frame.temperature = wd.land.map(function (row) {
-          return row.map(function () {
-            return 10;
-          });
-        });
-      }
-      initGlobe({
-        lats: wd.lats,
-        lons: wd.lons,
-        land: wd.land,
-        frames: [frame, frame],
-      });
-    }
-  }
-
-  // Fetch the static data file
   fetch("/globe-data.json")
     .then(function (res) {
       if (!res.ok) throw new Error(res.status);
       return res.json();
     })
-    .then(function (data) {
-      initGlobe(data);
-    })
-    .catch(function () {
-      // Fall back to inline data if fetch fails (already loaded above)
+    .then(initGlobe);
+
+  // --- Mouse/touch drag to rotate ---
+  var dragSensitivity = Math.PI / canvas.width; // ~π per canvas-width
+
+  canvas.addEventListener("mousedown", function (e) {
+    dragging = true;
+    dragLastX = e.clientX;
+    canvas.style.cursor = "grabbing";
+  });
+  window.addEventListener("mousemove", function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - dragLastX;
+    angle += dx * dragSensitivity;
+    dragLastX = e.clientX;
+  });
+  window.addEventListener("mouseup", function () {
+    if (!dragging) return;
+    dragging = false;
+    canvas.style.cursor = "grab";
+  });
+
+  canvas.addEventListener("touchstart", function (e) {
+    if (e.touches.length !== 1) return;
+    dragging = true;
+    dragLastX = e.touches[0].clientX;
+  }, { passive: true });
+  window.addEventListener("touchmove", function (e) {
+    if (!dragging || e.touches.length !== 1) return;
+    e.preventDefault();
+    var dx = e.touches[0].clientX - dragLastX;
+    angle += dx * dragSensitivity;
+    dragLastX = e.touches[0].clientX;
+  }, { passive: false });
+  window.addEventListener("touchend", function () {
+    dragging = false;
+  });
+
+  canvas.style.cursor = "grab";
+
+  // --- Timeline slider interaction ---
+  if (sliderEl) {
+    sliderEl.addEventListener("input", function () {
+      sliderDragging = true;
+      var norm = sliderEl.value / 1000;
+      angle = norm * TWO_PI;
     });
+    sliderEl.addEventListener("change", function () {
+      sliderDragging = false;
+    });
+  }
 
   requestAnimationFrame(render);
 })();

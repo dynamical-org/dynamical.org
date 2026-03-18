@@ -250,7 +250,6 @@ caption {
 
 .hero-stats {
   display: flex;
-  gap: 0;
   margin-top: 3.2rem;
 }
 
@@ -292,11 +291,56 @@ caption {
   image-rendering: crisp-edges;
 }
 
+.globe-timeline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 0.4rem;
+}
+
+.globe-time-label {
+  font-size: 0.75rem;
+  color: var(--muted-text-2);
+  white-space: nowrap;
+}
+
+#globe-slider {
+  flex: 1;
+  height: 2px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--muted-text-2);
+  opacity: 0.4;
+  outline: none;
+  cursor: pointer;
+}
+
+#globe-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-text);
+  cursor: pointer;
+}
+
+#globe-slider::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-text);
+  border: none;
+  cursor: pointer;
+}
+
 .globe-footnote {
   font-size: 1rem;
   color: var(--muted-text-2);
   text-align: center;
-  margin-top: 0.8rem;
+  margin-top: 0.4rem;
 }
 
 nav,
