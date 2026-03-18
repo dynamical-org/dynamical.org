@@ -35,15 +35,11 @@ eleventyComputed:
   {%- set model = catalog.models | find('id', entry.modelId) %}
   <div>
     <a href="/catalog">Catalog</a>
-    {% if model %}
-      >
-      <a href="/catalog/models/{{ model.id }}">{{ model.name }}</a>
-    {% endif %}
     > {{ entry.name }}
   </div>
   <div style="margin: 3rem 0;">
     {% include "catalog-entry-status.njk" %}
-    <h1 style="margin-top: 0;">{{ entry.name }}</h1>
+    <h1 style="display: flex; align-items: center;">{% if model.glyph %}<span class="catalog-glyph">{{ model.glyph | safe }}</span>{% endif %}{{ entry.name }}</h1>
   </div>
   <table>
     <tr>

@@ -7,11 +7,92 @@ const CC_BY_4 = `
         </p>
 `
 
+// Pixel art glyph helper — converts a string pattern to an inline SVG.
+// Glyph vocabulary:
+//   Outer shape:  circle = global coverage, lens = regional (CONUS)
+//   Repetition:   single = deterministic, cascade = ensemble
+//   Fill/accent:  reserved for AI models (future)
+function pixelArt(pattern, displaySize = 20) {
+  const rows = pattern.trim().split('\n').map(r => r.trim());
+  const h = rows.length;
+  const w = Math.max(...rows.map(r => r.length));
+  let rects = '';
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < rows[y].length; x++) {
+      if (rows[y][x] !== '.') {
+        rects += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+      }
+    }
+  }
+  return `<svg viewBox="0 0 ${w} ${h}" width="${displaySize}" height="${displaySize}" fill="currentColor" style="shape-rendering:crispEdges">${rects}</svg>`;
+}
+
+// Global, deterministic — single circle
+const GLYPH_GLOBE = pixelArt(`
+..XXX..
+.X...X.
+X.....X
+X.....X
+X.....X
+.X...X.
+..XXX..
+`);
+
+// Global, ensemble (fewer members) — two overlapping circles
+const GLYPH_GLOBE_DUO = pixelArt(`
+..XXX....
+.X..XXX..
+X..X..XX.
+X.X...X.X
+X.X...X.X
+.XX..X..X
+..XXX..X.
+....XXX..
+`);
+
+// Global, ensemble (more members) — three circles cascading diagonally
+const GLYPH_GLOBE_CASCADE = pixelArt(`
+.XXX.....
+X...X....
+X..XXX...
+X.X.X.X..
+.XXX.XXX.
+..X.X.X.X
+...XXX..X
+....X...X
+.....XXX.
+`);
+
+// Regional (CONUS) — tilted Lambert conformal grid outline
+const GLYPH_CONUS = pixelArt(`
+...XXXXXXXX
+..X.......X
+.X........X
+X.........X
+X........X.
+X.......X..
+XXXXXXXX...
+`);
+
+// Radar / multi-sensor — concentric rings (radar scope)
+const GLYPH_RADAR = pixelArt(`
+...XXX...
+..X...X..
+.X.XXX.X.
+X.X...X.X
+X.X.X.X.X
+X.X...X.X
+.X.XXX.X.
+..X...X..
+...XXX...
+`);
+
 // Model definitions for grouping datasets
 const models = {
   "noaa-gfs": {
     name: "NOAA GFS",
     shortName: "GFS",
+    glyph: GLYPH_GLOBE,
     description: `
       <p>
       The Global Forecast System (GFS) is a National Oceanic and Atmospheric
@@ -29,6 +110,7 @@ const models = {
   "noaa-gefs": {
     name: "NOAA GEFS",
     shortName: "GEFS",
+    glyph: GLYPH_GLOBE_DUO,
     description: `
       <p>
       The Global Ensemble Forecast System (GEFS) is a National Oceanic and
@@ -43,6 +125,7 @@ const models = {
   "noaa-hrrr": {
     name: "NOAA HRRR",
     shortName: "HRRR",
+    glyph: GLYPH_CONUS,
     description: `
       <p>
       The High-Resolution Rapid Refresh (HRRR) is a NOAA real-time 3-km resolution,
@@ -59,6 +142,7 @@ const models = {
   "noaa-mrms": {
     name: "NOAA MRMS",
     shortName: "MRMS",
+    glyph: GLYPH_RADAR,
     description: `
       <p>
       The NOAA Multi-Radar/Multi-Sensor System (MRMS) integrates data from
@@ -75,6 +159,7 @@ const models = {
   "ecmwf-ifs-ens": {
     name: "ECMWF IFS ENS",
     shortName: "IFS ENS",
+    glyph: GLYPH_GLOBE_CASCADE,
     description: `
       <p>
        The Integrated Forecasting System (IFS) is a global forecast model developed 

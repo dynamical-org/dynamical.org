@@ -192,6 +192,34 @@ table.data tr th.right {
   text-align: right;
 }
 
+/* Catalog grouped table */
+.catalog-table .catalog-model-cell {
+  font-weight: 700;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.catalog-glyph {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-right: 0.8rem;
+}
+
+.catalog-glyph svg {
+  height: 1em;
+  width: 1em;
+}
+
+.catalog-table .catalog-resolution {
+  font-size: 0.8em;
+}
+
+.catalog-table tr.catalog-group-last td,
+.catalog-table tr.catalog-group-last + tr td {
+  border-top: 1px solid var(--border-color);
+}
+
 caption {
   padding: 10px;
 }
@@ -341,6 +369,12 @@ caption {
   color: var(--muted-text-2);
   text-align: center;
   margin-top: 0.4rem;
+}
+
+.globe-footnote a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 nav,
@@ -575,8 +609,12 @@ article img {
     margin: 2rem auto 4rem;
   }
 
+  .hero-visual {
+    order: -1;
+  }
+
   .hero-heading {
-    font-size: 2.8rem;
+    display: none;
   }
 
   .hero-stats {

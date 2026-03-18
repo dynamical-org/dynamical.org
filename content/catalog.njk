@@ -3,8 +3,6 @@ layout: base.njk
 title: catalog
 ---
 
-<style>
-</style>
 <div class="content">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>Catalog</h1>
@@ -13,77 +11,51 @@ title: catalog
     </div>
   </div>
 
-  <div id="models-view" class="view-content">
-    {% for model in catalog.models %}
-      <div class="model-group">
-        <div class="model-header">
-          <h2>
-            <a href="/catalog/models/{{ model.id }}">{{ model.name }}</a>
-          </h2>
-          <p>{{ model.description | striptags | truncate(150) }}</p>
-        </div>
-        <ul class="catalog-list">
-          {% for entry in model.datasets %}
-            {% if entry.status != 'deprecated' %}
-              <li>
-              <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
-                <strong>
-                {% if entry.status == 'live' or entry.status == 'available' %}
-                  <a href="/catalog/{{ entry.dataset_id | slugify }}">{{ entry.name }}</a>
-                {% else %}
-                  {{ entry.name }}
-                {% endif %}
-                </strong>
-                <br/> {% include "catalog-entry-status.njk" %}
-              </div>
-              <p>{{ entry.description }}</p>
-              </li>
+  <div class="table-container">
+    <table class="data catalog-table">
+      <tr>
+        <th>Model</th>
+        <th></th>
+        <th>Resolution</th>
+        <th>Domain</th>
+      </tr>
+      {% for model in catalog.models %}
+        {% set liveEntries = model.datasets | rejectWhere("status", "deprecated") %}
+        {% for entry in liveEntries %}
+          <tr{% if loop.last %} class="catalog-group-last"{% endif %}>
+            {% if loop.first %}
+              <td rowspan="{{ liveEntries | length }}" class="catalog-model-cell">
+                <span class="catalog-glyph">{{ model.glyph | safe }}</span>{{ model.name }}
+              </td>
             {% endif %}
-          {% endfor %}
-        </ul>
-      </div>
-    {% endfor %}
+            <td>
+              {% if entry.status == 'live' or entry.status == 'available' %}
+                <a href="/catalog/{{ entry.dataset_id | slugify }}">{{ entry.name | replace(model.name, '') | trim }}</a>
+              {% else %}
+                {{ entry.name | replace(model.name, '') | trim }}
+              {% endif %}
+            </td>
+            <td class="catalog-resolution">{{ entry.spatial_resolution }}</td>
+            <td>{{ entry.spatial_domain }}</td>
+          </tr>
+        {% endfor %}
+      {% endfor %}
+    </table>
   </div>
-  <hr style="margin: 6rem 0;" />
-  <h2>Experimental</h2>
-  <ul class="catalog-list">
-    <li>
-      <strong><a href="/catalog/asos-parquet">Global Airport Observations (ASOS/AWOS)</a></strong>
-      <p>Historical and near-real-time METAR observations from ~2,500. Updated hourly in a GeoParquet.</p>
-    </li>
-  </ul>
 
   <hr style="margin: 6rem 0;" />
-  <h2>Roadmap, Phase 1</h2>
-  <p>Each of these items includes both live-updating forecasts and derived analysis/climatology datasets.</p>
-  <ul class="catalog-list">
-    <li>
-      <strong>ECMWF AIFS</strong>
-    </li>
-    <li>
-      <strong>ECCC HRDPS</strong>
-    </li>
-  </ul>
+  <h2>Roadmap</h2>
+  <p>To view work in progress and upcoming roadmap, check out the <a href="https://github.com/orgs/dynamical-org/projects/1">dynamical.org Github project</a>.</p>
+
+  <hr style="margin: 6rem 0;" />
+  <h2>Experimental</h2>
+  <div class="table-container">
+    <table class="data catalog-table">
+      <tr>
+        <td><a href="/catalog/asos-parquet">Global Airport Observations (ASOS/AWOS)</a></td>
+        <td>Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</td>
+      </tr>
+    </table>
+  </div>
+
 </div>
-<script>
-  function showView(viewName) {
-    // Hide all views
-    document.querySelectorAll('.view-content').forEach(content => {
-      content.classList.remove('active');
-    });
-    // Remove active class from all tabs
-    document.querySelectorAll('.view-tab').forEach(tab => {
-      tab.classList.remove('active');
-    });
-    // Show selected view
-    document
-      .getElementById(viewName + '-view')
-      .classList
-      .add('active');
-    // Add active class to clicked tab
-    event
-      .target
-      .classList
-      .add('active');
-  }
-</script>

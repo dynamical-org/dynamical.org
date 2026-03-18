@@ -436,8 +436,8 @@
     var d = new Date(fd.f0.time);
     var timeStr = pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate())
       + " " + pad(d.getUTCHours()) + ":00:00";
-    footnoteEl.textContent =
-      "GFS analysis · " + timeStr + " UTC · dynamical.org";
+    footnoteEl.innerHTML =
+      '<a href="/catalog/noaa-gfs-analysis/">GFS analysis</a> · ' + timeStr + " UTC · dynamical.org";
   }
 
   // --- Update wind tracers ---
@@ -701,12 +701,23 @@
   }
 
   // --- Load data and start ---
-  fetch("/globe-data.json")
+  // Try R2 first (production), fall back to local static file (dev)
+  var DATA_URL = "https://data.dynamical.org/site/globe-data.json";
+  fetch(DATA_URL)
     .then(function (res) {
       if (!res.ok) throw new Error(res.status);
       return res.json();
     })
-    .then(initGlobe);
+    .then(initGlobe)
+    .catch(function () {
+      // Dev fallback: local static file
+      fetch("/globe-data.json")
+        .then(function (res) {
+          if (!res.ok) throw new Error(res.status);
+          return res.json();
+        })
+        .then(initGlobe);
+    });
 
   // --- Mouse/touch drag to rotate ---
   var dragSensitivity = Math.PI / canvas.width; // ~π per canvas-width
