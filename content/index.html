@@ -10,20 +10,33 @@ redirects_from: /index.html
   }
 </style>
 
-<div class="frame" style="margin-top: 4rem">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">GEFS analysis</div>
+<div class="hero-section">
+  <div class="hero-content">
+    <h1 class="hero-heading">dynamical.org</h1>
+    <p class="hero-subtitle">
+      Weather data is hard to work with. What if it wasn't?
+    </p>
+    <a href="/catalog" class="hero-cta">Explore the Catalog &rarr;</a>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-value">1PB+</div>
+        <div class="hero-stat-label">archived</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">{{ catalog.entries | size }}</div>
+        <div class="hero-stat-label">data products</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">100M+</div>
+        <div class="hero-stat-label">requests / month</div>
+      </div>
+    </div>
   </div>
-  {% frameHighlight "py", "frameContent frameContentDesktop" %}
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gefs/analysis/latest.zarr")
-  {% endframeHighlight %}
+  <div class="hero-visual">
+    <canvas id="globe-canvas"></canvas>
+    <div id="globe-footnote" class="globe-footnote"></div>
+  </div>
 </div>
-
-<div class="content centered">
-  Weather data is hard to work with. What if it wasn't?
-</div>
-<div class="content centered"><a href="/catalog">See the catalog ↗</a></div>
 
 <div class="frame">
   <div class="frameHeader">
@@ -84,3 +97,5 @@ ds["precipitation_surface"] \
     alt="A plot showing precipitation in Mongolia for 2024-04-01"
   />
 </div>
+
+<script src="/globe.js"></script>
