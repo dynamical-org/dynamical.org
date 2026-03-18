@@ -174,6 +174,13 @@ module.exports = function (eleventyConfig) {
     return array.find((item) => item[property] === value);
   });
 
+  eleventyConfig.addFilter("rejectWhere", function (array, property, value) {
+    if (!Array.isArray(array)) {
+      return [];
+    }
+    return array.filter((item) => item[property] !== value);
+  });
+
   
 
   return {
