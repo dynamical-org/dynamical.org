@@ -102,12 +102,17 @@ module.exports = function (eleventyConfig) {
   });
 
   eleventyConfig.addGlobalData("contributors", async () => {
+    const githubHeaders = process.env.GITHUB_TOKEN
+      ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
+      : {};
+
     // Fetch all repos for the org
     const repos = await fetch(
       "https://api.github.com/orgs/dynamical-org/repos",
       {
         duration: "1d",
         type: "json",
+        fetchOptions: { headers: githubHeaders },
       }
     );
 
@@ -120,6 +125,7 @@ module.exports = function (eleventyConfig) {
       const repoContributors = await fetch(repo.contributors_url, {
         duration: "1d",
         type: "json",
+        fetchOptions: { headers: githubHeaders },
       });
 
       repoContributors.forEach((contributor) => {
