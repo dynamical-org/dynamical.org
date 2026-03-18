@@ -627,14 +627,6 @@ article img {
     justify-content: center;
   }
 
-  .hero-stat {
-    border-left: none;
-    padding: 0 1.6rem;
-  }
-
-  .hero-stat:first-child {
-    border-left: none;
-  }
 
   .frame {
     margin: 4rem auto;
