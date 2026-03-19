@@ -702,7 +702,7 @@
 
   // --- Load data and start ---
   // Try R2 first (production), fall back to local static file (dev)
-  var DATA_URL = "https://data.dynamical.org/site/globe-data.json";
+  var DATA_URL = "https://sa.dynamical.org/site/globe-data.json";
   fetch(DATA_URL)
     .then(function (res) {
       if (!res.ok) throw new Error(res.status);
