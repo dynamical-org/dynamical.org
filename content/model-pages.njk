@@ -10,11 +10,11 @@ eleventyExcludeFromCollections: true
 <html>
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0; url=/catalog#{{ model.id }}">
-    <link rel="canonical" href="/catalog#{{ model.id }}">
+    <meta http-equiv="refresh" content="0; url=/catalog#:~:text={{ model.name | replace(' ', '%20') }}">
+    <link rel="canonical" href="/catalog#:~:text={{ model.name | replace(' ', '%20') }}">
     <title>{{ model.name }} – dynamical.org</title>
   </head>
   <body>
-    <p>Redirecting to <a href="/catalog#{{ model.id }}">catalog</a>…</p>
+    <p>Redirecting to <a href="/catalog#:~:text={{ model.name | replace(' ', '%20') }}">catalog</a>…</p>
   </body>
 </html>

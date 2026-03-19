@@ -211,9 +211,6 @@ table.data tr th.right {
   width: 1em;
 }
 
-.catalog-table tr:target td {
-  background-color: color-mix(in srgb, var(--link-color) 12%, transparent);
-}
 
 .catalog-table .catalog-resolution {
   font-size: 0.8em;
