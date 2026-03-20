@@ -53,7 +53,8 @@
 
   // --- Data state ---
   var globe = null; // loaded async
-  var angle = 0;
+  var viewAngle = 0;  // camera rotation — only changes on drag
+  var sunAngle = 0;   // sun orbit — auto-increments
 
   // --- Lighting & rotation ---
   var lightX = 0, lightY = 0, lightZ = 1; // updated each frame from sun position
@@ -388,6 +389,11 @@
 
     globe = data;
 
+    // Set initial view to face the pre-dawn region (~3am local solar time)
+    var initialFd = getFrameData();
+    var sp = sunPosition(interpolateTime(initialFd));
+    viewAngle = -(sp.lon - 135) * DEG2RAD;
+
     // Populate timeline labels
     if (timeStartEl && timeEndEl && data.frames.length > 0) {
       var first = new Date(data.frames[0].time);
@@ -406,11 +412,11 @@
     }
   }
 
-  // --- Get interpolated frame data (derived from angle) ---
+  // --- Get interpolated frame data (derived from sunAngle) ---
   var angleOffset = 40 * DEG2RAD; // bias so dayside faces the viewer
   function getFrameData() {
     var nFrames = globe.frames.length;
-    var a = (((angle + angleOffset) % TWO_PI) + TWO_PI) % TWO_PI;
+    var a = (((sunAngle + angleOffset) % TWO_PI) + TWO_PI) % TWO_PI;
     var pos = (a / TWO_PI) * nFrames;
     var idx0 = Math.floor(pos) % nFrames;
     var idx1 = (idx0 + 1) % nFrames;
@@ -499,14 +505,16 @@
 
     for (var k = 0; k < data.length; k++) data[k] = 0;
 
-    var cosA = Math.cos(angle);
-    var sinA = Math.sin(angle);
+    var cosA = Math.cos(viewAngle);
+    var sinA = Math.sin(viewAngle);
     var radius = SIZE * 0.39;
     var cx = SIZE / 2;
     var cy = SIZE / 2;
 
     var fd = getFrameData();
 
+    // Sun position comes from the timestamp (which advances via sunAngle);
+    // transform by viewAngle only so the sun visibly orbits the static globe
     var sun = sunLightDirection(interpolateTime(fd), cosA, sinA);
     lightX = sun.x;
     lightY = sun.y;
@@ -516,9 +524,9 @@
     if (t - lastFootnoteUpdate > 1) {
       updateFootnote(fd);
       lastFootnoteUpdate = t;
-      // Sync slider position from angle (unless user is dragging the slider)
+      // Sync slider position from sunAngle (unless user is dragging the slider)
       if (sliderEl && !sliderDragging) {
-        var norm = (((angle % TWO_PI) + TWO_PI) % TWO_PI) / TWO_PI;
+        var norm = (((sunAngle % TWO_PI) + TWO_PI) % TWO_PI) / TWO_PI;
         sliderEl.value = Math.round(norm * 1000);
       }
     }
@@ -695,7 +703,7 @@
     ctx.putImageData(imageData, 0, 0);
 
     if (!dragging && !sliderDragging) {
-      angle += 0.0008;
+      sunAngle += 0.0008;
     }
     requestAnimationFrame(render);
   }
@@ -719,7 +727,7 @@
   window.addEventListener("mousemove", function (e) {
     if (!dragging) return;
     var dx = e.clientX - dragLastX;
-    angle += dx * dragSensitivity;
+    viewAngle += dx * dragSensitivity;
     dragLastX = e.clientX;
   });
   window.addEventListener("mouseup", function () {
@@ -737,7 +745,7 @@
     if (!dragging || e.touches.length !== 1) return;
     e.preventDefault();
     var dx = e.touches[0].clientX - dragLastX;
-    angle += dx * dragSensitivity;
+    viewAngle += dx * dragSensitivity;
     dragLastX = e.touches[0].clientX;
   }, { passive: false });
   window.addEventListener("touchend", function () {
@@ -751,7 +759,7 @@
     sliderEl.addEventListener("input", function () {
       sliderDragging = true;
       var norm = sliderEl.value / 1000;
-      angle = norm * TWO_PI;
+      sunAngle = norm * TWO_PI;
     });
     sliderEl.addEventListener("change", function () {
       sliderDragging = false;
