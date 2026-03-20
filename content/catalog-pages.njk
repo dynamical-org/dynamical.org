@@ -182,7 +182,7 @@ eleventyComputed:
       {% for variable in entry.variables %}
         <tr>
           <td>
-            <strong>{{ variable.name }}</strong>
+            <strong>{{ variable.name }}</strong>{% if variable.short_name %} (<code>{{ variable.short_name }}</code>){% endif %}
             <p class="metadata-comment">{{ variable.long_name }}</p>
             {% if variable.comment %}
               <p class="metadata-comment">{{ variable.comment }}</p>
