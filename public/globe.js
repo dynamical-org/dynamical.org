@@ -3,7 +3,7 @@
   if (!canvas) return;
   var ctx = canvas.getContext("2d");
 
-  var SIZE = 300;
+  var SIZE = parseInt(canvas.getAttribute("data-size") || "300", 10);
   canvas.width = SIZE;
   canvas.height = SIZE;
 
@@ -94,9 +94,9 @@
   // --- Visual config per color scheme ---
   var THEME = {
     dark: {
-      landBoost: 0.3,
+      landBoost: 0.38,
       lightWeight: 0.25,    // how much lighting drives dither density
-      brightMin: 0.15,      // minimum land dot brightness (shadow side)
+      brightMin: 0.05,      // minimum land dot brightness (shadow side)
       brightMult: 1.2,      // brightness amplification
       oceanThresh: 0.6,     // dither threshold for ocean dots
       oceanBright: 0.35,    // ocean dot brightness
@@ -105,7 +105,7 @@
       cloudBright: { min: 0.25, max: 0.8 },
     },
     light: {
-      landBoost: 0.15,
+      landBoost: 0.22,
       lightWeight: 0.4,
       brightMin: 0.0,
       brightMult: 1.8,
@@ -392,7 +392,7 @@
     // Set initial view to face the pre-dawn region (~3am local solar time)
     var initialFd = getFrameData();
     var sp = sunPosition(interpolateTime(initialFd));
-    viewAngle = -(sp.lon - 135) * DEG2RAD;
+    viewAngle = -(sp.lon - 105) * DEG2RAD;
 
     // Populate timeline labels
     if (timeStartEl && timeEndEl && data.frames.length > 0) {
@@ -492,6 +492,7 @@
 
   // --- Render loop ---
   var imageData = ctx.createImageData(SIZE, SIZE);
+  var dotScale = Math.max(1, Math.round(SIZE / 300));
   var lastFootnoteUpdate = 0;
 
   function render(time) {
@@ -603,22 +604,15 @@
 
       if (sx < 0 || sx >= SIZE || sy < 0 || sy >= SIZE) continue;
 
-      if (p.land > 0.5 && sx + 1 < SIZE && sy + 1 < SIZE) {
-        for (var dy = 0; dy < 2; dy++) {
-          for (var dx = 0; dx < 2; dx++) {
-            var idx = ((sy + dy) * SIZE + (sx + dx)) * 4;
-            data[idx] = col.r;
-            data[idx + 1] = col.g;
-            data[idx + 2] = col.b;
-            data[idx + 3] = 255;
-          }
+      var ds = p.land > 0.5 ? dotScale * 2 : dotScale;
+      for (var dy = 0; dy < ds && sy + dy < SIZE; dy++) {
+        for (var dx = 0; dx < ds && sx + dx < SIZE; dx++) {
+          var idx = ((sy + dy) * SIZE + (sx + dx)) * 4;
+          data[idx] = col.r;
+          data[idx + 1] = col.g;
+          data[idx + 2] = col.b;
+          data[idx + 3] = 255;
         }
-      } else {
-        var idx = (sy * SIZE + sx) * 4;
-        data[idx] = col.r;
-        data[idx + 1] = col.g;
-        data[idx + 2] = col.b;
-        data[idx + 3] = 255;
       }
     }
 
@@ -653,13 +647,20 @@
         var csx = Math.round(ctr.rx * radius + cx);
         var csy = Math.round(-ctr.ry * radius + cy);
 
-        if (csx < 0 || csx + 1 >= SIZE || csy < 0 || csy + 1 >= SIZE) continue;
+        if (csx < 0 || csx >= SIZE || csy < 0 || csy >= SIZE) continue;
 
-        var cidx = (csy * SIZE + csx) * 4;
-        data[cidx] = (dotR * cbright) | 0;
-        data[cidx + 1] = (dotG * cbright) | 0;
-        data[cidx + 2] = (dotB * cbright) | 0;
-        data[cidx + 3] = 255;
+        var crV = (dotR * cbright) | 0;
+        var cgV = (dotG * cbright) | 0;
+        var cbV = (dotB * cbright) | 0;
+        for (var cdy = 0; cdy < dotScale && csy + cdy < SIZE; cdy++) {
+          for (var cdx = 0; cdx < dotScale && csx + cdx < SIZE; cdx++) {
+            var cidx = ((csy + cdy) * SIZE + (csx + cdx)) * 4;
+            data[cidx] = crV;
+            data[cidx + 1] = cgV;
+            data[cidx + 2] = cbV;
+            data[cidx + 3] = 255;
+          }
+        }
       }
     }
 
@@ -691,11 +692,15 @@
 
           if (tsx < 0 || tsx >= SIZE || tsy < 0 || tsy >= SIZE) continue;
 
-          var tidx = (tsy * SIZE + tsx) * 4;
-          data[tidx] = wR;
-          data[tidx + 1] = wG;
-          data[tidx + 2] = wB;
-          data[tidx + 3] = 255;
+          for (var tdy = 0; tdy < dotScale && tsy + tdy < SIZE; tdy++) {
+            for (var tdx = 0; tdx < dotScale && tsx + tdx < SIZE; tdx++) {
+              var tidx = ((tsy + tdy) * SIZE + (tsx + tdx)) * 4;
+              data[tidx] = wR;
+              data[tidx + 1] = wG;
+              data[tidx + 2] = wB;
+              data[tidx + 3] = 255;
+            }
+          }
         }
       }
     }
