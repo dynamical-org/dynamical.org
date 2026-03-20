@@ -99,8 +99,8 @@
       brightMult: 1.2,      // brightness amplification
       oceanThresh: 0.6,     // dither threshold for ocean dots
       oceanBright: 0.35,    // ocean dot brightness
-      windBright: 0.35,     // wind tracer brightness
-      windDimStep: 0.1,     // brightness reduction per wind layer
+      windBright: 0.75,     // wind tracer brightness
+      windDimStep: 0.15,    // brightness reduction per wind layer
       cloudBright: { min: 0.25, max: 0.8 },
     },
     light: {
@@ -701,23 +701,12 @@
   }
 
   // --- Load data and start ---
-  // Try R2 first (production), fall back to local static file (dev)
-  var DATA_URL = "https://sa.dynamical.org/site/globe-data.json";
-  fetch(DATA_URL)
+  fetch("https://sa.dynamical.org/site/globe-data.json")
     .then(function (res) {
       if (!res.ok) throw new Error(res.status);
       return res.json();
     })
-    .then(initGlobe)
-    .catch(function () {
-      // Dev fallback: local static file
-      fetch("/globe-data.json")
-        .then(function (res) {
-          if (!res.ok) throw new Error(res.status);
-          return res.json();
-        })
-        .then(initGlobe);
-    });
+    .then(initGlobe);
 
   // --- Mouse/touch drag to rotate ---
   var dragSensitivity = Math.PI / canvas.width; // ~π per canvas-width
