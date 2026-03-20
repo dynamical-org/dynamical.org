@@ -34,7 +34,7 @@ title: catalog
               {% if entry.status == 'live' or entry.status == 'available' %}
                 <a href="/catalog/{{ entry.dataset_id | slugify }}">{{ entry.name | replace(model.name, '') | trim }}</a>
               {% else %}
-                {{ entry.name | replace(model.name, '') | trim }}
+                {{ entry.name | replace(model.name, '') | trim }} ({{ entry.status }})
               {% endif %}
             </td>
             <td class="catalog-resolution">{{ entry.spatial_resolution }}</td>

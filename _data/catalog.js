@@ -74,15 +74,40 @@ X.......X..
 XXXXXXXX...
 `);
 
-// Global, deterministic, AI — diamond
-const GLYPH_GLOBE_AI = pixelArt(`
+// Global, deterministic, AI — sparkle (4-pointed star)
+const GLYPH_AI = pixelArt(`
+...X...
 ...X...
 ..X.X..
-.X...X.
-X.....X
-.X...X.
+XX...XX
 ..X.X..
 ...X...
+...X...
+`);
+
+// Global, ensemble (fewer members), AI — two overlapping sparkles
+const GLYPH_AI_DUO = pixelArt(`
+...X.......
+...X...X...
+..X.X..X...
+XX...XX.X..
+..X.XX...XX
+...X..X.X..
+...X...X...
+.......X...
+`);
+
+// Global, ensemble (more members), AI — three sparkles cascading diagonally
+const GLYPH_AI_CASCADE = pixelArt(`
+...X...........
+...X...X.......
+..X.X..X...X...
+XX...XX.X..X...
+..X.XX...XX..X.
+...X..X.XX...XX
+...X...X..X.X..
+.......X...X...
+...........X...
 `);
 
 // Radar / multi-sensor — concentric rings (radar scope)
@@ -170,7 +195,7 @@ const models = {
   "ecmwf-aifs": {
     name: "ECMWF AIFS",
     shortName: "AIFS",
-    glyph: GLYPH_GLOBE_AI,
+    glyph: GLYPH_AI,
     description: `
       <p>
       The Artificial Intelligence Forecasting System (AIFS) is a machine-learning
@@ -869,11 +894,11 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
         <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
         for more information on this approach. The exact number of rounded bits
         can be found in our
-        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/ecmwf/aifs/deterministic_forecast/template_config.py">reformatting code</a>.
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/ecmwf/aifs_deterministic/forecast/template_config.py">reformatting code</a>.
         </p>
       `,
     url: "https://data.dynamical.org/ecmwf/aifs-deterministic/forecast/latest.zarr",
-    status: "live",
+    status: "coming soon",
     license: `
         <p>
         This data is based on data and products of the European Centre for
@@ -918,7 +943,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     descriptionDetails: `
         <h3>Source</h3>
         <p>
-        The source grib files this archive is contructed from are provided by
+        The source grib files this archive is constructed from are provided by
         <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF Open Data</a>
         and accessed from the <a href="https://registry.opendata.aws/ecmwf-forecasts/">AWS Open Data Registry</a>.
         </p>
