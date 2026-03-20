@@ -877,7 +877,7 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
         <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF Open Data</a>
         and accessed from the <a href="https://registry.opendata.aws/ecmwf-forecasts/">AWS Open Data Registry</a>.
         </p>
-        <p>ECMWF does not provide user support for the free & open datasets. Users should refer to the public <a href='https://apps.ecmwf.int/forum/'>User Forum</a> for any questions related to the source material.</p>
+        <p>ECMWF does not provide user support for the free & open datasets. Users should refer to the public <a href='https://forum.ecmwf.int/'>User Forum</a> for any questions related to the source material.</p>
 
         <h3>Storage</h3>
         <p>
@@ -947,7 +947,7 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF Open Data</a>
         and accessed from the <a href="https://registry.opendata.aws/ecmwf-forecasts/">AWS Open Data Registry</a>.
         </p>
-        <p>ECMWF does not provide user support for the free & open datasets. Users should refer to the public <a href='https://apps.ecmwf.int/forum/'>User Forum</a> for any questions related to the source meterial.</p>
+        <p>ECMWF does not provide user support for the free & open datasets. Users should refer to the public <a href='https://forum.ecmwf.int/'>User Forum</a> for any questions related to the source meterial.</p>
 
         <h3>Data availability</h3>
         <p>

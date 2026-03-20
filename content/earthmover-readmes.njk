@@ -50,7 +50,7 @@ _Don't see what you're looking for or have a question? Contact feedback@dynamica
 | variable | units | dimensions |
 |-------|-------|-------|
 {% for variable in entry.variables -%}
-| **{{ variable.name }}**{% if variable.long_name %}<br>{{ variable.long_name }}{% endif %}{% if variable.comment %}<br>{{ variable.comment }}{% endif %} | {{ variable.units }} | {{ variable.dimension_names.join(' × ') }} |
+| **{{ variable.name }}**{% if variable.short_name %}<br>`{{ variable.short_name }}`{% endif %}{% if variable.long_name %}<br>{{ variable.long_name }}{% endif %}{% if variable.comment %}<br>{{ variable.comment }}{% endif %} | {{ variable.units }} | {{ variable.dimension_names.join(' × ') }} |
 {% endfor %}
 
 Contact feedback@dynamical.org to request additional variables.
