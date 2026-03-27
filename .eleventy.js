@@ -260,16 +260,53 @@ module.exports = function (eleventyConfig) {
       entry.spatial_domain && entry.spatial_domain.includes("Global");
     const bbox = isGlobal ? [-180, -90, 180, 90] : [-125, 24, -66, 50];
 
+    // Datacube extension: dimensions and variables from zarr metadata
+    const cubeDimensions = {};
+    for (const dim of entry.dimensions || []) {
+      if (dim.name === "latitude" || dim.name === "y") {
+        cubeDimensions[dim.name] = {
+          type: "spatial",
+          axis: "y",
+          extent: [bbox[1], bbox[3]],
+        };
+      } else if (dim.name === "longitude" || dim.name === "x") {
+        cubeDimensions[dim.name] = {
+          type: "spatial",
+          axis: "x",
+          extent: [bbox[0], bbox[2]],
+        };
+      } else if (dim.name === "time" || dim.name === "init_time" || dim.name === "valid_time") {
+        cubeDimensions[dim.name] = { type: "temporal" };
+      } else {
+        cubeDimensions[dim.name] = { type: "other" };
+      }
+      if (dim.units) cubeDimensions[dim.name].unit = dim.units;
+      cubeDimensions[dim.name].size = dim.shape[0];
+    }
+
+    const cubeVariables = {};
+    for (const v of entry.variables || []) {
+      const varObj = {
+        dimensions: v.dimension_names,
+        type: "data",
+      };
+      if (v.units) varObj.unit = v.units;
+      cubeVariables[v.name] = varObj;
+    }
+
     return {
       type: "Collection",
       id: entry.dataset_id,
       stac_version: "1.0.0",
       stac_extensions: [
         "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
+        "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
       ],
       title: entry.name,
       description: entry.description || "",
       license: "CC-BY-4.0",
+      "cube:dimensions": cubeDimensions,
+      "cube:variables": cubeVariables,
       extent: {
         spatial: { bbox: [bbox] },
         temporal: { interval: [["2000-01-01T00:00:00Z", null]] },
