@@ -276,9 +276,9 @@ module.exports = function (eleventyConfig) {
           extent: [bbox[0], bbox[2]],
         };
       } else if (dim.name === "time" || dim.name === "init_time" || dim.name === "valid_time") {
-        cubeDimensions[dim.name] = { type: "temporal" };
+        cubeDimensions[dim.name] = { type: "temporal", extent: [null, null] };
       } else {
-        cubeDimensions[dim.name] = { type: "other" };
+        cubeDimensions[dim.name] = { type: "other", extent: [null, null] };
       }
       if (dim.units) cubeDimensions[dim.name].unit = dim.units;
       cubeDimensions[dim.name].size = dim.shape[0];
