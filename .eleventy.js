@@ -187,7 +187,113 @@ module.exports = function (eleventyConfig) {
     return array.filter((item) => item[property] !== value);
   });
 
-  
+  // STAC catalog generation filters
+  const STAC_BASE_URL = "https://dynamical.org/stac";
+
+  eleventyConfig.addFilter("stacCatalog", function (entries) {
+    const liveEntries = entries.filter(
+      (e) => e.status !== "deprecated" && e.dataset_id
+    );
+    return {
+      type: "Catalog",
+      id: "dynamical-org",
+      stac_version: "1.0.0",
+      description:
+        "Cloud-optimized weather and climate datasets from dynamical.org",
+      links: [
+        {
+          rel: "self",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+        {
+          rel: "root",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+        ...liveEntries.map((e) => ({
+          rel: "child",
+          href: `./${e.dataset_id}/collection.json`,
+          type: "application/json",
+          title: e.name,
+        })),
+      ],
+    };
+  });
+
+  eleventyConfig.addFilter("stacCollection", function (entry) {
+    if (!entry || !entry.dataset_id || !entry.url) {
+      return {};
+    }
+
+    const assets = {
+      zarr: {
+        href: entry.url,
+        type: "application/x-zarr",
+        title: "Zarr v3 store",
+        roles: ["data"],
+        "xarray:open_kwargs": {
+          engine: "zarr",
+        },
+      },
+    };
+
+    if (entry.icechunk) {
+      assets.icechunk = {
+        href: `s3://${entry.icechunk.bucket}/${entry.icechunk.prefix}`,
+        type: "application/x-icechunk",
+        title: "Icechunk repository",
+        roles: ["data"],
+        "icechunk:storage": {
+          bucket: entry.icechunk.bucket,
+          prefix: entry.icechunk.prefix,
+          region: entry.icechunk.region,
+        },
+        "xarray:open_kwargs": {
+          engine: "zarr",
+          chunks: null,
+        },
+      };
+    }
+
+    const isGlobal =
+      entry.spatial_domain && entry.spatial_domain.includes("Global");
+    const bbox = isGlobal ? [-180, -90, 180, 90] : [-125, 24, -66, 50];
+
+    return {
+      type: "Collection",
+      id: entry.dataset_id,
+      stac_version: "1.0.0",
+      stac_extensions: [
+        "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
+      ],
+      title: entry.name,
+      description: entry.description || "",
+      license: "CC-BY-4.0",
+      extent: {
+        spatial: { bbox: [bbox] },
+        temporal: { interval: [["2000-01-01T00:00:00Z", null]] },
+      },
+      assets,
+      links: [
+        {
+          rel: "self",
+          href: `${STAC_BASE_URL}/${entry.dataset_id}/collection.json`,
+          type: "application/json",
+        },
+        {
+          rel: "root",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+        {
+          rel: "parent",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+      ],
+    };
+  });
 
   return {
     dir: {

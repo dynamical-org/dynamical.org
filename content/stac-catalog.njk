@@ -1,0 +1,5 @@
+---
+permalink: stac/catalog.json
+eleventyExcludeFromCollections: true
+---
+{{ catalog.entries | stacCatalog | dump(2) | safe }}

@@ -1104,6 +1104,17 @@ module.exports = async function () {
     }
   }
 
+  // Compute icechunk config for datasets that have icechunk notebooks
+  entries.forEach((entry) => {
+    if (entry.githubIcechunkUrl && entry.dataset_id && entry.dataset_version) {
+      entry.icechunk = {
+        bucket: `dynamical-${entry.modelId}`,
+        prefix: `${entry.dataset_id}/v${entry.dataset_version}.icechunk/`,
+        region: "us-west-2",
+      };
+    }
+  });
+
   // Group datasets by model
   const modelGroups = {};
   entries.forEach((dataset) => {
