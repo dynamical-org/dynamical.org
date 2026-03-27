@@ -192,17 +192,17 @@ const models = {
     agency: "NOAA",
     type: "Regional Weather Analysis",
   },
-  "ecmwf-aifs": {
-    name: "ECMWF AIFS",
-    shortName: "AIFS",
+  "ecmwf-aifs-deterministic": {
+    name: "ECMWF AIFS deterministic",
+    shortName: "AIFS deterministic",
     glyph: GLYPH_AI,
     description: `
       <p>
-      The Artificial Intelligence Forecasting System (AIFS) is a machine-learning
-      based weather forecast model developed by ECMWF. AIFS produces global
-      deterministic forecasts and runs alongside ECMWF's traditional physics-based
-      Integrated Forecasting System (IFS). AIFS is trained on ECMWF ERA5 reanalysis
-      data and provides forecasts on a regular 0.25 degree latitude-longitude grid.
+      The Artificial Intelligence Forecasting System (AIFS) is a data driven forecast
+      model developed by the European Centre for Medium-Range Weather Forecasts (ECMWF).
+      This is the deterministic "single" (non-ensemble) configuration of AIFS.
+      AIFS is trained on ECMWF's ERA5 re-analysis and ECMWF's operational numerical
+      weather prediction (NWP) analyses.
       </p>
     `,
     agency: "ECMWF",
@@ -861,7 +861,7 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
 
   // ecmwf-aifs-deterministic-forecast
   {
-    modelId: "ecmwf-aifs",
+    modelId: "ecmwf-aifs-deterministic",
     descriptionSummary: `
         <p>
         This dataset is an archive of past and present ECMWF AIFS deterministic forecasts.
@@ -878,6 +878,12 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
         and accessed from the <a href="https://registry.opendata.aws/ecmwf-forecasts/">AWS Open Data Registry</a>.
         </p>
         <p>ECMWF does not provide user support for the free & open datasets. Users should refer to the public <a href='https://forum.ecmwf.int/'>User Forum</a> for any questions related to the source material.</p>
+
+        <h3>Model updates</h3>
+        <p>
+        AIFS is updated regularly. Find details of recent and upcoming
+        <a href="https://confluence.ecmwf.int/display/FCST/Changes+to+the+forecasting+system">changes to the forecasting system</a> on the ECMWF website.
+        </p>
 
         <h3>Storage</h3>
         <p>
