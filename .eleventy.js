@@ -187,7 +187,191 @@ module.exports = function (eleventyConfig) {
     return array.filter((item) => item[property] !== value);
   });
 
-  
+  // STAC catalog generation filters
+  const STAC_BASE_URL = "https://dynamical.org/stac";
+
+  eleventyConfig.addFilter("stacCatalog", function (entries) {
+    const liveEntries = entries.filter(
+      (e) => e.status !== "deprecated" && e.dataset_id
+    );
+    return {
+      type: "Catalog",
+      id: "dynamical-org",
+      stac_version: "1.0.0",
+      description:
+        "Cloud-optimized weather and climate datasets from dynamical.org",
+      links: [
+        {
+          rel: "self",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+        {
+          rel: "root",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+        ...liveEntries.map((e) => ({
+          rel: "child",
+          href: `./${e.dataset_id}/collection.json`,
+          type: "application/json",
+          title: e.name,
+        })),
+      ],
+    };
+  });
+
+  eleventyConfig.addFilter("stacCollection", function (entry) {
+    if (!entry || !entry.dataset_id || !entry.url) {
+      return {};
+    }
+
+    const assets = {
+      zarr: {
+        href: entry.url,
+        type: "application/x-zarr",
+        title: "Zarr v3 store",
+        roles: ["data"],
+        "xarray:open_kwargs": {
+          engine: "zarr",
+        },
+      },
+    };
+
+    if (entry.icechunk) {
+      assets.icechunk = {
+        href: `s3://${entry.icechunk.bucket}/${entry.icechunk.prefix}`,
+        type: "application/x-icechunk",
+        title: "Icechunk repository",
+        roles: ["data"],
+        "icechunk:storage": {
+          bucket: entry.icechunk.bucket,
+          prefix: entry.icechunk.prefix,
+          region: entry.icechunk.region,
+        },
+        "xarray:open_kwargs": {
+          engine: "zarr",
+          chunks: null,
+        },
+      };
+    }
+
+    // Compute bbox from latitude/longitude coordinate statistics
+    const allArrays = [...(entry.dimensions || []), ...(entry.variables || [])];
+    const latArray = allArrays.find((a) => a.standard_name === "latitude");
+    const lonArray = allArrays.find((a) => a.standard_name === "longitude");
+    const bbox =
+      latArray?.statistics_approximate && lonArray?.statistics_approximate
+        ? [
+            lonArray.statistics_approximate.min,
+            latArray.statistics_approximate.min,
+            lonArray.statistics_approximate.max,
+            latArray.statistics_approximate.max,
+          ]
+        : [-180, -90, 180, 90];
+
+    // Compute temporal start from time dimension statistics
+    const timeDim = (entry.dimensions || []).find(
+      (d) =>
+        d.name === "time" || d.name === "init_time" || d.name === "valid_time"
+    );
+    const tMin = timeDim?.statistics_approximate?.min;
+    const temporalStart =
+      tMin && tMin !== "Present"
+        ? tMin.endsWith("Z")
+          ? tMin
+          : `${tMin}Z`
+        : null;
+
+    // Datacube extension: dimensions and variables from zarr metadata
+    const cubeDimensions = {};
+    for (const dim of entry.dimensions || []) {
+      if (dim.name === "latitude" || dim.name === "y") {
+        cubeDimensions[dim.name] = {
+          type: "spatial",
+          axis: "y",
+          extent: dim.statistics_approximate
+            ? [dim.statistics_approximate.min, dim.statistics_approximate.max]
+            : [bbox[1], bbox[3]],
+        };
+      } else if (dim.name === "longitude" || dim.name === "x") {
+        cubeDimensions[dim.name] = {
+          type: "spatial",
+          axis: "x",
+          extent: dim.statistics_approximate
+            ? [dim.statistics_approximate.min, dim.statistics_approximate.max]
+            : [bbox[0], bbox[2]],
+        };
+      } else if (
+        dim.name === "time" ||
+        dim.name === "init_time" ||
+        dim.name === "valid_time"
+      ) {
+        const dimMin = dim.statistics_approximate?.min;
+        const dimStart =
+          dimMin && dimMin !== "Present"
+            ? dimMin.endsWith("Z")
+              ? dimMin
+              : `${dimMin}Z`
+            : null;
+        cubeDimensions[dim.name] = {
+          type: "temporal",
+          extent: [dimStart, null],
+        };
+      } else {
+        cubeDimensions[dim.name] = { type: "other", extent: [null, null] };
+      }
+      if (dim.units) cubeDimensions[dim.name].unit = dim.units;
+      cubeDimensions[dim.name].size = dim.shape[0];
+    }
+
+    const cubeVariables = {};
+    for (const v of entry.variables || []) {
+      const varObj = {
+        dimensions: v.dimension_names,
+        type: "data",
+      };
+      if (v.units) varObj.unit = v.units;
+      cubeVariables[v.name] = varObj;
+    }
+
+    return {
+      type: "Collection",
+      id: entry.dataset_id,
+      stac_version: "1.0.0",
+      stac_extensions: [
+        "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
+        "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
+      ],
+      title: entry.name,
+      description: entry.description || "",
+      license: "CC-BY-4.0",
+      "cube:dimensions": cubeDimensions,
+      "cube:variables": cubeVariables,
+      extent: {
+        spatial: { bbox: [bbox] },
+        temporal: { interval: [[temporalStart, null]] },
+      },
+      assets,
+      links: [
+        {
+          rel: "self",
+          href: `${STAC_BASE_URL}/${entry.dataset_id}/collection.json`,
+          type: "application/json",
+        },
+        {
+          rel: "root",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+        {
+          rel: "parent",
+          href: `${STAC_BASE_URL}/catalog.json`,
+          type: "application/json",
+        },
+      ],
+    };
+  });
 
   return {
     dir: {
