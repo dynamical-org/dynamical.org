@@ -256,9 +256,32 @@ module.exports = function (eleventyConfig) {
       };
     }
 
-    const isGlobal =
-      entry.spatial_domain && entry.spatial_domain.includes("Global");
-    const bbox = isGlobal ? [-180, -90, 180, 90] : [-125, 24, -66, 50];
+    // Compute bbox from latitude/longitude coordinate statistics
+    const allArrays = [...(entry.dimensions || []), ...(entry.variables || [])];
+    const latArray = allArrays.find((a) => a.standard_name === "latitude");
+    const lonArray = allArrays.find((a) => a.standard_name === "longitude");
+    const bbox =
+      latArray?.statistics_approximate && lonArray?.statistics_approximate
+        ? [
+            lonArray.statistics_approximate.min,
+            latArray.statistics_approximate.min,
+            lonArray.statistics_approximate.max,
+            latArray.statistics_approximate.max,
+          ]
+        : [-180, -90, 180, 90];
+
+    // Compute temporal start from time dimension statistics
+    const timeDim = (entry.dimensions || []).find(
+      (d) =>
+        d.name === "time" || d.name === "init_time" || d.name === "valid_time"
+    );
+    const tMin = timeDim?.statistics_approximate?.min;
+    const temporalStart =
+      tMin && tMin !== "Present"
+        ? tMin.endsWith("Z")
+          ? tMin
+          : `${tMin}Z`
+        : null;
 
     // Datacube extension: dimensions and variables from zarr metadata
     const cubeDimensions = {};
@@ -267,16 +290,34 @@ module.exports = function (eleventyConfig) {
         cubeDimensions[dim.name] = {
           type: "spatial",
           axis: "y",
-          extent: [bbox[1], bbox[3]],
+          extent: dim.statistics_approximate
+            ? [dim.statistics_approximate.min, dim.statistics_approximate.max]
+            : [bbox[1], bbox[3]],
         };
       } else if (dim.name === "longitude" || dim.name === "x") {
         cubeDimensions[dim.name] = {
           type: "spatial",
           axis: "x",
-          extent: [bbox[0], bbox[2]],
+          extent: dim.statistics_approximate
+            ? [dim.statistics_approximate.min, dim.statistics_approximate.max]
+            : [bbox[0], bbox[2]],
         };
-      } else if (dim.name === "time" || dim.name === "init_time" || dim.name === "valid_time") {
-        cubeDimensions[dim.name] = { type: "temporal", extent: [null, null] };
+      } else if (
+        dim.name === "time" ||
+        dim.name === "init_time" ||
+        dim.name === "valid_time"
+      ) {
+        const dimMin = dim.statistics_approximate?.min;
+        const dimStart =
+          dimMin && dimMin !== "Present"
+            ? dimMin.endsWith("Z")
+              ? dimMin
+              : `${dimMin}Z`
+            : null;
+        cubeDimensions[dim.name] = {
+          type: "temporal",
+          extent: [dimStart, null],
+        };
       } else {
         cubeDimensions[dim.name] = { type: "other", extent: [null, null] };
       }
@@ -309,7 +350,7 @@ module.exports = function (eleventyConfig) {
       "cube:variables": cubeVariables,
       extent: {
         spatial: { bbox: [bbox] },
-        temporal: { interval: [["2000-01-01T00:00:00Z", null]] },
+        temporal: { interval: [[temporalStart, null]] },
       },
       assets,
       links: [
