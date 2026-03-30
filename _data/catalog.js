@@ -904,7 +904,7 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
         </p>
       `,
     url: "https://data.dynamical.org/ecmwf/aifs-single/forecast/latest.zarr",
-    status: "coming soon",
+    status: "live",
     license: `
         <p>
         This data is based on data and products of the European Centre for
@@ -972,6 +972,12 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         are each produced with slight perturbations of initial conditions 
         and of the models. Taken together, ensemble of 51 forecasts shows 
         the range of possible outcomes and the likelihood of their occurrence.
+        </p>
+
+        <h3>Model updates</h3>
+        <p>
+        IFS is updated regularly. Find details of recent and upcoming
+        <a href="https://confluence.ecmwf.int/display/FCST/Changes+to+the+forecasting+system">changes to the forecasting system</a> on the ECMWF website.
         </p>
 
         <h3>Storage</h3>

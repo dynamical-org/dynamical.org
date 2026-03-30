@@ -196,8 +196,7 @@ table.data tr th.right {
 .catalog-table .catalog-model-cell {
   font-weight: 700;
   vertical-align: top;
-  word-break: break-word;
-  min-width: 20rem;
+  white-space: nowrap;
 }
 
 .catalog-glyph {
