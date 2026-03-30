@@ -192,15 +192,15 @@ const models = {
     agency: "NOAA",
     type: "Regional Weather Analysis",
   },
-  "ecmwf-aifs-deterministic": {
-    name: "ECMWF AIFS deterministic",
-    shortName: "AIFS deterministic",
+  "ecmwf-aifs-single": {
+    name: "ECMWF AIFS Single",
+    shortName: "AIFS Single",
     glyph: GLYPH_AI,
     description: `
       <p>
       The Artificial Intelligence Forecasting System (AIFS) is a data driven forecast
       model developed by the European Centre for Medium-Range Weather Forecasts (ECMWF).
-      This is the deterministic "single" (non-ensemble) configuration of AIFS.
+      This is the non-ensemble configuration of AIFS that produces a single forecast trace.
       AIFS is trained on ECMWF's ERA5 re-analysis and ECMWF's operational numerical
       weather prediction (NWP) analyses.
       </p>
@@ -859,12 +859,12 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
       "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-mrms-conus-analysis-hourly.ipynb",
   },
 
-  // ecmwf-aifs-deterministic-forecast
+  // ecmwf-aifs-single-forecast
   {
-    modelId: "ecmwf-aifs-deterministic",
+    modelId: "ecmwf-aifs-single",
     descriptionSummary: `
         <p>
-        This dataset is an archive of past and present ECMWF AIFS deterministic forecasts.
+        This dataset is an archive of past and present ECMWF AIFS Single forecasts.
         Forecasts are identified by an initialization time (<code>init_time</code>) denoting the
         start time of the model run. Each forecast steps forward in time along the
         <code>lead_time</code> dimension, from 0 to 360 hours (15 days) at a 6 hourly step.
@@ -900,11 +900,11 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
         <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
         for more information on this approach. The exact number of rounded bits
         can be found in our
-        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/ecmwf/aifs_deterministic/forecast/template_config.py">reformatting code</a>.
+        <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/ecmwf/aifs_single/forecast/template_config.py">reformatting code</a>.
         </p>
       `,
-    url: "https://data.dynamical.org/ecmwf/aifs-deterministic/forecast/latest.zarr",
-    status: "coming soon",
+    url: "https://data.dynamical.org/ecmwf/aifs-single/forecast/latest.zarr",
+    status: "live",
     license: `
         <p>
         This data is based on data and products of the European Centre for
@@ -919,17 +919,17 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
         code: `
 import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
 
-ds = xr.open_zarr("https://data.dynamical.org/ecmwf/aifs-deterministic/forecast/latest.zarr")
+ds = xr.open_zarr("https://data.dynamical.org/ecmwf/aifs-single/forecast/latest.zarr")
 ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max().compute()
     `,
       },
     ],
     githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-aifs-deterministic-forecast.ipynb",
+      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-aifs-single-forecast.ipynb",
     githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-aifs-deterministic-forecast-icechunk.ipynb",
+      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-aifs-single-forecast-icechunk.ipynb",
     colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/ecmwf-aifs-deterministic-forecast.ipynb",
+      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/ecmwf-aifs-single-forecast.ipynb",
   },
 
   // ecmwf-ifs-ens-forecast-15-day-0-25-degree
@@ -972,6 +972,12 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
         are each produced with slight perturbations of initial conditions 
         and of the models. Taken together, ensemble of 51 forecasts shows 
         the range of possible outcomes and the likelihood of their occurrence.
+        </p>
+
+        <h3>Model updates</h3>
+        <p>
+        IFS is updated regularly. Find details of recent and upcoming
+        <a href="https://confluence.ecmwf.int/display/FCST/Changes+to+the+forecasting+system">changes to the forecasting system</a> on the ECMWF website.
         </p>
 
         <h3>Storage</h3>
