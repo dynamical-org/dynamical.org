@@ -369,6 +369,42 @@ module.exports = function (eleventyConfig) {
           href: `${STAC_BASE_URL}/catalog.json`,
           type: "application/json",
         },
+        {
+          rel: "about",
+          href: `https://dynamical.org/catalog/${entry.dataset_id}/`,
+          type: "text/html",
+          title: "Dataset documentation",
+        },
+        ...(entry.githubUrl
+          ? [
+              {
+                rel: "example",
+                href: entry.githubUrl,
+                type: "application/x-ipynb+json",
+                title: "Example notebook (GitHub)",
+              },
+            ]
+          : []),
+        ...(entry.colabUrl
+          ? [
+              {
+                rel: "example",
+                href: entry.colabUrl,
+                type: "text/html",
+                title: "Example notebook (Colab)",
+              },
+            ]
+          : []),
+        ...(entry.githubIcechunkUrl
+          ? [
+              {
+                rel: "example",
+                href: entry.githubIcechunkUrl,
+                type: "application/x-ipynb+json",
+                title: "Icechunk example notebook (GitHub)",
+              },
+            ]
+          : []),
       ],
     };
   });
