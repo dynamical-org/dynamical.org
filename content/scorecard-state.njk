@@ -171,7 +171,7 @@ permalink: /scorecard/us-state/{{ state.abbr | slug }}/
       });
     </script>
     <script type="module">
-      import { renderMetric, VARIABLE_METRICS, DEFAULT_METRIC } from '/scorecard.js';
+      import { renderMetric, VARIABLE_METRICS, DEFAULT_METRIC, METRIC_CONFIG } from '/scorecard.js';
 
       function populateMetricSelect(selectEl, variable) {
         const metrics = VARIABLE_METRICS[variable];
@@ -179,7 +179,7 @@ permalink: /scorecard/us-state/{{ state.abbr | slug }}/
         metrics.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m;
-          opt.textContent = m === 'FrequencyBias' ? 'Frequency Bias' : m;
+          opt.textContent = METRIC_CONFIG[m]?.label || m;
           if (m === defaultMetric) opt.selected = true;
           selectEl.appendChild(opt);
         });

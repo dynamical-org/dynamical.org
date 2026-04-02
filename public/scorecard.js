@@ -18,20 +18,24 @@ const METRIC_HEIGHT = 360;
 const OBS_HEIGHT = 300;
 
 // Per-metric display configuration.
-const METRIC_CONFIG = {
-  RMSE:          { label: "RMSE",           unitType: "standard", refValue: 0 },
-  MAE:           { label: "MAE",            unitType: "standard", refValue: 0 },
-  Bias:          { label: "Bias",           unitType: "standard", refValue: 0 },
-  CRPS:          { label: "CRPS",           unitType: "standard", refValue: 0 },
-  ETS:           { label: "ETS",            unitType: "unitless", refValue: 0 },
-  FrequencyBias: { label: "Frequency Bias", unitType: "unitless", refValue: 1 },
-  HSS:           { label: "HSS",            unitType: "unitless", refValue: 0 },
-  FSS:           { label: "FSS",            unitType: "unitless", refValue: 0 },
+export const METRIC_CONFIG = {
+  RMSE:          { label: "RMSE",                    unitType: "standard", refValue: 0 },
+  RMSE_bc:       { label: "RMSE (bias-corrected)",   unitType: "standard", refValue: 0 },
+  MAE:           { label: "MAE",                     unitType: "standard", refValue: 0 },
+  MAE_bc:        { label: "MAE (bias-corrected)",    unitType: "standard", refValue: 0 },
+  Bias:          { label: "Bias",                    unitType: "standard", refValue: 0 },
+  Bias_bc:       { label: "Bias (bias-corrected)",   unitType: "standard", refValue: 0 },
+  CRPS:          { label: "CRPS",                    unitType: "standard", refValue: 0 },
+  CRPS_bc:       { label: "CRPS (bias-corrected)",   unitType: "standard", refValue: 0 },
+  ETS:           { label: "ETS",                     unitType: "unitless", refValue: 0 },
+  FrequencyBias: { label: "Frequency Bias",          unitType: "unitless", refValue: 1 },
+  HSS:           { label: "HSS",                     unitType: "unitless", refValue: 0 },
+  FSS:           { label: "FSS",                     unitType: "unitless", refValue: 0 },
 };
 
 // Which metrics are available for each variable, and which is the default.
 export const VARIABLE_METRICS = {
-  temperature_2m:       ["RMSE", "MAE", "Bias", "CRPS"],
+  temperature_2m:       ["RMSE", "RMSE_bc", "MAE", "MAE_bc", "Bias", "Bias_bc", "CRPS", "CRPS_bc"],
   precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias", "HSS", "FSS"],
 };
 

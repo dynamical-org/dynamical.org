@@ -139,6 +139,22 @@ def fss(forecast, observed):
     return 1 - mse / ref
 ```
 
+## Bias-Corrected Metrics
+
+Temperature metrics are also available in bias-corrected variants (RMSE_bc, MAE_bc, Bias_bc, CRPS_bc). These remove the systematic offset between each model's grid-cell average and the point station measurement before computing the metric.
+
+NWP grid cells represent area-averages, but weather stations measure point values. A station in the upland corner of a grid cell will systematically read cooler than the cell average. This pixel-station representativeness error inflates all error metrics regardless of forecast skill.
+
+The correction factor is a single scalar per station per model, computed as the mean forecast-minus-observed difference over a 180-day window across all lead times:
+
+```
+correction = mean(forecast - observed)  # per station, per model, 180 days
+```
+
+This correction is then subtracted from every forecast value before computing metrics. It cannot systematically help or hurt any particular model type — it simply removes the fixed spatial mismatch between each model's grid representation and the station location.
+
+Bias-corrected metrics are available for temperature only. Precipitation bias is multiplicative rather than additive, so a constant offset correction does not apply.
+
 ## Contingency Table
 
 The categorical precipitation metrics (ETS, Frequency Bias, HSS) are built on a contingency table. For each forecast-observation pair, both values are classified as "wet" (>= 0.1 mm/h) or "dry" (< 0.1 mm/h), producing four counts:
