@@ -73,6 +73,10 @@ eleventyComputed:
     <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}" style="width: {{ entry.url.length + 2 }}ch; max-width: 100%;"/>
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
   </p>
+  <p>
+    <a href="/stac/{{ entry.dataset_id | slugify }}/collection.json">STAC Collection</a>
+    · <a href="https://radiantearth.github.io/stac-browser/#/external/dynamical.org/stac/{{ entry.dataset_id | slugify }}/collection.json">STAC Browser</a>
+  </p>
   {% if model %}
     <p style="text-wrap: balance">{{ model.description | safe }}</p>
   {% endif %}
