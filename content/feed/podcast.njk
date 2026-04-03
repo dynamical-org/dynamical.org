@@ -35,9 +35,7 @@ permalink: /feed/podcast.xml
             {{ episode.templateContent | striptags | truncate(200) }}
           {% endif %}
         </description>
-        <content:encoded>
-          <![CDATA[{{ episode.templateContent | transformWithHtmlBase(absoluteEpisodeUrl, episode.url) }}]]>
-        </content:encoded>
+        <content:encoded>{{ episode.templateContent | transformWithHtmlBase(absoluteEpisodeUrl, episode.url) }}</content:encoded>
         <link>{{ absoluteEpisodeUrl }}</link>
         <guid>{{ absoluteEpisodeUrl }}</guid>
         <pubDate>{{ episode.date | dateToRfc822 }}</pubDate>
