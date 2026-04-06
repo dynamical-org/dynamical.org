@@ -17,7 +17,7 @@ const stateAbbrToName = {
 };
 
 async function getStations() {
-  const csvText = await fetch("https://sa.dynamical.org/stations.csv", {
+  const csvText = await fetch("https://assets.dynamical.org/scorecard/stations.csv", {
     duration: "1d", // Cache for 1 day
     type: "text",
   });

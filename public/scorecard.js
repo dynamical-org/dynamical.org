@@ -1,6 +1,6 @@
 // Client-side scorecard charts: DuckDB-WASM for parquet queries, Observable Plot for rendering.
 
-const STATS_URL = "https://sa.dynamical.org/statistics.parquet";
+const STATS_URL = "https://assets.dynamical.org/scorecard/statistics.parquet";
 const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 
 // Color for each known model. Order here is the preferred display order.

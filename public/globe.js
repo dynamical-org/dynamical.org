@@ -714,7 +714,7 @@
   }
 
   // --- Load data and start ---
-  fetch("https://sa.dynamical.org/site/globe-data.json")
+  fetch("https://assets.dynamical.org/site/globe-data.json")
     .then(function (res) {
       if (!res.ok) throw new Error(res.status);
       return res.json();
