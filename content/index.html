@@ -23,8 +23,8 @@ redirects_from: /index.html
         <div class="hero-stat-label">archived</div>
       </div>
       <div class="hero-stat">
-        <div class="hero-stat-value">100M+</div>
-        <div class="hero-stat-label">requests / month</div>
+        <div class="hero-stat-value">{{ usage.requestsDisplay }}</div>
+        <div class="hero-stat-label">requests served</div>
       </div>
       <div class="hero-stat">
         <div class="hero-stat-value">{{ catalog.entries | size }}</div>
