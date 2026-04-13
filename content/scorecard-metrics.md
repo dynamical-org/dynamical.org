@@ -141,7 +141,7 @@ def fss(forecast, observed):
 
 ## Bias-Corrected Metrics
 
-Temperature metrics are also available in bias-corrected variants (RMSE_bc, MAE_bc, Bias_bc, CRPS_bc). These remove the systematic offset between each model's grid-cell average and the point station measurement before computing the metric.
+Temperature metrics are also available in bias-corrected variants (RMSE_bc, MAE_bc, CRPS_bc). These remove the systematic offset between each model's grid-cell average and the point station measurement before computing the metric. Bias itself is not offered as a bias-corrected variant: the correction is a mean shift, so the bias of the corrected forecast is zero by construction on the window the correction was learned from.
 
 NWP grid cells represent area-averages, but weather stations measure point values. A station in the upland corner of a grid cell will systematically read cooler than the cell average. This pixel-station representativeness error inflates all error metrics regardless of forecast skill.
 
