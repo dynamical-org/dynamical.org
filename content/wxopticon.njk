@@ -21,7 +21,14 @@ permalink: /status/
         <div class="wx-row-label-source">{{ product.source }} · {{ product.cadence_hours }}h cadence</div>
         <div class="wx-stats-meta" data-slot="next-run">next run —</div>
       </div>
-      <div class="wx-grid" data-slot="grid"></div>
+      <div class="wx-grid" data-slot="grid">
+        {% for _ in range(0, product.recent_init_count) %}
+        <div class="wx-bar" data-skeleton>
+          <div class="wx-bar-track"></div>
+          <div class="wx-bar-label"><span><strong>&nbsp;</strong>&nbsp;</span></div>
+        </div>
+        {% endfor %}
+      </div>
       <div class="wx-stats">
         <dl class="wx-latency-strip" data-slot="latency">
           <div><dt>p50</dt><dd>—</dd></div>

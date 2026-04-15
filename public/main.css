@@ -777,6 +777,26 @@ article img {
   transition: height 0.3s ease;
 }
 
+.wx-bar[data-skeleton] {
+  animation: wx-skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.wx-bar[data-skeleton] .wx-bar-label {
+  visibility: hidden;
+}
+
+@keyframes wx-skeleton-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-bar[data-skeleton] {
+    animation: none;
+    opacity: 0.45;
+  }
+}
+
 .wx-bar[data-status="on_time"] .wx-bar-fill {
   background-color: var(--status-on-time);
 }

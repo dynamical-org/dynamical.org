@@ -11,6 +11,7 @@ module.exports = async function () {
     label: p.label,
     source: p.source,
     cadence_hours: p.cadence_hours,
+    recent_init_count: p.recent_inits.length,
   }));
 
   return {
