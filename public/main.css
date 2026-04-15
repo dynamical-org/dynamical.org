@@ -867,6 +867,7 @@ body.status-time-local .t-utc {
 
 .status-controls {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 1.2rem;
   margin-bottom: 4rem;
