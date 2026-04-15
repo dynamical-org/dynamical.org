@@ -5,43 +5,41 @@ permalink: /status/
 ---
 
 <div class="content">
-  <main id="wx-app" class="wx-app">
-    <div class="wx-banners" data-slot="banners"></div>
+  <main id="wx-app">
+    <div data-slot="banners"></div>
 
-    <button type="button" class="wx-time-toggle" id="wx-time-toggle">
-      Toggle time:
-      <span class="t-utc">UTC</span>
-      <span class="t-local">local</span>
-    </button>
+    <select id="wx-time-toggle" style="margin-bottom: 4rem;">
+      <option value="utc">Coordinated Universal Time (UTC)</option>
+      <option value="local">Local time</option>
+    </select>
 
     {% for product in wxopticon.products %}
-    <section class="wx-row" data-product-id="{{ product.id }}">
-      <div class="wx-row-label">
-        <div class="wx-row-label-name">{{ product.label }}</div>
-        <div class="wx-row-label-source">{{ product.source }} · {{ product.cadence_hours }}h cadence</div>
-        <div class="wx-stats-meta" data-slot="next-run">next run —</div>
+    <section class="status-row" data-product-id="{{ product.id }}">
+      <div>
+        <strong>{{ product.label }}</strong>
+        <div style="font-size:1rem;">
+          <div>{{ product.source }}</div>
+          <div>{{ product.cadence_hours }}h cadence</div>
+          <div data-slot="next-complete">Next complete —</div>
+          <div data-slot="next-run">Next run —</div>
+        </div>
       </div>
-      <div class="wx-grid" data-slot="grid">
+      <div class="status-grid" data-slot="grid">
         {% for _ in range(0, product.recent_init_count) %}
-        <div class="wx-bar" data-skeleton>
-          <div class="wx-bar-track"></div>
-          <div class="wx-bar-label"><span><strong>&nbsp;</strong>&nbsp;</span></div>
+        <div class="status-bar" data-skeleton>
+          <div class="status-bar-track"></div>
+          <div class="status-bar-label"><span><strong>&nbsp;</strong>&nbsp;</span></div>
         </div>
         {% endfor %}
       </div>
-      <div class="wx-stats">
-        <dl class="wx-latency-strip" data-slot="latency">
-          <div><dt>p50</dt><dd>—</dd></div>
-          <div><dt>p95</dt><dd>—</dd></div>
-          <div><dt>p99</dt><dd>—</dd></div>
-        </dl>
-        <div class="wx-stats-meta" data-slot="samples">— samples</div>
-        <div class="wx-stats-meta" data-slot="next-complete">next complete —</div>
+      <div class="status-stats">
+        <div data-slot="latency"></div>
+        <div class="status-samples" data-slot="samples">Based on — records</div>
       </div>
     </section>
     {% endfor %}
 
-    <footer class="wx-footer">
+    <footer class="status-footer">
       <div>Updated <span data-slot="generated-at">—</span></div>
       <div>{{ wxopticon.window_days }}-day rolling window · polls every 15s</div>
     </footer>

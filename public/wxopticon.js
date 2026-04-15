@@ -15,13 +15,14 @@
   const POLL_INTERVAL_MS = 15_000;
   const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 min = 2× backend cadence
   const TIME_MODE_KEY = "wxopticon:timeMode";
+  const RECENT_INIT_COUNT = 10;
 
   const app = document.getElementById("wx-app");
   if (!app) return;
 
   const bannersSlot = app.querySelector('[data-slot="banners"]');
   const generatedAtSlot = app.querySelector('[data-slot="generated-at"]');
-  const toggleBtn = document.getElementById("wx-time-toggle");
+  const toggleSelect = document.getElementById("wx-time-toggle");
 
   let latest = null;           // last successful summary payload
   let lastFetchError = null;   // null if the most recent fetch succeeded
@@ -56,16 +57,27 @@
 
   function applyInitialTimeMode() {
     const mode = localStorage.getItem(TIME_MODE_KEY);
-    if (mode === "local") document.body.classList.add("wx-time-local");
+    const local = mode === "local";
+    document.body.classList.toggle("status-time-local", local);
+    if (toggleSelect) toggleSelect.value = local ? "local" : "utc";
   }
 
-  function toggleTimeMode() {
-    const local = document.body.classList.toggle("wx-time-local");
+  function onTimeModeChange() {
+    const local = toggleSelect.value === "local";
+    document.body.classList.toggle("status-time-local", local);
     localStorage.setItem(TIME_MODE_KEY, local ? "local" : "utc");
   }
 
+  if (toggleSelect) {
+    const tzAbbr = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+      .formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName")?.value ?? "local";
+    const localOption = toggleSelect.querySelector('option[value="local"]');
+    if (localOption) localOption.textContent = `Local time (${tzAbbr})`;
+    toggleSelect.addEventListener("change", onTimeModeChange);
+  }
+
   applyInitialTimeMode();
-  if (toggleBtn) toggleBtn.addEventListener("click", toggleTimeMode);
 
   // ---- formatting -----------------------------------------------------------
 
@@ -113,7 +125,7 @@
 
   function timeNode(iso) {
     // Returns a span containing two children: a .t-utc and a .t-local.
-    // CSS hides whichever doesn't match body.wx-time-local.
+    // CSS hides whichever doesn't match body.status-time-local.
     return el("span", null, [
       el("span", { class: "t-utc" }, fmtUtc(iso)),
       el("span", { class: "t-local" }, fmtLocal(iso)),
@@ -154,54 +166,52 @@
     return el(
       "div",
       {
-        class: "wx-bar",
+        class: "status-bar",
         "data-status": init.status,
         tabindex: "0",
         title: summary,
       },
       [
-        el("div", { class: "wx-bar-track" }, [
-          el("div", { class: "wx-bar-fill", style: `--fill: ${fill}%` }),
+        el("div", { class: "status-bar-track" }, [
+          el("div", { class: "status-bar-fill", style: `--fill: ${fill}%` }),
         ]),
-        el("div", { class: "wx-bar-label" }, initLabel(init.init_time)),
+        el("div", { class: "status-bar-label" }, initLabel(init.init_time)),
       ]
     );
   }
 
-  function latencyCell(label, v) {
-    return el("div", null, [el("dt", null, label), el("dd", null, fmtLatency(v))]);
+  function renderLatencyRows(stats) {
+    if (!stats.p99_s || stats.sample_init_count === 0) {
+      return el("span", null, "baseline pending");
+    }
+    return el("dl", { class: "status-latency-rows" }, [
+      el("dt", null, "p50"), el("dd", null, fmtLatency(stats.p50_s)),
+      el("dt", null, "p95"), el("dd", null, fmtLatency(stats.p95_s)),
+      el("dt", null, "p99"), el("dd", null, fmtLatency(stats.p99_s)),
+    ]);
   }
 
   function hydrateRow(product) {
-    const row = app.querySelector(`.wx-row[data-product-id="${product.id}"]`);
+    const row = app.querySelector(`.status-row[data-product-id="${product.id}"]`);
     if (!row) return;
 
     const grid = row.querySelector('[data-slot="grid"]');
-    grid.replaceChildren(...product.recent_inits.map(renderBar));
+    grid.replaceChildren(...product.recent_inits.slice(-RECENT_INIT_COUNT).map(renderBar));
 
     const latency = row.querySelector('[data-slot="latency"]');
-    latency.replaceChildren(
-      latencyCell("p50", product.latency_stats.p50_s),
-      latencyCell("p95", product.latency_stats.p95_s),
-      latencyCell("p99", product.latency_stats.p99_s)
-    );
-    if (product.latency_stats.sample_init_count === 0) {
-      latency.setAttribute("title", "baseline pending — needs completed inits");
-    } else {
-      latency.removeAttribute("title");
-    }
+    latency.replaceChildren(renderLatencyRows(product.latency_stats));
 
     const samples = row.querySelector('[data-slot="samples"]');
-    samples.textContent = `${product.latency_stats.sample_init_count} samples`;
+    samples.textContent = `Based on ${product.latency_stats.sample_init_count} records`;
 
     const nextComplete = row.querySelector('[data-slot="next-complete"]');
     if (product.next_expected_completion_at) {
       nextComplete.replaceChildren(
-        "next complete ",
+        "Next complete ",
         timeNode(product.next_expected_completion_at)
       );
     } else {
-      nextComplete.textContent = "next complete —";
+      nextComplete.textContent = "Next complete —";
     }
 
     const nextRun = row.querySelector('[data-slot="next-run"]');
@@ -209,7 +219,7 @@
       nextRun.setAttribute("data-next-init", product.next_expected_init);
     } else {
       nextRun.removeAttribute("data-next-init");
-      nextRun.textContent = "next run —";
+      nextRun.textContent = "Next run —";
     }
   }
 
@@ -222,7 +232,7 @@
       children.push(
         el(
           "div",
-          { class: "wx-stale-banner" },
+          { class: "status-banner status-banner--stale" },
           "Backend data is more than 10 minutes old — it may be stalled."
         )
       );
@@ -231,7 +241,7 @@
       children.push(
         el(
           "div",
-          { class: "wx-error-banner" },
+          { class: "status-banner status-banner--error" },
           `Couldn't refresh (${lastFetchError}). Showing last-known state.`
         )
       );
@@ -251,7 +261,7 @@
   function showLoadError(error) {
     // Leaves the build-time skeleton visible and posts an error banner.
     bannersSlot.replaceChildren(
-      el("div", { class: "wx-error-banner" }, [
+      el("div", { class: "status-banner status-banner--error" }, [
         "Couldn't load arrival status from ",
         el("code", null, SUMMARY_URL),
         ": " + String(error),
@@ -267,7 +277,7 @@
       const iso = node.getAttribute("data-next-init");
       if (!iso) continue;
       const target = new Date(iso).getTime();
-      node.textContent = "next run " + fmtCountdown(target, now);
+      node.textContent = "Next run " + fmtCountdown(target, now);
     }
   }
 
