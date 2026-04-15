@@ -730,8 +730,7 @@ article img {
   position: relative;
   width: 100%;
   height: 11rem;
-  background-color: var(--status-track-bg);
-  border-radius: 0.3rem;
+  border: 1px solid var(--text-color);
   overflow: hidden;
 }
 
@@ -760,17 +759,42 @@ article img {
   }
 }
 
+/* Status fills — solid color per status. */
+
 .status-bar[data-status="on_time"] .status-bar-fill {
   background-color: var(--status-on-time);
 }
+
 .status-bar[data-status="in_progress"] .status-bar-fill {
   background-color: var(--status-in-progress);
+  animation: status-bar-pulse 1.8s ease-in-out infinite;
+  /* At 0% completion the fill height is 0 and the bar is invisible;
+     hold a minimum sliver so the pulsing amber is always visible once
+     a run starts. */
+  min-height: 3px;
 }
+
 .status-bar[data-status="late"] .status-bar-fill {
   background-color: var(--status-late);
 }
+
 .status-bar[data-status="failed"] .status-bar-fill {
   background-color: var(--status-failed);
+  /* Failed is terminal — always fill the full bar so a 0%-completion
+     failure still reads as "failed" instead of blank. Exact completion is
+     in the bar's title tooltip. */
+  height: 100%;
+}
+
+@keyframes status-bar-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-bar[data-status="in_progress"] .status-bar-fill {
+    animation: none;
+  }
 }
 
 .status-bar-label {
@@ -787,16 +811,10 @@ article img {
 }
 
 .status-stats {
-  display: flex;
-  align-items: flex-end;
-  flex-direction: column;
   text-align: right;
-  gap: 0.8rem;
   font-size: 1.2rem;
-}
-
-.status-eta {
   color: var(--muted-text);
+
 }
 
 .status-eta strong {
@@ -808,15 +826,6 @@ article img {
   display: block;
   white-space: nowrap;
 }
-
-.status-latency-rows {
-  display: grid;
-  grid-template-columns: 3ch 1fr;
-  gap: 0 0.8rem;
-}
-
-.status-latency-rows dt { color: var(--muted-text); }
-.status-latency-rows dd { font-weight: 700; margin: 0; }
 
 .status-footer {
   margin-top: 2rem;

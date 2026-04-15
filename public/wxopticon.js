@@ -201,17 +201,6 @@
     );
   }
 
-  function renderLatencyRows(stats) {
-    if (!stats.p99_s || stats.sample_init_count === 0) {
-      return el("span", null, "baseline pending");
-    }
-    return el("dl", { class: "status-latency-rows" }, [
-      el("dt", null, "p50"), el("dd", null, fmtLatency(stats.p50_s)),
-      el("dt", null, "p95"), el("dd", null, fmtLatency(stats.p95_s)),
-      el("dt", null, "p99"), el("dd", null, fmtLatency(stats.p99_s)),
-    ]);
-  }
-
   function hydrateRow(product) {
     const row = app.querySelector(`.status-row[data-product-id="${product.id}"]`);
     if (!row) return;
@@ -220,7 +209,16 @@
     grid.replaceChildren(...product.recent_inits.slice(-RECENT_INIT_COUNT).map(renderBar));
 
     const latency = row.querySelector('[data-slot="latency"]');
-    latency.replaceChildren(renderLatencyRows(product.latency_stats));
+    const stats = product.latency_stats;
+    if (!stats.p99_s || stats.sample_init_count === 0) {
+      latency.textContent = "baseline pending";
+    } else {
+      latency.replaceChildren(
+        `p50 ${fmtLatency(stats.p50_s)}`, el("br"),
+        `p95 ${fmtLatency(stats.p95_s)}`, el("br"),
+        `p99 ${fmtLatency(stats.p99_s)}`,
+      );
+    }
 
     // Right column top: init label, state (processing | init in Xh Ym), ETA.
     // "processing" is static; "init in" ticks down to init_time and flips to
