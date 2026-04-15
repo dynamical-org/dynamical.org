@@ -206,6 +206,49 @@
     return Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
   }
 
+  // Backend values in lead_groups are cumulative (group i covers leads
+  // 0..max_lead[i]). Diff consecutive groups to get the per-slice heights
+  // (share of total leads) and fills (share of leads arrived in that slice).
+  function groupSlices(leadGroups) {
+    const total = leadGroups[leadGroups.length - 1].leads_expected;
+    let prevAvail = 0;
+    let prevExp = 0;
+    return leadGroups.map((g) => {
+      const sliceExp = g.leads_expected - prevExp;
+      const sliceAvail = g.leads_available - prevAvail;
+      prevAvail = g.leads_available;
+      prevExp = g.leads_expected;
+      const heightPct = total > 0 ? (sliceExp / total) * 100 : 0;
+      const fillPct = sliceExp > 0 ? Math.max(0, Math.min(100, (sliceAvail / sliceExp) * 100)) : 0;
+      return { name: g.name, status: g.status, heightPct, fillPct };
+    });
+  }
+
+  function renderGroupSegments(init) {
+    const slices = groupSlices(init.lead_groups);
+    let bottom = 0;
+    const segs = slices.map((s, i) => {
+      const seg = el("div", {
+        class: `status-bar-fill-group g-${s.status}`,
+        "data-group": s.name,
+        style: `--band-height: ${s.heightPct}%; --band-bottom: ${bottom}%; --fill: ${s.fillPct}%;`,
+      }, [
+        el("div", { class: "status-bar-fill-inner" }),
+      ]);
+      if (i > 0) seg.classList.add("has-separator");
+      bottom += s.heightPct;
+      return seg;
+    });
+    return segs;
+  }
+
+  function renderTrackContents(init) {
+    if (init.lead_groups && init.lead_groups.length > 0) {
+      return renderGroupSegments(init);
+    }
+    return [el("div", { class: "status-bar-fill", style: `--fill: ${barFill(init)}%` })];
+  }
+
   // Unobserved = monitoring-coverage gap, not a publication failure.
   // Give it a plain-English tooltip so it isn't mistaken for "failed".
   function barTooltip(init) {
@@ -213,16 +256,31 @@
     if (init.status === "unobserved") {
       return `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`;
     }
-    return [
+    const base = [
       initText,
       init.status,
       fmtPercent(init.completion_pct),
       init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
     ].filter(Boolean).join(" · ");
+    if (!init.lead_groups || init.lead_groups.length === 0) return base;
+    const groupParts = init.lead_groups.map((g) =>
+      g.status === "in_progress"
+        ? `${g.name} ${g.status} ${fmtPercent(g.completion_pct)}`
+        : `${g.name} ${g.status}`
+    );
+    return `${base}\n${groupParts.join(" · ")}`;
+  }
+
+  function applyOnTrack(bar, init) {
+    if (init.status === "in_progress" && typeof init.on_track === "boolean") {
+      bar.setAttribute("data-on-track", init.on_track ? "true" : "false");
+    } else {
+      bar.removeAttribute("data-on-track");
+    }
   }
 
   function renderBar(init) {
-    return el(
+    const bar = el(
       "div",
       {
         class: "status-bar",
@@ -231,12 +289,12 @@
         title: barTooltip(init),
       },
       [
-        el("div", { class: "status-bar-track" }, [
-          el("div", { class: "status-bar-fill", style: `--fill: ${barFill(init)}%` }),
-        ]),
+        el("div", { class: "status-bar-track" }, renderTrackContents(init)),
         el("div", { class: "status-bar-label" }, initLabel(init.init_time)),
       ]
     );
+    applyOnTrack(bar, init);
+    return bar;
   }
 
   // Mutate an existing bar in place so CSS transitions animate the fill
@@ -244,7 +302,29 @@
   function updateBar(bar, init) {
     bar.setAttribute("data-status", init.status);
     bar.setAttribute("title", barTooltip(init));
-    bar.querySelector(".status-bar-fill").style.setProperty("--fill", `${barFill(init)}%`);
+    applyOnTrack(bar, init);
+
+    const segments = bar.querySelectorAll(".status-bar-fill-group");
+    const hasGroups = init.lead_groups && init.lead_groups.length > 0;
+    if (hasGroups && segments.length === init.lead_groups.length) {
+      const slices = groupSlices(init.lead_groups);
+      segments.forEach((seg, i) => {
+        const s = slices[i];
+        seg.style.setProperty("--fill", `${s.fillPct}%`);
+        seg.className = `status-bar-fill-group g-${s.status}${i > 0 ? " has-separator" : ""}`;
+      });
+      return;
+    }
+
+    const singleFill = bar.querySelector(".status-bar-fill");
+    if (!hasGroups && singleFill) {
+      singleFill.style.setProperty("--fill", `${barFill(init)}%`);
+      return;
+    }
+
+    // Structure changed (old→new snapshot shape) — rebuild the track contents.
+    const track = bar.querySelector(".status-bar-track");
+    if (track) track.replaceChildren(...renderTrackContents(init));
   }
 
   function hydrateRow(product) {

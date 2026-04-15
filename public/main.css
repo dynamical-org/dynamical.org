@@ -43,6 +43,11 @@
   --status-failed-fg: #ffffff;
   --status-unobserved: #a8a8ad;
   --status-track-bg: #e9e9ee;
+
+  /* Green pulse for "processing but still inside historical envelope".
+     Same hue as on_time — the pulse (animation) is what distinguishes
+     an in-flight run from a completed one. */
+  --status-on-track: var(--status-on-time);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -745,6 +750,33 @@ article img {
   transition: height 0.3s ease;
 }
 
+/* Stacked lead-group segments (when summary.json carries lead_groups).
+   Each band is positioned absolutely within the track — --band-bottom
+   is the cumulative share of leads below this band, --band-height is
+   this group's share. --fill is the share of that band that's arrived.
+   The inner div is what carries the status-keyed background color so
+   the band outline (hairline separator) stays visible even at 0% fill. */
+.status-bar-fill-group {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--band-bottom, 0%);
+  height: var(--band-height, 0%);
+}
+
+.status-bar-fill-group.has-separator {
+  border-top: 1px solid var(--text-color);
+}
+
+.status-bar-fill-inner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--fill, 0%);
+  transition: height 0.3s ease;
+}
+
 .status-bar[data-skeleton] {
   animation: status-skeleton-pulse 1.6s ease-in-out infinite;
 }
@@ -761,7 +793,9 @@ article img {
   }
 }
 
-/* Status fills — solid color per status. */
+/* Status fills — solid color per status. Single-fill rules apply to
+   pre-lead-groups snapshots (graceful fallback). Stacked rules below
+   key off each segment's own g-{status} class. */
 
 .status-bar[data-status="on_time"] .status-bar-fill {
   background-color: var(--status-on-time);
@@ -788,6 +822,39 @@ article img {
   height: 100%;
 }
 
+/* Stacked group segments: color comes from each segment's g-{status}. */
+.status-bar-fill-group.g-on_time .status-bar-fill-inner {
+  background-color: var(--status-on-time);
+}
+
+.status-bar-fill-group.g-in_progress .status-bar-fill-inner {
+  background-color: var(--status-in-progress);
+  animation: status-bar-pulse 1.8s ease-in-out infinite;
+  /* Keep a sliver visible at 0% fill so the pulsing target is always
+     discoverable — same rationale as the single-fill in_progress rule. */
+  min-height: 3px;
+}
+
+/* On-track runs: swap the in-progress amber for the on-track green, but
+   keep pulsing so you can still tell at-a-glance this group is live. */
+.status-bar[data-on-track="true"] .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
+  background-color: var(--status-on-track);
+}
+
+.status-bar-fill-group.g-late .status-bar-fill-inner {
+  background-color: var(--status-late);
+}
+
+.status-bar-fill-group.g-failed .status-bar-fill-inner {
+  background-color: var(--status-failed);
+  height: 100%;
+}
+
+.status-bar-fill-group.g-not_started .status-bar-fill-inner,
+.status-bar-fill-group.g-unobserved .status-bar-fill-inner {
+  display: none;
+}
+
 /* Unobserved = monitoring-coverage gap, not a publication failure.
    Empty bar with a dotted outline reads as "no information" without
    implying something broke. */
@@ -796,7 +863,8 @@ article img {
   border-color: var(--status-unobserved);
 }
 
-.status-bar[data-status="unobserved"] .status-bar-fill {
+.status-bar[data-status="unobserved"] .status-bar-fill,
+.status-bar[data-status="unobserved"] .status-bar-fill-group {
   display: none;
 }
 
@@ -806,7 +874,8 @@ article img {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .status-bar[data-status="in_progress"] .status-bar-fill {
+  .status-bar[data-status="in_progress"] .status-bar-fill,
+  .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
     animation: none;
   }
 }
