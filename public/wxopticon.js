@@ -87,12 +87,13 @@
     if (localOption) localOption.textContent = `Local time (${LOCAL_TZ_ABBR})`;
     toggleSelect.addEventListener("change", () => {
       setTimeMode(toggleSelect.value === "local", true);
-      // Scrub label is plain text, not a dual-span timeNode, so the
-      // body-class toggle doesn't reformat it.
+      // Scrub label and the ETA absolute-time prefix are plain text, not
+      // dual-span timeNodes, so the body-class toggle doesn't reformat them.
       if (!historyPanel.hidden) {
         const ts = currentSelectedTs();
         if (ts) setScrubLabel(ts);
       }
+      updateCountdowns(lastCountdownNow);
     });
   }
 
@@ -345,18 +346,32 @@
 
   // ---- countdowns -----------------------------------------------------------
 
+  // HH:MM in the user's current time-mode (UTC or local). The TZ suffix is
+  // omitted since the stats column is narrow and the header select already
+  // makes the active mode obvious.
+  function fmtClock(iso) {
+    const d = new Date(iso);
+    const local = document.body.classList.contains("status-time-local");
+    const hh = String(local ? d.getHours() : d.getUTCHours()).padStart(2, "0");
+    const mi = String(local ? d.getMinutes() : d.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mi}`;
+  }
+
   // nowMs is the reference clock: Date.now() in live mode (ticked every
-  // second), or the snapshot's generated_at in scrub mode (frozen).
+  // second), or the snapshot's generated_at in scrub mode (frozen). We
+  // remember it so toggle handlers can re-render without recomputing.
+  let lastCountdownNow = Date.now();
   function updateCountdowns(nowMs) {
+    lastCountdownNow = nowMs;
     for (const node of app.querySelectorAll("[data-init-start]")) {
       const target = new Date(node.getAttribute("data-init-start")).getTime();
       const delta = Math.floor((target - nowMs) / 1000);
       node.textContent = delta <= 0 ? "processing" : "init in " + fmtDuration(delta);
     }
     for (const node of app.querySelectorAll("[data-next-complete]")) {
-      const target = new Date(node.getAttribute("data-next-complete")).getTime();
-      const delta = Math.floor((target - nowMs) / 1000);
-      node.textContent = delta <= 0 ? "ETA any moment" : "ETA " + fmtDuration(delta);
+      const iso = node.getAttribute("data-next-complete");
+      const delta = Math.floor((new Date(iso).getTime() - nowMs) / 1000);
+      node.textContent = delta <= 0 ? "ETA any moment" : `ETA ${fmtClock(iso)} (in ${fmtDuration(delta)})`;
     }
   }
 
