@@ -21,21 +21,20 @@
   const HISTORY_INDEX_URL = `${ASSETS_BASE}/history/index.json`;
   const HISTORY_PREFIX = `${ASSETS_BASE}/history/`;
 
-  const app = document.getElementById("wx-app");
+  const app = document.getElementById("status-app");
   if (!app) return;
 
   const bannersSlot = app.querySelector('[data-slot="banners"]');
   const generatedAtSlot = app.querySelector('[data-slot="generated-at"]');
-  const toggleSelect = document.getElementById("wx-time-toggle");
+  const toggleSelect = document.getElementById("status-time-toggle");
 
-  const historyToggleBtn = document.getElementById("wx-history-toggle");
-  const historyPanel = document.getElementById("wx-history-panel");
-  const historyRange = document.getElementById("wx-history-range");
+  const historyToggleBtn = document.getElementById("status-history-toggle");
+  const historyPanel = document.getElementById("status-history-panel");
+  const historyRange = document.getElementById("status-history-range");
   const scrubLabelSlot = app.querySelector('[data-slot="scrub-label"]');
   const scrubErrorSlot = app.querySelector('[data-slot="scrub-error"]');
   const ribbonSlot = app.querySelector('[data-slot="ribbon"]');
-  const ribbonTsSlot = app.querySelector('[data-slot="ribbon-ts"]');
-  const ribbonReturnBtn = app.querySelector('[data-slot="ribbon-return"]');
+  const returnLiveBtn = app.querySelector('[data-slot="return-live"]');
 
   let mode = "live";           // "live" = polling summary.json, "scrub" = frozen historical snapshot
   let latest = null;           // last successful live summary payload
@@ -88,15 +87,11 @@
     if (localOption) localOption.textContent = `Local time (${LOCAL_TZ_ABBR})`;
     toggleSelect.addEventListener("change", () => {
       setTimeMode(toggleSelect.value === "local", true);
-      // Scrub label and ribbon timestamp are plain text (not dual-span
-      // timeNode), so flipping UTC↔local doesn't refresh them via CSS.
+      // Scrub label is plain text (not dual-span timeNode), so flipping
+      // UTC↔local doesn't refresh it via CSS — re-render manually.
       if (!historyPanel.hidden) {
         const ts = currentSelectedTs();
         if (ts) setScrubLabel(ts);
-      }
-      if (mode === "scrub" && !ribbonSlot.hidden) {
-        const ts = currentSelectedTs();
-        if (ts) ribbonTsSlot.textContent = fmtScrubLabel(ts);
       }
     });
   }
@@ -270,28 +265,18 @@
 
   function updateBanners(summary) {
     const generatedAt = new Date(summary.generated_at).getTime();
-    const stale = Date.now() - generatedAt > STALE_THRESHOLD_MS;
-
-    const children = [];
-    if (stale) {
-      children.push(
-        el(
-          "div",
-          { class: "status-banner status-banner--stale" },
-          "Backend data is more than 10 minutes old — it may be stalled."
-        )
-      );
-    }
+    ribbonSlot.hidden = Date.now() - generatedAt <= STALE_THRESHOLD_MS;
     if (lastFetchError) {
-      children.push(
+      bannersSlot.replaceChildren(
         el(
           "div",
           { class: "status-banner status-banner--error" },
           `Couldn't refresh (${lastFetchError}). Showing last-known state.`
         )
       );
+    } else {
+      bannersSlot.replaceChildren();
     }
-    bannersSlot.replaceChildren(...children);
   }
 
   // Pure render: paint products + generated_at from a fully-loaded summary.
@@ -432,8 +417,6 @@
       if (seq !== scrubSeq || mode !== "scrub") return;
       renderSnapshot(json);
       updateCountdowns(new Date(json.generated_at).getTime());
-      ribbonTsSlot.textContent = fmtScrubLabel(ts);
-      ribbonSlot.hidden = false;
       clearScrubError();
     } catch (e) {
       if (seq !== scrubSeq || mode !== "scrub") return;
@@ -512,7 +495,7 @@
   // the drag isn't interrupted mid-interaction.
   function resumeLive() {
     mode = "live";
-    ribbonSlot.hidden = true;
+    returnLiveBtn.hidden = true;
     scrubPendingTs = null;
     scrubSeq++; // invalidate any in-flight scrub fetch
     clearScrubError();
@@ -537,7 +520,7 @@
     }
   });
 
-  ribbonReturnBtn.addEventListener("click", returnToLive);
+  returnLiveBtn.addEventListener("click", returnToLive);
 
   historyRange.addEventListener("input", () => {
     const ts = currentSelectedTs();
@@ -552,9 +535,12 @@
     if (mode !== "scrub") {
       mode = "scrub";
       stopPolling();
-      // Live-mode banners ("data is 10min old", "couldn't refresh")
-      // are misleading while viewing a frozen historical snapshot.
+      // Live-mode stale/error warnings are misleading while viewing a
+      // frozen historical snapshot — clear them and reveal the return-
+      // to-live button under the slider.
+      ribbonSlot.hidden = true;
       bannersSlot.replaceChildren();
+      returnLiveBtn.hidden = false;
     }
     scheduleScrubFetch(ts);
   });

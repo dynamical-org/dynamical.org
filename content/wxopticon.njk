@@ -5,32 +5,36 @@ permalink: /status/
 ---
 
 <div class="content">
-  <main id="wx-app">
+  <main id="status-app">
     <div class="status-ribbon" data-slot="ribbon" hidden>
-      <span>Viewing history: <strong data-slot="ribbon-ts">—</strong></span>
-      <button type="button" data-slot="ribbon-return">← return to live</button>
+      Backend data is more than 10 minutes old — it may be stalled.
     </div>
-    <div data-slot="banners"></div>
+    <div data-slot="banners" style="font-size:1.2rem;"></div>
 
     <div class="status-controls">
-      <select id="wx-time-toggle">
+      <select id="status-time-toggle">
         <option value="utc">Coordinated Universal Time (UTC)</option>
         <option value="local">Local time</option>
       </select>
       <button
         type="button"
-        id="wx-history-toggle"
+        id="status-history-toggle"
         aria-expanded="false"
-        aria-controls="wx-history-panel"
+        aria-controls="status-history-panel"
         aria-label="Toggle history scrub"
         title="Toggle history scrub"
+        style="background:none;border:none;padding:0;font-size:1.8rem;cursor:pointer;"
       >📅</button>
     </div>
-    <div id="wx-history-panel" hidden>
-      <span data-slot="scrub-label" aria-hidden="true">—</span>
+    <div id="status-history-panel" hidden style="position:relative;padding-top:2.4rem;margin-top:2rem;margin-bottom:2rem;">
+      <span
+        data-slot="scrub-label"
+        aria-hidden="true"
+        style="position:absolute;top:0;left:var(--thumb-pct,50%);transform:translateX(-50%);font-size:1.2rem;white-space:nowrap;pointer-events:none;"
+      >—</span>
       <input
         type="range"
-        id="wx-history-range"
+        id="status-history-range"
         min="0"
         max="0"
         value="0"
@@ -38,8 +42,12 @@ permalink: /status/
         aria-label="Wxopticon history scrub"
         aria-valuetext="live"
         disabled
+        style="display:block;width:100%;"
       >
       <p data-slot="scrub-error" hidden></p>
+      <div style="text-align:right;margin-top:0.8rem;">
+        <button type="button" data-slot="return-live" hidden>return to live ⇥</button>
+      </div>
     </div>
 
     {% for product in wxopticon.products %}
