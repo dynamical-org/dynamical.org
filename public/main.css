@@ -891,7 +891,7 @@ body.status-time-local .t-utc {
   width: 100%;
 }
 
-.status-history-label {
+#wx-history-panel span {
   position: absolute;
   top: 0;
   left: var(--thumb-pct, 50%);
