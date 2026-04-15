@@ -6,16 +6,12 @@
 // stale-backend banner if generated_at is >10min old.
 
 (() => {
-  // Production fetches cross-origin from the R2-backed asset host; the R2
-  // CORS policy allows https://dynamical.org. Local dev can't use that URL
-  // (localhost isn't in the allowlist and shouldn't be — it's a prod bucket),
-  // so fall back to a fixture served from the same origin. Run
-  // `curl -o public/wxopticon-dev-sample.json https://assets.dynamical.org/wxopticon/summary.json`
-  // to refresh the fixture.
-  const SUMMARY_URL =
-    location.hostname === "localhost" || location.hostname === "127.0.0.1"
-      ? "/wxopticon-dev-sample.json"
-      : "https://assets.dynamical.org/wxopticon/summary.json";
+  // R2's CORS policy on the web-assets bucket allows https://dynamical.org
+  // and http://localhost:8081 (the default 11ty dev-server port), so both
+  // production and local `npm start` can fetch the same URL. If you run
+  // `npm start` on a different port, add it to the R2 CORS allowlist via
+  // the Cloudflare dashboard.
+  const SUMMARY_URL = "https://assets.dynamical.org/wxopticon/summary.json";
   const POLL_INTERVAL_MS = 15_000;
   const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 min = 2× backend cadence
   const TIME_MODE_KEY = "wxopticon:timeMode";
