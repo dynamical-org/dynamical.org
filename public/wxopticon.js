@@ -282,19 +282,18 @@
       );
     }
 
-    // Right column top: init label, state (processing | init in Xh Ym), ETA.
-    // "processing" is static; "init in" ticks down to init_time and flips to
-    // "processing" once elapsed (optimistic — next poll confirms).
+    // "init in" ticks down to init_time and flips to "processing" once
+    // elapsed (optimistic — next poll confirms).
     const eta = row.querySelector('[data-slot="eta"]');
     const target = etaTarget(product);
     if (target) {
       const stateNode = target.inProgress
-        ? el("span", null, "processing")
-        : el("span", { "data-init-start": target.initTime }, "init in —");
+        ? el("span", { "data-slot": "eta-state" }, "processing")
+        : el("span", { "data-slot": "eta-state", "data-init-start": target.initTime }, "init in —");
       eta.replaceChildren(
-        el("strong", null, initShort(target.initTime)),
+        el("strong", { "data-slot": "eta-init" }, initShort(target.initTime)),
         stateNode,
-        el("span", { "data-next-complete": target.targetIso }, "ETA —"),
+        el("span", { "data-slot": "eta-countdown", "data-next-complete": target.targetIso }, "ETA —"),
       );
     } else {
       eta.replaceChildren("—");
