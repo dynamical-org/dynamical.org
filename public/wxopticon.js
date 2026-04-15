@@ -11,11 +11,16 @@
   // production and local `npm start` can fetch the same URL. If you run
   // `npm start` on a different port, add it to the R2 CORS allowlist via
   // the Cloudflare dashboard.
-  const SUMMARY_URL = "https://assets.dynamical.org/wxopticon/summary.json";
+  const ASSETS_BASE = "https://assets.dynamical.org/wxopticon";
+  const SUMMARY_URL = `${ASSETS_BASE}/summary.json`;
   const POLL_INTERVAL_MS = 15_000;
   const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 min = 2× backend cadence
   const TIME_MODE_KEY = "wxopticon:timeMode";
   const RECENT_INIT_COUNT = 10;
+
+  const HISTORY_INDEX_URL = `${ASSETS_BASE}/history/index.json`;
+  const HISTORY_PREFIX = `${ASSETS_BASE}/history/`;
+  const SCRUB_DEBOUNCE_MS = 200;
 
   const app = document.getElementById("wx-app");
   if (!app) return;
@@ -24,10 +29,31 @@
   const generatedAtSlot = app.querySelector('[data-slot="generated-at"]');
   const toggleSelect = document.getElementById("wx-time-toggle");
 
-  let latest = null;           // last successful summary payload
-  let lastFetchError = null;   // null if the most recent fetch succeeded
+  const historyToggleBtn = document.getElementById("wx-history-toggle");
+  const historyPanel = document.getElementById("wx-history-panel");
+  const historyRange = document.getElementById("wx-history-range");
+  const scrubLabelSlot = app.querySelector('[data-slot="scrub-label"]');
+  const scrubErrorSlot = app.querySelector('[data-slot="scrub-error"]');
+  const ribbonSlot = app.querySelector('[data-slot="ribbon"]');
+  const ribbonTsSlot = app.querySelector('[data-slot="ribbon-ts"]');
+  const ribbonReturnBtn = app.querySelector('[data-slot="ribbon-return"]');
+
+  // mode is "live" (polling summary.json) or "scrub" (rendering a historical
+  // snapshot picked via the slider). The render path is identical in both
+  // modes; only the outer shell — polling, banners, countdown ticker, ribbon —
+  // differs.
+  let mode = "live";
+  let latest = null;           // last successful live summary payload
+  let lastFetchError = null;   // null if the most recent live fetch succeeded
   let pollTimer = null;
   let countdownTimer = null;
+
+  // Scrub-mode state. historyIndex is loaded once per toggle-open session;
+  // scrubSeq guards against late fetches overwriting newer ones during a
+  // rapid drag.
+  let historyIndex = null;
+  let scrubDebounceTimer = null;
+  let scrubSeq = 0;
 
   // ---- DOM helper -----------------------------------------------------------
 
@@ -265,13 +291,21 @@
     bannersSlot.replaceChildren(...children);
   }
 
-  function hydrate(summary) {
-    updateBanners(summary);
+  // Pure render: paint products + generated_at from a fully-loaded summary.
+  // Does not touch banners, ribbons, or the countdown ticker — those are
+  // owned by the outer shell and differ between live and scrub modes.
+  function renderSnapshot(summary) {
     generatedAtSlot.replaceChildren(timeNode(summary.generated_at));
     for (const product of summary.products) {
       hydrateRow(product);
     }
-    updateCountdowns();
+  }
+
+  // Live-mode render pass: banners + snapshot + countdowns against wall clock.
+  function applyLive() {
+    updateBanners(latest);
+    renderSnapshot(latest);
+    updateCountdowns(Date.now());
   }
 
   function showLoadError(error) {
@@ -287,16 +321,19 @@
 
   // ---- countdowns -----------------------------------------------------------
 
-  function updateCountdowns() {
-    const now = Date.now();
+  // nowMs is the reference "now" against which countdowns tick. In live
+  // mode the outer shell passes Date.now() each second; in scrub mode it's
+  // called once with the snapshot's generated_at so the view is frozen to
+  // that historical moment.
+  function updateCountdowns(nowMs) {
     for (const node of app.querySelectorAll("[data-init-start]")) {
       const target = new Date(node.getAttribute("data-init-start")).getTime();
-      const delta = Math.floor((target - now) / 1000);
+      const delta = Math.floor((target - nowMs) / 1000);
       node.textContent = delta <= 0 ? "processing" : "init in " + fmtDuration(delta);
     }
     for (const node of app.querySelectorAll("[data-next-complete]")) {
       const target = new Date(node.getAttribute("data-next-complete")).getTime();
-      const delta = Math.floor((target - now) / 1000);
+      const delta = Math.floor((target - nowMs) / 1000);
       node.textContent = delta <= 0 ? "ETA any moment" : "ETA " + fmtDuration(delta);
     }
   }
@@ -304,17 +341,18 @@
   // ---- poll loop ------------------------------------------------------------
 
   async function tick() {
+    if (mode !== "live") return;
     try {
       const resp = await fetch(SUMMARY_URL, { cache: "no-store" });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
       latest = json;
       lastFetchError = null;
-      hydrate(latest);
+      applyLive();
     } catch (e) {
       lastFetchError = e.message || String(e);
       if (latest) {
-        hydrate(latest); // keep last-good data, show error banner
+        applyLive(); // keep last-good data, show error banner
       } else {
         showLoadError(e);
       }
@@ -326,7 +364,7 @@
       pollTimer = setInterval(tick, POLL_INTERVAL_MS);
     }
     if (countdownTimer == null) {
-      countdownTimer = setInterval(updateCountdowns, 1000);
+      countdownTimer = setInterval(() => updateCountdowns(Date.now()), 1000);
     }
   }
 
@@ -341,13 +379,198 @@
     }
   }
 
-  // Pause polling when the tab is hidden; immediate refetch when it comes back.
+  // Pause polling when the tab is hidden; immediate refetch when it comes
+  // back (only in live mode — scrub mode owns its own DOM state).
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stopPolling();
-    } else {
+    } else if (mode === "live") {
       tick();
       startPolling();
+    }
+  });
+
+  // ---- scrub (history) mode ------------------------------------------------
+
+  // URL-safe ISO "2026-04-15T12-30-00Z" -> real ISO "2026-04-15T12:30:00Z".
+  // The history index uses hyphens in place of colons so keys are filesystem-
+  // and URL-safe; reverse that for Date parsing and aria-valuetext display.
+  function tsToIso(ts) {
+    return ts.replace(/T(\d{2})-(\d{2})-(\d{2})Z$/, "T$1:$2:$3Z");
+  }
+
+  function fmtScrubLabel(ts) {
+    const d = new Date(tsToIso(ts));
+    // Respect the existing UTC/local toggle so the label reads the same as
+    // the generated_at timestamp in the dashboard footer.
+    const useLocal = document.body.classList.contains("status-time-local");
+    return useLocal ? fmtLocal(d.toISOString()) : fmtUtc(d.toISOString());
+  }
+
+  function setScrubLabel(ts) {
+    const text = fmtScrubLabel(ts);
+    scrubLabelSlot.textContent = text;
+    historyRange.setAttribute("aria-valuetext", text);
+    const max = Number(historyRange.max) || 0;
+    const value = Number(historyRange.value) || 0;
+    const pct = max === 0 ? 50 : (value / max) * 100;
+    scrubLabelSlot.style.setProperty("--thumb-pct", `${pct}%`);
+  }
+
+  function clearScrubError() {
+    scrubErrorSlot.hidden = true;
+    scrubErrorSlot.textContent = "";
+  }
+
+  function showScrubError(msg) {
+    scrubErrorSlot.hidden = false;
+    scrubErrorSlot.textContent = msg;
+  }
+
+  function showRibbon(ts) {
+    ribbonTsSlot.textContent = fmtScrubLabel(ts);
+    ribbonSlot.hidden = false;
+  }
+
+  function hideRibbon() {
+    ribbonSlot.hidden = true;
+  }
+
+  // Fetch-and-render a historical snapshot, guarded by a sequence number so
+  // a late response from an earlier drag position can't overwrite a newer
+  // one. On failure the previous view is left in place.
+  async function loadHistoricalSnapshot(ts) {
+    const seq = ++scrubSeq;
+    try {
+      const resp = await fetch(HISTORY_PREFIX + ts + ".json");
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (seq !== scrubSeq || mode !== "scrub") return;
+      renderSnapshot(json);
+      updateCountdowns(new Date(json.generated_at).getTime());
+      showRibbon(ts);
+      clearScrubError();
+    } catch (e) {
+      if (seq !== scrubSeq || mode !== "scrub") return;
+      showScrubError(`snapshot unavailable (${e.message || e})`);
+    }
+  }
+
+  function scheduleScrubFetch(ts) {
+    clearTimeout(scrubDebounceTimer);
+    scrubDebounceTimer = setTimeout(() => loadHistoricalSnapshot(ts), SCRUB_DEBOUNCE_MS);
+  }
+
+  function currentSelectedTs() {
+    if (!historyIndex || historyIndex.length === 0) return null;
+    // Slider: 0 = oldest, max = newest. Index is newest-first.
+    const idxFromEnd = Number(historyRange.value);
+    return historyIndex[historyIndex.length - 1 - idxFromEnd];
+  }
+
+  async function openHistoryPanel() {
+    historyPanel.hidden = false;
+    historyToggleBtn.setAttribute("aria-expanded", "true");
+    clearScrubError();
+    if (historyIndex == null) {
+      try {
+        const resp = await fetch(HISTORY_INDEX_URL);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const json = await resp.json();
+        if (!Array.isArray(json) || json.length === 0) {
+          throw new Error("empty history index");
+        }
+        historyIndex = json;
+      } catch (e) {
+        showScrubError(`history index unavailable (${e.message || e})`);
+        return;
+      }
+    }
+    historyRange.max = String(historyIndex.length - 1);
+    historyRange.value = String(historyIndex.length - 1); // newest = live
+    historyRange.disabled = false;
+    setScrubLabel(currentSelectedTs());
+  }
+
+  function closeHistoryPanel() {
+    historyPanel.hidden = true;
+    historyToggleBtn.setAttribute("aria-expanded", "false");
+    clearTimeout(scrubDebounceTimer);
+    scrubDebounceTimer = null;
+    scrubSeq++; // invalidate any in-flight scrub fetch
+    clearScrubError();
+  }
+
+  function enterScrubMode() {
+    if (mode === "scrub") return;
+    mode = "scrub";
+    stopPolling();
+  }
+
+  function returnToLive() {
+    mode = "live";
+    hideRibbon();
+    closeHistoryPanel();
+    if (latest) applyLive();
+    tick();
+    startPolling();
+  }
+
+  // History toggle: open panel (loads index once) or close it. Closing from
+  // scrub mode also returns to live; closing from a no-op (just-opened and
+  // not scrubbed away) is a visual no-op.
+  historyToggleBtn.addEventListener("click", () => {
+    const expanded = historyToggleBtn.getAttribute("aria-expanded") === "true";
+    if (expanded) {
+      if (mode === "scrub") {
+        returnToLive();
+      } else {
+        closeHistoryPanel();
+      }
+    } else {
+      openHistoryPanel();
+    }
+  });
+
+  ribbonReturnBtn.addEventListener("click", returnToLive);
+
+  // Slider input: update label immediately, schedule a debounced fetch.
+  historyRange.addEventListener("input", () => {
+    const ts = currentSelectedTs();
+    if (!ts) return;
+    setScrubLabel(ts);
+    // Sliding back to the newest entry is "return to live"; treat it as a
+    // live render (no scrub fetch) so the user can slam right to resume.
+    const atNewest = Number(historyRange.value) === Number(historyRange.max);
+    if (atNewest) {
+      clearTimeout(scrubDebounceTimer);
+      if (mode !== "live") returnToLive();
+      return;
+    }
+    enterScrubMode();
+    scheduleScrubFetch(ts);
+  });
+
+  // Shift + Arrow → ±10 snapshots. Native arrow-only stepping already works.
+  historyRange.addEventListener("keydown", (e) => {
+    if (!e.shiftKey) return;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const max = Number(historyRange.max);
+    const cur = Number(historyRange.value);
+    const delta = e.key === "ArrowLeft" ? -10 : 10;
+    const next = Math.max(0, Math.min(max, cur + delta));
+    if (next === cur) return;
+    historyRange.value = String(next);
+    historyRange.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  // Escape anywhere on the page returns to live (only meaningful while
+  // scrubbed — no-op otherwise).
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && mode === "scrub") {
+      e.preventDefault();
+      returnToLive();
     }
   });
 

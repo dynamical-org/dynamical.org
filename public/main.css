@@ -865,6 +865,53 @@ body.status-time-local .t-utc {
   display: none;
 }
 
+.status-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-bottom: 4rem;
+}
+
+#wx-history-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1.8rem;
+  cursor: pointer;
+}
+
+#wx-history-panel {
+  position: relative;
+  padding-top: 2.4rem;
+  margin-bottom: 4rem;
+}
+
+#wx-history-range {
+  display: block;
+  width: 100%;
+}
+
+.status-history-label {
+  position: absolute;
+  top: 0;
+  left: var(--thumb-pct, 50%);
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.status-ribbon:not([hidden]) {
+  display: flex;
+  gap: 1.2rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1.2rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--status-in-progress);
+  background: color-mix(in srgb, var(--status-in-progress) 18%, transparent);
+}
+
 @media (max-width: 900px) {
   .status-row {
     grid-template-columns: 1fr;

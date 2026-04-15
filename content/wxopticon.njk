@@ -6,12 +6,41 @@ permalink: /status/
 
 <div class="content">
   <main id="wx-app">
+    <div class="status-ribbon" data-slot="ribbon" hidden>
+      <span>Viewing history: <strong data-slot="ribbon-ts">—</strong></span>
+      <button type="button" data-slot="ribbon-return">← return to live</button>
+    </div>
     <div data-slot="banners"></div>
 
-    <select id="wx-time-toggle" style="margin-bottom: 4rem;">
-      <option value="utc">Coordinated Universal Time (UTC)</option>
-      <option value="local">Local time</option>
-    </select>
+    <div class="status-controls">
+      <select id="wx-time-toggle">
+        <option value="utc">Coordinated Universal Time (UTC)</option>
+        <option value="local">Local time</option>
+      </select>
+      <button
+        type="button"
+        id="wx-history-toggle"
+        aria-expanded="false"
+        aria-controls="wx-history-panel"
+        aria-label="Toggle history scrub"
+        title="Toggle history scrub"
+      >📅</button>
+    </div>
+    <div id="wx-history-panel" hidden>
+      <span class="status-history-label" data-slot="scrub-label" aria-hidden="true">—</span>
+      <input
+        type="range"
+        id="wx-history-range"
+        min="0"
+        max="0"
+        value="0"
+        step="1"
+        aria-label="Wxopticon history scrub"
+        aria-valuetext="live"
+        disabled
+      >
+      <p data-slot="scrub-error" hidden></p>
+    </div>
 
     {% for product in wxopticon.products %}
     <section class="status-row" data-product-id="{{ product.id }}">
