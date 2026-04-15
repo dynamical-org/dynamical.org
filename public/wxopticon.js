@@ -1,9 +1,9 @@
-// wxopticon arrival dashboard — client-side poller.
+// wxopticon arrival dashboard — client-side hydration.
 //
-// Fetches https://assets.dynamical.org/wxopticon/summary.json every 15s,
-// re-renders the #wx-app container using DOM APIs (no innerHTML, no
-// framework), updates countdowns every second, and surfaces a
-// stale-backend banner if generated_at is >10min old.
+// The row skeleton (one <section> per product, with empty [data-slot=…]
+// nodes) is emitted at build time by content/wxopticon.njk from
+// _data/wxopticon.js. This script fetches the same summary.json at
+// runtime every 15s and hydrates the slots in place.
 
 (() => {
   // R2's CORS policy on the web-assets bucket allows https://dynamical.org
@@ -18,6 +18,10 @@
 
   const app = document.getElementById("wx-app");
   if (!app) return;
+
+  const bannersSlot = app.querySelector('[data-slot="banners"]');
+  const generatedAtSlot = app.querySelector('[data-slot="generated-at"]');
+  const toggleBtn = document.getElementById("wx-time-toggle");
 
   let latest = null;           // last successful summary payload
   let lastFetchError = null;   // null if the most recent fetch succeeded
@@ -61,6 +65,7 @@
   }
 
   applyInitialTimeMode();
+  if (toggleBtn) toggleBtn.addEventListener("click", toggleTimeMode);
 
   // ---- formatting -----------------------------------------------------------
 
@@ -136,7 +141,7 @@
     return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
-  // ---- render ---------------------------------------------------------------
+  // ---- hydration ------------------------------------------------------------
 
   function renderBar(init) {
     const fill = Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
@@ -163,60 +168,52 @@
     );
   }
 
-  function renderLatencyStrip(stats) {
-    const cell = (label, v) =>
-      el("div", null, [el("dt", null, label), el("dd", null, fmtLatency(v))]);
-    const attrs = { class: "wx-latency-strip" };
-    if (stats.sample_init_count === 0) {
-      attrs.title = "baseline pending — needs completed inits";
+  function latencyCell(label, v) {
+    return el("div", null, [el("dt", null, label), el("dd", null, fmtLatency(v))]);
+  }
+
+  function hydrateRow(product) {
+    const row = app.querySelector(`.wx-row[data-product-id="${product.id}"]`);
+    if (!row) return;
+
+    const grid = row.querySelector('[data-slot="grid"]');
+    grid.replaceChildren(...product.recent_inits.map(renderBar));
+
+    const latency = row.querySelector('[data-slot="latency"]');
+    latency.replaceChildren(
+      latencyCell("p50", product.latency_stats.p50_s),
+      latencyCell("p95", product.latency_stats.p95_s),
+      latencyCell("p99", product.latency_stats.p99_s)
+    );
+    if (product.latency_stats.sample_init_count === 0) {
+      latency.setAttribute("title", "baseline pending — needs completed inits");
+    } else {
+      latency.removeAttribute("title");
     }
-    return el("dl", attrs, [
-      cell("p50", stats.p50_s),
-      cell("p95", stats.p95_s),
-      cell("p99", stats.p99_s),
-    ]);
+
+    const samples = row.querySelector('[data-slot="samples"]');
+    samples.textContent = `${product.latency_stats.sample_init_count} samples`;
+
+    const nextComplete = row.querySelector('[data-slot="next-complete"]');
+    if (product.next_expected_completion_at) {
+      nextComplete.replaceChildren(
+        "next complete ",
+        timeNode(product.next_expected_completion_at)
+      );
+    } else {
+      nextComplete.textContent = "next complete —";
+    }
+
+    const nextRun = row.querySelector('[data-slot="next-run"]');
+    if (product.next_expected_init) {
+      nextRun.setAttribute("data-next-init", product.next_expected_init);
+    } else {
+      nextRun.removeAttribute("data-next-init");
+      nextRun.textContent = "next run —";
+    }
   }
 
-  function renderRow(product) {
-    const nextCompletionNode = product.next_expected_completion_at
-      ? el("div", { class: "wx-stats-meta" }, [
-          "next complete ",
-          timeNode(product.next_expected_completion_at),
-        ])
-      : el("div", { class: "wx-stats-meta" }, "next complete —");
-
-    return el("section", { class: "wx-row" }, [
-      el("div", { class: "wx-row-label" }, [
-        el("div", { class: "wx-row-label-name" }, product.label),
-        el(
-          "div",
-          { class: "wx-row-label-source" },
-          `${product.source} · ${product.cadence_hours}h cadence`
-        ),
-        el(
-          "div",
-          { class: "wx-stats-meta", "data-next-init": product.next_expected_init },
-          "next run —"
-        ),
-      ]),
-      el(
-        "div",
-        { class: "wx-grid" },
-        product.recent_inits.map(renderBar)
-      ),
-      el("div", { class: "wx-stats" }, [
-        renderLatencyStrip(product.latency_stats),
-        el(
-          "div",
-          { class: "wx-stats-meta" },
-          `${product.latency_stats.sample_init_count} samples`
-        ),
-        nextCompletionNode,
-      ]),
-    ]);
-  }
-
-  function renderApp(summary) {
+  function updateBanners(summary) {
     const generatedAt = new Date(summary.generated_at).getTime();
     const stale = Date.now() - generatedAt > STALE_THRESHOLD_MS;
 
@@ -239,50 +236,26 @@
         )
       );
     }
+    bannersSlot.replaceChildren(...children);
+  }
 
-    const toggleBtn = el(
-      "button",
-      { type: "button", class: "wx-time-toggle", id: "wx-time-toggle" },
-      [
-        "Toggle time: ",
-        el("span", { class: "t-utc" }, "UTC"),
-        el("span", { class: "t-local" }, "local"),
-      ]
-    );
-    toggleBtn.addEventListener("click", toggleTimeMode);
-    children.push(toggleBtn);
-
+  function hydrate(summary) {
+    updateBanners(summary);
+    generatedAtSlot.replaceChildren(timeNode(summary.generated_at));
     for (const product of summary.products) {
-      children.push(renderRow(product));
+      hydrateRow(product);
     }
-
-    children.push(
-      el("footer", { class: "wx-footer" }, [
-        el("div", null, ["Updated ", timeNode(summary.generated_at)]),
-        el(
-          "div",
-          null,
-          `${summary.window_days}-day rolling window · polls every ${POLL_INTERVAL_MS / 1000}s`
-        ),
-      ])
-    );
-
-    app.replaceChildren(...children);
     updateCountdowns();
   }
 
-  function renderLoadingFailed(error) {
-    app.replaceChildren(
+  function showLoadError(error) {
+    // Leaves the build-time skeleton visible and posts an error banner.
+    bannersSlot.replaceChildren(
       el("div", { class: "wx-error-banner" }, [
         "Couldn't load arrival status from ",
         el("code", null, SUMMARY_URL),
         ": " + String(error),
-      ]),
-      el(
-        "p",
-        { class: "wx-loading" },
-        `Retrying in ${POLL_INTERVAL_MS / 1000}s…`
-      )
+      ])
     );
   }
 
@@ -307,13 +280,13 @@
       const json = await resp.json();
       latest = json;
       lastFetchError = null;
-      renderApp(latest);
+      hydrate(latest);
     } catch (e) {
       lastFetchError = e.message || String(e);
       if (latest) {
-        renderApp(latest); // keep last-good data, show error banner
+        hydrate(latest); // keep last-good data, show error banner
       } else {
-        renderLoadingFailed(e);
+        showLoadError(e);
       }
     }
   }

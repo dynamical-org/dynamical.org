@@ -6,7 +6,38 @@ permalink: /status/
 
 <div class="content">
   <main id="wx-app" class="wx-app">
-    <p class="wx-loading">Loading…</p>
+    <div class="wx-banners" data-slot="banners"></div>
+
+    <button type="button" class="wx-time-toggle" id="wx-time-toggle">
+      Toggle time:
+      <span class="t-utc">UTC</span>
+      <span class="t-local">local</span>
+    </button>
+
+    {% for product in wxopticon.products %}
+    <section class="wx-row" data-product-id="{{ product.id }}">
+      <div class="wx-row-label">
+        <div class="wx-row-label-name">{{ product.label }}</div>
+        <div class="wx-row-label-source">{{ product.source }} · {{ product.cadence_hours }}h cadence</div>
+        <div class="wx-stats-meta" data-slot="next-run">next run —</div>
+      </div>
+      <div class="wx-grid" data-slot="grid"></div>
+      <div class="wx-stats">
+        <dl class="wx-latency-strip" data-slot="latency">
+          <div><dt>p50</dt><dd>—</dd></div>
+          <div><dt>p95</dt><dd>—</dd></div>
+          <div><dt>p99</dt><dd>—</dd></div>
+        </dl>
+        <div class="wx-stats-meta" data-slot="samples">— samples</div>
+        <div class="wx-stats-meta" data-slot="next-complete">next complete —</div>
+      </div>
+    </section>
+    {% endfor %}
+
+    <footer class="wx-footer">
+      <div>Updated <span data-slot="generated-at">—</span></div>
+      <div>{{ wxopticon.window_days }}-day rolling window · polls every 15s</div>
+    </footer>
   </main>
 </div>
 
