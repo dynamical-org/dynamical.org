@@ -792,10 +792,6 @@ article img {
   height: var(--band-height, 0%);
 }
 
-.status-bar-fill-group.has-separator {
-  border-top: 1px solid var(--text-color);
-}
-
 .status-bar-fill-inner {
   position: absolute;
   left: 0;

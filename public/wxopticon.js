@@ -227,7 +227,7 @@
   function renderGroupSegments(init) {
     const slices = groupSlices(init.lead_groups);
     let bottom = 0;
-    const segs = slices.map((s, i) => {
+    return slices.map((s) => {
       const seg = el("div", {
         class: `status-bar-fill-group g-${s.status}`,
         "data-group": s.name,
@@ -235,11 +235,9 @@
       }, [
         el("div", { class: "status-bar-fill-inner" }),
       ]);
-      if (i > 0) seg.classList.add("has-separator");
       bottom += s.heightPct;
       return seg;
     });
-    return segs;
   }
 
   function renderTrackContents(init) {
@@ -311,7 +309,7 @@
       segments.forEach((seg, i) => {
         const s = slices[i];
         seg.style.setProperty("--fill", `${s.fillPct}%`);
-        seg.className = `status-bar-fill-group g-${s.status}${i > 0 ? " has-separator" : ""}`;
+        seg.className = `status-bar-fill-group g-${s.status}`;
       });
       return;
     }
