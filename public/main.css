@@ -41,6 +41,7 @@
   --status-late-fg: #200a00;
   --status-failed: #e5484d;
   --status-failed-fg: #ffffff;
+  --status-unobserved: #a8a8ad;
   --status-track-bg: #e9e9ee;
 }
 
@@ -77,6 +78,7 @@
     --status-late-fg: #200a00;
     --status-failed: #d2383d;
     --status-failed-fg: #ffffff;
+    --status-unobserved: #6a6a6d;
     --status-track-bg: #232326;
   }
 }
@@ -784,6 +786,18 @@ article img {
      failure still reads as "failed" instead of blank. Exact completion is
      in the bar's title tooltip. */
   height: 100%;
+}
+
+/* Unobserved = monitoring-coverage gap, not a publication failure.
+   Empty bar with a dotted outline reads as "no information" without
+   implying something broke. */
+.status-bar[data-status="unobserved"] .status-bar-track {
+  border-style: dotted;
+  border-color: var(--status-unobserved);
+}
+
+.status-bar[data-status="unobserved"] .status-bar-fill {
+  display: none;
 }
 
 @keyframes status-bar-pulse {
