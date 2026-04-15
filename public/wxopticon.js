@@ -203,12 +203,17 @@
 
   function renderBar(init) {
     const fill = Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
-    const summary = [
-      init.init_time.slice(5, 16).replace("T", " ") + "z",
-      init.status,
-      fmtPercent(init.completion_pct),
-      init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
-    ].filter(Boolean).join(" · ");
+    const initText = init.init_time.slice(5, 16).replace("T", " ") + "z";
+    // Unobserved = monitoring-coverage gap, not a publication failure.
+    // Give it a plain-English tooltip so it isn't mistaken for "failed".
+    const summary = init.status === "unobserved"
+      ? `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`
+      : [
+          initText,
+          init.status,
+          fmtPercent(init.completion_pct),
+          init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
+        ].filter(Boolean).join(" · ");
     return el(
       "div",
       {
