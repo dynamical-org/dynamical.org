@@ -64,9 +64,16 @@ permalink: /status/
         {% endfor %}
       </div>
       <div class="status-stats">
-        <div class="status-eta" data-slot="eta">—</div>
+        <div class="status-eta" data-slot="eta">
+          <strong data-slot="eta-init">—</strong>
+          <span data-slot="eta-state" hidden></span>
+          <span data-slot="eta-time" hidden></span>
+          <span data-slot="eta-duration" hidden></span>
+        </div>
+        {#
         <div>---</div>
         <div data-slot="latency">p50 -h -m<br>p95 -h -m<br>p99 -h -m</div>
+        #}
       </div>
     </section>
     {% endfor %}

@@ -270,34 +270,49 @@
       });
     }
 
-    const latency = row.querySelector('[data-slot="latency"]');
-    const stats = product.latency_stats;
-    if (!stats.p99_s || stats.sample_init_count === 0) {
-      latency.textContent = "baseline pending";
-    } else {
-      latency.replaceChildren(
-        `p50 ${fmtLatency(stats.p50_s)}`, el("br"),
-        `p95 ${fmtLatency(stats.p95_s)}`, el("br"),
-        `p99 ${fmtLatency(stats.p99_s)}`,
-      );
-    }
+    // const latency = row.querySelector('[data-slot="latency"]');
+    // const stats = product.latency_stats;
+    // if (!stats.p99_s || stats.sample_init_count === 0) {
+    //   latency.textContent = "baseline pending";
+    // } else {
+    //   latency.replaceChildren(
+    //     `p50 ${fmtLatency(stats.p50_s)}`, el("br"),
+    //     `p95 ${fmtLatency(stats.p95_s)}`, el("br"),
+    //     `p99 ${fmtLatency(stats.p99_s)}`,
+    //   );
+    // }
 
     // "init in" ticks down to init_time and flips to "processing" once
-    // elapsed (optimistic — next poll confirms).
-    const eta = row.querySelector('[data-slot="eta"]');
+    // elapsed (optimistic — next poll confirms). The eta-time and
+    // eta-duration slots are filled by updateCountdowns on the next tick.
+    const initSlot = row.querySelector('[data-slot="eta-init"]');
+    const stateSlot = row.querySelector('[data-slot="eta-state"]');
+    const timeSlot = row.querySelector('[data-slot="eta-time"]');
+    const durationSlot = row.querySelector('[data-slot="eta-duration"]');
     const target = etaTarget(product);
-    if (target) {
-      const stateNode = target.inProgress
-        ? el("span", { "data-slot": "eta-state" }, "processing")
-        : el("span", { "data-slot": "eta-state", "data-init-start": target.initTime }, "init in —");
-      eta.replaceChildren(
-        el("strong", { "data-slot": "eta-init" }, initShort(target.initTime)),
-        stateNode,
-        el("span", { "data-slot": "eta-countdown", "data-next-complete": target.targetIso }, "ETA —"),
-      );
-    } else {
-      eta.replaceChildren("—");
+    if (!target) {
+      initSlot.textContent = "—";
+      stateSlot.hidden = true;
+      stateSlot.removeAttribute("data-init-start");
+      timeSlot.hidden = true;
+      timeSlot.removeAttribute("data-next-complete");
+      durationSlot.hidden = true;
+      return;
     }
+    initSlot.textContent = initShort(target.initTime);
+    stateSlot.hidden = false;
+    if (target.inProgress) {
+      stateSlot.textContent = "processing";
+      stateSlot.removeAttribute("data-init-start");
+    } else {
+      stateSlot.textContent = "init in —";
+      stateSlot.setAttribute("data-init-start", target.initTime);
+    }
+    timeSlot.hidden = false;
+    timeSlot.textContent = "ETA —";
+    timeSlot.setAttribute("data-next-complete", target.targetIso);
+    durationSlot.hidden = false;
+    durationSlot.textContent = "in —";
   }
 
   function updateBanners(summary) {
@@ -370,7 +385,15 @@
     for (const node of app.querySelectorAll("[data-next-complete]")) {
       const iso = node.getAttribute("data-next-complete");
       const delta = Math.floor((new Date(iso).getTime() - nowMs) / 1000);
-      node.textContent = delta <= 0 ? "ETA any moment" : `ETA ${fmtClock(iso)} (in ${fmtDuration(delta)})`;
+      const duration = node.closest(".status-eta").querySelector('[data-slot="eta-duration"]');
+      if (delta <= 0) {
+        node.textContent = "ETA any moment";
+        duration.hidden = true;
+      } else {
+        node.textContent = `ETA ${fmtClock(iso)}`;
+        duration.hidden = false;
+        duration.textContent = `in ${fmtDuration(delta)}`;
+      }
     }
   }
 
