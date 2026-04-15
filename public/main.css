@@ -729,7 +729,7 @@ article img {
 .status-bar-track {
   position: relative;
   width: 100%;
-  height: 10rem;
+  height: 11rem;
   background-color: var(--status-track-bg);
   border-radius: 0.3rem;
   overflow: hidden;
@@ -746,10 +746,6 @@ article img {
 
 .status-bar[data-skeleton] {
   animation: status-skeleton-pulse 1.6s ease-in-out infinite;
-}
-
-.status-bar[data-skeleton] .status-bar-label {
-  visibility: hidden;
 }
 
 @keyframes status-skeleton-pulse {
@@ -781,6 +777,7 @@ article img {
   font-size: 1rem;
   text-align: center;
   line-height: 1.2;
+  min-height: 2.4em;
   color: var(--muted-text);
 }
 
@@ -798,10 +795,18 @@ article img {
   font-size: 1.2rem;
 }
 
-.status-samples {
-  margin-top: auto;
-  font-size: 1rem;
-  color: var(--muted-text-2);
+.status-eta {
+  color: var(--muted-text);
+}
+
+.status-eta strong {
+  display: block;
+  color: var(--text-color);
+}
+
+.status-eta span {
+  display: block;
+  white-space: nowrap;
 }
 
 .status-latency-rows {
@@ -858,10 +863,7 @@ body.status-time-local .t-utc {
 
   .status-stats {
     display: block;
-  }
-
-  .status-samples {
-    text-align: unset;
+    text-align: left;
   }
 }
 

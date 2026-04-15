@@ -37,7 +37,6 @@
       for (const [k, v] of Object.entries(attrs)) {
         if (v == null) continue;
         if (k === "class") node.className = v;
-        else if (k === "text") node.textContent = v;
         else node.setAttribute(k, v);
       }
     }
@@ -55,29 +54,25 @@
 
   // ---- time mode (UTC <-> local toggle) -------------------------------------
 
-  function applyInitialTimeMode() {
-    const mode = localStorage.getItem(TIME_MODE_KEY);
-    const local = mode === "local";
+  const LOCAL_TZ_ABBR = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+    .formatToParts(new Date())
+    .find((p) => p.type === "timeZoneName")?.value ?? "local";
+
+  function setTimeMode(local, persist) {
     document.body.classList.toggle("status-time-local", local);
     if (toggleSelect) toggleSelect.value = local ? "local" : "utc";
-  }
-
-  function onTimeModeChange() {
-    const local = toggleSelect.value === "local";
-    document.body.classList.toggle("status-time-local", local);
-    localStorage.setItem(TIME_MODE_KEY, local ? "local" : "utc");
+    if (persist) localStorage.setItem(TIME_MODE_KEY, local ? "local" : "utc");
   }
 
   if (toggleSelect) {
-    const tzAbbr = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
-      .formatToParts(new Date())
-      .find((p) => p.type === "timeZoneName")?.value ?? "local";
     const localOption = toggleSelect.querySelector('option[value="local"]');
-    if (localOption) localOption.textContent = `Local time (${tzAbbr})`;
-    toggleSelect.addEventListener("change", onTimeModeChange);
+    if (localOption) localOption.textContent = `Local time (${LOCAL_TZ_ABBR})`;
+    toggleSelect.addEventListener("change", () =>
+      setTimeMode(toggleSelect.value === "local", true)
+    );
   }
 
-  applyInitialTimeMode();
+  setTimeMode(localStorage.getItem(TIME_MODE_KEY) === "local", false);
 
   // ---- formatting -----------------------------------------------------------
 
@@ -98,29 +93,21 @@
   function fmtUtc(iso) {
     if (!iso) return "—";
     const d = new Date(iso);
-    return d.toLocaleString("en-GB", {
-      timeZone: "UTC",
-      hour12: false,
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }) + " UTC";
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    const mi = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${mm}-${dd} @ ${hh}:${mi} UTC`;
   }
 
   function fmtLocal(iso) {
     if (!iso) return "—";
     const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      hour12: false,
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZoneName: "short",
-    });
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${mm}-${dd} @ ${hh}:${mi} ${LOCAL_TZ_ABBR}`;
   }
 
   function timeNode(iso) {
@@ -144,13 +131,48 @@
     ]);
   }
 
-  function fmtCountdown(targetMs, nowMs) {
-    const delta = Math.floor((targetMs - nowMs) / 1000);
-    if (delta <= 0) return "running now";
-    const h = Math.floor(delta / 3600);
-    const m = Math.floor((delta % 3600) / 60);
-    const s = delta % 60;
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  function initShort(iso) {
+    // Single-line label: "MM-DD HHz" (always UTC — the z suffix demands it).
+    const d = new Date(iso);
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    return `${mm}-${dd} ${hh}z`;
+  }
+
+  function etaTarget(product) {
+    // The "ETA" for a product is whichever init is currently running
+    // (init_time + p95), falling back to the next scheduled run's
+    // p95-based completion when nothing's in progress.
+    const p95 = product.latency_stats.p95_s;
+    const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+    if (inProgress && p95 != null) {
+      const targetMs = new Date(inProgress.init_time).getTime() + p95 * 1000;
+      return {
+        initTime: inProgress.init_time,
+        targetIso: new Date(targetMs).toISOString(),
+        inProgress: true,
+      };
+    }
+    if (product.next_expected_init && product.next_expected_completion_at) {
+      return {
+        initTime: product.next_expected_init,
+        targetIso: product.next_expected_completion_at,
+        inProgress: false,
+      };
+    }
+    return null;
+  }
+
+  function fmtDuration(seconds) {
+    if (seconds >= 3600) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      return `${h}h ${m}m`;
+    }
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
   }
 
   // ---- hydration ------------------------------------------------------------
@@ -168,7 +190,6 @@
       {
         class: "status-bar",
         "data-status": init.status,
-        tabindex: "0",
         title: summary,
       },
       [
@@ -201,25 +222,22 @@
     const latency = row.querySelector('[data-slot="latency"]');
     latency.replaceChildren(renderLatencyRows(product.latency_stats));
 
-    const samples = row.querySelector('[data-slot="samples"]');
-    samples.textContent = `Based on ${product.latency_stats.sample_init_count} records`;
-
-    const nextComplete = row.querySelector('[data-slot="next-complete"]');
-    if (product.next_expected_completion_at) {
-      nextComplete.replaceChildren(
-        "Next complete ",
-        timeNode(product.next_expected_completion_at)
+    // Right column top: init label, state (processing | init in Xh Ym), ETA.
+    // "processing" is static; "init in" ticks down to init_time and flips to
+    // "processing" once elapsed (optimistic — next poll confirms).
+    const eta = row.querySelector('[data-slot="eta"]');
+    const target = etaTarget(product);
+    if (target) {
+      const stateNode = target.inProgress
+        ? el("span", null, "processing")
+        : el("span", { "data-init-start": target.initTime }, "init in —");
+      eta.replaceChildren(
+        el("strong", null, initShort(target.initTime)),
+        stateNode,
+        el("span", { "data-next-complete": target.targetIso }, "ETA —"),
       );
     } else {
-      nextComplete.textContent = "Next complete —";
-    }
-
-    const nextRun = row.querySelector('[data-slot="next-run"]');
-    if (product.next_expected_init) {
-      nextRun.setAttribute("data-next-init", product.next_expected_init);
-    } else {
-      nextRun.removeAttribute("data-next-init");
-      nextRun.textContent = "Next run —";
+      eta.replaceChildren("—");
     }
   }
 
@@ -273,11 +291,15 @@
 
   function updateCountdowns() {
     const now = Date.now();
-    for (const node of app.querySelectorAll("[data-next-init]")) {
-      const iso = node.getAttribute("data-next-init");
-      if (!iso) continue;
-      const target = new Date(iso).getTime();
-      node.textContent = "Next run " + fmtCountdown(target, now);
+    for (const node of app.querySelectorAll("[data-init-start]")) {
+      const target = new Date(node.getAttribute("data-init-start")).getTime();
+      const delta = Math.floor((target - now) / 1000);
+      node.textContent = delta <= 0 ? "processing" : "init in " + fmtDuration(delta);
+    }
+    for (const node of app.querySelectorAll("[data-next-complete]")) {
+      const target = new Date(node.getAttribute("data-next-complete")).getTime();
+      const delta = Math.floor((target - now) / 1000);
+      node.textContent = delta <= 0 ? "ETA any moment" : "ETA " + fmtDuration(delta);
     }
   }
 

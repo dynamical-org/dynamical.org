@@ -17,24 +17,22 @@ permalink: /status/
     <section class="status-row" data-product-id="{{ product.id }}">
       <div>
         <strong>{{ product.label }}</strong>
-        <div style="font-size:1rem;">
+        <div style="font-size:1.2rem;">
           <div>{{ product.source }}</div>
           <div>{{ product.cadence_hours }}h cadence</div>
-          <div data-slot="next-complete">Next complete —</div>
-          <div data-slot="next-run">Next run —</div>
         </div>
       </div>
       <div class="status-grid" data-slot="grid">
         {% for _ in range(0, product.recent_init_count) %}
         <div class="status-bar" data-skeleton>
           <div class="status-bar-track"></div>
-          <div class="status-bar-label"><span><strong>&nbsp;</strong>&nbsp;</span></div>
+          <div class="status-bar-label"></div>
         </div>
         {% endfor %}
       </div>
       <div class="status-stats">
+        <div class="status-eta" data-slot="eta">—</div>
         <div data-slot="latency"></div>
-        <div class="status-samples" data-slot="samples">Based on — records</div>
       </div>
     </section>
     {% endfor %}
