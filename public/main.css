@@ -718,11 +718,39 @@ article img {
   border-top: none;
 }
 
+.status-row-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* Left-aligned y-axis column: one label per lead group, centered on its
+   band. Height matches .status-bar-track so percentages line up. */
+.status-group-labels {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.6rem;
+  height: 11rem;
+  font-size: 1rem;
+  color: var(--muted-text);
+  line-height: 1;
+}
+
+.status-group-labels span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  white-space: nowrap;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 0.6rem;
   min-height: 10rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .status-bar {
