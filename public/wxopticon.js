@@ -20,7 +20,6 @@
 
   const HISTORY_INDEX_URL = `${ASSETS_BASE}/history/index.json`;
   const HISTORY_PREFIX = `${ASSETS_BASE}/history/`;
-  const SCRUB_DEBOUNCE_MS = 200;
 
   const app = document.getElementById("wx-app");
   if (!app) return;
@@ -45,8 +44,9 @@
   let countdownTimer = null;
 
   let historyIndex = null;
-  let scrubDebounceTimer = null;
-  let scrubSeq = 0; // guards against late fetches clobbering newer ones
+  let scrubBusy = false;       // true while a historical fetch is in flight
+  let scrubPendingTs = null;   // latest ts seen during an in-flight fetch
+  let scrubSeq = 0;            // guards against late fetches clobbering newer ones
 
   // ---- DOM helper -----------------------------------------------------------
 
@@ -86,9 +86,19 @@
   if (toggleSelect) {
     const localOption = toggleSelect.querySelector('option[value="local"]');
     if (localOption) localOption.textContent = `Local time (${LOCAL_TZ_ABBR})`;
-    toggleSelect.addEventListener("change", () =>
-      setTimeMode(toggleSelect.value === "local", true)
-    );
+    toggleSelect.addEventListener("change", () => {
+      setTimeMode(toggleSelect.value === "local", true);
+      // Scrub label and ribbon timestamp are plain text (not dual-span
+      // timeNode), so flipping UTC↔local doesn't refresh them via CSS.
+      if (!historyPanel.hidden) {
+        const ts = currentSelectedTs();
+        if (ts) setScrubLabel(ts);
+      }
+      if (mode === "scrub" && !ribbonSlot.hidden) {
+        const ts = currentSelectedTs();
+        if (ts) ribbonTsSlot.textContent = fmtScrubLabel(ts);
+      }
+    });
   }
 
   setTimeMode(localStorage.getItem(TIME_MODE_KEY) === "local", false);
@@ -431,6 +441,29 @@
     }
   }
 
+  // Coalescing scheduler: fire immediately so the bars update live as the
+  // user drags, but only ever have one fetch in flight. Events that arrive
+  // while busy collapse into scrubPendingTs, which fires once the current
+  // fetch resolves — guaranteeing we always land on the final drag position.
+  async function scheduleScrubFetch(ts) {
+    if (scrubBusy) {
+      scrubPendingTs = ts;
+      return;
+    }
+    scrubBusy = true;
+    scrubPendingTs = null;
+    try {
+      await loadHistoricalSnapshot(ts);
+    } finally {
+      scrubBusy = false;
+      if (scrubPendingTs != null && mode === "scrub") {
+        const next = scrubPendingTs;
+        scrubPendingTs = null;
+        scheduleScrubFetch(next);
+      }
+    }
+  }
+
   function currentSelectedTs() {
     if (!historyIndex || historyIndex.length === 0) return null;
     // Slider: 0 = oldest, max = newest. Index is newest-first.
@@ -469,7 +502,7 @@
   function closeHistoryPanel() {
     historyPanel.hidden = true;
     historyToggleBtn.setAttribute("aria-expanded", "false");
-    clearTimeout(scrubDebounceTimer);
+    scrubPendingTs = null;
     scrubSeq++; // invalidate any in-flight scrub fetch
     clearScrubError();
   }
@@ -480,8 +513,9 @@
   function resumeLive() {
     mode = "live";
     ribbonSlot.hidden = true;
-    clearTimeout(scrubDebounceTimer);
+    scrubPendingTs = null;
     scrubSeq++; // invalidate any in-flight scrub fetch
+    clearScrubError();
     if (latest) applyLive();
     tick();
     startPolling();
@@ -518,9 +552,11 @@
     if (mode !== "scrub") {
       mode = "scrub";
       stopPolling();
+      // Live-mode banners ("data is 10min old", "couldn't refresh")
+      // are misleading while viewing a frozen historical snapshot.
+      bannersSlot.replaceChildren();
     }
-    clearTimeout(scrubDebounceTimer);
-    scrubDebounceTimer = setTimeout(() => loadHistoricalSnapshot(ts), SCRUB_DEBOUNCE_MS);
+    scheduleScrubFetch(ts);
   });
 
   // Shift + Arrow → ±10 snapshots. Native arrow-only stepping already works.
