@@ -875,6 +875,16 @@ body.status-time-local .t-utc {
   background: color-mix(in srgb, var(--status-in-progress) 18%, transparent);
 }
 
+#status-history-panel span {
+  position: absolute;
+  top: 0;
+  left: var(--thumb-pct, 50%);
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 @media (max-width: 900px) {
   .status-row {
     grid-template-columns: 1fr;

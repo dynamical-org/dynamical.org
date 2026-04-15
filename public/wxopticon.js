@@ -87,8 +87,8 @@
     if (localOption) localOption.textContent = `Local time (${LOCAL_TZ_ABBR})`;
     toggleSelect.addEventListener("change", () => {
       setTimeMode(toggleSelect.value === "local", true);
-      // Scrub label is plain text (not dual-span timeNode), so flipping
-      // UTC↔local doesn't refresh it via CSS — re-render manually.
+      // Scrub label is plain text, not a dual-span timeNode, so the
+      // body-class toggle doesn't reformat it.
       if (!historyPanel.hidden) {
         const ts = currentSelectedTs();
         if (ts) setScrubLabel(ts);
@@ -535,9 +535,7 @@
     if (mode !== "scrub") {
       mode = "scrub";
       stopPolling();
-      // Live-mode stale/error warnings are misleading while viewing a
-      // frozen historical snapshot — clear them and reveal the return-
-      // to-live button under the slider.
+      // Live-mode stale/error warnings don't apply to a frozen snapshot.
       ribbonSlot.hidden = true;
       bannersSlot.replaceChildren();
       returnLiveBtn.hidden = false;
