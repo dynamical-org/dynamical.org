@@ -5,13 +5,46 @@ permalink: /status/
 ---
 
 <div class="content">
-  <main id="wx-app">
-    <div data-slot="banners"></div>
+  <main id="status-app">
+    <div class="status-ribbon" data-slot="ribbon" hidden>
+      Backend data is more than 10 minutes old — it may be stalled.
+    </div>
+    <div data-slot="banners" style="font-size:1.2rem;"></div>
 
-    <select id="wx-time-toggle" style="margin-bottom: 4rem;">
-      <option value="utc">Coordinated Universal Time (UTC)</option>
-      <option value="local">Local time</option>
-    </select>
+    <div class="status-controls">
+      <select id="status-time-toggle">
+        <option value="utc">Coordinated Universal Time (UTC)</option>
+        <option value="local">Local time</option>
+      </select>
+      <button
+        type="button"
+        id="status-history-toggle"
+        aria-expanded="false"
+        aria-controls="status-history-panel"
+        aria-label="Toggle history scrub"
+        title="Toggle history scrub"
+        style="background:none;border:none;padding:0;font-size:1.8rem;cursor:pointer;"
+      >📅</button>
+    </div>
+    <div id="status-history-panel" hidden style="position:relative;padding-top:2.4rem;margin-top:2rem;margin-bottom:2rem;">
+      <span data-slot="scrub-label" aria-hidden="true">—</span>
+      <input
+        type="range"
+        id="status-history-range"
+        min="0"
+        max="0"
+        value="0"
+        step="1"
+        aria-label="Wxopticon history scrub"
+        aria-valuetext="live"
+        disabled
+        style="display:block;width:100%;"
+      >
+      <p data-slot="scrub-error" hidden></p>
+      <div style="text-align:right;margin-top:0.8rem;">
+        <button type="button" data-slot="return-live" hidden>return to live ⇥</button>
+      </div>
+    </div>
 
     {% for product in wxopticon.products %}
     <section class="status-row" data-product-id="{{ product.id }}">

@@ -11,23 +11,41 @@
   // production and local `npm start` can fetch the same URL. If you run
   // `npm start` on a different port, add it to the R2 CORS allowlist via
   // the Cloudflare dashboard.
-  const SUMMARY_URL = "https://assets.dynamical.org/wxopticon/summary.json";
+  const ASSETS_BASE = "https://assets.dynamical.org/wxopticon";
+  const SUMMARY_URL = `${ASSETS_BASE}/summary.json`;
   const POLL_INTERVAL_MS = 15_000;
   const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 min = 2× backend cadence
   const TIME_MODE_KEY = "wxopticon:timeMode";
   const RECENT_INIT_COUNT = 10;
 
-  const app = document.getElementById("wx-app");
+  const HISTORY_INDEX_URL = `${ASSETS_BASE}/history/index.json`;
+  const HISTORY_PREFIX = `${ASSETS_BASE}/history/`;
+
+  const app = document.getElementById("status-app");
   if (!app) return;
 
   const bannersSlot = app.querySelector('[data-slot="banners"]');
   const generatedAtSlot = app.querySelector('[data-slot="generated-at"]');
-  const toggleSelect = document.getElementById("wx-time-toggle");
+  const toggleSelect = document.getElementById("status-time-toggle");
 
-  let latest = null;           // last successful summary payload
-  let lastFetchError = null;   // null if the most recent fetch succeeded
+  const historyToggleBtn = document.getElementById("status-history-toggle");
+  const historyPanel = document.getElementById("status-history-panel");
+  const historyRange = document.getElementById("status-history-range");
+  const scrubLabelSlot = app.querySelector('[data-slot="scrub-label"]');
+  const scrubErrorSlot = app.querySelector('[data-slot="scrub-error"]');
+  const ribbonSlot = app.querySelector('[data-slot="ribbon"]');
+  const returnLiveBtn = app.querySelector('[data-slot="return-live"]');
+
+  let mode = "live";           // "live" = polling summary.json, "scrub" = frozen historical snapshot
+  let latest = null;           // last successful live summary payload
+  let lastFetchError = null;   // null if the most recent live fetch succeeded
   let pollTimer = null;
   let countdownTimer = null;
+
+  let historyIndex = null;
+  let scrubBusy = false;       // true while a historical fetch is in flight
+  let scrubPendingTs = null;   // latest ts seen during an in-flight fetch
+  let scrubSeq = 0;            // guards against late fetches clobbering newer ones
 
   // ---- DOM helper -----------------------------------------------------------
 
@@ -67,9 +85,15 @@
   if (toggleSelect) {
     const localOption = toggleSelect.querySelector('option[value="local"]');
     if (localOption) localOption.textContent = `Local time (${LOCAL_TZ_ABBR})`;
-    toggleSelect.addEventListener("change", () =>
-      setTimeMode(toggleSelect.value === "local", true)
-    );
+    toggleSelect.addEventListener("change", () => {
+      setTimeMode(toggleSelect.value === "local", true);
+      // Scrub label is plain text, not a dual-span timeNode, so the
+      // body-class toggle doesn't reformat it.
+      if (!historyPanel.hidden) {
+        const ts = currentSelectedTs();
+        if (ts) setScrubLabel(ts);
+      }
+    });
   }
 
   setTimeMode(localStorage.getItem(TIME_MODE_KEY) === "local", false);
@@ -177,33 +201,49 @@
 
   // ---- hydration ------------------------------------------------------------
 
-  function renderBar(init) {
-    const fill = Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
+  function barFill(init) {
+    return Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
+  }
+
+  // Unobserved = monitoring-coverage gap, not a publication failure.
+  // Give it a plain-English tooltip so it isn't mistaken for "failed".
+  function barTooltip(init) {
     const initText = init.init_time.slice(5, 16).replace("T", " ") + "z";
-    // Unobserved = monitoring-coverage gap, not a publication failure.
-    // Give it a plain-English tooltip so it isn't mistaken for "failed".
-    const summary = init.status === "unobserved"
-      ? `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`
-      : [
-          initText,
-          init.status,
-          fmtPercent(init.completion_pct),
-          init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
-        ].filter(Boolean).join(" · ");
+    if (init.status === "unobserved") {
+      return `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`;
+    }
+    return [
+      initText,
+      init.status,
+      fmtPercent(init.completion_pct),
+      init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
+    ].filter(Boolean).join(" · ");
+  }
+
+  function renderBar(init) {
     return el(
       "div",
       {
         class: "status-bar",
+        "data-init-time": init.init_time,
         "data-status": init.status,
-        title: summary,
+        title: barTooltip(init),
       },
       [
         el("div", { class: "status-bar-track" }, [
-          el("div", { class: "status-bar-fill", style: `--fill: ${fill}%` }),
+          el("div", { class: "status-bar-fill", style: `--fill: ${barFill(init)}%` }),
         ]),
         el("div", { class: "status-bar-label" }, initLabel(init.init_time)),
       ]
     );
+  }
+
+  // Mutate an existing bar in place so CSS transitions animate the fill
+  // height instead of the bar flashing fresh on every poll.
+  function updateBar(bar, init) {
+    bar.setAttribute("data-status", init.status);
+    bar.setAttribute("title", barTooltip(init));
+    bar.querySelector(".status-bar-fill").style.setProperty("--fill", `${barFill(init)}%`);
   }
 
   function hydrateRow(product) {
@@ -211,7 +251,23 @@
     if (!row) return;
 
     const grid = row.querySelector('[data-slot="grid"]');
-    grid.replaceChildren(...product.recent_inits.slice(-RECENT_INIT_COUNT).map(renderBar));
+    const inits = product.recent_inits.slice(-RECENT_INIT_COUNT);
+    const bars = grid.querySelectorAll(".status-bar");
+    // Fall back to a full rebuild on first hydration (still showing skeletons)
+    // or if the bar count changed. Otherwise update in place — but recreate
+    // any bar whose init_time rotated so the new init appears fresh rather
+    // than shrinking-and-relabeling out of the old one.
+    if (bars.length !== inits.length || grid.querySelector("[data-skeleton]")) {
+      grid.replaceChildren(...inits.map(renderBar));
+    } else {
+      inits.forEach((init, i) => {
+        if (bars[i].dataset.initTime === init.init_time) {
+          updateBar(bars[i], init);
+        } else {
+          bars[i].replaceWith(renderBar(init));
+        }
+      });
+    }
 
     const latency = row.querySelector('[data-slot="latency"]');
     const stats = product.latency_stats;
@@ -246,37 +302,34 @@
 
   function updateBanners(summary) {
     const generatedAt = new Date(summary.generated_at).getTime();
-    const stale = Date.now() - generatedAt > STALE_THRESHOLD_MS;
-
-    const children = [];
-    if (stale) {
-      children.push(
-        el(
-          "div",
-          { class: "status-banner status-banner--stale" },
-          "Backend data is more than 10 minutes old — it may be stalled."
-        )
-      );
-    }
+    ribbonSlot.hidden = Date.now() - generatedAt <= STALE_THRESHOLD_MS;
     if (lastFetchError) {
-      children.push(
+      bannersSlot.replaceChildren(
         el(
           "div",
           { class: "status-banner status-banner--error" },
           `Couldn't refresh (${lastFetchError}). Showing last-known state.`
         )
       );
+    } else {
+      bannersSlot.replaceChildren();
     }
-    bannersSlot.replaceChildren(...children);
   }
 
-  function hydrate(summary) {
-    updateBanners(summary);
+  // Pure render: paint products + generated_at from a fully-loaded summary.
+  // Banners, ribbon, and the countdown ticker are owned by the outer shell
+  // and differ between live and scrub modes.
+  function renderSnapshot(summary) {
     generatedAtSlot.replaceChildren(timeNode(summary.generated_at));
     for (const product of summary.products) {
       hydrateRow(product);
     }
-    updateCountdowns();
+  }
+
+  function applyLive() {
+    updateBanners(latest);
+    renderSnapshot(latest);
+    updateCountdowns(Date.now());
   }
 
   function showLoadError(error) {
@@ -292,16 +345,17 @@
 
   // ---- countdowns -----------------------------------------------------------
 
-  function updateCountdowns() {
-    const now = Date.now();
+  // nowMs is the reference clock: Date.now() in live mode (ticked every
+  // second), or the snapshot's generated_at in scrub mode (frozen).
+  function updateCountdowns(nowMs) {
     for (const node of app.querySelectorAll("[data-init-start]")) {
       const target = new Date(node.getAttribute("data-init-start")).getTime();
-      const delta = Math.floor((target - now) / 1000);
+      const delta = Math.floor((target - nowMs) / 1000);
       node.textContent = delta <= 0 ? "processing" : "init in " + fmtDuration(delta);
     }
     for (const node of app.querySelectorAll("[data-next-complete]")) {
       const target = new Date(node.getAttribute("data-next-complete")).getTime();
-      const delta = Math.floor((target - now) / 1000);
+      const delta = Math.floor((target - nowMs) / 1000);
       node.textContent = delta <= 0 ? "ETA any moment" : "ETA " + fmtDuration(delta);
     }
   }
@@ -309,17 +363,23 @@
   // ---- poll loop ------------------------------------------------------------
 
   async function tick() {
+    if (mode !== "live") return;
     try {
       const resp = await fetch(SUMMARY_URL, { cache: "no-store" });
+      // Mode may have flipped to "scrub" while we were awaiting; abandon the
+      // result so we don't stomp the historical snapshot the user just loaded.
+      if (mode !== "live") return;
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
+      if (mode !== "live") return;
       latest = json;
       lastFetchError = null;
-      hydrate(latest);
+      applyLive();
     } catch (e) {
+      if (mode !== "live") return;
       lastFetchError = e.message || String(e);
       if (latest) {
-        hydrate(latest); // keep last-good data, show error banner
+        applyLive(); // keep last-good data, show error banner
       } else {
         showLoadError(e);
       }
@@ -331,7 +391,7 @@
       pollTimer = setInterval(tick, POLL_INTERVAL_MS);
     }
     if (countdownTimer == null) {
-      countdownTimer = setInterval(updateCountdowns, 1000);
+      countdownTimer = setInterval(() => updateCountdowns(Date.now()), 1000);
     }
   }
 
@@ -350,9 +410,193 @@
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stopPolling();
-    } else {
+    } else if (mode === "live") {
       tick();
       startPolling();
+    }
+  });
+
+  // ---- scrub (history) mode ------------------------------------------------
+
+  // The history index uses hyphens in place of colons so keys are filesystem-
+  // and URL-safe ("2026-04-15T12-30-00Z"); reverse that for Date parsing.
+  function fmtScrubLabel(ts) {
+    const iso = ts.replace(/T(\d{2})-(\d{2})-(\d{2})Z$/, "T$1:$2:$3Z");
+    const useLocal = document.body.classList.contains("status-time-local");
+    return useLocal ? fmtLocal(iso) : fmtUtc(iso);
+  }
+
+  function setScrubLabel(ts) {
+    const text = fmtScrubLabel(ts);
+    scrubLabelSlot.textContent = text;
+    historyRange.setAttribute("aria-valuetext", text);
+    const max = Number(historyRange.max);
+    const pct = max === 0 ? 50 : (Number(historyRange.value) / max) * 100;
+    scrubLabelSlot.style.setProperty("--thumb-pct", `${pct}%`);
+  }
+
+  function clearScrubError() {
+    scrubErrorSlot.hidden = true;
+    scrubErrorSlot.textContent = "";
+  }
+
+  function showScrubError(msg) {
+    scrubErrorSlot.hidden = false;
+    scrubErrorSlot.textContent = msg;
+  }
+
+  async function loadHistoricalSnapshot(ts) {
+    const seq = ++scrubSeq;
+    try {
+      const resp = await fetch(HISTORY_PREFIX + ts + ".json");
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (seq !== scrubSeq || mode !== "scrub") return;
+      renderSnapshot(json);
+      updateCountdowns(new Date(json.generated_at).getTime());
+      clearScrubError();
+    } catch (e) {
+      if (seq !== scrubSeq || mode !== "scrub") return;
+      showScrubError(`snapshot unavailable (${e.message || e})`);
+    }
+  }
+
+  // Coalescing scheduler: fire immediately so the bars update live as the
+  // user drags, but only ever have one fetch in flight. Events that arrive
+  // while busy collapse into scrubPendingTs, which fires once the current
+  // fetch resolves — guaranteeing we always land on the final drag position.
+  async function scheduleScrubFetch(ts) {
+    if (scrubBusy) {
+      scrubPendingTs = ts;
+      return;
+    }
+    scrubBusy = true;
+    scrubPendingTs = null;
+    try {
+      await loadHistoricalSnapshot(ts);
+    } finally {
+      scrubBusy = false;
+      if (scrubPendingTs != null && mode === "scrub") {
+        const next = scrubPendingTs;
+        scrubPendingTs = null;
+        scheduleScrubFetch(next);
+      }
+    }
+  }
+
+  function currentSelectedTs() {
+    if (!historyIndex || historyIndex.length === 0) return null;
+    // Slider: 0 = oldest, max = newest. Index is newest-first.
+    return historyIndex[historyIndex.length - 1 - Number(historyRange.value)];
+  }
+
+  async function openHistoryPanel() {
+    historyPanel.hidden = false;
+    historyToggleBtn.setAttribute("aria-expanded", "true");
+    clearScrubError();
+    if (historyIndex == null) {
+      try {
+        const resp = await fetch(HISTORY_INDEX_URL);
+        // User may have closed the panel while we were awaiting. Bail so we
+        // don't dirty a hidden slider's state.
+        if (historyPanel.hidden) return;
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const json = await resp.json();
+        if (historyPanel.hidden) return;
+        if (!Array.isArray(json) || json.length === 0) {
+          throw new Error("empty history index");
+        }
+        historyIndex = json;
+      } catch (e) {
+        if (historyPanel.hidden) return;
+        showScrubError(`history index unavailable (${e.message || e})`);
+        return;
+      }
+    }
+    historyRange.max = historyIndex.length - 1;
+    historyRange.value = historyIndex.length - 1; // newest = live
+    historyRange.disabled = false;
+    setScrubLabel(currentSelectedTs());
+  }
+
+  function closeHistoryPanel() {
+    historyPanel.hidden = true;
+    historyToggleBtn.setAttribute("aria-expanded", "false");
+    scrubPendingTs = null;
+    scrubSeq++; // invalidate any in-flight scrub fetch
+    clearScrubError();
+  }
+
+  // Flip back to live mode without touching the history panel. Used when the
+  // user slides the thumb back to the newest entry — the panel stays open so
+  // the drag isn't interrupted mid-interaction.
+  function resumeLive() {
+    mode = "live";
+    returnLiveBtn.hidden = true;
+    scrubPendingTs = null;
+    scrubSeq++; // invalidate any in-flight scrub fetch
+    clearScrubError();
+    if (latest) applyLive();
+    tick();
+    startPolling();
+  }
+
+  function returnToLive() {
+    resumeLive();
+    closeHistoryPanel();
+  }
+
+  historyToggleBtn.addEventListener("click", () => {
+    const expanded = historyToggleBtn.getAttribute("aria-expanded") === "true";
+    if (!expanded) {
+      openHistoryPanel();
+    } else if (mode === "scrub") {
+      returnToLive();
+    } else {
+      closeHistoryPanel();
+    }
+  });
+
+  returnLiveBtn.addEventListener("click", returnToLive);
+
+  historyRange.addEventListener("input", () => {
+    const ts = currentSelectedTs();
+    if (!ts) return;
+    setScrubLabel(ts);
+    // Sliding back to the newest entry resumes live without closing the
+    // panel — so an active drag isn't interrupted.
+    if (Number(historyRange.value) === Number(historyRange.max)) {
+      if (mode !== "live") resumeLive();
+      return;
+    }
+    if (mode !== "scrub") {
+      mode = "scrub";
+      stopPolling();
+      // Live-mode stale/error warnings don't apply to a frozen snapshot.
+      ribbonSlot.hidden = true;
+      bannersSlot.replaceChildren();
+      returnLiveBtn.hidden = false;
+    }
+    scheduleScrubFetch(ts);
+  });
+
+  // Shift + Arrow → ±10 snapshots. Native arrow-only stepping already works.
+  historyRange.addEventListener("keydown", (e) => {
+    if (!e.shiftKey) return;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const max = Number(historyRange.max);
+    const cur = Number(historyRange.value);
+    const next = Math.max(0, Math.min(max, cur + (e.key === "ArrowLeft" ? -10 : 10)));
+    if (next === cur) return;
+    historyRange.value = next;
+    historyRange.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && mode === "scrub") {
+      e.preventDefault();
+      returnToLive();
     }
   });
 

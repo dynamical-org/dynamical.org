@@ -862,11 +862,6 @@ article img {
   font-size: 1.2rem;
 }
 
-.status-banner--stale {
-  border: 1px solid var(--status-late);
-  background-color: color-mix(in srgb, var(--status-late) 15%, transparent);
-}
-
 .status-banner--error {
   border: 1px solid var(--status-failed);
   background-color: color-mix(in srgb, var(--status-failed) 15%, transparent);
@@ -877,6 +872,31 @@ body:not(.status-time-local) .t-local {
 }
 body.status-time-local .t-utc {
   display: none;
+}
+
+.status-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.status-ribbon:not([hidden]) {
+  font-size: 1.2rem;
+  padding: 0.8rem 1.2rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--status-in-progress);
+  background: color-mix(in srgb, var(--status-in-progress) 18%, transparent);
+}
+
+#status-history-panel span {
+  position: absolute;
+  top: 0;
+  left: var(--thumb-pct, 50%);
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 @media (max-width: 900px) {
