@@ -201,33 +201,49 @@
 
   // ---- hydration ------------------------------------------------------------
 
-  function renderBar(init) {
-    const fill = Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
+  function barFill(init) {
+    return Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
+  }
+
+  // Unobserved = monitoring-coverage gap, not a publication failure.
+  // Give it a plain-English tooltip so it isn't mistaken for "failed".
+  function barTooltip(init) {
     const initText = init.init_time.slice(5, 16).replace("T", " ") + "z";
-    // Unobserved = monitoring-coverage gap, not a publication failure.
-    // Give it a plain-English tooltip so it isn't mistaken for "failed".
-    const summary = init.status === "unobserved"
-      ? `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`
-      : [
-          initText,
-          init.status,
-          fmtPercent(init.completion_pct),
-          init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
-        ].filter(Boolean).join(" · ");
+    if (init.status === "unobserved") {
+      return `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`;
+    }
+    return [
+      initText,
+      init.status,
+      fmtPercent(init.completion_pct),
+      init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
+    ].filter(Boolean).join(" · ");
+  }
+
+  function renderBar(init) {
     return el(
       "div",
       {
         class: "status-bar",
+        "data-init-time": init.init_time,
         "data-status": init.status,
-        title: summary,
+        title: barTooltip(init),
       },
       [
         el("div", { class: "status-bar-track" }, [
-          el("div", { class: "status-bar-fill", style: `--fill: ${fill}%` }),
+          el("div", { class: "status-bar-fill", style: `--fill: ${barFill(init)}%` }),
         ]),
         el("div", { class: "status-bar-label" }, initLabel(init.init_time)),
       ]
     );
+  }
+
+  // Mutate an existing bar in place so CSS transitions animate the fill
+  // height instead of the bar flashing fresh on every poll.
+  function updateBar(bar, init) {
+    bar.setAttribute("data-status", init.status);
+    bar.setAttribute("title", barTooltip(init));
+    bar.querySelector(".status-bar-fill").style.setProperty("--fill", `${barFill(init)}%`);
   }
 
   function hydrateRow(product) {
@@ -235,7 +251,23 @@
     if (!row) return;
 
     const grid = row.querySelector('[data-slot="grid"]');
-    grid.replaceChildren(...product.recent_inits.slice(-RECENT_INIT_COUNT).map(renderBar));
+    const inits = product.recent_inits.slice(-RECENT_INIT_COUNT);
+    const bars = grid.querySelectorAll(".status-bar");
+    // Fall back to a full rebuild on first hydration (still showing skeletons)
+    // or if the bar count changed. Otherwise update in place — but recreate
+    // any bar whose init_time rotated so the new init appears fresh rather
+    // than shrinking-and-relabeling out of the old one.
+    if (bars.length !== inits.length || grid.querySelector("[data-skeleton]")) {
+      grid.replaceChildren(...inits.map(renderBar));
+    } else {
+      inits.forEach((init, i) => {
+        if (bars[i].dataset.initTime === init.init_time) {
+          updateBar(bars[i], init);
+        } else {
+          bars[i].replaceWith(renderBar(init));
+        }
+      });
+    }
 
     const latency = row.querySelector('[data-slot="latency"]');
     const stats = product.latency_stats;
