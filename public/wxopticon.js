@@ -1,9 +1,9 @@
-// wxopticon arrival dashboard — client-side poller.
+// wxopticon arrival dashboard — client-side hydration.
 //
-// Fetches https://assets.dynamical.org/wxopticon/summary.json every 15s,
-// re-renders the #wx-app container using DOM APIs (no innerHTML, no
-// framework), updates countdowns every second, and surfaces a
-// stale-backend banner if generated_at is >10min old.
+// The row skeleton (one <section> per product, with empty [data-slot=…]
+// nodes) is emitted at build time by content/wxopticon.njk from
+// _data/wxopticon.js. This script fetches the same summary.json at
+// runtime every 15s and hydrates the slots in place.
 
 (() => {
   // R2's CORS policy on the web-assets bucket allows https://dynamical.org
@@ -15,9 +15,14 @@
   const POLL_INTERVAL_MS = 15_000;
   const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 min = 2× backend cadence
   const TIME_MODE_KEY = "wxopticon:timeMode";
+  const RECENT_INIT_COUNT = 10;
 
   const app = document.getElementById("wx-app");
   if (!app) return;
+
+  const bannersSlot = app.querySelector('[data-slot="banners"]');
+  const generatedAtSlot = app.querySelector('[data-slot="generated-at"]');
+  const toggleSelect = document.getElementById("wx-time-toggle");
 
   let latest = null;           // last successful summary payload
   let lastFetchError = null;   // null if the most recent fetch succeeded
@@ -52,12 +57,24 @@
 
   function applyInitialTimeMode() {
     const mode = localStorage.getItem(TIME_MODE_KEY);
-    if (mode === "local") document.body.classList.add("wx-time-local");
+    const local = mode === "local";
+    document.body.classList.toggle("status-time-local", local);
+    if (toggleSelect) toggleSelect.value = local ? "local" : "utc";
   }
 
-  function toggleTimeMode() {
-    const local = document.body.classList.toggle("wx-time-local");
+  function onTimeModeChange() {
+    const local = toggleSelect.value === "local";
+    document.body.classList.toggle("status-time-local", local);
     localStorage.setItem(TIME_MODE_KEY, local ? "local" : "utc");
+  }
+
+  if (toggleSelect) {
+    const tzAbbr = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+      .formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName")?.value ?? "local";
+    const localOption = toggleSelect.querySelector('option[value="local"]');
+    if (localOption) localOption.textContent = `Local time (${tzAbbr})`;
+    toggleSelect.addEventListener("change", onTimeModeChange);
   }
 
   applyInitialTimeMode();
@@ -108,7 +125,7 @@
 
   function timeNode(iso) {
     // Returns a span containing two children: a .t-utc and a .t-local.
-    // CSS hides whichever doesn't match body.wx-time-local.
+    // CSS hides whichever doesn't match body.status-time-local.
     return el("span", null, [
       el("span", { class: "t-utc" }, fmtUtc(iso)),
       el("span", { class: "t-local" }, fmtLocal(iso)),
@@ -136,7 +153,7 @@
     return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
-  // ---- render ---------------------------------------------------------------
+  // ---- hydration ------------------------------------------------------------
 
   function renderBar(init) {
     const fill = Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
@@ -149,74 +166,64 @@
     return el(
       "div",
       {
-        class: "wx-bar",
+        class: "status-bar",
         "data-status": init.status,
         tabindex: "0",
         title: summary,
       },
       [
-        el("div", { class: "wx-bar-track" }, [
-          el("div", { class: "wx-bar-fill", style: `--fill: ${fill}%` }),
+        el("div", { class: "status-bar-track" }, [
+          el("div", { class: "status-bar-fill", style: `--fill: ${fill}%` }),
         ]),
-        el("div", { class: "wx-bar-label" }, initLabel(init.init_time)),
+        el("div", { class: "status-bar-label" }, initLabel(init.init_time)),
       ]
     );
   }
 
-  function renderLatencyStrip(stats) {
-    const cell = (label, v) =>
-      el("div", null, [el("dt", null, label), el("dd", null, fmtLatency(v))]);
-    const attrs = { class: "wx-latency-strip" };
-    if (stats.sample_init_count === 0) {
-      attrs.title = "baseline pending — needs completed inits";
+  function renderLatencyRows(stats) {
+    if (!stats.p99_s || stats.sample_init_count === 0) {
+      return el("span", null, "baseline pending");
     }
-    return el("dl", attrs, [
-      cell("p50", stats.p50_s),
-      cell("p95", stats.p95_s),
-      cell("p99", stats.p99_s),
+    return el("dl", { class: "status-latency-rows" }, [
+      el("dt", null, "p50"), el("dd", null, fmtLatency(stats.p50_s)),
+      el("dt", null, "p95"), el("dd", null, fmtLatency(stats.p95_s)),
+      el("dt", null, "p99"), el("dd", null, fmtLatency(stats.p99_s)),
     ]);
   }
 
-  function renderRow(product) {
-    const nextCompletionNode = product.next_expected_completion_at
-      ? el("div", { class: "wx-stats-meta" }, [
-          "next complete ",
-          timeNode(product.next_expected_completion_at),
-        ])
-      : el("div", { class: "wx-stats-meta" }, "next complete —");
+  function hydrateRow(product) {
+    const row = app.querySelector(`.status-row[data-product-id="${product.id}"]`);
+    if (!row) return;
 
-    return el("section", { class: "wx-row" }, [
-      el("div", { class: "wx-row-label" }, [
-        el("div", { class: "wx-row-label-name" }, product.label),
-        el(
-          "div",
-          { class: "wx-row-label-source" },
-          `${product.source} · ${product.cadence_hours}h cadence`
-        ),
-        el(
-          "div",
-          { class: "wx-stats-meta", "data-next-init": product.next_expected_init },
-          "next run —"
-        ),
-      ]),
-      el(
-        "div",
-        { class: "wx-grid" },
-        product.recent_inits.map(renderBar)
-      ),
-      el("div", { class: "wx-stats" }, [
-        renderLatencyStrip(product.latency_stats),
-        el(
-          "div",
-          { class: "wx-stats-meta" },
-          `${product.latency_stats.sample_init_count} samples`
-        ),
-        nextCompletionNode,
-      ]),
-    ]);
+    const grid = row.querySelector('[data-slot="grid"]');
+    grid.replaceChildren(...product.recent_inits.slice(-RECENT_INIT_COUNT).map(renderBar));
+
+    const latency = row.querySelector('[data-slot="latency"]');
+    latency.replaceChildren(renderLatencyRows(product.latency_stats));
+
+    const samples = row.querySelector('[data-slot="samples"]');
+    samples.textContent = `Based on ${product.latency_stats.sample_init_count} records`;
+
+    const nextComplete = row.querySelector('[data-slot="next-complete"]');
+    if (product.next_expected_completion_at) {
+      nextComplete.replaceChildren(
+        "Next complete ",
+        timeNode(product.next_expected_completion_at)
+      );
+    } else {
+      nextComplete.textContent = "Next complete —";
+    }
+
+    const nextRun = row.querySelector('[data-slot="next-run"]');
+    if (product.next_expected_init) {
+      nextRun.setAttribute("data-next-init", product.next_expected_init);
+    } else {
+      nextRun.removeAttribute("data-next-init");
+      nextRun.textContent = "Next run —";
+    }
   }
 
-  function renderApp(summary) {
+  function updateBanners(summary) {
     const generatedAt = new Date(summary.generated_at).getTime();
     const stale = Date.now() - generatedAt > STALE_THRESHOLD_MS;
 
@@ -225,7 +232,7 @@
       children.push(
         el(
           "div",
-          { class: "wx-stale-banner" },
+          { class: "status-banner status-banner--stale" },
           "Backend data is more than 10 minutes old — it may be stalled."
         )
       );
@@ -234,55 +241,31 @@
       children.push(
         el(
           "div",
-          { class: "wx-error-banner" },
+          { class: "status-banner status-banner--error" },
           `Couldn't refresh (${lastFetchError}). Showing last-known state.`
         )
       );
     }
+    bannersSlot.replaceChildren(...children);
+  }
 
-    const toggleBtn = el(
-      "button",
-      { type: "button", class: "wx-time-toggle", id: "wx-time-toggle" },
-      [
-        "Toggle time: ",
-        el("span", { class: "t-utc" }, "UTC"),
-        el("span", { class: "t-local" }, "local"),
-      ]
-    );
-    toggleBtn.addEventListener("click", toggleTimeMode);
-    children.push(toggleBtn);
-
+  function hydrate(summary) {
+    updateBanners(summary);
+    generatedAtSlot.replaceChildren(timeNode(summary.generated_at));
     for (const product of summary.products) {
-      children.push(renderRow(product));
+      hydrateRow(product);
     }
-
-    children.push(
-      el("footer", { class: "wx-footer" }, [
-        el("div", null, ["Updated ", timeNode(summary.generated_at)]),
-        el(
-          "div",
-          null,
-          `${summary.window_days}-day rolling window · polls every ${POLL_INTERVAL_MS / 1000}s`
-        ),
-      ])
-    );
-
-    app.replaceChildren(...children);
     updateCountdowns();
   }
 
-  function renderLoadingFailed(error) {
-    app.replaceChildren(
-      el("div", { class: "wx-error-banner" }, [
+  function showLoadError(error) {
+    // Leaves the build-time skeleton visible and posts an error banner.
+    bannersSlot.replaceChildren(
+      el("div", { class: "status-banner status-banner--error" }, [
         "Couldn't load arrival status from ",
         el("code", null, SUMMARY_URL),
         ": " + String(error),
-      ]),
-      el(
-        "p",
-        { class: "wx-loading" },
-        `Retrying in ${POLL_INTERVAL_MS / 1000}s…`
-      )
+      ])
     );
   }
 
@@ -294,7 +277,7 @@
       const iso = node.getAttribute("data-next-init");
       if (!iso) continue;
       const target = new Date(iso).getTime();
-      node.textContent = "next run " + fmtCountdown(target, now);
+      node.textContent = "Next run " + fmtCountdown(target, now);
     }
   }
 
@@ -307,13 +290,13 @@
       const json = await resp.json();
       latest = json;
       lastFetchError = null;
-      renderApp(latest);
+      hydrate(latest);
     } catch (e) {
       lastFetchError = e.message || String(e);
       if (latest) {
-        renderApp(latest); // keep last-good data, show error banner
+        hydrate(latest); // keep last-good data, show error banner
       } else {
-        renderLoadingFailed(e);
+        showLoadError(e);
       }
     }
   }
