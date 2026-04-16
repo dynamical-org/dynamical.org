@@ -428,7 +428,6 @@ nav {
 nav ul {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
   gap: 0.25rem 1.25rem;
   padding-inline-start: 0;
   margin: 0;
