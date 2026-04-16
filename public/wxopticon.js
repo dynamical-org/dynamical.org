@@ -453,11 +453,9 @@
     const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
     const hasLive = !!(groups?.length);
 
-    // Scale: zoom x-axis to [first_group.p50 .. overall_p99] so the
-    // interesting spread between groups fills the plot width instead
-    // of being compressed into the far right.
-    const scaleMin = stats[0]?.p50_s ?? 0;
-    const scaleMax = ls?.p99_s ?? 0;
+    // Each row's box plot is scaled to its own [p50, p99] range so the
+    // p50–p95 box fills most of the width. Cross-group time comparison
+    // comes from the ETA column; the plot shows distribution shape.
 
     // Header
     const headCols = [el("th"), el("th", null, "status"), el("th", null, "ETA"), el("th")];
@@ -478,7 +476,7 @@
       el("td", null, "overall"),
       el("td", { class: `eta-g-${overallStatus}` }, hasLive ? statusLabel(overallStatus) : "—"),
       overallEtaCell,
-      el("td", null, [renderBoxplot(ls?.p50_s, ls?.p95_s, ls?.p99_s, overallMarker, markerClassForStatus(overallStatus), scaleMin, scaleMax)]),
+      el("td", null, [renderBoxplot(ls?.p50_s, ls?.p95_s, ls?.p99_s, overallMarker, markerClassForStatus(overallStatus), ls?.p50_s ?? 0, ls?.p99_s ?? 0)]),
     ]);
 
     // Per-group rows
@@ -519,7 +517,7 @@
         el("td", null, s.label),
         el("td", { class: g ? `eta-g-${gStatus}` : "" }, g ? statusLabel(gStatus) : "—"),
         etaCell,
-        el("td", null, [renderBoxplot(s.p50_s, s.p95_s, s.p99_s, marker, mClass, scaleMin, scaleMax)]),
+        el("td", null, [renderBoxplot(s.p50_s, s.p95_s, s.p99_s, marker, mClass, s.p50_s ?? 0, s.p99_s ?? 0)]),
       ]);
     });
 
