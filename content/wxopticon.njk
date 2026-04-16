@@ -52,7 +52,8 @@ permalink: /status/
         <strong>{{ product.label }}</strong>
         <div style="font-size:1.2rem;">
           <div>{{ product.source }}</div>
-          <div>{{ product.cadence_hours }}h cadence</div>
+          <div>{{ product.cadence_hours }}h init cadence</div>
+          <div>{{ product.init_hours | join('/') }}z</div>
         </div>
       </div>
       <div class="status-row-body">

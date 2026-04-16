@@ -26,14 +26,14 @@
   --muted-text-2: #999999;
   --shadow-color: rgba(0, 0, 0, 0.15);
 
-  --pill-available-bg: #78fa64;
+  --pill-available-bg: #5bc54a;
   --pill-available-fg: #081a08;
   --pill-muted-bg: #f0f0f0;
   --pill-muted-fg: #111111;
   --pill-muted-border: #d0d0d0;
 
   /* wxopticon arrival-status colors (light) */
-  --status-on-time: #78fa64;
+  --status-on-time: #5bc54a;
   --status-on-time-fg: #081a08;
   --status-in-progress: #f4b942;
   --status-in-progress-fg: #1a1204;
@@ -44,9 +44,6 @@
   --status-unobserved: #a8a8ad;
   --status-track-bg: #e9e9ee;
 
-  /* Green pulse for "processing but still inside historical envelope".
-     Same hue as on_time — the pulse (animation) is what distinguishes
-     an in-flight run from a completed one. */
   --status-on-track: var(--status-on-time);
 }
 
@@ -219,6 +216,16 @@ table.data th {
 table.data tr td.right,
 table.data tr th.right {
   text-align: right;
+}
+
+table.data.small {
+  font-size: 1.2rem;
+}
+
+table.data.small td,
+table.data.small th {
+  padding: 4px 12px;
+  white-space: nowrap;
 }
 
 /* Catalog grouped table */
@@ -737,7 +744,7 @@ article img {
   position: relative;
   flex-shrink: 0;
   width: 2.6rem;
-  height: 11rem;
+  height: 13rem;
   font-size: 1rem;
   color: var(--muted-text);
   line-height: 1;
@@ -770,7 +777,7 @@ article img {
 .status-bar-track {
   position: relative;
   width: 100%;
-  height: 11rem;
+  height: 13rem;
   border: 1px solid var(--text-color);
   overflow: hidden;
 }
@@ -781,7 +788,6 @@ article img {
   right: 0;
   bottom: 0;
   height: var(--fill, 0%);
-  transition: height 0.3s ease;
 }
 
 /* Stacked lead-group segments (when summary.json carries lead_groups).
@@ -808,7 +814,6 @@ article img {
   right: 0;
   bottom: 0;
   height: var(--fill, 0%);
-  transition: height 0.3s ease;
 }
 
 .status-bar[data-skeleton] {
@@ -837,7 +842,6 @@ article img {
 
 .status-bar[data-status="in_progress"] .status-bar-fill {
   background-color: var(--status-in-progress);
-  animation: status-bar-pulse 1.8s ease-in-out infinite;
 }
 
 .status-bar[data-status="late"] .status-bar-fill {
@@ -859,11 +863,8 @@ article img {
 
 .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
   background-color: var(--status-in-progress);
-  animation: status-bar-pulse 1.8s ease-in-out infinite;
 }
 
-/* On-track runs: swap the in-progress amber for the on-track green, but
-   keep pulsing so you can still tell at-a-glance this group is live. */
 .status-bar[data-on-track="true"] .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
   background-color: var(--status-on-track);
 }
@@ -900,18 +901,6 @@ article img {
 .status-bar[data-status="unobserved"] .status-bar-fill,
 .status-bar[data-status="unobserved"] .status-bar-fill-group {
   display: none;
-}
-
-@keyframes status-bar-pulse {
-  0%, 100% { opacity: 0.7; }
-  50%      { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .status-bar[data-status="in_progress"] .status-bar-fill,
-  .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
-    animation: none;
-  }
 }
 
 .status-bar-label {
@@ -967,41 +956,14 @@ article img {
   padding: 1rem 0 0.4rem;
 }
 
-.details-table {
-  font-size: 1.2rem;
-  border-collapse: collapse;
-  width: 100%;
+.status-row-details table.data {
+  margin-left: auto;
+  margin-right: auto;
 }
-
-.details-table th,
-.details-table td {
-  padding: 0.3rem 1.2rem 0.3rem 0;
-  white-space: nowrap;
-  text-align: left;
-}
-
-.details-table th {
-  color: var(--muted-text);
-  font-weight: normal;
-  padding-bottom: 0.6rem;
-}
-
-.details-table td:first-child {
-  color: var(--text-color);
-}
-
-.details-table .details-overall td {
-  border-bottom: 1px dotted var(--border-muted-color);
-  padding-bottom: 0.8rem;
-}
-
-.details-table .details-overall + tr td {
-  padding-top: 0.8rem;
-}
-
 
 .eta-g-on_time { color: var(--status-on-time); }
-.eta-g-in_progress { color: var(--status-in-progress); }
+.eta-g-in_progress { color: var(--muted-text); }
+.eta-g-delayed { color: var(--status-late); }
 .eta-g-not_started { color: var(--muted-text); }
 .eta-g-late { color: var(--status-late); }
 .eta-g-failed { color: var(--status-failed); }

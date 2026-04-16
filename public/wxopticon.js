@@ -412,89 +412,92 @@
   }
 
   function statusLabel(status) {
-    if (status === "on_time") return "on time";
+    if (status === "on_time" || status === "late") return "complete";
     if (status === "in_progress") return "processing";
     if (status === "not_started") return "pending";
+    if (status === "delayed") return "delayed";
     return status.replace(/_/g, " ");
   }
 
   function buildRowDetails(container, product) {
     const stats = product.lead_group_stats;
-    const ls = product.latency_stats;
     const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
     const groups = inProgress?.lead_groups;
     const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
     const hasLive = !!(groups?.length);
 
-    // Header
-    const headCols = [el("th"), el("th", null, "p50"), el("th", null, "p95"), el("th", null, "p99")];
-    if (hasLive) {
-      headCols.push(el("th", null, "status"));
-      headCols.push(el("th", null, "ETA"));
-    }
-    const thead = el("thead", null, [el("tr", null, headCols)]);
-
-    // Overall row
-    const overallCols = [
-      el("td", null, "overall"),
-      el("td", null, fmtLatency(ls?.p50_s)),
-      el("td", null, fmtLatency(ls?.p95_s)),
-      el("td", null, fmtLatency(ls?.p99_s)),
+    // Header: two-row group header over the p-columns.
+    const initHeaderLabel = hasLive ? initShort(inProgress.init_time) : "waiting for next init";
+    const groupHeadCols = [
+      el("th"),
+      el("th", { colspan: "3", style: "text-align: center;" }, initHeaderLabel),
+      el("th", { colspan: "3", style: "text-align: center;" }, "time after init"),
     ];
-    if (hasLive) {
-      const status = inProgress.status;
-      overallCols.push(el("td", { class: `eta-g-${status}` }, statusLabel(status)));
-      const etaCell = el("td");
-      if (ls?.p95_s != null) {
-        const targetIso = new Date(initMs + ls.p95_s * 1000).toISOString();
-        etaCell.setAttribute("data-next-complete", targetIso);
-        etaCell.setAttribute("data-eta-compact", "");
-      } else {
-        etaCell.textContent = "—";
-      }
-      overallCols.push(etaCell);
-    }
-    const overallRow = el("tr", { class: "details-overall" }, overallCols);
+    const subHeadCols = [
+      el("th"),
+      el("th", { class: "right" }, "status"),
+      el("th", { class: "right" }, "time"),
+      el("th", { class: "right" }, "duration"),
+      el("th", { class: "right" }, "p50"),
+      el("th", { class: "right" }, "p95"),
+      el("th", { class: "right" }, "p99"),
+    ];
+    const thead = el("thead", null, [
+      el("tr", null, groupHeadCols),
+      el("tr", null, subHeadCols),
+    ]);
 
     // Per-group rows
     const groupRows = stats.map((s, i) => {
       const g = hasLive ? groups[i] : null;
-      const gStatus = g?.status;
-
-      const cols = [
-        el("td", null, s.label),
-        el("td", null, fmtLatency(s.p50_s)),
-        el("td", null, fmtLatency(s.p95_s)),
-        el("td", null, fmtLatency(s.p99_s)),
-      ];
-      if (hasLive) {
-        if (g) {
-          cols.push(el("td", { class: `eta-g-${gStatus}` }, statusLabel(gStatus)));
-          const etaCell = el("td");
-          if (gStatus === "on_time" && g.latency_s != null) {
-            etaCell.textContent = fmtLatency(g.latency_s);
-          } else if (gStatus === "on_time") {
-            etaCell.textContent = "done";
-          } else if (s.p95_s != null) {
-            const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
-            etaCell.setAttribute("data-next-complete", targetIso);
-            etaCell.setAttribute("data-eta-compact", "");
-          } else {
-            etaCell.textContent = "—";
-          }
-          cols.push(etaCell);
-        } else {
-          cols.push(el("td", null, "—"), el("td", null, "—"));
-        }
+      // A group may be marked in_progress by the backend as soon as init time
+      // passes, even if no files have arrived yet. Display those as "pending"
+      // until we observe direct progress. Once progress is observed, flip to
+      // "delayed" if we've already run past the p95 processing duration.
+      const observed = g && g.completion_pct != null && g.completion_pct > 0;
+      const elapsedS = (lastCountdownNow - initMs) / 1000;
+      let gStatus = g?.status ?? "not_started";
+      if (gStatus === "in_progress") {
+        if (!observed) gStatus = "not_started";
+        else if (s.p95_s != null && elapsedS > s.p95_s) gStatus = "delayed";
       }
+
+      const cols = [el("td", null, s.label)];
+      cols.push(el("td", { class: `right eta-g-${gStatus}` }, statusLabel(gStatus)));
+      const etaCell = el("td", { class: "right" });
+      const durCell = el("td", { class: "right" });
+      const completed = g?.status === "on_time" || g?.status === "late";
+      if (completed && g.latency_s != null) {
+        const completedIso = new Date(initMs + g.latency_s * 1000).toISOString();
+        etaCell.setAttribute("data-completed-at", completedIso);
+        durCell.textContent = fmtLatency(g.latency_s);
+      } else if (completed) {
+        etaCell.textContent = "done";
+        durCell.textContent = "—";
+      } else if (hasLive && s.p95_s != null) {
+        const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
+        etaCell.setAttribute("data-next-complete", targetIso);
+        etaCell.setAttribute("data-clock-only", "");
+        durCell.setAttribute("data-duration-since", inProgress.init_time);
+      } else {
+        etaCell.textContent = "—";
+        durCell.textContent = "—";
+      }
+      cols.push(etaCell, durCell);
+      cols.push(
+        el("td", { class: "right" }, fmtLatency(s.p50_s)),
+        el("td", { class: "right" }, fmtLatency(s.p95_s)),
+        el("td", { class: "right" }, fmtLatency(s.p99_s)),
+      );
       return el("tr", null, cols);
     });
 
-    const table = el("table", { class: "details-table" }, [
+    const table = el("table", { class: "data small" }, [
       thead,
-      el("tbody", null, [overallRow, ...groupRows]),
+      el("tbody", null, groupRows),
     ]);
-    container.replaceChildren(table);
+    const wrapper = el("div", { class: "table-container" }, [table]);
+    container.replaceChildren(wrapper);
   }
 
   function updateBanners(summary) {
@@ -567,16 +570,22 @@
     for (const node of app.querySelectorAll("[data-next-complete]")) {
       const iso = node.getAttribute("data-next-complete");
       const delta = Math.floor((new Date(iso).getTime() - nowMs) / 1000);
-      const compact = node.hasAttribute("data-eta-compact");
-      if (delta <= 0) {
-        node.textContent = compact ? "any moment" : "ETA any moment";
+      const clockOnly = node.hasAttribute("data-clock-only");
+      if (clockOnly) {
+        node.textContent = delta <= 0 ? "—" : `ETA ${fmtClock(iso)}`;
+      } else if (delta <= 0) {
+        node.textContent = "ETA any moment";
       } else {
-        const clock = fmtClock(iso);
-        const dur = fmtDuration(delta);
-        node.textContent = compact
-          ? `${clock} (in ${dur})`
-          : `ETA ${clock} (in ${dur})`;
+        node.textContent = `ETA ${fmtClock(iso)} (in ${fmtDuration(delta)})`;
       }
+    }
+    for (const node of app.querySelectorAll("[data-duration-since]")) {
+      const iso = node.getAttribute("data-duration-since");
+      const delta = Math.floor((nowMs - new Date(iso).getTime()) / 1000);
+      node.textContent = delta <= 0 ? "—" : fmtDuration(delta);
+    }
+    for (const node of app.querySelectorAll("[data-completed-at]")) {
+      node.textContent = fmtClock(node.getAttribute("data-completed-at"));
     }
   }
 
