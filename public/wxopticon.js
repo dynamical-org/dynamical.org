@@ -206,6 +206,47 @@
     return Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100));
   }
 
+  // Backend values in lead_groups are cumulative (group i covers leads
+  // 0..max_lead[i]). Diff consecutive groups to get the per-slice heights
+  // (share of total leads) and fills (share of leads arrived in that slice).
+  function groupSlices(leadGroups) {
+    const total = leadGroups[leadGroups.length - 1].leads_expected;
+    let prevAvail = 0;
+    let prevExp = 0;
+    return leadGroups.map((g) => {
+      const sliceExp = g.leads_expected - prevExp;
+      const sliceAvail = g.leads_available - prevAvail;
+      prevAvail = g.leads_available;
+      prevExp = g.leads_expected;
+      const heightPct = total > 0 ? (sliceExp / total) * 100 : 0;
+      const fillPct = sliceExp > 0 ? Math.max(0, Math.min(100, (sliceAvail / sliceExp) * 100)) : 0;
+      return { name: g.name, status: g.status, heightPct, fillPct };
+    });
+  }
+
+  function renderGroupSegments(init) {
+    const slices = groupSlices(init.lead_groups);
+    let bottom = 0;
+    return slices.map((s) => {
+      const seg = el("div", {
+        class: `status-bar-fill-group g-${s.status}`,
+        "data-group": s.name,
+        style: `--band-height: ${s.heightPct}%; --band-bottom: ${bottom}%; --fill: ${s.fillPct}%;`,
+      }, [
+        el("div", { class: "status-bar-fill-inner" }),
+      ]);
+      bottom += s.heightPct;
+      return seg;
+    });
+  }
+
+  function renderTrackContents(init) {
+    if (init.lead_groups && init.lead_groups.length > 0) {
+      return renderGroupSegments(init);
+    }
+    return [el("div", { class: "status-bar-fill", style: `--fill: ${barFill(init)}%` })];
+  }
+
   // Unobserved = monitoring-coverage gap, not a publication failure.
   // Give it a plain-English tooltip so it isn't mistaken for "failed".
   function barTooltip(init) {
@@ -213,16 +254,31 @@
     if (init.status === "unobserved") {
       return `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`;
     }
-    return [
+    const base = [
       initText,
       init.status,
       fmtPercent(init.completion_pct),
       init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
     ].filter(Boolean).join(" · ");
+    if (!init.lead_groups || init.lead_groups.length === 0) return base;
+    const groupParts = init.lead_groups.map((g) =>
+      g.status === "in_progress"
+        ? `${g.name} ${g.status} ${fmtPercent(g.completion_pct)}`
+        : `${g.name} ${g.status}`
+    );
+    return `${base}\n${groupParts.join(" · ")}`;
+  }
+
+  function applyOnTrack(bar, init) {
+    if (init.status === "in_progress" && typeof init.on_track === "boolean") {
+      bar.setAttribute("data-on-track", init.on_track ? "true" : "false");
+    } else {
+      bar.removeAttribute("data-on-track");
+    }
   }
 
   function renderBar(init) {
-    return el(
+    const bar = el(
       "div",
       {
         class: "status-bar",
@@ -231,12 +287,12 @@
         title: barTooltip(init),
       },
       [
-        el("div", { class: "status-bar-track" }, [
-          el("div", { class: "status-bar-fill", style: `--fill: ${barFill(init)}%` }),
-        ]),
+        el("div", { class: "status-bar-track" }, renderTrackContents(init)),
         el("div", { class: "status-bar-label" }, initLabel(init.init_time)),
       ]
     );
+    applyOnTrack(bar, init);
+    return bar;
   }
 
   // Mutate an existing bar in place so CSS transitions animate the fill
@@ -244,7 +300,29 @@
   function updateBar(bar, init) {
     bar.setAttribute("data-status", init.status);
     bar.setAttribute("title", barTooltip(init));
-    bar.querySelector(".status-bar-fill").style.setProperty("--fill", `${barFill(init)}%`);
+    applyOnTrack(bar, init);
+
+    const segments = bar.querySelectorAll(".status-bar-fill-group");
+    const hasGroups = init.lead_groups && init.lead_groups.length > 0;
+    if (hasGroups && segments.length === init.lead_groups.length) {
+      const slices = groupSlices(init.lead_groups);
+      segments.forEach((seg, i) => {
+        const s = slices[i];
+        seg.style.setProperty("--fill", `${s.fillPct}%`);
+        seg.className = `status-bar-fill-group g-${s.status}`;
+      });
+      return;
+    }
+
+    const singleFill = bar.querySelector(".status-bar-fill");
+    if (!hasGroups && singleFill) {
+      singleFill.style.setProperty("--fill", `${barFill(init)}%`);
+      return;
+    }
+
+    // Structure changed (old→new snapshot shape) — rebuild the track contents.
+    const track = bar.querySelector(".status-bar-track");
+    if (track) track.replaceChildren(...renderTrackContents(init));
   }
 
   function hydrateRow(product) {
@@ -283,36 +361,153 @@
     // }
 
     // "init in" ticks down to init_time and flips to "processing" once
-    // elapsed (optimistic — next poll confirms). The eta-time and
-    // eta-duration slots are filled by updateCountdowns on the next tick.
+    // elapsed (optimistic — next poll confirms). The eta-line slot is
+    // updated by updateCountdowns on the next tick.
     const initSlot = row.querySelector('[data-slot="eta-init"]');
     const stateSlot = row.querySelector('[data-slot="eta-state"]');
-    const timeSlot = row.querySelector('[data-slot="eta-time"]');
-    const durationSlot = row.querySelector('[data-slot="eta-duration"]');
+    const lineSlot = row.querySelector('[data-slot="eta-line"]');
+    const detailsBtn = row.querySelector('[data-slot="row-details-btn"]');
+    const detailsSlot = row.querySelector('[data-slot="row-details"]');
     const target = etaTarget(product);
     if (!target) {
       initSlot.textContent = "—";
       stateSlot.hidden = true;
       stateSlot.removeAttribute("data-init-start");
-      timeSlot.hidden = true;
-      timeSlot.removeAttribute("data-next-complete");
-      durationSlot.hidden = true;
-      return;
+      lineSlot.hidden = true;
+      lineSlot.removeAttribute("data-next-complete");
+      // Keep details button visible for latency stats even without an ETA target.
     }
-    initSlot.textContent = initShort(target.initTime);
-    stateSlot.hidden = false;
-    if (target.inProgress) {
-      stateSlot.textContent = "processing";
-      stateSlot.removeAttribute("data-init-start");
+    if (target) {
+      initSlot.textContent = initShort(target.initTime);
+      stateSlot.hidden = false;
+      const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+      if (target.inProgress) {
+        const onTrack = inProgress && typeof inProgress.on_track === "boolean"
+          ? (inProgress.on_track ? " · on track" : " · delayed")
+          : "";
+        stateSlot.textContent = `processing${onTrack}`;
+        stateSlot.removeAttribute("data-init-start");
+        if (inProgress && typeof inProgress.on_track === "boolean") {
+          stateSlot.setAttribute("data-on-track", String(inProgress.on_track));
+        } else {
+          stateSlot.removeAttribute("data-on-track");
+        }
+      } else {
+        stateSlot.textContent = "init in —";
+        stateSlot.setAttribute("data-init-start", target.initTime);
+        stateSlot.removeAttribute("data-on-track");
+      }
+      lineSlot.hidden = false;
+      lineSlot.textContent = "ETA —";
+      lineSlot.setAttribute("data-next-complete", target.targetIso);
+    }
+
+    // "more details" is always available when the product has lead_group_stats.
+    const groupStats = product.lead_group_stats;
+    if (groupStats?.length) {
+      if (detailsBtn.hidden) {
+        // Transitioning from disabled → enabled (e.g. scrubbing from a pre-lead-groups
+        // snapshot); reset the reveal to its default closed state.
+        detailsBtn.textContent = "more details";
+        detailsBtn.setAttribute("aria-expanded", "false");
+        detailsSlot.hidden = true;
+      }
+      detailsBtn.hidden = false;
+      buildRowDetails(detailsSlot, product);
     } else {
-      stateSlot.textContent = "init in —";
-      stateSlot.setAttribute("data-init-start", target.initTime);
+      detailsBtn.hidden = true;
+      detailsSlot.hidden = true;
+      detailsSlot.replaceChildren();
     }
-    timeSlot.hidden = false;
-    timeSlot.textContent = "ETA —";
-    timeSlot.setAttribute("data-next-complete", target.targetIso);
-    durationSlot.hidden = false;
-    durationSlot.textContent = "in —";
+  }
+
+  function statusLabel(status) {
+    if (status === "on_time" || status === "late") return "complete";
+    if (status === "in_progress") return "processing";
+    if (status === "not_started") return "pending";
+    if (status === "delayed") return "delayed";
+    return status.replace(/_/g, " ");
+  }
+
+  function buildRowDetails(container, product) {
+    const stats = product.lead_group_stats;
+    const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+    const groups = inProgress?.lead_groups;
+    const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
+    const hasLive = !!(groups?.length);
+
+    // Header: two-row group header over the p-columns.
+    const initHeaderLabel = hasLive ? initShort(inProgress.init_time) : "waiting for next init";
+    const groupHeadCols = [
+      el("th"),
+      el("th", { colspan: "3", style: "text-align: center;" }, initHeaderLabel),
+      el("th", { colspan: "3", style: "text-align: center;" }, "time after init"),
+    ];
+    const subHeadCols = [
+      el("th"),
+      el("th", { class: "right" }, "status"),
+      el("th", { class: "right" }, "time"),
+      el("th", { class: "right" }, "duration"),
+      el("th", { class: "right" }, "p50"),
+      el("th", { class: "right" }, "p95"),
+      el("th", { class: "right" }, "p99"),
+    ];
+    const thead = el("thead", null, [
+      el("tr", null, groupHeadCols),
+      el("tr", null, subHeadCols),
+    ]);
+
+    // Per-group rows
+    const groupRows = stats.map((s, i) => {
+      const g = hasLive ? groups[i] : null;
+      // A group may be marked in_progress by the backend as soon as init time
+      // passes, even if no files have arrived yet. Display those as "pending"
+      // until we observe direct progress. Once progress is observed, flip to
+      // "delayed" if we've already run past the p95 processing duration.
+      const observed = g && g.completion_pct != null && g.completion_pct > 0;
+      const elapsedS = (lastCountdownNow - initMs) / 1000;
+      let gStatus = g?.status ?? "not_started";
+      if (gStatus === "in_progress") {
+        if (!observed) gStatus = "not_started";
+        else if (s.p95_s != null && elapsedS > s.p95_s) gStatus = "delayed";
+      }
+
+      const cols = [el("td", null, s.label)];
+      cols.push(el("td", { class: `right eta-g-${gStatus}` }, statusLabel(gStatus)));
+      const etaCell = el("td", { class: "right" });
+      const durCell = el("td", { class: "right" });
+      const completed = g?.status === "on_time" || g?.status === "late";
+      if (completed && g.latency_s != null) {
+        const completedIso = new Date(initMs + g.latency_s * 1000).toISOString();
+        etaCell.setAttribute("data-completed-at", completedIso);
+        durCell.textContent = fmtLatency(g.latency_s);
+      } else if (completed) {
+        etaCell.textContent = "done";
+        durCell.textContent = "—";
+      } else if (hasLive && s.p95_s != null) {
+        const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
+        etaCell.setAttribute("data-next-complete", targetIso);
+        etaCell.setAttribute("data-clock-only", "");
+        durCell.setAttribute("data-duration-since", inProgress.init_time);
+      } else {
+        etaCell.textContent = "—";
+        durCell.textContent = "—";
+      }
+      cols.push(etaCell, durCell);
+      cols.push(
+        el("td", { class: "right" }, fmtLatency(s.p50_s)),
+        el("td", { class: "right" }, fmtLatency(s.p95_s)),
+        el("td", { class: "right" }, fmtLatency(s.p99_s)),
+      );
+      return el("tr", null, cols);
+    });
+
+    const table = el("table", { class: "data small" }, [
+      thead,
+      el("tbody", null, groupRows),
+    ]);
+    const wrapper = el("div", { class: "table-container" }, [table]);
+    container.replaceChildren(wrapper);
   }
 
   function updateBanners(summary) {
@@ -333,8 +528,12 @@
 
   // Pure render: paint products + generated_at from a fully-loaded summary.
   // Banners, ribbon, and the countdown ticker are owned by the outer shell
-  // and differ between live and scrub modes.
-  function renderSnapshot(summary) {
+  // and differ between live and scrub modes. nowMs is set first so builders
+  // that read lastCountdownNow (e.g. buildRowDetails for the delayed/pending
+  // threshold) see the snapshot's reference clock rather than the previous
+  // one.
+  function renderSnapshot(summary, nowMs) {
+    lastCountdownNow = nowMs;
     generatedAtSlot.replaceChildren(timeNode(summary.generated_at));
     for (const product of summary.products) {
       hydrateRow(product);
@@ -343,8 +542,9 @@
 
   function applyLive() {
     updateBanners(latest);
-    renderSnapshot(latest);
-    updateCountdowns(Date.now());
+    const nowMs = Date.now();
+    renderSnapshot(latest, nowMs);
+    updateCountdowns(nowMs);
   }
 
   function showLoadError(error) {
@@ -385,15 +585,22 @@
     for (const node of app.querySelectorAll("[data-next-complete]")) {
       const iso = node.getAttribute("data-next-complete");
       const delta = Math.floor((new Date(iso).getTime() - nowMs) / 1000);
-      const duration = node.closest(".status-eta").querySelector('[data-slot="eta-duration"]');
-      if (delta <= 0) {
+      const clockOnly = node.hasAttribute("data-clock-only");
+      if (clockOnly) {
+        node.textContent = delta <= 0 ? "—" : `ETA ${fmtClock(iso)}`;
+      } else if (delta <= 0) {
         node.textContent = "ETA any moment";
-        duration.hidden = true;
       } else {
-        node.textContent = `ETA ${fmtClock(iso)}`;
-        duration.hidden = false;
-        duration.textContent = `in ${fmtDuration(delta)}`;
+        node.textContent = `ETA ${fmtClock(iso)} (in ${fmtDuration(delta)})`;
       }
+    }
+    for (const node of app.querySelectorAll("[data-duration-since]")) {
+      const iso = node.getAttribute("data-duration-since");
+      const delta = Math.floor((nowMs - new Date(iso).getTime()) / 1000);
+      node.textContent = delta <= 0 ? "—" : fmtDuration(delta);
+    }
+    for (const node of app.querySelectorAll("[data-completed-at]")) {
+      node.textContent = fmtClock(node.getAttribute("data-completed-at"));
     }
   }
 
@@ -489,8 +696,9 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
       if (seq !== scrubSeq || mode !== "scrub") return;
-      renderSnapshot(json);
-      updateCountdowns(new Date(json.generated_at).getTime());
+      const snapMs = new Date(json.generated_at).getTime();
+      renderSnapshot(json, snapMs);
+      updateCountdowns(snapMs);
       clearScrubError();
     } catch (e) {
       if (seq !== scrubSeq || mode !== "scrub") return;
@@ -635,6 +843,20 @@
       e.preventDefault();
       returnToLive();
     }
+  });
+
+  // Details toggle: event delegation so hydrateRow doesn't re-wire per poll.
+  app.addEventListener("click", (e) => {
+    const btn = e.target.closest('[data-slot="row-details-btn"]');
+    if (!btn) return;
+    const row = btn.closest(".status-row");
+    const details = row.querySelector('[data-slot="row-details"]');
+    const show = details.hidden;
+    details.hidden = !show;
+    btn.textContent = show ? "less" : "more details";
+    btn.setAttribute("aria-expanded", String(show));
+    // Kick a countdown update so ETA cells in the table are filled immediately.
+    if (show) updateCountdowns(lastCountdownNow);
   });
 
   // Kick off.

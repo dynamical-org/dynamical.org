@@ -26,14 +26,14 @@
   --muted-text-2: #999999;
   --shadow-color: rgba(0, 0, 0, 0.15);
 
-  --pill-available-bg: #78fa64;
+  --pill-available-bg: #5bc54a;
   --pill-available-fg: #081a08;
   --pill-muted-bg: #f0f0f0;
   --pill-muted-fg: #111111;
   --pill-muted-border: #d0d0d0;
 
   /* wxopticon arrival-status colors (light) */
-  --status-on-time: #78fa64;
+  --status-on-time: #5bc54a;
   --status-on-time-fg: #081a08;
   --status-in-progress: #f4b942;
   --status-in-progress-fg: #1a1204;
@@ -43,6 +43,8 @@
   --status-failed-fg: #ffffff;
   --status-unobserved: #a8a8ad;
   --status-track-bg: #e9e9ee;
+
+  --status-on-track: var(--status-on-time);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -214,6 +216,16 @@ table.data th {
 table.data tr td.right,
 table.data tr th.right {
   text-align: right;
+}
+
+table.data.small {
+  font-size: 1.2rem;
+}
+
+table.data.small td,
+table.data.small th {
+  padding: 4px 12px;
+  white-space: nowrap;
 }
 
 /* Catalog grouped table */
@@ -416,7 +428,6 @@ nav {
 nav ul {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
   gap: 0.25rem 1.25rem;
   padding-inline-start: 0;
   margin: 0;
@@ -429,6 +440,12 @@ nav li {
 nav ul li:first-child {
   font-weight: 700;
   margin-right: auto;
+}
+
+.nav-lockup img {
+  display: block;
+  height: 24px;
+  width: auto;
 }
 
 footer {
@@ -713,11 +730,39 @@ article img {
   border-top: none;
 }
 
+.status-row-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* Left-aligned y-axis column: one label per lead group, centered on its
+   band. Height matches .status-bar-track so percentages line up. */
+.status-group-labels {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.6rem;
+  height: 13rem;
+  font-size: 1rem;
+  color: var(--muted-text);
+  line-height: 1;
+}
+
+.status-group-labels span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  white-space: nowrap;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 0.6rem;
   min-height: 10rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .status-bar {
@@ -731,7 +776,7 @@ article img {
 .status-bar-track {
   position: relative;
   width: 100%;
-  height: 11rem;
+  height: 13rem;
   border: 1px solid var(--text-color);
   overflow: hidden;
 }
@@ -742,7 +787,32 @@ article img {
   right: 0;
   bottom: 0;
   height: var(--fill, 0%);
-  transition: height 0.3s ease;
+}
+
+/* Stacked lead-group segments (when summary.json carries lead_groups).
+   Each band is positioned absolutely within the track — --band-bottom
+   is the cumulative share of leads below this band, --band-height is
+   this group's share. --fill is the share of that band that's arrived.
+   The inner div is what carries the status-keyed background color so
+   the band outline (hairline separator) stays visible even at 0% fill. */
+.status-bar-fill-group {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--band-bottom, 0%);
+  height: var(--band-height, 0%);
+}
+
+.status-bar-fill-group + .status-bar-fill-group:not(:last-child) {
+  border-top: 1px solid var(--text-color);
+}
+
+.status-bar-fill-inner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--fill, 0%);
 }
 
 .status-bar[data-skeleton] {
@@ -761,7 +831,9 @@ article img {
   }
 }
 
-/* Status fills — solid color per status. */
+/* Status fills — solid color per status. Single-fill rules apply to
+   pre-lead-groups snapshots (graceful fallback). Stacked rules below
+   key off each segment's own g-{status} class. */
 
 .status-bar[data-status="on_time"] .status-bar-fill {
   background-color: var(--status-on-time);
@@ -769,11 +841,6 @@ article img {
 
 .status-bar[data-status="in_progress"] .status-bar-fill {
   background-color: var(--status-in-progress);
-  animation: status-bar-pulse 1.8s ease-in-out infinite;
-  /* At 0% completion the fill height is 0 and the bar is invisible;
-     hold a minimum sliver so the pulsing amber is always visible once
-     a run starts. */
-  min-height: 3px;
 }
 
 .status-bar[data-status="late"] .status-bar-fill {
@@ -788,6 +855,40 @@ article img {
   height: 100%;
 }
 
+/* Stacked group segments: color comes from each segment's g-{status}. */
+.status-bar-fill-group.g-on_time .status-bar-fill-inner {
+  background-color: var(--status-on-time);
+}
+
+.status-bar-fill-group.g-in_progress .status-bar-fill-inner {
+  background-color: var(--status-in-progress);
+}
+
+.status-bar[data-on-track="true"] .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
+  background-color: var(--status-on-track);
+}
+
+.status-bar-fill-group.g-late .status-bar-fill-inner {
+  background-color: var(--status-late);
+}
+
+.status-bar-fill-group.g-failed .status-bar-fill-inner {
+  background-color: var(--status-failed);
+  height: 100%;
+}
+
+/* Not-started = leads in this group haven't arrived yet during an
+   in-progress run. Dotted border echoes the unobserved track treatment
+   so it reads as "expected but not yet seen". */
+.status-bar-fill-group.g-not_started {
+  border: 1px dotted var(--status-unobserved);
+}
+
+.status-bar-fill-group.g-not_started .status-bar-fill-inner,
+.status-bar-fill-group.g-unobserved .status-bar-fill-inner {
+  display: none;
+}
+
 /* Unobserved = monitoring-coverage gap, not a publication failure.
    Empty bar with a dotted outline reads as "no information" without
    implying something broke. */
@@ -796,19 +897,9 @@ article img {
   border-color: var(--status-unobserved);
 }
 
-.status-bar[data-status="unobserved"] .status-bar-fill {
+.status-bar[data-status="unobserved"] .status-bar-fill,
+.status-bar[data-status="unobserved"] .status-bar-fill-group {
   display: none;
-}
-
-@keyframes status-bar-pulse {
-  0%, 100% { opacity: 0.7; }
-  50%      { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .status-bar[data-status="in_progress"] .status-bar-fill {
-    animation: none;
-  }
 }
 
 .status-bar-label {
@@ -840,6 +931,41 @@ article img {
   display: block;
   white-space: nowrap;
 }
+
+.status-eta [data-on-track="true"] {
+  color: var(--status-on-time);
+}
+
+.status-eta [data-on-track="false"] {
+  color: var(--status-in-progress);
+}
+
+.eta-details-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--link-color);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.status-row-details {
+  grid-column: 1 / -1;
+  padding: 1rem 0 0.4rem;
+}
+
+.status-row-details table.data {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.eta-g-on_time { color: var(--status-on-time); }
+.eta-g-in_progress { color: var(--muted-text); }
+.eta-g-delayed { color: var(--status-late); }
+.eta-g-not_started { color: var(--muted-text); }
+.eta-g-late { color: var(--status-late); }
+.eta-g-failed { color: var(--status-failed); }
 
 .status-footer {
   margin-top: 2rem;
