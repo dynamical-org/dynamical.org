@@ -418,11 +418,13 @@
     return status.replace(/_/g, " ");
   }
 
-  // Inline box plot: thin whisker from 0 to p99, filled box from p50 to
+  // Inline box plot: thin whisker from p50 to p99, filled box from p50 to
   // p95, and a down-pointing triangle marker at the actual/expected value.
-  function renderBoxplot(p50, p95, p99, marker, markerClass, scaleMax) {
-    const pct = (v) => v != null && scaleMax > 0
-      ? Math.min(100, (v / scaleMax) * 100) : 0;
+  // scaleMin/scaleMax define the visible x-axis window.
+  function renderBoxplot(p50, p95, p99, marker, markerClass, scaleMin, scaleMax) {
+    const range = scaleMax - scaleMin;
+    const pct = (v) => v != null && range > 0
+      ? Math.max(0, Math.min(100, ((v - scaleMin) / range) * 100)) : 0;
     const children = [
       el("div", { class: "boxplot-whisker", style: `width: ${pct(p99)}%` }),
       el("div", { class: "boxplot-box", style: `left: ${pct(p50)}%; width: ${pct(p95) - pct(p50)}%` }),
@@ -451,7 +453,10 @@
     const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
     const hasLive = !!(groups?.length);
 
-    // Scale: overall p99 so all groups share a common x-axis.
+    // Scale: zoom x-axis to [first_group.p50 .. overall_p99] so the
+    // interesting spread between groups fills the plot width instead
+    // of being compressed into the far right.
+    const scaleMin = stats[0]?.p50_s ?? 0;
     const scaleMax = ls?.p99_s ?? 0;
 
     // Header
@@ -473,7 +478,7 @@
       el("td", null, "overall"),
       el("td", { class: `eta-g-${overallStatus}` }, hasLive ? statusLabel(overallStatus) : "—"),
       overallEtaCell,
-      el("td", null, [renderBoxplot(ls?.p50_s, ls?.p95_s, ls?.p99_s, overallMarker, markerClassForStatus(overallStatus), scaleMax)]),
+      el("td", null, [renderBoxplot(ls?.p50_s, ls?.p95_s, ls?.p99_s, overallMarker, markerClassForStatus(overallStatus), scaleMin, scaleMax)]),
     ]);
 
     // Per-group rows
@@ -514,7 +519,7 @@
         el("td", null, s.label),
         el("td", { class: g ? `eta-g-${gStatus}` : "" }, g ? statusLabel(gStatus) : "—"),
         etaCell,
-        el("td", null, [renderBoxplot(s.p50_s, s.p95_s, s.p99_s, marker, mClass, scaleMax)]),
+        el("td", null, [renderBoxplot(s.p50_s, s.p95_s, s.p99_s, marker, mClass, scaleMin, scaleMax)]),
       ]);
     });
 
