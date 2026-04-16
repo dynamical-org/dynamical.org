@@ -832,10 +832,6 @@ article img {
 .status-bar[data-status="in_progress"] .status-bar-fill {
   background-color: var(--status-in-progress);
   animation: status-bar-pulse 1.8s ease-in-out infinite;
-  /* At 0% completion the fill height is 0 and the bar is invisible;
-     hold a minimum sliver so the pulsing amber is always visible once
-     a run starts. */
-  min-height: 3px;
 }
 
 .status-bar[data-status="late"] .status-bar-fill {
@@ -858,9 +854,6 @@ article img {
 .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
   background-color: var(--status-in-progress);
   animation: status-bar-pulse 1.8s ease-in-out infinite;
-  /* Keep a sliver visible at 0% fill so the pulsing target is always
-     discoverable — same rationale as the single-fill in_progress rule. */
-  min-height: 3px;
 }
 
 /* On-track runs: swap the in-progress amber for the on-track green, but
@@ -876,6 +869,13 @@ article img {
 .status-bar-fill-group.g-failed .status-bar-fill-inner {
   background-color: var(--status-failed);
   height: 100%;
+}
+
+/* Not-started = leads in this group haven't arrived yet during an
+   in-progress run. Dotted border echoes the unobserved track treatment
+   so it reads as "expected but not yet seen". */
+.status-bar-fill-group.g-not_started {
+  border: 1px dotted var(--status-unobserved);
 }
 
 .status-bar-fill-group.g-not_started .status-bar-fill-inner,
