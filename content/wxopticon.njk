@@ -79,16 +79,12 @@ permalink: /status/
           <strong data-slot="eta-init">—</strong>
           <span data-slot="eta-state" hidden></span>
           <span data-slot="eta-line" hidden></span>
-          <div data-slot="eta-details-wrap" hidden style="margin-top:0.8rem;">
-            <button type="button" data-slot="eta-details-btn" class="eta-details-btn">more details</button>
-            <div data-slot="eta-details" class="eta-details" hidden></div>
-          </div>
         </div>
-        {#
-        <div>---</div>
-        <div data-slot="latency">p50 -h -m<br>p95 -h -m<br>p99 -h -m</div>
-        #}
+        <div style="margin-top:0.8rem;">
+          <button type="button" data-slot="row-details-btn" class="eta-details-btn" hidden>more details</button>
+        </div>
       </div>
+      <div class="status-row-details" data-slot="row-details" hidden></div>
     </section>
     {% endfor %}
 

@@ -436,6 +436,12 @@ nav ul li:first-child {
   margin-right: auto;
 }
 
+.nav-lockup img {
+  display: block;
+  height: 24px;
+  width: auto;
+}
+
 footer {
   max-width: 78rem;
   margin: 6rem auto 2rem;
@@ -956,32 +962,46 @@ article img {
   text-decoration: underline;
 }
 
-.eta-details table {
-  margin-top: 0.6rem;
-  font-size: 1.1rem;
+.status-row-details {
+  grid-column: 1 / -1;
+  padding: 1rem 0 0.4rem;
+}
+
+.details-table {
+  font-size: 1.2rem;
   border-collapse: collapse;
-  width: 100%;
 }
 
-.eta-details td {
-  padding: 0.2rem 0;
+.details-table th,
+.details-table td {
+  padding: 0.2rem 1.2rem 0.2rem 0;
   white-space: nowrap;
+  text-align: left;
 }
 
-.eta-details td:first-child {
-  padding-right: 0.8rem;
+.details-table th {
+  color: var(--muted-text);
+  font-weight: normal;
+}
+
+.details-table td:first-child {
   color: var(--text-color);
 }
 
-.eta-details td:nth-child(2) {
-  padding-right: 0.8rem;
+.details-table .details-overall td {
+  border-bottom: 1px solid var(--border-muted-color);
+  padding-bottom: 0.4rem;
 }
 
-.eta-details .eta-g-on_time { color: var(--status-on-time); }
-.eta-details .eta-g-in_progress { color: var(--status-in-progress); }
-.eta-details .eta-g-not_started { color: var(--muted-text); }
-.eta-details .eta-g-late { color: var(--status-late); }
-.eta-details .eta-g-failed { color: var(--status-failed); }
+.details-table .details-overall + tr td {
+  padding-top: 0.4rem;
+}
+
+.eta-g-on_time { color: var(--status-on-time); }
+.eta-g-in_progress { color: var(--status-in-progress); }
+.eta-g-not_started { color: var(--muted-text); }
+.eta-g-late { color: var(--status-late); }
+.eta-g-failed { color: var(--status-failed); }
 
 .status-footer {
   margin-top: 2rem;

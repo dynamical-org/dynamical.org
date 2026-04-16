@@ -366,8 +366,8 @@
     const initSlot = row.querySelector('[data-slot="eta-init"]');
     const stateSlot = row.querySelector('[data-slot="eta-state"]');
     const lineSlot = row.querySelector('[data-slot="eta-line"]');
-    const detailsWrap = row.querySelector('[data-slot="eta-details-wrap"]');
-    const detailsSlot = row.querySelector('[data-slot="eta-details"]');
+    const detailsBtn = row.querySelector('[data-slot="row-details-btn"]');
+    const detailsSlot = row.querySelector('[data-slot="row-details"]');
     const target = etaTarget(product);
     if (!target) {
       initSlot.textContent = "—";
@@ -375,37 +375,37 @@
       stateSlot.removeAttribute("data-init-start");
       lineSlot.hidden = true;
       lineSlot.removeAttribute("data-next-complete");
-      detailsWrap.hidden = true;
-      return;
+      // Keep details button visible for latency stats even without an ETA target.
     }
-    initSlot.textContent = initShort(target.initTime);
-    stateSlot.hidden = false;
-    const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
-    if (target.inProgress) {
-      const onTrack = inProgress && typeof inProgress.on_track === "boolean"
-        ? (inProgress.on_track ? " · on track" : " · delayed")
-        : "";
-      stateSlot.textContent = `processing${onTrack}`;
-      stateSlot.removeAttribute("data-init-start");
-      if (inProgress) stateSlot.setAttribute("data-on-track", String(inProgress.on_track));
-      else stateSlot.removeAttribute("data-on-track");
-    } else {
-      stateSlot.textContent = "init in —";
-      stateSlot.setAttribute("data-init-start", target.initTime);
-      stateSlot.removeAttribute("data-on-track");
+    if (target) {
+      initSlot.textContent = initShort(target.initTime);
+      stateSlot.hidden = false;
+      const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+      if (target.inProgress) {
+        const onTrack = inProgress && typeof inProgress.on_track === "boolean"
+          ? (inProgress.on_track ? " · on track" : " · delayed")
+          : "";
+        stateSlot.textContent = `processing${onTrack}`;
+        stateSlot.removeAttribute("data-init-start");
+        if (inProgress) stateSlot.setAttribute("data-on-track", String(inProgress.on_track));
+        else stateSlot.removeAttribute("data-on-track");
+      } else {
+        stateSlot.textContent = "init in —";
+        stateSlot.setAttribute("data-init-start", target.initTime);
+        stateSlot.removeAttribute("data-on-track");
+      }
+      lineSlot.hidden = false;
+      lineSlot.textContent = "ETA —";
+      lineSlot.setAttribute("data-next-complete", target.targetIso);
     }
-    lineSlot.hidden = false;
-    lineSlot.textContent = "ETA —";
-    lineSlot.setAttribute("data-next-complete", target.targetIso);
 
-    // Per-group details: show "more details" button only for in-progress
-    // runs that carry lead_groups and product-level lead_group_stats.
+    // "more details" is always available when the product has lead_group_stats.
     const groupStats = product.lead_group_stats;
-    if (inProgress?.lead_groups?.length && groupStats?.length) {
-      detailsWrap.hidden = false;
-      buildGroupDetails(detailsSlot, product, inProgress);
+    if (groupStats?.length) {
+      detailsBtn.hidden = false;
+      buildRowDetails(detailsSlot, product);
     } else {
-      detailsWrap.hidden = true;
+      detailsBtn.hidden = true;
       detailsSlot.hidden = true;
       detailsSlot.replaceChildren();
     }
@@ -418,35 +418,86 @@
     return status.replace(/_/g, " ");
   }
 
-  function buildGroupDetails(container, product, init) {
-    const groups = init.lead_groups;
+  function buildRowDetails(container, product) {
     const stats = product.lead_group_stats;
-    const initMs = new Date(init.init_time).getTime();
+    const ls = product.latency_stats;
+    const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+    const groups = inProgress?.lead_groups;
+    const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
+    const hasLive = !!(groups?.length);
 
-    const rows = groups.map((g, i) => {
-      const s = stats[i];
+    // Header
+    const headCols = [
+      el("th"),                     // label
+      el("th", null, "p50"),
+      el("th", null, "p95"),
+      el("th", null, "p99"),
+    ];
+    if (hasLive) {
+      headCols.push(el("th", null, "status"));
+      headCols.push(el("th", null, "ETA"));
+    }
+    const thead = el("thead", null, [el("tr", null, headCols)]);
+
+    // Overall row
+    const overallCols = [
+      el("td", null, "overall"),
+      el("td", null, fmtLatency(ls?.p50_s)),
+      el("td", null, fmtLatency(ls?.p95_s)),
+      el("td", null, fmtLatency(ls?.p99_s)),
+    ];
+    if (hasLive) {
+      const status = inProgress.status;
+      overallCols.push(el("td", { class: `eta-g-${status}` }, statusLabel(status)));
       const etaCell = el("td");
-
-      if (g.status === "on_time" && g.latency_s != null) {
-        etaCell.textContent = fmtLatency(g.latency_s);
-      } else if (g.status === "on_time") {
-        etaCell.textContent = "done";
-      } else if (s?.p95_s != null) {
-        const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
+      if (ls?.p95_s != null) {
+        const targetIso = new Date(initMs + ls.p95_s * 1000).toISOString();
         etaCell.setAttribute("data-next-complete", targetIso);
         etaCell.setAttribute("data-eta-compact", "");
       } else {
         etaCell.textContent = "—";
       }
+      overallCols.push(etaCell);
+    }
+    const overallRow = el("tr", { class: "details-overall" }, overallCols);
 
-      return el("tr", null, [
-        el("td", null, s?.label ?? g.name),
-        el("td", { class: `eta-g-${g.status}` }, statusLabel(g.status)),
-        etaCell,
-      ]);
+    // Per-group rows
+    const groupRows = stats.map((s, i) => {
+      const cols = [
+        el("td", null, s.label),
+        el("td", null, fmtLatency(s.p50_s)),
+        el("td", null, fmtLatency(s.p95_s)),
+        el("td", null, fmtLatency(s.p99_s)),
+      ];
+      if (hasLive) {
+        const g = groups[i];
+        if (g) {
+          cols.push(el("td", { class: `eta-g-${g.status}` }, statusLabel(g.status)));
+          const etaCell = el("td");
+          if (g.status === "on_time" && g.latency_s != null) {
+            etaCell.textContent = fmtLatency(g.latency_s);
+          } else if (g.status === "on_time") {
+            etaCell.textContent = "done";
+          } else if (s.p95_s != null) {
+            const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
+            etaCell.setAttribute("data-next-complete", targetIso);
+            etaCell.setAttribute("data-eta-compact", "");
+          } else {
+            etaCell.textContent = "—";
+          }
+          cols.push(etaCell);
+        } else {
+          cols.push(el("td", null, "—"), el("td", null, "—"));
+        }
+      }
+      return el("tr", null, cols);
     });
 
-    container.replaceChildren(el("table", null, rows));
+    const table = el("table", { class: "details-table" }, [
+      thead,
+      el("tbody", null, [overallRow, ...groupRows]),
+    ]);
+    container.replaceChildren(table);
   }
 
   function updateBanners(summary) {
@@ -774,13 +825,15 @@
 
   // Details toggle: event delegation so hydrateRow doesn't re-wire per poll.
   app.addEventListener("click", (e) => {
-    const btn = e.target.closest('[data-slot="eta-details-btn"]');
+    const btn = e.target.closest('[data-slot="row-details-btn"]');
     if (!btn) return;
-    const wrap = btn.closest('[data-slot="eta-details-wrap"]');
-    const details = wrap.querySelector('[data-slot="eta-details"]');
+    const row = btn.closest(".status-row");
+    const details = row.querySelector('[data-slot="row-details"]');
     const show = details.hidden;
     details.hidden = !show;
     btn.textContent = show ? "less" : "more details";
+    // Kick a countdown update so ETA cells in the table are filled immediately.
+    if (show) updateCountdowns(lastCountdownNow);
   });
 
   // Kick off.
