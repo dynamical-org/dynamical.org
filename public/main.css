@@ -975,7 +975,7 @@ article img {
 
 .details-table th,
 .details-table td {
-  padding: 0.2rem 1.2rem 0.2rem 0;
+  padding: 0.3rem 1.2rem 0.3rem 0;
   white-space: nowrap;
   text-align: left;
 }
@@ -983,6 +983,7 @@ article img {
 .details-table th {
   color: var(--muted-text);
   font-weight: normal;
+  padding-bottom: 0.6rem;
 }
 
 .details-table td:first-child {
@@ -990,12 +991,12 @@ article img {
 }
 
 .details-table .details-overall td {
-  border-bottom: 1px solid var(--border-muted-color);
-  padding-bottom: 0.4rem;
+  border-bottom: 1px dotted var(--border-muted-color);
+  padding-bottom: 0.8rem;
 }
 
 .details-table .details-overall + tr td {
-  padding-top: 0.4rem;
+  padding-top: 0.8rem;
 }
 
 
