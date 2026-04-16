@@ -997,46 +997,6 @@ article img {
   padding-top: 0.4rem;
 }
 
-/* Inline horizontal box plot: 100px wide, shows p50/p95/p99 distribution
-   with a triangle marker at the actual or expected value. */
-.boxplot {
-  position: relative;
-  width: 100px;
-  height: 14px;
-}
-
-.boxplot-whisker {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  height: 1px;
-  background: var(--muted-text);
-}
-
-.boxplot-box {
-  position: absolute;
-  top: 2px;
-  height: 10px;
-  min-width: 2px;
-  background: var(--text-color);
-  opacity: 0.25;
-}
-
-.boxplot-marker {
-  position: absolute;
-  top: 0;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 6px solid currentColor;
-  transform: translateX(-4px);
-}
-
-.bpm-on-time  { color: var(--status-on-time); }
-.bpm-late     { color: var(--status-late); }
-.bpm-in-progress { color: var(--status-in-progress); }
-.bpm-muted    { color: var(--muted-text); }
 
 .eta-g-on_time { color: var(--status-on-time); }
 .eta-g-in_progress { color: var(--status-in-progress); }

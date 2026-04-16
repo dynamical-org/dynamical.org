@@ -418,33 +418,6 @@
     return status.replace(/_/g, " ");
   }
 
-  // Inline box plot: thin whisker from p50 to p99, filled box from p50 to
-  // p95, and a down-pointing triangle marker at the actual/expected value.
-  // scaleMin/scaleMax define the visible x-axis window.
-  function renderBoxplot(p50, p95, p99, marker, markerClass, scaleMin, scaleMax) {
-    const range = scaleMax - scaleMin;
-    const pct = (v) => v != null && range > 0
-      ? Math.max(0, Math.min(100, ((v - scaleMin) / range) * 100)) : 0;
-    const children = [
-      el("div", { class: "boxplot-whisker", style: `width: ${pct(p99)}%` }),
-      el("div", { class: "boxplot-box", style: `left: ${pct(p50)}%; width: ${pct(p95) - pct(p50)}%` }),
-    ];
-    if (marker != null) {
-      children.push(el("div", {
-        class: `boxplot-marker ${markerClass}`,
-        style: `left: ${pct(marker)}%`,
-      }));
-    }
-    return el("div", { class: "boxplot" }, children);
-  }
-
-  function markerClassForStatus(status) {
-    if (status === "on_time") return "bpm-on-time";
-    if (status === "late") return "bpm-late";
-    if (status === "in_progress") return "bpm-in-progress";
-    return "bpm-muted";
-  }
-
   function buildRowDetails(container, product) {
     const stats = product.lead_group_stats;
     const ls = product.latency_stats;
@@ -453,72 +426,68 @@
     const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
     const hasLive = !!(groups?.length);
 
-    // Each row's box plot is scaled to its own [p50, p99] range so the
-    // p50–p95 box fills most of the width. Cross-group time comparison
-    // comes from the ETA column; the plot shows distribution shape.
-
     // Header
-    const headCols = [el("th"), el("th", null, "status"), el("th", null, "ETA"), el("th")];
+    const headCols = [el("th"), el("th", null, "p50"), el("th", null, "p95"), el("th", null, "p99")];
+    if (hasLive) {
+      headCols.push(el("th", null, "status"));
+      headCols.push(el("th", null, "ETA"));
+    }
     const thead = el("thead", null, [el("tr", null, headCols)]);
 
     // Overall row
-    const overallStatus = hasLive ? inProgress.status : "on_time";
-    const overallMarker = hasLive ? ls?.p95_s : null;
-    const overallEtaCell = el("td");
-    if (hasLive && ls?.p95_s != null) {
-      const targetIso = new Date(initMs + ls.p95_s * 1000).toISOString();
-      overallEtaCell.setAttribute("data-next-complete", targetIso);
-      overallEtaCell.setAttribute("data-eta-compact", "");
-    } else {
-      overallEtaCell.textContent = "—";
-    }
-    const overallRow = el("tr", { class: "details-overall" }, [
+    const overallCols = [
       el("td", null, "overall"),
-      el("td", { class: `eta-g-${overallStatus}` }, hasLive ? statusLabel(overallStatus) : "—"),
-      overallEtaCell,
-      el("td", null, [renderBoxplot(ls?.p50_s, ls?.p95_s, ls?.p99_s, overallMarker, markerClassForStatus(overallStatus), ls?.p50_s ?? 0, ls?.p99_s ?? 0)]),
-    ]);
+      el("td", null, fmtLatency(ls?.p50_s)),
+      el("td", null, fmtLatency(ls?.p95_s)),
+      el("td", null, fmtLatency(ls?.p99_s)),
+    ];
+    if (hasLive) {
+      const status = inProgress.status;
+      overallCols.push(el("td", { class: `eta-g-${status}` }, statusLabel(status)));
+      const etaCell = el("td");
+      if (ls?.p95_s != null) {
+        const targetIso = new Date(initMs + ls.p95_s * 1000).toISOString();
+        etaCell.setAttribute("data-next-complete", targetIso);
+        etaCell.setAttribute("data-eta-compact", "");
+      } else {
+        etaCell.textContent = "—";
+      }
+      overallCols.push(etaCell);
+    }
+    const overallRow = el("tr", { class: "details-overall" }, overallCols);
 
     // Per-group rows
     const groupRows = stats.map((s, i) => {
       const g = hasLive ? groups[i] : null;
       const gStatus = g?.status;
 
-      // Marker: actual latency for completed groups, p95 for pending/in-progress.
-      let marker = null;
-      let mClass = "bpm-muted";
-      if (g) {
-        if ((gStatus === "on_time" || gStatus === "late") && g.latency_s != null) {
-          marker = g.latency_s;
-        } else if (gStatus !== "not_started") {
-          marker = s.p95_s;
-        }
-        mClass = markerClassForStatus(gStatus);
-      }
-
-      const etaCell = el("td");
-      if (g) {
-        if (gStatus === "on_time" && g.latency_s != null) {
-          etaCell.textContent = fmtLatency(g.latency_s);
-        } else if (gStatus === "on_time") {
-          etaCell.textContent = "done";
-        } else if (s.p95_s != null) {
-          const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
-          etaCell.setAttribute("data-next-complete", targetIso);
-          etaCell.setAttribute("data-eta-compact", "");
-        } else {
-          etaCell.textContent = "—";
-        }
-      } else {
-        etaCell.textContent = "—";
-      }
-
-      return el("tr", null, [
+      const cols = [
         el("td", null, s.label),
-        el("td", { class: g ? `eta-g-${gStatus}` : "" }, g ? statusLabel(gStatus) : "—"),
-        etaCell,
-        el("td", null, [renderBoxplot(s.p50_s, s.p95_s, s.p99_s, marker, mClass, s.p50_s ?? 0, s.p99_s ?? 0)]),
-      ]);
+        el("td", null, fmtLatency(s.p50_s)),
+        el("td", null, fmtLatency(s.p95_s)),
+        el("td", null, fmtLatency(s.p99_s)),
+      ];
+      if (hasLive) {
+        if (g) {
+          cols.push(el("td", { class: `eta-g-${gStatus}` }, statusLabel(gStatus)));
+          const etaCell = el("td");
+          if (gStatus === "on_time" && g.latency_s != null) {
+            etaCell.textContent = fmtLatency(g.latency_s);
+          } else if (gStatus === "on_time") {
+            etaCell.textContent = "done";
+          } else if (s.p95_s != null) {
+            const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
+            etaCell.setAttribute("data-next-complete", targetIso);
+            etaCell.setAttribute("data-eta-compact", "");
+          } else {
+            etaCell.textContent = "—";
+          }
+          cols.push(etaCell);
+        } else {
+          cols.push(el("td", null, "—"), el("td", null, "—"));
+        }
+      }
+      return el("tr", null, cols);
     });
 
     const table = el("table", { class: "details-table" }, [
