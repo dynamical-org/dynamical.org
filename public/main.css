@@ -970,6 +970,7 @@ article img {
 .details-table {
   font-size: 1.2rem;
   border-collapse: collapse;
+  width: 100%;
 }
 
 .details-table th,
