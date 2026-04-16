@@ -82,10 +82,10 @@ permalink: /status/
           <span data-slot="eta-line" hidden></span>
         </div>
         <div style="margin-top:0.8rem;">
-          <button type="button" data-slot="row-details-btn" class="eta-details-btn" hidden>more details</button>
+          <button type="button" data-slot="row-details-btn" class="eta-details-btn" aria-expanded="false" aria-controls="row-details-{{ product.id }}" hidden>more details</button>
         </div>
       </div>
-      <div class="status-row-details" data-slot="row-details" hidden></div>
+      <div id="row-details-{{ product.id }}" class="status-row-details" data-slot="row-details" hidden></div>
     </section>
     {% endfor %}
 

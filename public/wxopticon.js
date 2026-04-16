@@ -387,8 +387,11 @@
           : "";
         stateSlot.textContent = `processing${onTrack}`;
         stateSlot.removeAttribute("data-init-start");
-        if (inProgress) stateSlot.setAttribute("data-on-track", String(inProgress.on_track));
-        else stateSlot.removeAttribute("data-on-track");
+        if (inProgress && typeof inProgress.on_track === "boolean") {
+          stateSlot.setAttribute("data-on-track", String(inProgress.on_track));
+        } else {
+          stateSlot.removeAttribute("data-on-track");
+        }
       } else {
         stateSlot.textContent = "init in —";
         stateSlot.setAttribute("data-init-start", target.initTime);
@@ -402,6 +405,13 @@
     // "more details" is always available when the product has lead_group_stats.
     const groupStats = product.lead_group_stats;
     if (groupStats?.length) {
+      if (detailsBtn.hidden) {
+        // Transitioning from disabled → enabled (e.g. scrubbing from a pre-lead-groups
+        // snapshot); reset the reveal to its default closed state.
+        detailsBtn.textContent = "more details";
+        detailsBtn.setAttribute("aria-expanded", "false");
+        detailsSlot.hidden = true;
+      }
       detailsBtn.hidden = false;
       buildRowDetails(detailsSlot, product);
     } else {
@@ -518,8 +528,12 @@
 
   // Pure render: paint products + generated_at from a fully-loaded summary.
   // Banners, ribbon, and the countdown ticker are owned by the outer shell
-  // and differ between live and scrub modes.
-  function renderSnapshot(summary) {
+  // and differ between live and scrub modes. nowMs is set first so builders
+  // that read lastCountdownNow (e.g. buildRowDetails for the delayed/pending
+  // threshold) see the snapshot's reference clock rather than the previous
+  // one.
+  function renderSnapshot(summary, nowMs) {
+    lastCountdownNow = nowMs;
     generatedAtSlot.replaceChildren(timeNode(summary.generated_at));
     for (const product of summary.products) {
       hydrateRow(product);
@@ -528,8 +542,9 @@
 
   function applyLive() {
     updateBanners(latest);
-    renderSnapshot(latest);
-    updateCountdowns(Date.now());
+    const nowMs = Date.now();
+    renderSnapshot(latest, nowMs);
+    updateCountdowns(nowMs);
   }
 
   function showLoadError(error) {
@@ -681,8 +696,9 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
       if (seq !== scrubSeq || mode !== "scrub") return;
-      renderSnapshot(json);
-      updateCountdowns(new Date(json.generated_at).getTime());
+      const snapMs = new Date(json.generated_at).getTime();
+      renderSnapshot(json, snapMs);
+      updateCountdowns(snapMs);
       clearScrubError();
     } catch (e) {
       if (seq !== scrubSeq || mode !== "scrub") return;
@@ -838,6 +854,7 @@
     const show = details.hidden;
     details.hidden = !show;
     btn.textContent = show ? "less" : "more details";
+    btn.setAttribute("aria-expanded", String(show));
     // Kick a countdown update so ETA cells in the table are filled immediately.
     if (show) updateCountdowns(lastCountdownNow);
   });

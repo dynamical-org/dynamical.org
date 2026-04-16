@@ -25,7 +25,7 @@ module.exports = async function () {
 
   const products = summary.products.map((p) => ({
     id: p.id,
-    label: DISPLAY_NAMES[p.id] ?? p.id,
+    label: DISPLAY_NAMES[p.id] ?? p.label ?? p.id,
     source: p.source,
     cadence_hours: p.cadence_hours,
     init_hours: [...new Set(p.recent_inits.map((i) => i.init_time.slice(11, 13)))].sort(),
