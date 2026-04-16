@@ -938,6 +938,51 @@ article img {
   white-space: nowrap;
 }
 
+.status-eta [data-on-track="true"] {
+  color: var(--status-on-time);
+}
+
+.status-eta [data-on-track="false"] {
+  color: var(--status-in-progress);
+}
+
+.eta-details-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--link-color);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.eta-details table {
+  margin-top: 0.6rem;
+  font-size: 1.1rem;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.eta-details td {
+  padding: 0.2rem 0;
+  white-space: nowrap;
+}
+
+.eta-details td:first-child {
+  padding-right: 0.8rem;
+  color: var(--text-color);
+}
+
+.eta-details td:nth-child(2) {
+  padding-right: 0.8rem;
+}
+
+.eta-details .eta-g-on_time { color: var(--status-on-time); }
+.eta-details .eta-g-in_progress { color: var(--status-in-progress); }
+.eta-details .eta-g-not_started { color: var(--muted-text); }
+.eta-details .eta-g-late { color: var(--status-late); }
+.eta-details .eta-g-failed { color: var(--status-failed); }
+
 .status-footer {
   margin-top: 2rem;
   padding-top: 1rem;

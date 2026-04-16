@@ -78,8 +78,11 @@ permalink: /status/
         <div class="status-eta" data-slot="eta">
           <strong data-slot="eta-init">—</strong>
           <span data-slot="eta-state" hidden></span>
-          <span data-slot="eta-time" hidden></span>
-          <span data-slot="eta-duration" hidden></span>
+          <span data-slot="eta-line" hidden></span>
+          <div data-slot="eta-details-wrap" hidden style="margin-top:0.8rem;">
+            <button type="button" data-slot="eta-details-btn" class="eta-details-btn">more details</button>
+            <div data-slot="eta-details" class="eta-details" hidden></div>
+          </div>
         </div>
         {#
         <div>---</div>

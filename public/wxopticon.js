@@ -361,36 +361,92 @@
     // }
 
     // "init in" ticks down to init_time and flips to "processing" once
-    // elapsed (optimistic — next poll confirms). The eta-time and
-    // eta-duration slots are filled by updateCountdowns on the next tick.
+    // elapsed (optimistic — next poll confirms). The eta-line slot is
+    // updated by updateCountdowns on the next tick.
     const initSlot = row.querySelector('[data-slot="eta-init"]');
     const stateSlot = row.querySelector('[data-slot="eta-state"]');
-    const timeSlot = row.querySelector('[data-slot="eta-time"]');
-    const durationSlot = row.querySelector('[data-slot="eta-duration"]');
+    const lineSlot = row.querySelector('[data-slot="eta-line"]');
+    const detailsWrap = row.querySelector('[data-slot="eta-details-wrap"]');
+    const detailsSlot = row.querySelector('[data-slot="eta-details"]');
     const target = etaTarget(product);
     if (!target) {
       initSlot.textContent = "—";
       stateSlot.hidden = true;
       stateSlot.removeAttribute("data-init-start");
-      timeSlot.hidden = true;
-      timeSlot.removeAttribute("data-next-complete");
-      durationSlot.hidden = true;
+      lineSlot.hidden = true;
+      lineSlot.removeAttribute("data-next-complete");
+      detailsWrap.hidden = true;
       return;
     }
     initSlot.textContent = initShort(target.initTime);
     stateSlot.hidden = false;
+    const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
     if (target.inProgress) {
-      stateSlot.textContent = "processing";
+      const onTrack = inProgress && typeof inProgress.on_track === "boolean"
+        ? (inProgress.on_track ? " · on track" : " · delayed")
+        : "";
+      stateSlot.textContent = `processing${onTrack}`;
       stateSlot.removeAttribute("data-init-start");
+      if (inProgress) stateSlot.setAttribute("data-on-track", String(inProgress.on_track));
+      else stateSlot.removeAttribute("data-on-track");
     } else {
       stateSlot.textContent = "init in —";
       stateSlot.setAttribute("data-init-start", target.initTime);
+      stateSlot.removeAttribute("data-on-track");
     }
-    timeSlot.hidden = false;
-    timeSlot.textContent = "ETA —";
-    timeSlot.setAttribute("data-next-complete", target.targetIso);
-    durationSlot.hidden = false;
-    durationSlot.textContent = "in —";
+    lineSlot.hidden = false;
+    lineSlot.textContent = "ETA —";
+    lineSlot.setAttribute("data-next-complete", target.targetIso);
+
+    // Per-group details: show "more details" button only for in-progress
+    // runs that carry lead_groups and product-level lead_group_stats.
+    const groupStats = product.lead_group_stats;
+    if (inProgress?.lead_groups?.length && groupStats?.length) {
+      detailsWrap.hidden = false;
+      buildGroupDetails(detailsSlot, product, inProgress);
+    } else {
+      detailsWrap.hidden = true;
+      detailsSlot.hidden = true;
+      detailsSlot.replaceChildren();
+    }
+  }
+
+  function statusLabel(status) {
+    if (status === "on_time") return "on time";
+    if (status === "in_progress") return "processing";
+    if (status === "not_started") return "pending";
+    return status.replace(/_/g, " ");
+  }
+
+  function buildGroupDetails(container, product, init) {
+    const groups = init.lead_groups;
+    const stats = product.lead_group_stats;
+    const initMs = new Date(init.init_time).getTime();
+
+    const rows = groups.map((g, i) => {
+      const s = stats[i];
+      const etaCell = el("td");
+
+      if (g.status === "on_time" && g.latency_s != null) {
+        etaCell.textContent = fmtLatency(g.latency_s);
+      } else if (g.status === "on_time") {
+        etaCell.textContent = "done";
+      } else if (s?.p95_s != null) {
+        const targetIso = new Date(initMs + s.p95_s * 1000).toISOString();
+        etaCell.setAttribute("data-next-complete", targetIso);
+        etaCell.setAttribute("data-eta-compact", "");
+      } else {
+        etaCell.textContent = "—";
+      }
+
+      return el("tr", null, [
+        el("td", null, s?.label ?? g.name),
+        el("td", { class: `eta-g-${g.status}` }, statusLabel(g.status)),
+        etaCell,
+      ]);
+    });
+
+    container.replaceChildren(el("table", null, rows));
   }
 
   function updateBanners(summary) {
@@ -463,14 +519,15 @@
     for (const node of app.querySelectorAll("[data-next-complete]")) {
       const iso = node.getAttribute("data-next-complete");
       const delta = Math.floor((new Date(iso).getTime() - nowMs) / 1000);
-      const duration = node.closest(".status-eta").querySelector('[data-slot="eta-duration"]');
+      const compact = node.hasAttribute("data-eta-compact");
       if (delta <= 0) {
-        node.textContent = "ETA any moment";
-        duration.hidden = true;
+        node.textContent = compact ? "any moment" : "ETA any moment";
       } else {
-        node.textContent = `ETA ${fmtClock(iso)}`;
-        duration.hidden = false;
-        duration.textContent = `in ${fmtDuration(delta)}`;
+        const clock = fmtClock(iso);
+        const dur = fmtDuration(delta);
+        node.textContent = compact
+          ? `${clock} (in ${dur})`
+          : `ETA ${clock} (in ${dur})`;
       }
     }
   }
@@ -713,6 +770,17 @@
       e.preventDefault();
       returnToLive();
     }
+  });
+
+  // Details toggle: event delegation so hydrateRow doesn't re-wire per poll.
+  app.addEventListener("click", (e) => {
+    const btn = e.target.closest('[data-slot="eta-details-btn"]');
+    if (!btn) return;
+    const wrap = btn.closest('[data-slot="eta-details-wrap"]');
+    const details = wrap.querySelector('[data-slot="eta-details"]');
+    const show = details.hidden;
+    details.hidden = !show;
+    btn.textContent = show ? "less" : "more details";
   });
 
   // Kick off.
