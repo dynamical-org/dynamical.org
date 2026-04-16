@@ -1017,8 +1017,9 @@ article img {
   position: absolute;
   top: 2px;
   height: 10px;
-  background: var(--muted-text);
-  opacity: 0.2;
+  min-width: 2px;
+  background: var(--text-color);
+  opacity: 0.25;
 }
 
 .boxplot-marker {
