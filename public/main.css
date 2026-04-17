@@ -831,20 +831,26 @@ article img {
   }
 }
 
-/* Status fills — solid color per status. Single-fill rules apply to
-   pre-lead-groups snapshots (graceful fallback). Stacked rules below
-   key off each segment's own g-{status} class. */
+/* Status fills — solid color per (status, on_timedness) pair. Single-fill
+   rules below only fire on pre-lead-groups snapshots (every current product
+   emits lead_groups); the stacked-segment rules further down handle the
+   normal path. Unobserved / failed / not_started use the track-level rules
+   (dotted border, no fill). */
 
-.status-bar[data-status="on_time"] .status-bar-fill {
+.status-bar[data-status="complete"][data-on-timedness="on_time"] .status-bar-fill {
   background-color: var(--status-on-time);
 }
 
-.status-bar[data-status="in_progress"] .status-bar-fill {
+.status-bar[data-status="complete"][data-on-timedness="late"] .status-bar-fill {
+  background-color: var(--status-late);
+}
+
+.status-bar[data-status="processing"] .status-bar-fill {
   background-color: var(--status-in-progress);
 }
 
-.status-bar[data-status="late"] .status-bar-fill {
-  background-color: var(--status-late);
+.status-bar[data-status="processing"][data-on-timedness="on_track"] .status-bar-fill {
+  background-color: var(--status-on-track);
 }
 
 .status-bar[data-status="failed"] .status-bar-fill {
@@ -855,17 +861,19 @@ article img {
   height: 100%;
 }
 
-/* Stacked group segments: color comes from each segment's g-{status}. */
+/* Stacked group segments: the class suffix `g-{key}` is `on_timedness ??
+   status`, so complete/processing collapse into their timedness values. */
 .status-bar-fill-group.g-on_time .status-bar-fill-inner {
   background-color: var(--status-on-time);
 }
 
-.status-bar-fill-group.g-in_progress .status-bar-fill-inner {
-  background-color: var(--status-in-progress);
+.status-bar-fill-group.g-on_track .status-bar-fill-inner {
+  background-color: var(--status-on-track);
 }
 
-.status-bar[data-on-track="true"] .status-bar-fill-group.g-in_progress .status-bar-fill-inner {
-  background-color: var(--status-on-track);
+.status-bar-fill-group.g-delayed .status-bar-fill-inner,
+.status-bar-fill-group.g-insufficient_data .status-bar-fill-inner {
+  background-color: var(--status-in-progress);
 }
 
 .status-bar-fill-group.g-late .status-bar-fill-inner {
@@ -932,12 +940,23 @@ article img {
   white-space: nowrap;
 }
 
-.status-eta [data-on-track="true"] {
+.status-eta [data-on-timedness="on_track"],
+.status-eta [data-on-timedness="on_time"] {
   color: var(--status-on-time);
 }
 
-.status-eta [data-on-track="false"] {
+.status-eta [data-on-timedness="delayed"] {
   color: var(--status-in-progress);
+}
+
+.status-eta [data-on-timedness="late"] {
+  color: var(--status-late);
+}
+
+/* insufficient_data / unobserved — no trustworthy signal yet, stay muted. */
+.status-eta [data-on-timedness="insufficient_data"],
+.status-eta [data-on-timedness="unobserved"] {
+  color: var(--muted-text);
 }
 
 .eta-details-btn {
@@ -961,8 +980,10 @@ article img {
 }
 
 .eta-g-on_time { color: var(--status-on-time); }
-.eta-g-in_progress { color: var(--muted-text); }
-.eta-g-delayed { color: var(--status-late); }
+.eta-g-on_track { color: var(--status-on-time); }
+.eta-g-insufficient_data { color: var(--muted-text); }
+.eta-g-unobserved { color: var(--muted-text); }
+.eta-g-delayed { color: var(--status-in-progress); }
 .eta-g-not_started { color: var(--muted-text); }
 .eta-g-late { color: var(--status-late); }
 .eta-g-failed { color: var(--status-failed); }

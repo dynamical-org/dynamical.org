@@ -170,7 +170,7 @@
     // (init_time + p95), falling back to the next scheduled run's
     // p95-based completion when nothing's in progress.
     const p95 = product.latency_stats.p95_s;
-    const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+    const inProgress = product.recent_inits.find((i) => i.status === "processing");
     if (inProgress && p95 != null) {
       const targetMs = new Date(inProgress.init_time).getTime() + p95 * 1000;
       return {
@@ -220,8 +220,17 @@
       prevExp = g.leads_expected;
       const heightPct = total > 0 ? (sliceExp / total) * 100 : 0;
       const fillPct = sliceExp > 0 ? Math.max(0, Math.min(100, (sliceAvail / sliceExp) * 100)) : 0;
-      return { name: g.name, status: g.status, heightPct, fillPct };
+      return { name: g.name, key: timednessKey(g), heightPct, fillPct };
     });
+  }
+
+  // Collapses the (status, on_timedness) pair into a single string used as
+  // both the segment CSS class suffix (`g-${key}`) and the details-table
+  // class suffix (`eta-g-${key}`). One of:
+  //   on_time, late, on_track, delayed, insufficient_data, unobserved,
+  //   not_started, failed.
+  function timednessKey(node) {
+    return node.on_timedness ?? node.status;
   }
 
   function renderGroupSegments(init) {
@@ -229,7 +238,7 @@
     let bottom = 0;
     return slices.map((s) => {
       const seg = el("div", {
-        class: `status-bar-fill-group g-${s.status}`,
+        class: `status-bar-fill-group g-${s.key}`,
         "data-group": s.name,
         style: `--band-height: ${s.heightPct}%; --band-bottom: ${bottom}%; --fill: ${s.fillPct}%;`,
       }, [
@@ -254,26 +263,28 @@
     if (init.status === "unobserved") {
       return `${initText} · no data observed — wxopticon had no probe visibility for this init during its monitoring window (not a publication failure)`;
     }
+    const stateText = init.on_timedness ? `${init.status} · ${init.on_timedness}` : init.status;
     const base = [
       initText,
-      init.status,
+      stateText,
       fmtPercent(init.completion_pct),
       init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
     ].filter(Boolean).join(" · ");
     if (!init.lead_groups || init.lead_groups.length === 0) return base;
-    const groupParts = init.lead_groups.map((g) =>
-      g.status === "in_progress"
-        ? `${g.name} ${g.status} ${fmtPercent(g.completion_pct)}`
-        : `${g.name} ${g.status}`
-    );
+    const groupParts = init.lead_groups.map((g) => {
+      const gState = g.on_timedness ?? g.status;
+      return g.status === "processing"
+        ? `${g.name} ${gState} ${fmtPercent(g.completion_pct)}`
+        : `${g.name} ${gState}`;
+    });
     return `${base}\n${groupParts.join(" · ")}`;
   }
 
-  function applyOnTrack(bar, init) {
-    if (init.status === "in_progress" && typeof init.on_track === "boolean") {
-      bar.setAttribute("data-on-track", init.on_track ? "true" : "false");
+  function applyOnTimedness(bar, init) {
+    if (init.on_timedness) {
+      bar.setAttribute("data-on-timedness", init.on_timedness);
     } else {
-      bar.removeAttribute("data-on-track");
+      bar.removeAttribute("data-on-timedness");
     }
   }
 
@@ -291,7 +302,7 @@
         el("div", { class: "status-bar-label" }, initLabel(init.init_time)),
       ]
     );
-    applyOnTrack(bar, init);
+    applyOnTimedness(bar, init);
     return bar;
   }
 
@@ -300,7 +311,7 @@
   function updateBar(bar, init) {
     bar.setAttribute("data-status", init.status);
     bar.setAttribute("title", barTooltip(init));
-    applyOnTrack(bar, init);
+    applyOnTimedness(bar, init);
 
     const segments = bar.querySelectorAll(".status-bar-fill-group");
     const hasGroups = init.lead_groups && init.lead_groups.length > 0;
@@ -309,7 +320,7 @@
       segments.forEach((seg, i) => {
         const s = slices[i];
         seg.style.setProperty("--fill", `${s.fillPct}%`);
-        seg.className = `status-bar-fill-group g-${s.status}`;
+        seg.className = `status-bar-fill-group g-${s.key}`;
       });
       return;
     }
@@ -380,22 +391,26 @@
     if (target) {
       initSlot.textContent = initShort(target.initTime);
       stateSlot.hidden = false;
-      const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+      const inProgress = product.recent_inits.find((i) => i.status === "processing");
       if (target.inProgress) {
-        const onTrack = inProgress && typeof inProgress.on_track === "boolean"
-          ? (inProgress.on_track ? " · on track" : " · delayed")
-          : "";
-        stateSlot.textContent = `processing${onTrack}`;
+        // Qualifier is only shown for the two decisive cases (on_track /
+        // delayed); insufficient_data and unobserved read as plain
+        // "processing" so a grey/muted row matches #66's guidance.
+        const suffix = {
+          on_track: " · on track",
+          delayed: " · delayed",
+        }[inProgress?.on_timedness] ?? "";
+        stateSlot.textContent = `processing${suffix}`;
         stateSlot.removeAttribute("data-init-start");
-        if (inProgress && typeof inProgress.on_track === "boolean") {
-          stateSlot.setAttribute("data-on-track", String(inProgress.on_track));
+        if (inProgress?.on_timedness) {
+          stateSlot.setAttribute("data-on-timedness", inProgress.on_timedness);
         } else {
-          stateSlot.removeAttribute("data-on-track");
+          stateSlot.removeAttribute("data-on-timedness");
         }
       } else {
         stateSlot.textContent = "init in —";
         stateSlot.setAttribute("data-init-start", target.initTime);
-        stateSlot.removeAttribute("data-on-track");
+        stateSlot.removeAttribute("data-on-timedness");
       }
       lineSlot.hidden = false;
       lineSlot.textContent = "ETA —";
@@ -421,17 +436,22 @@
     }
   }
 
-  function statusLabel(status) {
-    if (status === "on_time" || status === "late") return "complete";
-    if (status === "in_progress") return "processing";
-    if (status === "not_started") return "pending";
-    if (status === "delayed") return "delayed";
-    return status.replace(/_/g, " ");
+  // Maps the composite `on_timedness ?? status` key to a short human label.
+  // Processing sub-states (on_track / insufficient_data) collapse to
+  // "processing"; unobserved/not_started → "pending"; complete sub-states
+  // (on_time / late) collapse to "complete". Delayed and failed pass
+  // through unchanged.
+  function statusLabel(key) {
+    if (key === "on_time" || key === "late") return "complete";
+    if (key === "on_track" || key === "insufficient_data") return "processing";
+    if (key === "unobserved" || key === "not_started") return "pending";
+    if (key === "delayed") return "delayed";
+    return key.replace(/_/g, " ");
   }
 
   function buildRowDetails(container, product) {
     const stats = product.lead_group_stats;
-    const inProgress = product.recent_inits.find((i) => i.status === "in_progress");
+    const inProgress = product.recent_inits.find((i) => i.status === "processing");
     const groups = inProgress?.lead_groups;
     const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
     const hasLive = !!(groups?.length);
@@ -457,26 +477,17 @@
       el("tr", null, subHeadCols),
     ]);
 
-    // Per-group rows
+    // Per-group rows. The backend already collapses (status, on_timedness)
+    // into the right presentation state, so no client-side re-derivation.
     const groupRows = stats.map((s, i) => {
       const g = hasLive ? groups[i] : null;
-      // A group may be marked in_progress by the backend as soon as init time
-      // passes, even if no files have arrived yet. Display those as "pending"
-      // until we observe direct progress. Once progress is observed, flip to
-      // "delayed" if we've already run past the p95 processing duration.
-      const observed = g && g.completion_pct != null && g.completion_pct > 0;
-      const elapsedS = (lastCountdownNow - initMs) / 1000;
-      let gStatus = g?.status ?? "not_started";
-      if (gStatus === "in_progress") {
-        if (!observed) gStatus = "not_started";
-        else if (s.p95_s != null && elapsedS > s.p95_s) gStatus = "delayed";
-      }
+      const gKey = g ? (g.on_timedness ?? g.status) : "not_started";
 
       const cols = [el("td", null, s.label)];
-      cols.push(el("td", { class: `right eta-g-${gStatus}` }, statusLabel(gStatus)));
+      cols.push(el("td", { class: `right eta-g-${gKey}` }, statusLabel(gKey)));
       const etaCell = el("td", { class: "right" });
       const durCell = el("td", { class: "right" });
-      const completed = g?.status === "on_time" || g?.status === "late";
+      const completed = g?.status === "complete";
       if (completed && g.latency_s != null) {
         const completedIso = new Date(initMs + g.latency_s * 1000).toISOString();
         etaCell.setAttribute("data-completed-at", completedIso);
@@ -528,10 +539,9 @@
 
   // Pure render: paint products + generated_at from a fully-loaded summary.
   // Banners, ribbon, and the countdown ticker are owned by the outer shell
-  // and differ between live and scrub modes. nowMs is set first so builders
-  // that read lastCountdownNow (e.g. buildRowDetails for the delayed/pending
-  // threshold) see the snapshot's reference clock rather than the previous
-  // one.
+  // and differ between live and scrub modes. nowMs is set first so the
+  // countdown ticker picks up the snapshot's reference clock on the next
+  // tick (rather than lagging behind the previous one).
   function renderSnapshot(summary, nowMs) {
     lastCountdownNow = nowMs;
     generatedAtSlot.replaceChildren(timeNode(summary.generated_at));
