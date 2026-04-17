@@ -4,17 +4,17 @@ const fetch = require("@11ty/eleventy-fetch");
 const RECENT_INIT_COUNT = 10;
 
 const DISPLAY_NAMES = {
-  "noaa-gfs-aws": "NOAA GFS (AWS)",
-  "noaa-gfs-ftp": "NOAA GFS (NOMADS)",
-  "noaa-gefs-short-aws": "NOAA GEFS 16-day (AWS)",
-  "noaa-gefs-short-ftp": "NOAA GEFS 16-day (NOMADS)",
-  "noaa-gefs-long-aws": "NOAA GEFS 35-day (AWS)",
-  "noaa-gefs-long-ftp": "NOAA GEFS 35-day (NOMADS)",
-  "noaa-hrrr-aws": "NOAA HRRR 48h (AWS)",
-  "noaa-hrrr-ftp": "NOAA HRRR 48h (NOMADS)",
-  "ecmwf-aifs-aws": "ECMWF AIFS Single (AWS)",
-  "ecmwf-ifs-ens-long-aws": "ECMWF IFS ENS 15-day (AWS)",
-  "ecmwf-ifs-ens-short-aws": "ECMWF IFS ENS 6-day (AWS)",
+  "noaa-gfs-aws": "NOAA GFS",
+  "noaa-gfs-ftp": "NOAA GFS",
+  "noaa-gefs-short-aws": "NOAA GEFS 16-day",
+  "noaa-gefs-short-ftp": "NOAA GEFS 16-day",
+  "noaa-gefs-long-aws": "NOAA GEFS 35-day",
+  "noaa-gefs-long-ftp": "NOAA GEFS 35-day",
+  "noaa-hrrr-aws": "NOAA HRRR 48h",
+  "noaa-hrrr-ftp": "NOAA HRRR 48h",
+  "ecmwf-aifs-aws": "ECMWF AIFS Single",
+  "ecmwf-ifs-ens-long-aws": "ECMWF IFS ENS 15-day",
+  "ecmwf-ifs-ens-short-aws": "ECMWF IFS ENS 6-day",
 };
 
 module.exports = async function () {
@@ -27,6 +27,7 @@ module.exports = async function () {
     id: p.id,
     label: DISPLAY_NAMES[p.id] ?? p.label ?? p.id,
     source: p.source,
+    source_label: p.id.endsWith("-aws") ? "AWS" : p.id.endsWith("-ftp") ? "NOMADS" : null,
     cadence_hours: p.cadence_hours,
     init_hours: [...new Set(p.recent_inits.map((i) => i.init_time.slice(11, 13)))].sort(),
     recent_init_count: Math.min(p.recent_inits.length, RECENT_INIT_COUNT),

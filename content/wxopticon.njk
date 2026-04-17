@@ -51,6 +51,7 @@ permalink: /status/
       <div>
         <strong>{{ product.label }}</strong>
         <div style="font-size:1.2rem;">
+          {% if product.source_label %}<div>{{ product.source_label }}</div>{% endif %}
           <div>{{ product.source }}</div>
           <div>{{ product.cadence_hours }}h init cadence</div>
           <div>{{ product.init_hours | join('/') }}z</div>
