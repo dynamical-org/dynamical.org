@@ -74,7 +74,7 @@ eleventyComputed:
     <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
   </p>
   <p>
-    <span><a href="/stac/{{ entry.dataset_id | slugify }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/dynamical.org/stac/{{ entry.dataset_id | slugify }}/collection.json">browse</a>)</span>
+    <span><a href="https://stac.dynamical.org/{{ entry.dataset_id }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/{{ entry.dataset_id }}/collection.json">browse</a>)</span>
   </p>
   {% if model %}
     <p style="text-wrap: balance">{{ model.description | safe }}</p>
