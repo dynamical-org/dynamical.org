@@ -871,9 +871,15 @@ article img {
   background-color: var(--status-on-track);
 }
 
-.status-bar-fill-group.g-delayed .status-bar-fill-inner,
-.status-bar-fill-group.g-insufficient_data .status-bar-fill-inner {
+.status-bar-fill-group.g-delayed .status-bar-fill-inner {
   background-color: var(--status-in-progress);
+}
+
+/* insufficient_data = run is processing but we have no baseline to judge
+   timeliness (n < min_samples). Render muted-grey per #66 so it doesn't
+   masquerade as "delayed" amber. */
+.status-bar-fill-group.g-insufficient_data .status-bar-fill-inner {
+  background-color: var(--status-unobserved);
 }
 
 .status-bar-fill-group.g-late .status-bar-fill-inner {
