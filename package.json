@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx @11ty/eleventy",
+    "build": "npx @11ty/eleventy && bash scripts/validate-stac.sh",
     "start": "npx @11ty/eleventy --serve --port=8081",
     "clean": "rm -r docs .cache"
   },
