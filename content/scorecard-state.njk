@@ -171,7 +171,7 @@ permalink: /scorecard/us-state/{{ state.abbr | slug }}/
       });
     </script>
     <script type="module">
-      import { renderMetric, VARIABLE_METRICS, DEFAULT_METRIC, METRIC_CONFIG } from '/scorecard.js';
+      import { renderMetric, VARIABLE_METRICS, DEFAULT_METRIC, METRIC_CONFIG } from '/scorecard.js?v={{ "public/scorecard.js" | fileHash }}';
 
       function populateMetricSelect(selectEl, variable) {
         const metrics = VARIABLE_METRICS[variable];

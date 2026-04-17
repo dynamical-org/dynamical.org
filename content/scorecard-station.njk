@@ -175,7 +175,7 @@ permalink: /scorecard/station/{{ station.id }}/
 
 </script>
 <script type="module">
-  import { renderMetric, renderObs, VARIABLE_METRICS, DEFAULT_METRIC, METRIC_CONFIG } from '/scorecard.js';
+  import { renderMetric, renderObs, VARIABLE_METRICS, DEFAULT_METRIC, METRIC_CONFIG } from '/scorecard.js?v={{ "public/scorecard.js" | fileHash }}';
 
   function populateMetricSelect(selectEl, variable) {
     const metrics = VARIABLE_METRICS[variable];

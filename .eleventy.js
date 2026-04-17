@@ -7,6 +7,8 @@ const fetch = require("@11ty/eleventy-fetch");
 const fs = require("fs");
 const path = require("path");
 
+const crypto = require("crypto");
+
 const pluginImages = require("./eleventy.config.images.js");
 
 const CACHE_DIR = path.join(__dirname, ".cache");
@@ -77,6 +79,11 @@ module.exports = function (eleventyConfig) {
   );
 
   eleventyConfig.addPlugin(pluginImages);
+
+  eleventyConfig.addFilter("fileHash", function (filePath) {
+    const content = fs.readFileSync(path.join(__dirname, filePath));
+    return crypto.createHash("md5").update(content).digest("hex").slice(0, 8);
+  });
 
   eleventyConfig.addShortcode("currentBuildDate", () => {
     return new Date().toISOString();
