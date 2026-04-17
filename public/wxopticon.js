@@ -169,20 +169,22 @@
     // The "ETA" for a product is whichever init is currently running
     // (init_time + p95), falling back to the next scheduled run's
     // p95-based completion when nothing's in progress.
+    //
+    // Below-threshold products (n < min_samples → null p95) still get an
+    // entry with a null targetIso so the init label and "processing" /
+    // "pending" text render — just without an ETA line.
     const p95 = product.latency_stats.p95_s;
     const inProgress = product.recent_inits.find((i) => i.status === "processing");
-    if (inProgress && p95 != null) {
-      const targetMs = new Date(inProgress.init_time).getTime() + p95 * 1000;
-      return {
-        initTime: inProgress.init_time,
-        targetIso: new Date(targetMs).toISOString(),
-        inProgress: true,
-      };
+    if (inProgress) {
+      const targetIso = p95 != null
+        ? new Date(new Date(inProgress.init_time).getTime() + p95 * 1000).toISOString()
+        : null;
+      return { initTime: inProgress.init_time, targetIso, inProgress: true };
     }
-    if (product.next_expected_init && product.next_expected_completion_at) {
+    if (product.next_expected_init) {
       return {
         initTime: product.next_expected_init,
-        targetIso: product.next_expected_completion_at,
+        targetIso: product.next_expected_completion_at ?? null,
         inProgress: false,
       };
     }
@@ -393,14 +395,20 @@
       stateSlot.hidden = false;
       const inProgress = product.recent_inits.find((i) => i.status === "processing");
       if (target.inProgress) {
-        // Qualifier is only shown for the two decisive cases (on_track /
-        // delayed); insufficient_data and unobserved read as plain
-        // "processing" so a grey/muted row matches #66's guidance.
+        // "processing" vs "pending" mirrors the details-table labels: if no
+        // lead has arrived yet the run reads as "pending" even though the
+        // backend status is `processing`. Once any group observes progress
+        // we flip to "processing", with a `· on track` / `· delayed`
+        // qualifier when on_timedness is decisive. insufficient_data
+        // (baseline missing) always reads as plain "processing" — we know
+        // the run is in flight, we just can't judge timeliness.
+        const observed = (inProgress?.completion_pct ?? 0) > 0;
+        const label = observed ? "processing" : "pending";
         const suffix = {
           on_track: " · on track",
           delayed: " · delayed",
         }[inProgress?.on_timedness] ?? "";
-        stateSlot.textContent = `processing${suffix}`;
+        stateSlot.textContent = `${label}${suffix}`;
         stateSlot.removeAttribute("data-init-start");
         if (inProgress?.on_timedness) {
           stateSlot.setAttribute("data-on-timedness", inProgress.on_timedness);
@@ -412,9 +420,17 @@
         stateSlot.setAttribute("data-init-start", target.initTime);
         stateSlot.removeAttribute("data-on-timedness");
       }
-      lineSlot.hidden = false;
-      lineSlot.textContent = "ETA —";
-      lineSlot.setAttribute("data-next-complete", target.targetIso);
+      if (target.targetIso) {
+        lineSlot.hidden = false;
+        lineSlot.textContent = "ETA —";
+        lineSlot.setAttribute("data-next-complete", target.targetIso);
+      } else {
+        // Below-threshold product with a live init — no baseline to
+        // extrapolate from, so hide the ETA line rather than showing a
+        // stuck "ETA —".
+        lineSlot.hidden = true;
+        lineSlot.removeAttribute("data-next-complete");
+      }
     }
 
     // "more details" is always available when the product has lead_group_stats.
