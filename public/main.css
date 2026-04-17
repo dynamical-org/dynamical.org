@@ -831,11 +831,12 @@ article img {
   }
 }
 
-/* Status fills — solid color per status. Single-fill rules apply to
-   pre-lead-groups snapshots (graceful fallback). Stacked rules below
-   key off each segment's own g-{status} class. */
+/* Status fills — solid color per (status, on_timedness) pair. Single-fill
+   rules below only fire on pre-lead-groups snapshots (every current product
+   emits lead_groups); the stacked-segment rules further down handle the
+   normal path. Unobserved / failed / not_started use the track-level rules
+   (dotted border, no fill). */
 
-/* Single-fill fallback for pre-lead-groups snapshots. */
 .status-bar[data-status="complete"][data-on-timedness="on_time"] .status-bar-fill {
   background-color: var(--status-on-time);
 }
