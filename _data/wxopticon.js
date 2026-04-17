@@ -15,6 +15,7 @@ const DISPLAY_NAMES = {
   "ecmwf-aifs-aws": "ECMWF AIFS Single",
   "ecmwf-ifs-ens-long-aws": "ECMWF IFS ENS 15-day",
   "ecmwf-ifs-ens-short-aws": "ECMWF IFS ENS 6-day",
+  "dwd-icon-eu": "DWD ICON-EU 5-day",
 };
 
 module.exports = async function () {
@@ -27,7 +28,7 @@ module.exports = async function () {
     id: p.id,
     label: DISPLAY_NAMES[p.id] ?? p.label ?? p.id,
     source: p.source,
-    source_label: p.id.endsWith("-aws") ? "AWS" : p.id.endsWith("-ftp") ? "NOMADS" : null,
+    source_label: p.id.endsWith("-aws") ? "AWS" : p.id.endsWith("-ftp") ? "NOMADS" : p.id.startsWith("dwd-") ? "DWD" : null,
     cadence_hours: p.cadence_hours,
     init_hours: [...new Set(p.recent_inits.map((i) => i.init_time.slice(11, 13)))].sort(),
     recent_init_count: Math.min(p.recent_inits.length, RECENT_INIT_COUNT),
