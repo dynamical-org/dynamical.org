@@ -719,7 +719,7 @@ article img {
 
 .status-row {
   display: grid;
-  grid-template-columns: minmax(20rem, 22rem) 1fr 16rem;
+  grid-template-columns: 19rem 1fr 16rem;
   gap: 2rem;
   padding: 1.6rem 0;
   border-top: 1px solid var(--border-muted-color);

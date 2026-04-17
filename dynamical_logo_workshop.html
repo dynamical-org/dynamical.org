@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dynamical.org logo workshop</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
+  body {
+    font-family: 'IBM Plex Mono', monospace;
+    background: #fff;
+    color: #111;
+    margin: 0;
+    padding: 2rem;
+  }
+  h2 { font-size: 14px; font-weight: 700; margin: 2rem 0 0.5rem; }
+  .row {
+    display: flex;
+    gap: 2rem;
+    align-items: end;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+  }
+  .variant {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .variant label {
+    font-size: 10px;
+    color: #999;
+  }
+  .dark-bg {
+    background: #111;
+    padding: 8px;
+    border-radius: 4px;
+  }
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .lockup span {
+    font-weight: 700;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<h2>variant A2 — simplified scatter, larger blocks</h2>
+<p style="font-size:11px;color:#666;">Fewer, chunkier pixels. Reads cleaner at small sizes. ~20 blocks vs ~40 in A.</p>
+<div class="row">
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#111">
+        <rect x="27" y="14" width="4" height="4"/>
+        <rect x="35" y="16" width="3" height="3"/>
+        <rect x="22" y="20" width="4" height="4"/>
+        <rect x="30" y="21" width="3" height="3"/>
+        <rect x="38" y="20" width="4" height="4"/>
+        <rect x="17" y="27" width="3" height="3"/>
+        <rect x="25" y="26" width="4" height="4"/>
+        <rect x="33" y="27" width="3" height="3"/>
+        <rect x="41" y="26" width="4" height="4"/>
+        <rect x="14" y="33" width="3" height="3"/>
+        <rect x="21" y="34" width="4" height="4"/>
+        <rect x="30" y="33" width="4" height="4"/>
+        <rect x="38" y="34" width="3" height="3"/>
+        <rect x="45" y="33" width="3" height="3"/>
+        <rect x="17" y="40" width="3" height="3"/>
+        <rect x="25" y="41" width="4" height="4"/>
+        <rect x="34" y="40" width="3" height="3"/>
+        <rect x="42" y="41" width="3" height="3"/>
+        <rect x="22" y="47" width="3" height="3"/>
+        <rect x="30" y="46" width="4" height="4"/>
+        <rect x="38" y="47" width="3" height="3"/>
+      </g>
+    </svg>
+    <label>64px</label>
+  </div>
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#111">
+        <rect x="27" y="14" width="4" height="4"/>
+        <rect x="35" y="16" width="3" height="3"/>
+        <rect x="22" y="20" width="4" height="4"/>
+        <rect x="30" y="21" width="3" height="3"/>
+        <rect x="38" y="20" width="4" height="4"/>
+        <rect x="17" y="27" width="3" height="3"/>
+        <rect x="25" y="26" width="4" height="4"/>
+        <rect x="33" y="27" width="3" height="3"/>
+        <rect x="41" y="26" width="4" height="4"/>
+        <rect x="14" y="33" width="3" height="3"/>
+        <rect x="21" y="34" width="4" height="4"/>
+        <rect x="30" y="33" width="4" height="4"/>
+        <rect x="38" y="34" width="3" height="3"/>
+        <rect x="45" y="33" width="3" height="3"/>
+        <rect x="17" y="40" width="3" height="3"/>
+        <rect x="25" y="41" width="4" height="4"/>
+        <rect x="34" y="40" width="3" height="3"/>
+        <rect x="42" y="41" width="3" height="3"/>
+        <rect x="22" y="47" width="3" height="3"/>
+        <rect x="30" y="46" width="4" height="4"/>
+        <rect x="38" y="47" width="3" height="3"/>
+      </g>
+    </svg>
+    <label>32px</label>
+  </div>
+  <div class="variant">
+    <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#111">
+        <rect x="27" y="14" width="4" height="4"/>
+        <rect x="35" y="16" width="3" height="3"/>
+        <rect x="22" y="20" width="4" height="4"/>
+        <rect x="30" y="21" width="3" height="3"/>
+        <rect x="38" y="20" width="4" height="4"/>
+        <rect x="17" y="27" width="3" height="3"/>
+        <rect x="25" y="26" width="4" height="4"/>
+        <rect x="33" y="27" width="3" height="3"/>
+        <rect x="41" y="26" width="4" height="4"/>
+        <rect x="14" y="33" width="3" height="3"/>
+        <rect x="21" y="34" width="4" height="4"/>
+        <rect x="30" y="33" width="4" height="4"/>
+        <rect x="38" y="34" width="3" height="3"/>
+        <rect x="45" y="33" width="3" height="3"/>
+        <rect x="17" y="40" width="3" height="3"/>
+        <rect x="25" y="41" width="4" height="4"/>
+        <rect x="34" y="40" width="3" height="3"/>
+        <rect x="42" y="41" width="3" height="3"/>
+        <rect x="22" y="47" width="3" height="3"/>
+        <rect x="30" y="46" width="4" height="4"/>
+        <rect x="38" y="47" width="3" height="3"/>
+      </g>
+    </svg>
+    <label>16px</label>
+  </div>
+  <div class="variant">
+    <div class="dark-bg">
+      <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#fff">
+          <rect x="27" y="14" width="4" height="4"/>
+          <rect x="35" y="16" width="3" height="3"/>
+          <rect x="22" y="20" width="4" height="4"/>
+          <rect x="30" y="21" width="3" height="3"/>
+          <rect x="38" y="20" width="4" height="4"/>
+          <rect x="17" y="27" width="3" height="3"/>
+          <rect x="25" y="26" width="4" height="4"/>
+          <rect x="33" y="27" width="3" height="3"/>
+          <rect x="41" y="26" width="4" height="4"/>
+          <rect x="14" y="33" width="3" height="3"/>
+          <rect x="21" y="34" width="4" height="4"/>
+          <rect x="30" y="33" width="4" height="4"/>
+          <rect x="38" y="34" width="3" height="3"/>
+          <rect x="45" y="33" width="3" height="3"/>
+          <rect x="17" y="40" width="3" height="3"/>
+          <rect x="25" y="41" width="4" height="4"/>
+          <rect x="34" y="40" width="3" height="3"/>
+          <rect x="42" y="41" width="3" height="3"/>
+          <rect x="22" y="47" width="3" height="3"/>
+          <rect x="30" y="46" width="4" height="4"/>
+          <rect x="38" y="47" width="3" height="3"/>
+        </g>
+      </svg>
+    </div>
+    <label>inverted</label>
+  </div>
+</div>
+
+<div class="row">
+  <div class="variant">
+    <div class="lockup" style="gap:6px;">
+      <svg width="48" height="48" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#111">
+          <rect x="27" y="14" width="4" height="4"/>
+          <rect x="35" y="16" width="3" height="3"/>
+          <rect x="22" y="20" width="4" height="4"/>
+          <rect x="30" y="21" width="3" height="3"/>
+          <rect x="38" y="20" width="4" height="4"/>
+          <rect x="17" y="27" width="3" height="3"/>
+          <rect x="25" y="26" width="4" height="4"/>
+          <rect x="33" y="27" width="3" height="3"/>
+          <rect x="41" y="26" width="4" height="4"/>
+          <rect x="14" y="33" width="3" height="3"/>
+          <rect x="21" y="34" width="4" height="4"/>
+          <rect x="30" y="33" width="4" height="4"/>
+          <rect x="38" y="34" width="3" height="3"/>
+          <rect x="45" y="33" width="3" height="3"/>
+          <rect x="17" y="40" width="3" height="3"/>
+          <rect x="25" y="41" width="4" height="4"/>
+          <rect x="34" y="40" width="3" height="3"/>
+          <rect x="42" y="41" width="3" height="3"/>
+          <rect x="22" y="47" width="3" height="3"/>
+          <rect x="30" y="46" width="4" height="4"/>
+          <rect x="38" y="47" width="3" height="3"/>
+        </g>
+      </svg>
+      <span style="font-size:22px;">dynamical.org</span>
+    </div>
+    <label>A2 large lockup</label>
+  </div>
+  <div class="variant">
+    <div class="lockup" style="gap:5px;">
+      <svg width="40" height="40" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#111">
+          <rect x="27" y="14" width="4" height="4"/>
+          <rect x="35" y="16" width="3" height="3"/>
+          <rect x="22" y="20" width="4" height="4"/>
+          <rect x="30" y="21" width="3" height="3"/>
+          <rect x="38" y="20" width="4" height="4"/>
+          <rect x="17" y="27" width="3" height="3"/>
+          <rect x="25" y="26" width="4" height="4"/>
+          <rect x="33" y="27" width="3" height="3"/>
+          <rect x="41" y="26" width="4" height="4"/>
+          <rect x="14" y="33" width="3" height="3"/>
+          <rect x="21" y="34" width="4" height="4"/>
+          <rect x="30" y="33" width="4" height="4"/>
+          <rect x="38" y="34" width="3" height="3"/>
+          <rect x="45" y="33" width="3" height="3"/>
+          <rect x="17" y="40" width="3" height="3"/>
+          <rect x="25" y="41" width="4" height="4"/>
+          <rect x="34" y="40" width="3" height="3"/>
+          <rect x="42" y="41" width="3" height="3"/>
+          <rect x="22" y="47" width="3" height="3"/>
+          <rect x="30" y="46" width="4" height="4"/>
+          <rect x="38" y="47" width="3" height="3"/>
+        </g>
+      </svg>
+      <span style="font-size:16px;">dynamical.org</span>
+    </div>
+    <label>A2 small lockup</label>
+  </div>
+  <div class="variant">
+    <div class="lockup">
+      <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#111">
+          <rect x="27" y="14" width="4" height="4"/>
+          <rect x="35" y="16" width="3" height="3"/>
+          <rect x="22" y="20" width="4" height="4"/>
+          <rect x="30" y="21" width="3" height="3"/>
+          <rect x="38" y="20" width="4" height="4"/>
+          <rect x="17" y="27" width="3" height="3"/>
+          <rect x="25" y="26" width="4" height="4"/>
+          <rect x="33" y="27" width="3" height="3"/>
+          <rect x="41" y="26" width="4" height="4"/>
+          <rect x="14" y="33" width="3" height="3"/>
+          <rect x="21" y="34" width="4" height="4"/>
+          <rect x="30" y="33" width="4" height="4"/>
+          <rect x="38" y="34" width="3" height="3"/>
+          <rect x="45" y="33" width="3" height="3"/>
+          <rect x="17" y="40" width="3" height="3"/>
+          <rect x="25" y="41" width="4" height="4"/>
+          <rect x="34" y="40" width="3" height="3"/>
+          <rect x="42" y="41" width="3" height="3"/>
+          <rect x="22" y="47" width="3" height="3"/>
+          <rect x="30" y="46" width="4" height="4"/>
+          <rect x="38" y="47" width="3" height="3"/>
+        </g>
+      </svg>
+      <span>dynamical.org</span>
+    </div>
+    <label>A2 tiny lockup</label>
+  </div>
+  <div class="variant">
+    <div class="dark-bg" style="padding: 12px 16px;">
+      <div class="lockup" style="gap:6px;">
+        <svg width="48" height="48" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#fff">
+            <rect x="27" y="14" width="4" height="4"/>
+            <rect x="35" y="16" width="3" height="3"/>
+            <rect x="22" y="20" width="4" height="4"/>
+            <rect x="30" y="21" width="3" height="3"/>
+            <rect x="38" y="20" width="4" height="4"/>
+            <rect x="17" y="27" width="3" height="3"/>
+            <rect x="25" y="26" width="4" height="4"/>
+            <rect x="33" y="27" width="3" height="3"/>
+            <rect x="41" y="26" width="4" height="4"/>
+            <rect x="14" y="33" width="3" height="3"/>
+            <rect x="21" y="34" width="4" height="4"/>
+            <rect x="30" y="33" width="4" height="4"/>
+            <rect x="38" y="34" width="3" height="3"/>
+            <rect x="45" y="33" width="3" height="3"/>
+            <rect x="17" y="40" width="3" height="3"/>
+            <rect x="25" y="41" width="4" height="4"/>
+            <rect x="34" y="40" width="3" height="3"/>
+            <rect x="42" y="41" width="3" height="3"/>
+            <rect x="22" y="47" width="3" height="3"/>
+            <rect x="30" y="46" width="4" height="4"/>
+            <rect x="38" y="47" width="3" height="3"/>
+          </g>
+        </svg>
+        <span style="font-size:22px;color:#fff;">dynamical.org</span>
+      </div>
+    </div>
+    <label>A2 large inverted</label>
+  </div>
+</div>
+
+<h2>variant A — sparse scatter globe (original)</h2>
+<p style="font-size:11px;color:#666;">Circle outline implied by dot density falloff. Denser core, sparser edges. No hard boundary.</p>
+<div class="row">
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#111">
+        <!-- Dense core cluster -->
+        <rect x="28" y="16" width="3" height="3"/>
+        <rect x="34" y="14" width="2" height="2"/>
+        <rect x="24" y="20" width="3" height="3"/>
+        <rect x="30" y="20" width="2" height="2"/>
+        <rect x="36" y="19" width="3" height="3"/>
+        <rect x="20" y="24" width="2" height="2"/>
+        <rect x="26" y="24" width="3" height="3"/>
+        <rect x="32" y="24" width="2" height="2"/>
+        <rect x="38" y="24" width="2" height="2"/>
+        <rect x="42" y="22" width="2" height="2"/>
+        <rect x="18" y="28" width="2" height="2"/>
+        <rect x="24" y="28" width="2" height="2"/>
+        <rect x="30" y="28" width="3" height="3"/>
+        <rect x="36" y="28" width="2" height="2"/>
+        <rect x="40" y="28" width="3" height="3"/>
+        <rect x="44" y="27" width="2" height="2"/>
+        <rect x="16" y="32" width="2" height="2"/>
+        <rect x="22" y="32" width="2" height="2"/>
+        <rect x="28" y="32" width="2" height="2"/>
+        <rect x="34" y="32" width="3" height="3"/>
+        <rect x="40" y="32" width="2" height="2"/>
+        <rect x="44" y="32" width="2" height="2"/>
+        <rect x="14" y="36" width="2" height="2"/>
+        <rect x="20" y="36" width="3" height="3"/>
+        <rect x="26" y="36" width="2" height="2"/>
+        <rect x="32" y="36" width="2" height="2"/>
+        <rect x="38" y="36" width="3" height="3"/>
+        <rect x="44" y="36" width="2" height="2"/>
+        <rect x="16" y="40" width="2" height="2"/>
+        <rect x="22" y="40" width="2" height="2"/>
+        <rect x="28" y="40" width="3" height="3"/>
+        <rect x="34" y="40" width="2" height="2"/>
+        <rect x="40" y="40" width="2" height="2"/>
+        <rect x="20" y="44" width="2" height="2"/>
+        <rect x="26" y="44" width="2" height="2"/>
+        <rect x="32" y="44" width="3" height="3"/>
+        <rect x="38" y="44" width="2" height="2"/>
+        <rect x="28" y="48" width="2" height="2"/>
+        <rect x="34" y="48" width="2" height="2"/>
+      </g>
+    </svg>
+    <label>64px</label>
+  </div>
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#111">
+        <rect x="28" y="16" width="3" height="3"/>
+        <rect x="34" y="14" width="2" height="2"/>
+        <rect x="24" y="20" width="3" height="3"/>
+        <rect x="30" y="20" width="2" height="2"/>
+        <rect x="36" y="19" width="3" height="3"/>
+        <rect x="20" y="24" width="2" height="2"/>
+        <rect x="26" y="24" width="3" height="3"/>
+        <rect x="32" y="24" width="2" height="2"/>
+        <rect x="38" y="24" width="2" height="2"/>
+        <rect x="42" y="22" width="2" height="2"/>
+        <rect x="18" y="28" width="2" height="2"/>
+        <rect x="24" y="28" width="2" height="2"/>
+        <rect x="30" y="28" width="3" height="3"/>
+        <rect x="36" y="28" width="2" height="2"/>
+        <rect x="40" y="28" width="3" height="3"/>
+        <rect x="44" y="27" width="2" height="2"/>
+        <rect x="16" y="32" width="2" height="2"/>
+        <rect x="22" y="32" width="2" height="2"/>
+        <rect x="28" y="32" width="2" height="2"/>
+        <rect x="34" y="32" width="3" height="3"/>
+        <rect x="40" y="32" width="2" height="2"/>
+        <rect x="44" y="32" width="2" height="2"/>
+        <rect x="14" y="36" width="2" height="2"/>
+        <rect x="20" y="36" width="3" height="3"/>
+        <rect x="26" y="36" width="2" height="2"/>
+        <rect x="32" y="36" width="2" height="2"/>
+        <rect x="38" y="36" width="3" height="3"/>
+        <rect x="44" y="36" width="2" height="2"/>
+        <rect x="16" y="40" width="2" height="2"/>
+        <rect x="22" y="40" width="2" height="2"/>
+        <rect x="28" y="40" width="3" height="3"/>
+        <rect x="34" y="40" width="2" height="2"/>
+        <rect x="40" y="40" width="2" height="2"/>
+        <rect x="20" y="44" width="2" height="2"/>
+        <rect x="26" y="44" width="2" height="2"/>
+        <rect x="32" y="44" width="3" height="3"/>
+        <rect x="38" y="44" width="2" height="2"/>
+        <rect x="28" y="48" width="2" height="2"/>
+        <rect x="34" y="48" width="2" height="2"/>
+      </g>
+    </svg>
+    <label>32px</label>
+  </div>
+  <div class="variant">
+    <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#111">
+        <rect x="28" y="16" width="3" height="3"/>
+        <rect x="34" y="14" width="2" height="2"/>
+        <rect x="24" y="20" width="3" height="3"/>
+        <rect x="30" y="20" width="2" height="2"/>
+        <rect x="36" y="19" width="3" height="3"/>
+        <rect x="20" y="24" width="2" height="2"/>
+        <rect x="26" y="24" width="3" height="3"/>
+        <rect x="32" y="24" width="2" height="2"/>
+        <rect x="38" y="24" width="2" height="2"/>
+        <rect x="42" y="22" width="2" height="2"/>
+        <rect x="18" y="28" width="2" height="2"/>
+        <rect x="24" y="28" width="2" height="2"/>
+        <rect x="30" y="28" width="3" height="3"/>
+        <rect x="36" y="28" width="2" height="2"/>
+        <rect x="40" y="28" width="3" height="3"/>
+        <rect x="44" y="27" width="2" height="2"/>
+        <rect x="16" y="32" width="2" height="2"/>
+        <rect x="22" y="32" width="2" height="2"/>
+        <rect x="28" y="32" width="2" height="2"/>
+        <rect x="34" y="32" width="3" height="3"/>
+        <rect x="40" y="32" width="2" height="2"/>
+        <rect x="44" y="32" width="2" height="2"/>
+        <rect x="14" y="36" width="2" height="2"/>
+        <rect x="20" y="36" width="3" height="3"/>
+        <rect x="26" y="36" width="2" height="2"/>
+        <rect x="32" y="36" width="2" height="2"/>
+        <rect x="38" y="36" width="3" height="3"/>
+        <rect x="44" y="36" width="2" height="2"/>
+        <rect x="16" y="40" width="2" height="2"/>
+        <rect x="22" y="40" width="2" height="2"/>
+        <rect x="28" y="40" width="3" height="3"/>
+        <rect x="34" y="40" width="2" height="2"/>
+        <rect x="40" y="40" width="2" height="2"/>
+        <rect x="20" y="44" width="2" height="2"/>
+        <rect x="26" y="44" width="2" height="2"/>
+        <rect x="32" y="44" width="3" height="3"/>
+        <rect x="38" y="44" width="2" height="2"/>
+        <rect x="28" y="48" width="2" height="2"/>
+        <rect x="34" y="48" width="2" height="2"/>
+      </g>
+    </svg>
+    <label>16px</label>
+  </div>
+  <div class="variant">
+    <div class="dark-bg">
+      <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#ffffff">
+          <rect x="28" y="16" width="3" height="3"/>
+          <rect x="34" y="14" width="2" height="2"/>
+          <rect x="24" y="20" width="3" height="3"/>
+          <rect x="30" y="20" width="2" height="2"/>
+          <rect x="36" y="19" width="3" height="3"/>
+          <rect x="20" y="24" width="2" height="2"/>
+          <rect x="26" y="24" width="3" height="3"/>
+          <rect x="32" y="24" width="2" height="2"/>
+          <rect x="38" y="24" width="2" height="2"/>
+          <rect x="42" y="22" width="2" height="2"/>
+          <rect x="18" y="28" width="2" height="2"/>
+          <rect x="24" y="28" width="2" height="2"/>
+          <rect x="30" y="28" width="3" height="3"/>
+          <rect x="36" y="28" width="2" height="2"/>
+          <rect x="40" y="28" width="3" height="3"/>
+          <rect x="44" y="27" width="2" height="2"/>
+          <rect x="16" y="32" width="2" height="2"/>
+          <rect x="22" y="32" width="2" height="2"/>
+          <rect x="28" y="32" width="2" height="2"/>
+          <rect x="34" y="32" width="3" height="3"/>
+          <rect x="40" y="32" width="2" height="2"/>
+          <rect x="44" y="32" width="2" height="2"/>
+          <rect x="14" y="36" width="2" height="2"/>
+          <rect x="20" y="36" width="3" height="3"/>
+          <rect x="26" y="36" width="2" height="2"/>
+          <rect x="32" y="36" width="2" height="2"/>
+          <rect x="38" y="36" width="3" height="3"/>
+          <rect x="44" y="36" width="2" height="2"/>
+          <rect x="16" y="40" width="2" height="2"/>
+          <rect x="22" y="40" width="2" height="2"/>
+          <rect x="28" y="40" width="3" height="3"/>
+          <rect x="34" y="40" width="2" height="2"/>
+          <rect x="40" y="40" width="2" height="2"/>
+          <rect x="20" y="44" width="2" height="2"/>
+          <rect x="26" y="44" width="2" height="2"/>
+          <rect x="32" y="44" width="3" height="3"/>
+          <rect x="38" y="44" width="2" height="2"/>
+          <rect x="28" y="48" width="2" height="2"/>
+          <rect x="34" y="48" width="2" height="2"/>
+        </g>
+      </svg>
+    </div>
+    <label>inverted</label>
+  </div>
+</div>
+
+<h2>variant B — grid-snapped with circle boundary</h2>
+<p style="font-size:11px;color:#666;">Pixels on a strict grid. Circle edge defined by which cells are filled vs empty. More structured.</p>
+<div class="row">
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <g fill="#111">
+        <!-- Row 1: y=2 -->
+        <rect x="6" y="2" width="1" height="1"/>
+        <rect x="8" y="2" width="1" height="1"/>
+        <!-- Row 2: y=3 -->
+        <rect x="4" y="3" width="1" height="1"/>
+        <rect x="7" y="3" width="1" height="1"/>
+        <rect x="10" y="3" width="1" height="1"/>
+        <!-- Row 3: y=4 -->
+        <rect x="3" y="4" width="1" height="1"/>
+        <rect x="5" y="4" width="1" height="1"/>
+        <rect x="8" y="4" width="1" height="1"/>
+        <rect x="11" y="4" width="1" height="1"/>
+        <!-- Row 4: y=5 -->
+        <rect x="2" y="5" width="1" height="1"/>
+        <rect x="4" y="5" width="1" height="1"/>
+        <rect x="6" y="5" width="1" height="1"/>
+        <rect x="9" y="5" width="1" height="1"/>
+        <rect x="11" y="5" width="1" height="1"/>
+        <!-- Row 5: y=6 -->
+        <rect x="2" y="6" width="1" height="1"/>
+        <rect x="5" y="6" width="1" height="1"/>
+        <rect x="7" y="6" width="1" height="1"/>
+        <rect x="10" y="6" width="1" height="1"/>
+        <rect x="12" y="6" width="1" height="1"/>
+        <!-- Row 6: y=7 -->
+        <rect x="2" y="7" width="1" height="1"/>
+        <rect x="4" y="7" width="1" height="1"/>
+        <rect x="6" y="7" width="1" height="1"/>
+        <rect x="8" y="7" width="1" height="1"/>
+        <rect x="10" y="7" width="1" height="1"/>
+        <rect x="13" y="7" width="1" height="1"/>
+        <!-- Row 7: y=8 -->
+        <rect x="2" y="8" width="1" height="1"/>
+        <rect x="5" y="8" width="1" height="1"/>
+        <rect x="7" y="8" width="1" height="1"/>
+        <rect x="9" y="8" width="1" height="1"/>
+        <rect x="12" y="8" width="1" height="1"/>
+        <!-- Row 8: y=9 -->
+        <rect x="2" y="9" width="1" height="1"/>
+        <rect x="4" y="9" width="1" height="1"/>
+        <rect x="7" y="9" width="1" height="1"/>
+        <rect x="10" y="9" width="1" height="1"/>
+        <rect x="12" y="9" width="1" height="1"/>
+        <!-- Row 9: y=10 -->
+        <rect x="3" y="10" width="1" height="1"/>
+        <rect x="6" y="10" width="1" height="1"/>
+        <rect x="8" y="10" width="1" height="1"/>
+        <rect x="11" y="10" width="1" height="1"/>
+        <!-- Row 10: y=11 -->
+        <rect x="4" y="11" width="1" height="1"/>
+        <rect x="7" y="11" width="1" height="1"/>
+        <rect x="9" y="11" width="1" height="1"/>
+        <!-- Row 11: y=12 -->
+        <rect x="6" y="12" width="1" height="1"/>
+        <rect x="8" y="12" width="1" height="1"/>
+      </g>
+    </svg>
+    <label>64px</label>
+  </div>
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <g fill="#111">
+        <rect x="6" y="2" width="1" height="1"/>
+        <rect x="8" y="2" width="1" height="1"/>
+        <rect x="4" y="3" width="1" height="1"/>
+        <rect x="7" y="3" width="1" height="1"/>
+        <rect x="10" y="3" width="1" height="1"/>
+        <rect x="3" y="4" width="1" height="1"/>
+        <rect x="5" y="4" width="1" height="1"/>
+        <rect x="8" y="4" width="1" height="1"/>
+        <rect x="11" y="4" width="1" height="1"/>
+        <rect x="2" y="5" width="1" height="1"/>
+        <rect x="4" y="5" width="1" height="1"/>
+        <rect x="6" y="5" width="1" height="1"/>
+        <rect x="9" y="5" width="1" height="1"/>
+        <rect x="11" y="5" width="1" height="1"/>
+        <rect x="2" y="6" width="1" height="1"/>
+        <rect x="5" y="6" width="1" height="1"/>
+        <rect x="7" y="6" width="1" height="1"/>
+        <rect x="10" y="6" width="1" height="1"/>
+        <rect x="12" y="6" width="1" height="1"/>
+        <rect x="2" y="7" width="1" height="1"/>
+        <rect x="4" y="7" width="1" height="1"/>
+        <rect x="6" y="7" width="1" height="1"/>
+        <rect x="8" y="7" width="1" height="1"/>
+        <rect x="10" y="7" width="1" height="1"/>
+        <rect x="13" y="7" width="1" height="1"/>
+        <rect x="2" y="8" width="1" height="1"/>
+        <rect x="5" y="8" width="1" height="1"/>
+        <rect x="7" y="8" width="1" height="1"/>
+        <rect x="9" y="8" width="1" height="1"/>
+        <rect x="12" y="8" width="1" height="1"/>
+        <rect x="2" y="9" width="1" height="1"/>
+        <rect x="4" y="9" width="1" height="1"/>
+        <rect x="7" y="9" width="1" height="1"/>
+        <rect x="10" y="9" width="1" height="1"/>
+        <rect x="12" y="9" width="1" height="1"/>
+        <rect x="3" y="10" width="1" height="1"/>
+        <rect x="6" y="10" width="1" height="1"/>
+        <rect x="8" y="10" width="1" height="1"/>
+        <rect x="11" y="10" width="1" height="1"/>
+        <rect x="4" y="11" width="1" height="1"/>
+        <rect x="7" y="11" width="1" height="1"/>
+        <rect x="9" y="11" width="1" height="1"/>
+        <rect x="6" y="12" width="1" height="1"/>
+        <rect x="8" y="12" width="1" height="1"/>
+      </g>
+    </svg>
+    <label>32px</label>
+  </div>
+  <div class="variant">
+    <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <g fill="#111">
+        <rect x="6" y="2" width="1" height="1"/>
+        <rect x="8" y="2" width="1" height="1"/>
+        <rect x="4" y="3" width="1" height="1"/>
+        <rect x="7" y="3" width="1" height="1"/>
+        <rect x="10" y="3" width="1" height="1"/>
+        <rect x="3" y="4" width="1" height="1"/>
+        <rect x="5" y="4" width="1" height="1"/>
+        <rect x="8" y="4" width="1" height="1"/>
+        <rect x="11" y="4" width="1" height="1"/>
+        <rect x="2" y="5" width="1" height="1"/>
+        <rect x="4" y="5" width="1" height="1"/>
+        <rect x="6" y="5" width="1" height="1"/>
+        <rect x="9" y="5" width="1" height="1"/>
+        <rect x="11" y="5" width="1" height="1"/>
+        <rect x="2" y="6" width="1" height="1"/>
+        <rect x="5" y="6" width="1" height="1"/>
+        <rect x="7" y="6" width="1" height="1"/>
+        <rect x="10" y="6" width="1" height="1"/>
+        <rect x="12" y="6" width="1" height="1"/>
+        <rect x="2" y="7" width="1" height="1"/>
+        <rect x="4" y="7" width="1" height="1"/>
+        <rect x="6" y="7" width="1" height="1"/>
+        <rect x="8" y="7" width="1" height="1"/>
+        <rect x="10" y="7" width="1" height="1"/>
+        <rect x="13" y="7" width="1" height="1"/>
+        <rect x="2" y="8" width="1" height="1"/>
+        <rect x="5" y="8" width="1" height="1"/>
+        <rect x="7" y="8" width="1" height="1"/>
+        <rect x="9" y="8" width="1" height="1"/>
+        <rect x="12" y="8" width="1" height="1"/>
+        <rect x="2" y="9" width="1" height="1"/>
+        <rect x="4" y="9" width="1" height="1"/>
+        <rect x="7" y="9" width="1" height="1"/>
+        <rect x="10" y="9" width="1" height="1"/>
+        <rect x="12" y="9" width="1" height="1"/>
+        <rect x="3" y="10" width="1" height="1"/>
+        <rect x="6" y="10" width="1" height="1"/>
+        <rect x="8" y="10" width="1" height="1"/>
+        <rect x="11" y="10" width="1" height="1"/>
+        <rect x="4" y="11" width="1" height="1"/>
+        <rect x="7" y="11" width="1" height="1"/>
+        <rect x="9" y="11" width="1" height="1"/>
+        <rect x="6" y="12" width="1" height="1"/>
+        <rect x="8" y="12" width="1" height="1"/>
+      </g>
+    </svg>
+    <label>16px</label>
+  </div>
+  <div class="variant">
+    <div class="dark-bg">
+      <svg width="32" height="32" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+        <g fill="#fff">
+          <rect x="6" y="2" width="1" height="1"/>
+          <rect x="8" y="2" width="1" height="1"/>
+          <rect x="4" y="3" width="1" height="1"/>
+          <rect x="7" y="3" width="1" height="1"/>
+          <rect x="10" y="3" width="1" height="1"/>
+          <rect x="3" y="4" width="1" height="1"/>
+          <rect x="5" y="4" width="1" height="1"/>
+          <rect x="8" y="4" width="1" height="1"/>
+          <rect x="11" y="4" width="1" height="1"/>
+          <rect x="2" y="5" width="1" height="1"/>
+          <rect x="4" y="5" width="1" height="1"/>
+          <rect x="6" y="5" width="1" height="1"/>
+          <rect x="9" y="5" width="1" height="1"/>
+          <rect x="11" y="5" width="1" height="1"/>
+          <rect x="2" y="6" width="1" height="1"/>
+          <rect x="5" y="6" width="1" height="1"/>
+          <rect x="7" y="6" width="1" height="1"/>
+          <rect x="10" y="6" width="1" height="1"/>
+          <rect x="12" y="6" width="1" height="1"/>
+          <rect x="2" y="7" width="1" height="1"/>
+          <rect x="4" y="7" width="1" height="1"/>
+          <rect x="6" y="7" width="1" height="1"/>
+          <rect x="8" y="7" width="1" height="1"/>
+          <rect x="10" y="7" width="1" height="1"/>
+          <rect x="13" y="7" width="1" height="1"/>
+          <rect x="2" y="8" width="1" height="1"/>
+          <rect x="5" y="8" width="1" height="1"/>
+          <rect x="7" y="8" width="1" height="1"/>
+          <rect x="9" y="8" width="1" height="1"/>
+          <rect x="12" y="8" width="1" height="1"/>
+          <rect x="2" y="9" width="1" height="1"/>
+          <rect x="4" y="9" width="1" height="1"/>
+          <rect x="7" y="9" width="1" height="1"/>
+          <rect x="10" y="9" width="1" height="1"/>
+          <rect x="12" y="9" width="1" height="1"/>
+          <rect x="3" y="10" width="1" height="1"/>
+          <rect x="6" y="10" width="1" height="1"/>
+          <rect x="8" y="10" width="1" height="1"/>
+          <rect x="11" y="10" width="1" height="1"/>
+          <rect x="4" y="11" width="1" height="1"/>
+          <rect x="7" y="11" width="1" height="1"/>
+          <rect x="9" y="11" width="1" height="1"/>
+          <rect x="6" y="12" width="1" height="1"/>
+          <rect x="8" y="12" width="1" height="1"/>
+        </g>
+      </svg>
+    </div>
+    <label>inverted</label>
+  </div>
+</div>
+
+<h2>variant C — denser halftone, variable pixel sizes</h2>
+<p style="font-size:11px;color:#666;">Mixed pixel sizes (1x1, 2x2, 3x3) like the homepage viz. Bigger pixels near center, smaller at edges. More organic.</p>
+<div class="row">
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <g fill="#111">
+        <!-- Top sparse -->
+        <rect x="27" y="10" width="1" height="1"/>
+        <rect x="33" y="11" width="1" height="1"/>
+        <rect x="37" y="12" width="1" height="1"/>
+        <!-- Upper band -->
+        <rect x="22" y="15" width="2" height="2"/>
+        <rect x="28" y="14" width="1" height="1"/>
+        <rect x="31" y="15" width="2" height="2"/>
+        <rect x="36" y="14" width="2" height="2"/>
+        <rect x="41" y="15" width="1" height="1"/>
+        <!-- Upper-mid -->
+        <rect x="17" y="19" width="1" height="1"/>
+        <rect x="20" y="20" width="2" height="2"/>
+        <rect x="25" y="19" width="3" height="3"/>
+        <rect x="30" y="20" width="2" height="2"/>
+        <rect x="35" y="19" width="2" height="2"/>
+        <rect x="39" y="20" width="3" height="3"/>
+        <rect x="44" y="19" width="1" height="1"/>
+        <!-- Mid-upper -->
+        <rect x="14" y="24" width="2" height="2"/>
+        <rect x="19" y="25" width="2" height="2"/>
+        <rect x="24" y="24" width="3" height="3"/>
+        <rect x="29" y="25" width="2" height="2"/>
+        <rect x="34" y="24" width="3" height="3"/>
+        <rect x="39" y="25" width="2" height="2"/>
+        <rect x="44" y="24" width="2" height="2"/>
+        <rect x="48" y="25" width="1" height="1"/>
+        <!-- Center band -->
+        <rect x="12" y="29" width="2" height="2"/>
+        <rect x="17" y="30" width="3" height="3"/>
+        <rect x="23" y="29" width="2" height="2"/>
+        <rect x="28" y="30" width="3" height="3"/>
+        <rect x="33" y="29" width="3" height="3"/>
+        <rect x="38" y="30" width="2" height="2"/>
+        <rect x="43" y="29" width="3" height="3"/>
+        <rect x="48" y="30" width="2" height="2"/>
+        <!-- Center-lower -->
+        <rect x="13" y="35" width="2" height="2"/>
+        <rect x="18" y="34" width="2" height="2"/>
+        <rect x="23" y="35" width="3" height="3"/>
+        <rect x="29" y="34" width="2" height="2"/>
+        <rect x="34" y="35" width="3" height="3"/>
+        <rect x="40" y="34" width="2" height="2"/>
+        <rect x="44" y="35" width="2" height="2"/>
+        <rect x="49" y="35" width="1" height="1"/>
+        <!-- Lower-mid -->
+        <rect x="15" y="40" width="2" height="2"/>
+        <rect x="21" y="39" width="2" height="2"/>
+        <rect x="26" y="40" width="3" height="3"/>
+        <rect x="32" y="39" width="2" height="2"/>
+        <rect x="37" y="40" width="2" height="2"/>
+        <rect x="42" y="39" width="2" height="2"/>
+        <rect x="46" y="40" width="1" height="1"/>
+        <!-- Lower band -->
+        <rect x="19" y="44" width="1" height="1"/>
+        <rect x="23" y="45" width="2" height="2"/>
+        <rect x="29" y="44" width="2" height="2"/>
+        <rect x="34" y="45" width="2" height="2"/>
+        <rect x="40" y="44" width="2" height="2"/>
+        <!-- Bottom sparse -->
+        <rect x="26" y="49" width="1" height="1"/>
+        <rect x="31" y="50" width="2" height="2"/>
+        <rect x="37" y="49" width="1" height="1"/>
+        <rect x="30" y="54" width="1" height="1"/>
+        <rect x="34" y="53" width="1" height="1"/>
+      </g>
+    </svg>
+    <label>64px</label>
+  </div>
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <g fill="#111">
+        <rect x="27" y="10" width="1" height="1"/>
+        <rect x="33" y="11" width="1" height="1"/>
+        <rect x="37" y="12" width="1" height="1"/>
+        <rect x="22" y="15" width="2" height="2"/>
+        <rect x="28" y="14" width="1" height="1"/>
+        <rect x="31" y="15" width="2" height="2"/>
+        <rect x="36" y="14" width="2" height="2"/>
+        <rect x="41" y="15" width="1" height="1"/>
+        <rect x="17" y="19" width="1" height="1"/>
+        <rect x="20" y="20" width="2" height="2"/>
+        <rect x="25" y="19" width="3" height="3"/>
+        <rect x="30" y="20" width="2" height="2"/>
+        <rect x="35" y="19" width="2" height="2"/>
+        <rect x="39" y="20" width="3" height="3"/>
+        <rect x="44" y="19" width="1" height="1"/>
+        <rect x="14" y="24" width="2" height="2"/>
+        <rect x="19" y="25" width="2" height="2"/>
+        <rect x="24" y="24" width="3" height="3"/>
+        <rect x="29" y="25" width="2" height="2"/>
+        <rect x="34" y="24" width="3" height="3"/>
+        <rect x="39" y="25" width="2" height="2"/>
+        <rect x="44" y="24" width="2" height="2"/>
+        <rect x="48" y="25" width="1" height="1"/>
+        <rect x="12" y="29" width="2" height="2"/>
+        <rect x="17" y="30" width="3" height="3"/>
+        <rect x="23" y="29" width="2" height="2"/>
+        <rect x="28" y="30" width="3" height="3"/>
+        <rect x="33" y="29" width="3" height="3"/>
+        <rect x="38" y="30" width="2" height="2"/>
+        <rect x="43" y="29" width="3" height="3"/>
+        <rect x="48" y="30" width="2" height="2"/>
+        <rect x="13" y="35" width="2" height="2"/>
+        <rect x="18" y="34" width="2" height="2"/>
+        <rect x="23" y="35" width="3" height="3"/>
+        <rect x="29" y="34" width="2" height="2"/>
+        <rect x="34" y="35" width="3" height="3"/>
+        <rect x="40" y="34" width="2" height="2"/>
+        <rect x="44" y="35" width="2" height="2"/>
+        <rect x="49" y="35" width="1" height="1"/>
+        <rect x="15" y="40" width="2" height="2"/>
+        <rect x="21" y="39" width="2" height="2"/>
+        <rect x="26" y="40" width="3" height="3"/>
+        <rect x="32" y="39" width="2" height="2"/>
+        <rect x="37" y="40" width="2" height="2"/>
+        <rect x="42" y="39" width="2" height="2"/>
+        <rect x="46" y="40" width="1" height="1"/>
+        <rect x="19" y="44" width="1" height="1"/>
+        <rect x="23" y="45" width="2" height="2"/>
+        <rect x="29" y="44" width="2" height="2"/>
+        <rect x="34" y="45" width="2" height="2"/>
+        <rect x="40" y="44" width="2" height="2"/>
+        <rect x="26" y="49" width="1" height="1"/>
+        <rect x="31" y="50" width="2" height="2"/>
+        <rect x="37" y="49" width="1" height="1"/>
+        <rect x="30" y="54" width="1" height="1"/>
+        <rect x="34" y="53" width="1" height="1"/>
+      </g>
+    </svg>
+    <label>32px</label>
+  </div>
+  <div class="variant">
+    <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <g fill="#111">
+        <rect x="27" y="10" width="1" height="1"/>
+        <rect x="33" y="11" width="1" height="1"/>
+        <rect x="37" y="12" width="1" height="1"/>
+        <rect x="22" y="15" width="2" height="2"/>
+        <rect x="28" y="14" width="1" height="1"/>
+        <rect x="31" y="15" width="2" height="2"/>
+        <rect x="36" y="14" width="2" height="2"/>
+        <rect x="41" y="15" width="1" height="1"/>
+        <rect x="17" y="19" width="1" height="1"/>
+        <rect x="20" y="20" width="2" height="2"/>
+        <rect x="25" y="19" width="3" height="3"/>
+        <rect x="30" y="20" width="2" height="2"/>
+        <rect x="35" y="19" width="2" height="2"/>
+        <rect x="39" y="20" width="3" height="3"/>
+        <rect x="44" y="19" width="1" height="1"/>
+        <rect x="14" y="24" width="2" height="2"/>
+        <rect x="19" y="25" width="2" height="2"/>
+        <rect x="24" y="24" width="3" height="3"/>
+        <rect x="29" y="25" width="2" height="2"/>
+        <rect x="34" y="24" width="3" height="3"/>
+        <rect x="39" y="25" width="2" height="2"/>
+        <rect x="44" y="24" width="2" height="2"/>
+        <rect x="48" y="25" width="1" height="1"/>
+        <rect x="12" y="29" width="2" height="2"/>
+        <rect x="17" y="30" width="3" height="3"/>
+        <rect x="23" y="29" width="2" height="2"/>
+        <rect x="28" y="30" width="3" height="3"/>
+        <rect x="33" y="29" width="3" height="3"/>
+        <rect x="38" y="30" width="2" height="2"/>
+        <rect x="43" y="29" width="3" height="3"/>
+        <rect x="48" y="30" width="2" height="2"/>
+        <rect x="13" y="35" width="2" height="2"/>
+        <rect x="18" y="34" width="2" height="2"/>
+        <rect x="23" y="35" width="3" height="3"/>
+        <rect x="29" y="34" width="2" height="2"/>
+        <rect x="34" y="35" width="3" height="3"/>
+        <rect x="40" y="34" width="2" height="2"/>
+        <rect x="44" y="35" width="2" height="2"/>
+        <rect x="49" y="35" width="1" height="1"/>
+        <rect x="15" y="40" width="2" height="2"/>
+        <rect x="21" y="39" width="2" height="2"/>
+        <rect x="26" y="40" width="3" height="3"/>
+        <rect x="32" y="39" width="2" height="2"/>
+        <rect x="37" y="40" width="2" height="2"/>
+        <rect x="42" y="39" width="2" height="2"/>
+        <rect x="46" y="40" width="1" height="1"/>
+        <rect x="19" y="44" width="1" height="1"/>
+        <rect x="23" y="45" width="2" height="2"/>
+        <rect x="29" y="44" width="2" height="2"/>
+        <rect x="34" y="45" width="2" height="2"/>
+        <rect x="40" y="44" width="2" height="2"/>
+        <rect x="26" y="49" width="1" height="1"/>
+        <rect x="31" y="50" width="2" height="2"/>
+        <rect x="37" y="49" width="1" height="1"/>
+        <rect x="30" y="54" width="1" height="1"/>
+        <rect x="34" y="53" width="1" height="1"/>
+      </g>
+    </svg>
+    <label>16px</label>
+  </div>
+  <div class="variant">
+    <div class="dark-bg">
+      <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+        <g fill="#fff">
+          <rect x="27" y="10" width="1" height="1"/>
+          <rect x="33" y="11" width="1" height="1"/>
+          <rect x="37" y="12" width="1" height="1"/>
+          <rect x="22" y="15" width="2" height="2"/>
+          <rect x="28" y="14" width="1" height="1"/>
+          <rect x="31" y="15" width="2" height="2"/>
+          <rect x="36" y="14" width="2" height="2"/>
+          <rect x="41" y="15" width="1" height="1"/>
+          <rect x="17" y="19" width="1" height="1"/>
+          <rect x="20" y="20" width="2" height="2"/>
+          <rect x="25" y="19" width="3" height="3"/>
+          <rect x="30" y="20" width="2" height="2"/>
+          <rect x="35" y="19" width="2" height="2"/>
+          <rect x="39" y="20" width="3" height="3"/>
+          <rect x="44" y="19" width="1" height="1"/>
+          <rect x="14" y="24" width="2" height="2"/>
+          <rect x="19" y="25" width="2" height="2"/>
+          <rect x="24" y="24" width="3" height="3"/>
+          <rect x="29" y="25" width="2" height="2"/>
+          <rect x="34" y="24" width="3" height="3"/>
+          <rect x="39" y="25" width="2" height="2"/>
+          <rect x="44" y="24" width="2" height="2"/>
+          <rect x="48" y="25" width="1" height="1"/>
+          <rect x="12" y="29" width="2" height="2"/>
+          <rect x="17" y="30" width="3" height="3"/>
+          <rect x="23" y="29" width="2" height="2"/>
+          <rect x="28" y="30" width="3" height="3"/>
+          <rect x="33" y="29" width="3" height="3"/>
+          <rect x="38" y="30" width="2" height="2"/>
+          <rect x="43" y="29" width="3" height="3"/>
+          <rect x="48" y="30" width="2" height="2"/>
+          <rect x="13" y="35" width="2" height="2"/>
+          <rect x="18" y="34" width="2" height="2"/>
+          <rect x="23" y="35" width="3" height="3"/>
+          <rect x="29" y="34" width="2" height="2"/>
+          <rect x="34" y="35" width="3" height="3"/>
+          <rect x="40" y="34" width="2" height="2"/>
+          <rect x="44" y="35" width="2" height="2"/>
+          <rect x="49" y="35" width="1" height="1"/>
+          <rect x="15" y="40" width="2" height="2"/>
+          <rect x="21" y="39" width="2" height="2"/>
+          <rect x="26" y="40" width="3" height="3"/>
+          <rect x="32" y="39" width="2" height="2"/>
+          <rect x="37" y="40" width="2" height="2"/>
+          <rect x="42" y="39" width="2" height="2"/>
+          <rect x="46" y="40" width="1" height="1"/>
+          <rect x="19" y="44" width="1" height="1"/>
+          <rect x="23" y="45" width="2" height="2"/>
+          <rect x="29" y="44" width="2" height="2"/>
+          <rect x="34" y="45" width="2" height="2"/>
+          <rect x="40" y="44" width="2" height="2"/>
+          <rect x="26" y="49" width="1" height="1"/>
+          <rect x="31" y="50" width="2" height="2"/>
+          <rect x="37" y="49" width="1" height="1"/>
+          <rect x="30" y="54" width="1" height="1"/>
+          <rect x="34" y="53" width="1" height="1"/>
+        </g>
+      </svg>
+    </div>
+    <label>inverted</label>
+  </div>
+</div>
+
+</body>
+</html>
