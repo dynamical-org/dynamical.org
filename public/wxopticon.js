@@ -174,7 +174,7 @@
     // entry with a null targetIso so the init label and "processing" /
     // "pending" text render — just without an ETA line.
     const p95 = product.latency_stats.p95_s;
-    const inProgress = product.recent_inits.find((i) => i.status === "processing");
+    const inProgress = product.recent_inits.findLast((i) => i.status === "processing");
     if (inProgress) {
       const targetIso = p95 != null
         ? new Date(new Date(inProgress.init_time).getTime() + p95 * 1000).toISOString()
@@ -393,7 +393,7 @@
     if (target) {
       initSlot.textContent = initShort(target.initTime);
       stateSlot.hidden = false;
-      const inProgress = product.recent_inits.find((i) => i.status === "processing");
+      const inProgress = product.recent_inits.findLast((i) => i.status === "processing");
       if (target.inProgress) {
         // "processing" vs "pending" mirrors the details-table labels: if no
         // lead has arrived yet the run reads as "pending" even though the
@@ -467,7 +467,7 @@
 
   function buildRowDetails(container, product) {
     const stats = product.lead_group_stats;
-    const inProgress = product.recent_inits.find((i) => i.status === "processing");
+    const inProgress = product.recent_inits.findLast((i) => i.status === "processing");
     const groups = inProgress?.lead_groups;
     const initMs = inProgress ? new Date(inProgress.init_time).getTime() : 0;
     const hasLive = !!(groups?.length);
