@@ -980,10 +980,10 @@ article img {
 }
 
 .eta-g-on_time { color: var(--status-on-time); }
-.eta-g-on_track { color: var(--muted-text); }
+.eta-g-on_track { color: var(--status-on-time); }
 .eta-g-insufficient_data { color: var(--muted-text); }
 .eta-g-unobserved { color: var(--muted-text); }
-.eta-g-delayed { color: var(--status-late); }
+.eta-g-delayed { color: var(--status-in-progress); }
 .eta-g-not_started { color: var(--muted-text); }
 .eta-g-late { color: var(--status-late); }
 .eta-g-failed { color: var(--status-failed); }
