@@ -197,7 +197,7 @@ module.exports = function (eleventyConfig) {
     return {
       type: "Catalog",
       id: "dynamical-org",
-      stac_version: "1.0.0",
+      stac_version: "1.1.0",
       description:
         "Cloud-optimized weather and climate datasets from dynamical.org",
       links: [
@@ -205,11 +205,13 @@ module.exports = function (eleventyConfig) {
           rel: "self",
           href: `${STAC_BASE_URL}/catalog.json`,
           type: "application/json",
+          title: "Dynamical.org STAC Catalog",
         },
         {
           rel: "root",
           href: `${STAC_BASE_URL}/catalog.json`,
           type: "application/json",
+          title: "Dynamical.org STAC Catalog",
         },
         ...liveEntries.map((e) => ({
           rel: "child",
@@ -338,7 +340,7 @@ module.exports = function (eleventyConfig) {
     return {
       type: "Collection",
       id: entry.dataset_id,
-      stac_version: "1.0.0",
+      stac_version: "1.1.0",
       stac_extensions: [
         "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
         "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
@@ -352,22 +354,28 @@ module.exports = function (eleventyConfig) {
         spatial: { bbox: [bbox] },
         temporal: { interval: [[temporalStart, null]] },
       },
+      summaries: {
+        "cube:variables": Object.keys(cubeVariables),
+      },
       assets,
       links: [
         {
           rel: "self",
           href: `${STAC_BASE_URL}/${entry.dataset_id}/collection.json`,
           type: "application/json",
+          title: entry.name,
         },
         {
           rel: "root",
           href: `${STAC_BASE_URL}/catalog.json`,
           type: "application/json",
+          title: "Dynamical.org STAC Catalog",
         },
         {
           rel: "parent",
           href: `${STAC_BASE_URL}/catalog.json`,
           type: "application/json",
+          title: "Dynamical.org STAC Catalog",
         },
         {
           rel: "about",
