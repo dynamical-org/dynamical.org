@@ -5,7 +5,7 @@ pagination:
   size: 1
 permalink: 'aws/dynamical-{{model.id}}.yaml'
 ---
-{%- set entries = model.datasets | selectattr('githubIcechunkUrl') | list -%}
+{%- set entries = model.datasets | selectattr('githubUrl') | list -%}
 {%- set bucket = "dynamical-" ~ model.id -%}
 Name: {{model.name}} - dynamical.org Icechunk Zarr
 Description: |
@@ -45,8 +45,8 @@ DataAtWork:
   Tutorials:
     {%- for entry in entries %}
     - Title: {{entry.name}} python quickstart notebook
-      URL: {{entry.githubIcechunkUrl}}
-      NotebookURL: {{entry.githubIcechunkUrl}}
+      URL: {{entry.githubUrl}}
+      NotebookURL: {{entry.githubUrl}}
       AuthorName: dynamical.org
       AuthorURL: https://dynamical.org
     {%- endfor %}

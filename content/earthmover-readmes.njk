@@ -4,7 +4,7 @@ pagination:
   alias: entry
   size: 1
   filter:
-    entry.githubIcechunkUrl
+    entry.githubUrl
 permalink: 'earthmover/{{entry.dataset_id}}.md'
 ---
 {%- set model = catalog.models | find('id', entry.modelId) -%}
@@ -32,10 +32,12 @@ permalink: 'earthmover/{{entry.dataset_id}}.md'
 
 _Don't see what you're looking for or have a question? Contact feedback@dynamical.org._
 
+{% if entry.githubUrl %}
 ## Examples
 
-* [Open notebook in github]({{ entry.githubIcechunkUrl }})
-* [Open notebook in colab]({{ entry.githubIcechunkUrl | replace("https://github.com/", "https://colab.research.google.com/github/") }})
+* [Open notebook in github]({{ entry.githubUrl }})
+* [Open notebook in colab]({{ entry.colabUrl }})
+{% endif %}
 
 ## Dimensions
 
