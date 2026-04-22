@@ -317,12 +317,6 @@ ds["temperature_2m"].sel(time="2026-01-01T00", latitude=0, longitude=0).compute(
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis.ipynb",
   },
 
   // noaa-gfs-forecast
@@ -377,12 +371,6 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-forecast-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-forecast.ipynb",
   },
 
   // noaa-gefs-forecast-35-day
@@ -451,12 +439,6 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-forecast-35-day.ipynb",
   },
 
   // noaa-gefs-analysis
@@ -563,12 +545,6 @@ ds["temperature_2m"].sel(time="2025-01-01T00", latitude=0, longitude=0).compute(
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-gefs-analysis-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gefs-analysis.ipynb",
   },
 
   // noaa-hrrr-forecast-48-hour
@@ -640,12 +616,6 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", x=0, y=0, method="nearest").
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-forecast-48-hour.ipynb",
   },
 
   // noaa-hrrr-analysis
@@ -731,12 +701,6 @@ ds["temperature_2m"].sel(time="2025-01-01T00", x=0, y=0, method="nearest").compu
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-hrrr-analysis.ipynb",
   },
 
   // noaa-mrms-conus-analysis-hourly
@@ -810,12 +774,6 @@ ds["precipitation_surface"].sel(time="2026-01-01T00", latitude=40, longitude=-90
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-mrms-conus-analysis-hourly.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/noaa-mrms-conus-analysis-hourly-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-mrms-conus-analysis-hourly.ipynb",
   },
 
   // dwd-icon-eu-forecast-5-day
@@ -871,12 +829,6 @@ ds["temperature_2m"].sel(init_time="2026-04-01T00", latitude=50, longitude=10).m
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/dwd-icon-eu-forecast-5-day-icechunk.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/dwd-icon-eu-forecast-5-day-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/dwd-icon-eu-forecast-5-day-icechunk.ipynb",
   },
 
   // ecmwf-aifs-single-forecast
@@ -944,12 +896,6 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-aifs-single-forecast.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-aifs-single-forecast-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/ecmwf-aifs-single-forecast.ipynb",
   },
 
   // ecmwf-ifs-ens-forecast-15-day-0-25-degree
@@ -1039,12 +985,6 @@ ds["temperature_2m"].sel(init_time="2025-01-01T00", latitude=0, longitude=0).max
     `,
       },
     ],
-    githubUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree.ipynb",
-    githubIcechunkUrl:
-      "https://github.com/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree-icechunk.ipynb",
-    colabUrl:
-      "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/ecmwf-ifs-ens-forecast-15-day-0-25-degree.ipynb",
   },
 ].filter((entry) => !entry.hide);
 
@@ -1207,9 +1147,14 @@ function reshapeStacCollection(collection) {
     return Array.isArray(value) ? value[0] : value;
   };
 
+  const exampleLinks = (collection.links || []).filter((l) => l.rel === "example");
+  const githubUrl = exampleLinks.find((l) => l.type === "application/x-ipynb+json")?.href;
+  const colabUrl = exampleLinks.find((l) => l.type === "text/html")?.href;
+
   return {
     name: collection.title,
     dataset_id: collection.id,
+    description: collection.description,
     attribution: collection.attribution,
     spatial_domain: summaryValue("spatial_domain"),
     spatial_resolution: summaryValue("spatial_resolution"),
@@ -1219,5 +1164,7 @@ function reshapeStacCollection(collection) {
     forecast_resolution: summaryValue("forecast_resolution"),
     dimensions,
     variables,
+    githubUrl,
+    colabUrl,
   };
 }
