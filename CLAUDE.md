@@ -32,14 +32,14 @@ npm run clean      # Remove docs/ and .cache/
 The catalog system (`_data/catalog.js`) defines weather models and their datasets. Each dataset entry includes:
 - Zarr archive URLs for cloud storage
 - Spatial/temporal domain metadata
-- Variables and dimensions (auto-extracted from Zarr metadata)
+- Variables and dimensions (fetched from the STAC Collection at `stac.dynamical.org/{slug}/collection.json`)
 - Python code examples for data access
 
 Templates in `content/catalog-pages.njk` use Eleventy pagination to generate individual pages for each dataset entry.
 
 ### Key Patterns
 
-**External Data Fetching**: Uses `@11ty/eleventy-fetch` with caching (1-day default) for GitHub API calls, CSV data, and Zarr metadata.
+**External Data Fetching**: Uses `@11ty/eleventy-fetch` with caching (1-day default) for GitHub API calls, CSV data, and STAC Collection JSON from `stac.dynamical.org`.
 
 **Code Highlighting**: Custom `highlight` filter and `frameHighlight` paired shortcode wrap the syntax highlighting plugin with additional CSS class support.
 
@@ -49,7 +49,7 @@ Templates in `content/catalog-pages.njk` use Eleventy pagination to generate ind
 
 1. Edit `_data/catalog.js` to add/modify dataset entries
 2. Each entry needs: `modelId`, `descriptionSummary`, Zarr URLs, and domain info
-3. The catalog auto-fetches Zarr metadata to build variable/dimension tables
+3. The catalog auto-fetches the STAC Collection from `stac.dynamical.org` to build variable/dimension tables
 
 ## Deployment
 

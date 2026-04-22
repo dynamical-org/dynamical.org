@@ -1030,16 +1030,20 @@ module.exports = async function () {
     }
 
     const slug = stacSlugFromUrl(entries[i].url);
+    let collection;
     try {
-      const datasetInfo = await processStacCollection(slug);
-      entries[i] = { ...entries[i], ...datasetInfo };
+      collection = await fetchStacCollection(slug);
     } catch (e) {
-      // Entries without a STAC collection (e.g. "coming soon" datasets
-      // not yet ingested) render without the dimensions/variables tables.
+      // Tolerate only 404 (dataset not yet ingested into STAC). Any other
+      // failure — network, 5xx, malformed JSON — should fail the build
+      // rather than silently publish a page missing its metadata tables.
+      if (e.cause?.status !== 404) throw e;
       console.log(`No STAC collection for ${slug}: ${e.message}`);
       entries[i].dataset_id = entries[i].dataset_id || slug;
       entries[i].name = entries[i].name || slug;
+      continue;
     }
+    entries[i] = { ...entries[i], ...reshapeStacCollection(collection) };
   }
 
   // Group datasets by model
@@ -1077,31 +1081,30 @@ module.exports = async function () {
   };
 };
 
-/**
- * Derive the STAC collection slug from a zarr URL.
- * e.g. https://data.dynamical.org/noaa/gfs/analysis/latest.zarr → noaa-gfs-analysis
- */
+// e.g. https://data.dynamical.org/noaa/gfs/analysis/latest.zarr → noaa-gfs-analysis
 function stacSlugFromUrl(url) {
   const path = new URL(url).pathname.replace(/^\/+|\/+$/g, "");
-  return path.replace(/\/latest\.zarr$/, "").split("/").join("-");
+  return path.replace(/\/[^/]+\.zarr$/, "").split("/").join("-");
 }
 
-/**
- * Fetch a STAC Collection from stac.dynamical.org and reshape it into the
- * object templates consume (dataset attributes + dimensions + variables).
- */
-async function processStacCollection(slug) {
-  const stacUrl = `https://stac.dynamical.org/${slug}/collection.json`;
-  const collection = await fetch(stacUrl, { type: "json" });
+function fetchStacCollection(slug) {
+  return fetch(`https://stac.dynamical.org/${slug}/collection.json`, { type: "json" });
+}
 
+// Reshape a STAC Collection into the object templates consume
+// (dataset attributes + dimensions + variables).
+function reshapeStacCollection(collection) {
   const cubeDims = collection["cube:dimensions"] || {};
   const cubeVars = collection["cube:variables"] || {};
 
-  const dimensions = Object.entries(cubeDims).map(([name, d]) => ({
-    name,
-    units: d.unit,
-    statistics_approximate: { min: d.extent[0], max: d.extent[1] },
-  }));
+  const dimensions = Object.entries(cubeDims).map(([name, d]) => {
+    const [min, max] = d.extent ?? [null, null];
+    return {
+      name,
+      units: d.unit,
+      statistics_approximate: { min, max },
+    };
+  });
 
   const variables = Object.entries(cubeVars).map(([name, v]) => ({
     name,
@@ -1120,7 +1123,6 @@ async function processStacCollection(slug) {
   return {
     name: collection.title,
     dataset_id: collection.id,
-    dataset_version: collection.version,
     attribution: collection.attribution,
     spatial_domain: summaryValue("spatial_domain"),
     spatial_resolution: summaryValue("spatial_resolution"),
