@@ -1,5 +1,4 @@
 const fetch = require("@11ty/eleventy-fetch");
-const { uniq } = require("lodash");
 
 const CC_BY_4 = `
         <p>
@@ -255,71 +254,6 @@ const models = {
 };
 
 let entries = [
-  // This is the deprecated zarr v2 dataset. It has 4 variables, wasn't live updated, and is zarr v2.
-  // noaa-gfs-analysis-hourly
-  {
-    modelId: "noaa-gfs",
-    descriptionSummary: `
-        <p>
-        This analysis dataset is an archive of the model's best estimate of past weather.
-        It is created by concatenating the first few hours of each historical forecast to
-        provide a dataset with dimensions time, latitude, and longitude.
-        </p>
-      `,
-    descriptionDetails: `
-        <h3>Construction</h3>
-        <p>
-        GFS starts a new model run every 6 hours and
-        dynamical.org has created this analysis by concatenating the first 6
-        hours of each forecast along the time dimension.
-        </p>
-
-        <h3>Interpolation</h3>
-        <p>
-        Before 2021-02-27 GFS had a 3 hourly step at early forecast hours.
-        In this reanalysis we have used linear interpolation in the time
-        dimension to fill in the two timesteps between the three-hourly
-        values prior to 2021-02-27.
-        </p>
-
-        <h3>Storage</h3>
-        <p>
-        Storage for this dataset is generously provided by
-        <a href="https://source.coop/">Source Cooperative</a>,
-        a <a href="https://radiant.earth/">Radiant Earth</a> initiative.
-        </p>
-
-        <h3>Compression</h3>
-        <p>
-        The data values in this dataset have been rounded in their binary
-        representation to improve compression. We round to retain 9 bits of
-        the floating point number's mantissa (a 10 digit significand) which
-        creates a maximum of 0.2% difference between the original and rounded value. See
-        <a href="https://www.nature.com/articles/s43588-021-00156-2">Klöwer et al. 2021</a>
-        for more information.
-        </p>
-      `,
-    url: "https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr",
-    status: "deprecated",
-    license: CC_BY_4,
-    examples: [
-      {
-        title: "Mean temperature for a single day",
-        code: `
-import xarray as xr
-
-ds = xr.open_zarr("https://data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr")
-ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
-    `,
-      },
-    ],
-    // Intentionally removed
-    // githubUrl:
-    //   "https://github.com/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
-    // colabUrl:
-    //   "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/noaa-gfs-analysis-hourly.ipynb",
-  },
-
   // noaa-gfs-analysis
   {
     modelId: "noaa-gfs",
@@ -364,10 +298,9 @@ ds["temperature_2m"].sel(time="2024-06-01T00:00").mean().compute()
         <a href="https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/noaa/gfs/analysis/template_config.py">reformatting code</a>.
         </p>
 
-        <h3>Deprecated related dataset</h3>
+        <h3>Related dataset</h3>
         <p>
-        This dataset replaces the deprecated <a href="/catalog/noaa-gfs-analysis-hourly/">NOAA GFS analysis, hourly</a> dataset.
-        This dataset provides more variables and live updates and <a href="/catalog/noaa-gefs-analysis/">NOAA GEFS analysis</a> provides a much longer historical record.
+        <a href="/catalog/noaa-gefs-analysis/">NOAA GEFS analysis</a> provides a much longer historical record.
         </p>
       `,
     url: "https://data.dynamical.org/noaa/gfs/analysis/latest.zarr",
@@ -1183,36 +1116,18 @@ module.exports = async function () {
       continue;
     }
 
+    const slug = stacSlugFromUrl(entries[i].url);
     try {
-      // Try zarr v3 format first
-      const datasetInfo = await processZarrV3(entries[i].url);
-      entries[i] = {
-        ...entries[i],
-        ...datasetInfo,
-      };
+      const datasetInfo = await processStacCollection(slug);
+      entries[i] = { ...entries[i], ...datasetInfo };
     } catch (e) {
-      console.log(
-        `Falling back to zarr v2 for ${entries[i].url}: ${e.message}`
-      );
-      // Fall back to zarr v2 format
-      const datasetInfo = await processZarrV2(entries[i].url);
-      entries[i] = {
-        ...entries[i],
-        ...datasetInfo,
-      };
+      // Entries without a STAC collection (e.g. "coming soon" datasets
+      // not yet ingested) render without the dimensions/variables tables.
+      console.log(`No STAC collection for ${slug}: ${e.message}`);
+      entries[i].dataset_id = entries[i].dataset_id || slug;
+      entries[i].name = entries[i].name || slug;
     }
   }
-
-  // Compute icechunk config for datasets that have icechunk notebooks
-  entries.forEach((entry) => {
-    if (entry.githubIcechunkUrl && entry.dataset_id && entry.dataset_version) {
-      entry.icechunk = {
-        bucket: `dynamical-${entry.modelId}`,
-        prefix: `${entry.dataset_id}/v${entry.dataset_version}.icechunk/`,
-        region: "us-west-2",
-      };
-    }
-  });
 
   // Group datasets by model
   const modelGroups = {};
@@ -1250,115 +1165,61 @@ module.exports = async function () {
 };
 
 /**
- * Process zarr v2 metadata format
- * @param {string} url - URL to the zarr dataset
- * @returns {Object} - Dataset metadata with dimensions and variables
+ * Derive the STAC collection slug from a zarr URL.
+ * e.g. https://data.dynamical.org/noaa/gfs/analysis/latest.zarr → noaa-gfs-analysis
  */
-async function processZarrV2(url) {
-  const metadata = (await fetch(`${url}/.zmetadata`, { type: "json" }))[
-    "metadata"
-  ];
-
-  const metadataKeys = Object.keys(metadata).filter(
-    (key) => !key.startsWith("spatial_ref")
-  );
-
-  const dimensionKeys = uniq(
-    metadataKeys
-      .flatMap((key) => metadata[key]["_ARRAY_DIMENSIONS"])
-      .filter((key) => !!key)
-  );
-
-  const variableKeys = metadataKeys
-    .filter(
-      (key) => key.endsWith(".zattrs") && metadata[key]["_ARRAY_DIMENSIONS"]
-    )
-    .map((key) => key.substring(0, key.indexOf("/")))
-    .filter((key) => !dimensionKeys.includes(key));
-
-  let dimensions = [];
-  let variables = [];
-
-  for (let i = 0; i < dimensionKeys.length; i++) {
-    const key = dimensionKeys[i];
-    dimensions.push({
-      name: key,
-      ...metadata[`${key}/.zattrs`],
-      ...metadata[`${key}/.zarray`],
-    });
-  }
-
-  for (let i = 0; i < variableKeys.length; i++) {
-    const key = variableKeys[i];
-    variables.push({
-      name: key,
-      dimension_names: metadata[`${key}/.zattrs`]["_ARRAY_DIMENSIONS"],
-      ...metadata[`${key}/.zattrs`],
-      ...metadata[`${key}/.zarray`],
-    });
-  }
-
-  return {
-    ...metadata[".zattrs"],
-    dataset_id: metadata[".zattrs"]["id"],
-    dimensions,
-    variables,
-  };
+function stacSlugFromUrl(url) {
+  const path = new URL(url).pathname.replace(/^\/+|\/+$/g, "");
+  return path.replace(/\/latest\.zarr$/, "").split("/").join("-");
 }
 
 /**
- * Process zarr v3 metadata format
- * @param {string} url - URL to the zarr dataset
- * @returns {Object} - Dataset metadata with dimensions and variables
+ * Fetch a STAC Collection from stac.dynamical.org and reshape it into the
+ * object templates consume (dataset attributes + dimensions + variables +
+ * icechunk config).
  */
-async function processZarrV3(url) {
-  const zarrJson = await fetch(`${url}/zarr.json`, { type: "json" });
+async function processStacCollection(slug) {
+  const stacUrl = `https://stac.dynamical.org/${slug}/collection.json`;
+  const collection = await fetch(stacUrl, { type: "json" });
 
-  if (!zarrJson.consolidated_metadata) {
-    throw new Error("No consolidated metadata found in zarr v3 format");
-  }
+  const cubeDims = collection["cube:dimensions"] || {};
+  const cubeVars = collection["cube:variables"] || {};
 
-  const metadata = zarrJson.consolidated_metadata.metadata;
-  const datasetAttributes = zarrJson.attributes || {};
+  const dimensions = Object.entries(cubeDims).map(([name, d]) => ({
+    name,
+    units: d.unit,
+    statistics_approximate: { min: d.extent[0], max: d.extent[1] },
+  }));
 
-  const metadataKeys = Object.keys(metadata).filter(
-    (key) => !key.startsWith("spatial_ref")
-  );
+  const variables = Object.entries(cubeVars).map(([name, v]) => ({
+    name,
+    long_name: v.description,
+    short_name: v.short_name,
+    comment: v.comment,
+    units: v.unit,
+    dimension_names: v.dimensions,
+  }));
 
-  const dimensions = [];
-  const variables = [];
+  const summaryValue = (key) => {
+    const value = (collection.summaries || {})[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
 
-  // Process metadata to identify dimensions and variables
-  for (const key of metadataKeys) {
-    const metaItem = metadata[key];
-
-    // Skip if not an array (likely a group or other metadata)
-    if (!metaItem.shape) continue;
-
-    const dimensionNames = metaItem.dimension_names || [];
-
-    // Determine if this is a dimension or a variable
-    const isDimension =
-      dimensionNames.length === 1 && dimensionNames[0] === key;
-
-    const itemInfo = {
-      name: key,
-      ...metaItem.attributes,
-      shape: metaItem.shape,
-      chunks: metaItem.chunks,
-      dtype: metaItem.dtype,
-      dimension_names: dimensionNames,
-    };
-
-    if (isDimension) {
-      dimensions.push(itemInfo);
-    } else {
-      variables.push(itemInfo);
-    }
-  }
+  const icechunkStorage =
+    collection.assets?.icechunk?.["icechunk:storage"];
 
   return {
-    ...datasetAttributes,
+    name: collection.title,
+    dataset_id: collection.id,
+    dataset_version: collection.version,
+    attribution: collection.attribution,
+    spatial_domain: summaryValue("spatial_domain"),
+    spatial_resolution: summaryValue("spatial_resolution"),
+    time_domain: summaryValue("time_domain"),
+    time_resolution: summaryValue("time_resolution"),
+    forecast_domain: summaryValue("forecast_domain"),
+    forecast_resolution: summaryValue("forecast_resolution"),
+    icechunk: icechunkStorage,
     dimensions,
     variables,
   };
