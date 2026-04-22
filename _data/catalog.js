@@ -1175,8 +1175,7 @@ function stacSlugFromUrl(url) {
 
 /**
  * Fetch a STAC Collection from stac.dynamical.org and reshape it into the
- * object templates consume (dataset attributes + dimensions + variables +
- * icechunk config).
+ * object templates consume (dataset attributes + dimensions + variables).
  */
 async function processStacCollection(slug) {
   const stacUrl = `https://stac.dynamical.org/${slug}/collection.json`;
@@ -1205,9 +1204,6 @@ async function processStacCollection(slug) {
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const icechunkStorage =
-    collection.assets?.icechunk?.["icechunk:storage"];
-
   return {
     name: collection.title,
     dataset_id: collection.id,
@@ -1219,7 +1215,6 @@ async function processStacCollection(slug) {
     time_resolution: summaryValue("time_resolution"),
     forecast_domain: summaryValue("forecast_domain"),
     forecast_resolution: summaryValue("forecast_resolution"),
-    icechunk: icechunkStorage,
     dimensions,
     variables,
   };
