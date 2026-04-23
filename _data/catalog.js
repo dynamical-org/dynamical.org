@@ -18,9 +18,7 @@ const ECMWF_LICENSE = `
 // Entries are minimal here — url (for slug derivation and the copyable input),
 // status (live / coming soon / deprecated), and license blurb. All prose
 // (descriptions, examples, per-model metadata) is fetched from STAC at build
-// time and merged in via reshapeStacCollection. The one exception is the
-// dwd-icon-eu "coming soon" entry, which has no STAC collection yet and so
-// authors its prose inline as a fallback.
+// time and merged in via reshapeStacCollection.
 let entries = [
   {
     url: "https://data.dynamical.org/noaa/gfs/analysis/latest.zarr",
@@ -56,48 +54,6 @@ let entries = [
     url: "https://data.dynamical.org/noaa/mrms/conus-analysis-hourly/latest.zarr",
     status: "live",
     license: CC_BY_4,
-  },
-  // dwd-icon-eu — not yet in STAC, so prose lives inline as markdown (matching
-  // the shape STAC Collections will carry once this dataset is ingested).
-  // Remove the fallback block then.
-  {
-    url: "https://data.dynamical.org/dwd/icon-eu/forecast-5-day/latest.zarr",
-    status: "coming soon",
-    license: CC_BY_4,
-    model_id: "dwd-icon-eu",
-    description_summary:
-      "This dataset is an archive of past and present ICON-EU forecasts. " +
-      "Forecasts are identified by an initialization time (`init_time`) denoting " +
-      "the start time of the model run and step forward in time along the " +
-      "`lead_time` dimension. This dataset contains only the 00, 06, 12, " +
-      "and 18 hour UTC initialization times which produce the full length, 5 day forecast.",
-    description_details: [
-      "### Source",
-      "The source grib files this archive is constructed from are provided by " +
-        "[DWD Open Data](https://www.dwd.de/EN/ourservices/opendata/opendata.html) " +
-        "and the [dynamical.org DWD ICON grib archive](https://source.coop/dynamical/dwd-icon-grib) " +
-        "on [Source Cooperative](https://source.coop/).",
-      "### Storage",
-      "Icechunk storage generously provided by [AWS Open Data](https://aws.amazon.com/opendata/). " +
-        "Storage for the dynamical.org DWD ICON-EU grib archive is generously provided by " +
-        "[Source Cooperative](https://source.coop/), a [Radiant Earth](https://radiant.earth/) initiative.",
-      "### Compression",
-      "The data values in this dataset have been rounded in their binary " +
-        "floating point representation to improve compression. See " +
-        "[Klöwer et al. 2021](https://www.nature.com/articles/s43588-021-00156-2) " +
-        "for more information on this approach. The exact number of rounded bits " +
-        "can be found in our " +
-        "[reformatting code](https://github.com/dynamical-org/reformatters/blob/main/src/reformatters/dwd/icon_eu/forecast_5_day/template_config.py).",
-    ].join("\n\n"),
-    examples: [
-      {
-        title: "Maximum temperature in a forecast",
-        code: `import xarray as xr  # xarray>=2025.1.2 and zarr>=3.0.8 for zarr v3 support
-
-ds = xr.open_zarr("https://data.dynamical.org/dwd/icon-eu/forecast-5-day/latest.zarr")
-ds["temperature_2m"].sel(init_time="2026-04-01T00", latitude=50, longitude=10).max().compute()`,
-      },
-    ],
   },
   {
     url: "https://data.dynamical.org/ecmwf/aifs-single/forecast/latest.zarr",
