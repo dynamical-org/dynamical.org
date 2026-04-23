@@ -32,14 +32,14 @@ eleventyComputed:
   }
 </script>
 <div class="content catalog-item">
-  {%- set model = catalog.models | find('id', entry.modelId) %}
+  {%- set model = catalog.models | find('id', entry.model_id) %}
   <div>
     <a href="/catalog">Catalog</a>
     > {{ entry.name }}
   </div>
   <div style="margin: 3rem 0;">
     {% include "catalog-entry-status.njk" %}
-    <h1 style="display: flex; align-items: center;">{% if model.glyph %}<span class="catalog-glyph">{{ model.glyph | safe }}</span>{% endif %}{{ entry.name }}</h1>
+    <h1>{{ entry.name }}</h1>
   </div>
   <table>
     <tr>
@@ -76,10 +76,10 @@ eleventyComputed:
   <p>
     <span><a href="https://stac.dynamical.org/{{ entry.dataset_id }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/{{ entry.dataset_id }}/collection.json">browse</a>)</span>
   </p>
-  {% if model %}
-    <p style="text-wrap: balance">{{ model.description | safe }}</p>
+  {% if model and model.description %}
+    <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
   {% endif %}
-  <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
+  <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
   {% if model.datasets.length > 1 %}
     <h3>Related Datasets</h3>
     <ul>
@@ -195,5 +195,5 @@ eleventyComputed:
     <p>
     <a href="https://doi.org/10.5281/zenodo.18777399"><img src="https://zenodo.org/badge/859043226.svg" alt="DOI"/></a>
     </p>
-    {{ entry.descriptionDetails | safe }}
+    {{ entry.description_details | markdown | safe }}
 </div>

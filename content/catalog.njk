@@ -26,11 +26,7 @@ title: catalog
         {% for entry in liveEntries %}
           <tr{% if loop.last %} class="catalog-group-last"{% endif %}>
             {% if loop.first %}
-              <td rowspan="{{ liveEntries | length }}" class="catalog-model-cell">
-                <div style="display: flex; align-items: center;">
-                  <span class="catalog-glyph">{{ model.glyph | safe }}</span>{{ model.name }}
-                </div>
-              </td>
+              <td rowspan="{{ liveEntries | length }}" class="catalog-model-cell">{{ model.name }}</td>
             {% endif %}
             <td>
               {% if entry.status == 'live' or entry.status == 'available' %}

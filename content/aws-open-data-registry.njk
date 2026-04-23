@@ -9,7 +9,7 @@ permalink: 'aws/dynamical-{{model.id}}.yaml'
 {%- set bucket = "dynamical-" ~ model.id -%}
 Name: {{model.name}} - dynamical.org Icechunk Zarr
 Description: |
-    {{ model.description | safe | trim }}
+    {{ model.description | markdown | safe | trim }}
     <p>These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.</p>
     <p>When Icechunk 2.0 is released, these datasets will be updated correspondingly, and updated client libraries will be required for access. To be notified of dataset updates, subscribe to the <a href='https://dynamical.org/updates/'>mailing list</a>.</p>
     <ul>

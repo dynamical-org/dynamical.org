@@ -4,12 +4,32 @@ const pluginSyntaxHighlight = require("@11ty/eleventy-plugin-syntaxhighlight");
 const { pairedShortcode } = require("@11ty/eleventy-plugin-syntaxhighlight");
 const { EleventyHtmlBasePlugin } = require("@11ty/eleventy");
 const fetch = require("@11ty/eleventy-fetch");
+const markdownIt = require("markdown-it");
 const fs = require("fs");
 const path = require("path");
 
 const crypto = require("crypto");
 
 const pluginImages = require("./eleventy.config.images.js");
+
+// html: true lets inline HTML (e.g. <a>, <code>) in STAC-provided markdown
+// pass through so we can migrate prose without breaking mid-markdown links.
+const md = markdownIt({ html: true });
+
+// Strip the common leading whitespace from every non-empty line. Without this,
+// markdown prose authored inside a JS template literal keeps its indentation,
+// and markdown-it treats any 4+ space-indented block as a code fence — which
+// double-escapes inline HTML and wrecks our existing HTML-in-markdown prose.
+function dedent(input) {
+  const lines = input.split("\n");
+  const indents = lines
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.match(/^ */)[0].length);
+  if (indents.length === 0) return input;
+  const minIndent = Math.min(...indents);
+  if (minIndent === 0) return input;
+  return lines.map((line) => line.slice(minIndent)).join("\n");
+}
 
 const CACHE_DIR = path.join(__dirname, ".cache");
 const CACHE_FILE = path.join(CACHE_DIR, "github-contributors.json");
@@ -193,6 +213,10 @@ module.exports = function (eleventyConfig) {
     }
     return array.filter((item) => item[property] !== value);
   });
+
+  eleventyConfig.addFilter("markdown", (input) =>
+    input ? md.render(dedent(input)) : ""
+  );
 
   return {
     dir: {
