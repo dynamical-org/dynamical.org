@@ -8,8 +8,6 @@ title: catalog
     <h1>Catalog</h1>
     <div style="margin-left: auto; display: flex; gap: 1rem; align-items: center;">
       <span><a href="https://stac.dynamical.org/catalog.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/catalog.json">browse</a>)</span>
-      <span>·</span>
-      <a href="/catalog/llms">🤖</a>
     </div>
   </div>
 
@@ -35,7 +33,7 @@ title: catalog
                 {{ entry.name | replace(model.name, '') | trim }} ({{ entry.status }})
               {% endif %}
             </td>
-            <td class="catalog-resolution">{{ entry.spatial_resolution }}</td>
+            <td>{{ entry.spatial_resolution }}</td>
             <td>{{ entry.spatial_domain }}</td>
           </tr>
         {% endfor %}
