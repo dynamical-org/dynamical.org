@@ -423,6 +423,7 @@ nav {
 nav ul {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.25rem 1.25rem;
   padding-inline-start: 0;
   margin: 0;
@@ -439,7 +440,7 @@ nav ul li:first-child {
 
 .nav-lockup img {
   display: block;
-  height: 24px;
+  height: 30px;
   width: auto;
 }
 
@@ -973,6 +974,9 @@ article img {
 .status-row-details {
   grid-column: 1 / -1;
   padding: 1rem 0 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .status-row-details table.data {
