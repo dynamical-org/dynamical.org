@@ -24,13 +24,6 @@ eleventyComputed:
     color: rgb(45, 45, 45);
   }
 </style>
-<script>
-  function copyUrl() {
-    const input = document.getElementById('catalog-entry-url');
-    input.select();
-    document.execCommand('copy');
-  }
-</script>
 <div class="content catalog-item">
   {%- set model = catalog.models | find('id', entry.model_id) %}
   <div>
@@ -69,10 +62,6 @@ eleventyComputed:
       </tr>
     {% endif %}
   </table>
-  <p>
-    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}" style="width: {{ entry.url.length + 2 }}ch; max-width: 100%;"/>
-    <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
-  </p>
   <p>
     <span><a href="https://stac.dynamical.org/{{ entry.dataset_id }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/{{ entry.dataset_id }}/collection.json">browse</a>)</span>
   </p>
