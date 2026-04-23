@@ -4,10 +4,10 @@ pagination:
   alias: entry
   size: 1
   filter:
-    entry.githubIcechunkUrl
+    entry.githubUrl
 permalink: 'earthmover/{{entry.dataset_id}}.md'
 ---
-{%- set model = catalog.models | find('id', entry.modelId) -%}
+{%- set model = catalog.models | find('id', entry.model_id) -%}
 
 {{ entry.description }}
 
@@ -22,20 +22,18 @@ permalink: 'earthmover/{{entry.dataset_id}}.md'
 | Forecast resolution | {{ entry.forecast_resolution }} |
 {% endif %}
 
-{{ model.description | striptags }}
+{{ entry.description_model | striptags }}
 
-{{ entry.descriptionSummary | striptags }}
-
-> dynamical.org Icechunk datasets are in preview until Icechunk 2 is released, at which point users will need
-> to update their client libraries to Icechunk 2. Subscribe to our
-> [newsletter](https://dynamical.org/updates/) to be notified when that happens.
+{{ entry.description_summary | striptags }}
 
 _Don't see what you're looking for or have a question? Contact feedback@dynamical.org._
 
+{% if entry.githubUrl %}
 ## Examples
 
-* [Open notebook in github]({{ entry.githubIcechunkUrl }})
-* [Open notebook in colab]({{ entry.githubIcechunkUrl | replace("https://github.com/", "https://colab.research.google.com/github/") }})
+* [Open notebook in github]({{ entry.githubUrl }})
+* [Open notebook in colab]({{ entry.colabUrl }})
+{% endif %}
 
 ## Dimensions
 
@@ -58,7 +56,7 @@ Contact feedback@dynamical.org to request additional variables.
 ## Details
 
 ### License
-{{ entry.licenseMd }}
+{{ entry.license_md }}
 
 ### Attribution and citation
 _{{ entry.attribution }}_
@@ -67,5 +65,5 @@ Or _{{ model.name }} from dynamical.org._
 
 [DOI: 10.5281/zenodo.18777399](https://doi.org/10.5281/zenodo.18777399)
 
-{{ entry.descriptionDetailsMd }}
+{{ entry.description_details }}
 

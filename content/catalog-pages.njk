@@ -24,22 +24,15 @@ eleventyComputed:
     color: rgb(45, 45, 45);
   }
 </style>
-<script>
-  function copyUrl() {
-    const input = document.getElementById('catalog-entry-url');
-    input.select();
-    document.execCommand('copy');
-  }
-</script>
 <div class="content catalog-item">
-  {%- set model = catalog.models | find('id', entry.modelId) %}
+  {%- set model = catalog.models | find('id', entry.model_id) %}
   <div>
     <a href="/catalog">Catalog</a>
     > {{ entry.name }}
   </div>
   <div style="margin: 3rem 0;">
     {% include "catalog-entry-status.njk" %}
-    <h1 style="display: flex; align-items: center;">{% if model.glyph %}<span class="catalog-glyph">{{ model.glyph | safe }}</span>{% endif %}{{ entry.name }}</h1>
+    <h1>{{ entry.name }}</h1>
   </div>
   <table>
     <tr>
@@ -70,16 +63,12 @@ eleventyComputed:
     {% endif %}
   </table>
   <p>
-    <input id="catalog-entry-url" readonly name="url" value="{{ entry.url }}" style="width: {{ entry.url.length + 2 }}ch; max-width: 100%;"/>
-    <span style="cursor: pointer;" onclick="copyUrl()">⎘</span>
+    <span><a href="https://stac.dynamical.org/{{ entry.dataset_id }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/{{ entry.dataset_id }}/collection.json">browse</a>)</span>
   </p>
-  <p>
-    <span><a href="/stac/{{ entry.dataset_id | slugify }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/dynamical.org/stac/{{ entry.dataset_id | slugify }}/collection.json">browse</a>)</span>
-  </p>
-  {% if model %}
-    <p style="text-wrap: balance">{{ model.description | safe }}</p>
+  {% if model.description %}
+    <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
   {% endif %}
-  <p style="text-wrap: balance">{{ entry.descriptionSummary | safe }}</p>
+  <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
   {% if model.datasets.length > 1 %}
     <h3>Related Datasets</h3>
     <ul>
@@ -117,28 +106,7 @@ eleventyComputed:
         </td>
       </tr>
     {% endif %}
-    {% if entry.githubIcechunkUrl %}
-      <tr>
-        <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/>
-        </td>
-        <td>
-          <a href="{{ entry.githubIcechunkUrl }}">Icechunk example usage notebook ***</a>
-        </td>
-      </tr>
-    {% endif %}
   </table>
-  {% if entry.githubIcechunkUrl %}
-    <p>
-      <strong>***:</strong>
-      Icechunk examples are pre-release for feedback. Subscribe to our
-      <a href="/updates">newsletter</a>
-      to be notified about two small breaking changes that we will implement:
-      <ol>
-        <li>URLs will be updated to stable long-term URLs</li>
-        <li>Users will need to update Icechunk client to version 2 when it is released.</li>
-      </ol>
-    </p>
-  {% endif %}
   {% for example in entry.examples %}
     <div class="frame">
       <div class="frameHeader">
@@ -163,7 +131,7 @@ eleventyComputed:
             <strong>{{ dim.name }}</strong>
           </td>
           <td class='right'>{{ dim.statistics_approximate.min | roundIfNumber(3) }}</td>
-          <td class='right'>{{ dim.statistics_approximate.max | roundIfNumber(3) }}</td>
+          <td class='right'>{{ dim.statistics_approximate.max | roundIfNumber(3) if dim.statistics_approximate.max != null else "Present" }}</td>
           <td class='right'>{{ dim.units }}</td>
         </tr>
         <tr class="metadata-comment">
@@ -216,5 +184,5 @@ eleventyComputed:
     <p>
     <a href="https://doi.org/10.5281/zenodo.18777399"><img src="https://zenodo.org/badge/859043226.svg" alt="DOI"/></a>
     </p>
-    {{ entry.descriptionDetails | safe }}
+    {{ entry.description_details | markdown | safe }}
 </div>

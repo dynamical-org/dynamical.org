@@ -247,11 +247,6 @@ table.data.small th {
   width: 1em;
 }
 
-
-.catalog-table .catalog-resolution {
-  font-size: 0.8em;
-}
-
 .catalog-table tr.catalog-group-last td,
 .catalog-table tr.catalog-group-last + tr td {
   border-top: 1px solid var(--border-color);
