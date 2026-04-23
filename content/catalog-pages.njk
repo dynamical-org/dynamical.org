@@ -142,7 +142,7 @@ eleventyComputed:
             <strong>{{ dim.name }}</strong>
           </td>
           <td class='right'>{{ dim.statistics_approximate.min | roundIfNumber(3) }}</td>
-          <td class='right'>{{ dim.statistics_approximate.max | roundIfNumber(3) }}</td>
+          <td class='right'>{{ dim.statistics_approximate.max | roundIfNumber(3) if dim.statistics_approximate.max != null else "Present" }}</td>
           <td class='right'>{{ dim.units }}</td>
         </tr>
         <tr class="metadata-comment">

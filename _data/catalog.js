@@ -167,6 +167,16 @@ function fetchStacCollection(slug) {
   return fetch(`${STAC_BASE_URL}/${slug}/collection.json`, { type: "json" });
 }
 
+function licenseMd(licenseLinks) {
+  if (!licenseLinks || licenseLinks.length === 0) return "";
+  const labels = licenseLinks.map(
+    (l) => `[${l.title.replace("CC-BY-4.0", "CC BY 4.0").replace(/\s*\(additional terms\)$/i, "")}](${l.href})`,
+  );
+  if (labels.length === 1) return `Dataset licensed under ${labels[0]}.`;
+  const last = labels.pop();
+  return `Dataset licensed under ${labels.join(", ")} and ${last}.`;
+}
+
 // Reshape a STAC Collection into the object templates consume
 // (dataset attributes + dimensions + variables + prose).
 function reshapeStacCollection(collection) {
@@ -184,7 +194,7 @@ function reshapeStacCollection(collection) {
 
   const variables = Object.entries(cubeVars).map(([name, v]) => ({
     name,
-    long_name: v.description,
+    long_name: v.long_name,
     short_name: v.short_name,
     comment: v.comment,
     units: v.unit,
@@ -200,7 +210,10 @@ function reshapeStacCollection(collection) {
   const githubUrl = exampleLinks.find((l) => l.type === "application/x-ipynb+json")?.href;
   const colabUrl = exampleLinks.find((l) => l.type === "text/html")?.href;
 
+  const licenseLinks = (collection.links || []).filter((l) => l.rel === "license");
+
   return {
+    license_md: licenseMd(licenseLinks),
     name: collection.title,
     dataset_id: collection.id,
     description: collection.description,
