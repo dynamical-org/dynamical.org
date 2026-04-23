@@ -114,26 +114,22 @@ ds["temperature_2m"].sel(init_time="2026-04-01T00", latitude=50, longitude=10).m
 const STAC_BASE_URL = process.env.STAC_BASE_URL || "https://stac.dynamical.org";
 
 module.exports = async function () {
-  for (let i = 0; i < entries.length; i++) {
-    if (!entries[i].url) {
-      continue;
-    }
+  for (const entry of entries) {
+    if (!entry.url) continue;
 
-    const slug = stacSlugFromUrl(entries[i].url);
-    let collection;
+    const slug = stacSlugFromUrl(entry.url);
     try {
-      collection = await fetchStacCollection(slug);
+      const collection = await fetchStacCollection(slug);
+      Object.assign(entry, reshapeStacCollection(collection));
     } catch (e) {
       // Tolerate only 404 (dataset not yet ingested into STAC). Any other
       // failure — network, 5xx, malformed JSON — should fail the build
       // rather than silently publish a page missing its metadata tables.
       if (e.cause?.status !== 404) throw e;
       console.log(`No STAC collection for ${slug}: ${e.message}`);
-      entries[i].dataset_id = entries[i].dataset_id || slug;
-      entries[i].name = entries[i].name || slug;
-      continue;
+      entry.dataset_id = entry.dataset_id || slug;
+      entry.name = entry.name || slug;
     }
-    entries[i] = { ...entries[i], ...reshapeStacCollection(collection) };
   }
 
   // Group datasets by model using STAC-provided model_id / model_name /

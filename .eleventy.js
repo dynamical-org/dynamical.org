@@ -24,7 +24,7 @@ function dedent(input) {
   const lines = input.split("\n");
   const indents = lines
     .filter((line) => line.trim().length > 0)
-    .map((line) => line.match(/^ */)[0].length);
+    .map((line) => line.length - line.trimStart().length);
   if (indents.length === 0) return input;
   const minIndent = Math.min(...indents);
   if (minIndent === 0) return input;

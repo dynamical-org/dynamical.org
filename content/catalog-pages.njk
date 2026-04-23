@@ -76,7 +76,7 @@ eleventyComputed:
   <p>
     <span><a href="https://stac.dynamical.org/{{ entry.dataset_id }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/{{ entry.dataset_id }}/collection.json">browse</a>)</span>
   </p>
-  {% if model and model.description %}
+  {% if model.description %}
     <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
   {% endif %}
   <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
