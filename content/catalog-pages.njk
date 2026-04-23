@@ -176,7 +176,7 @@ eleventyComputed:
   </p>
   <h2>Details</h2>
     <h3>License</h3>
-    {{- entry.license | safe }}
+    {{ entry.license_md | markdown | safe }}
 
     <h3>Attribution and citation</h3>
     <p><i>{{ entry.attribution }}</i></p>
