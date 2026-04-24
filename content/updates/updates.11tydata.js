@@ -2,5 +2,5 @@ module.exports = {
   tags: [
     "updates"
   ],
-  "layout": "base.njk",
+  "layout": "update.njk",
 };
