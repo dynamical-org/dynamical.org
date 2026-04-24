@@ -8,9 +8,12 @@ module.exports = async function () {
 
   const entries = await Promise.all(
     childLinks.map(async (link) => {
-      // Child links are absolute (stac.dynamical.org). Rewrite to STAC_BASE_URL
-      // so local builds can point at a locally-served stac/ tree.
-      const href = link.href.replace("https://stac.dynamical.org", STAC_BASE_URL);
+      // Child links are absolute (stac.dynamical.org). When STAC_BASE_URL is
+      // set explicitly, rewrite them to it so local builds can point at a
+      // locally-served stac/ tree. Otherwise pass the href through untouched.
+      const href = process.env.STAC_BASE_URL
+        ? link.href.replace("https://stac.dynamical.org", process.env.STAC_BASE_URL)
+        : link.href;
       const collection = await fetch(href, { type: "json" });
       return { status: "live", ...reshapeStacCollection(collection) };
     }),
