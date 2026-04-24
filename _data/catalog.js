@@ -2,8 +2,15 @@ const fetch = require("@11ty/eleventy-fetch");
 
 const STAC_BASE_URL = process.env.STAC_BASE_URL || "https://stac.dynamical.org";
 
+// `npm run build` sets this to "0s" so production builds always pick up the
+// latest STAC — we don't want to publish a site that references stale catalog
+// data. `npm start` (dev server) leaves it unset and keeps the default 1-day
+// cache so iterating on templates stays fast.
+const STAC_CACHE_DURATION = process.env.STAC_CACHE_DURATION || "1d";
+const STAC_FETCH_OPTIONS = { type: "json", duration: STAC_CACHE_DURATION };
+
 module.exports = async function () {
-  const rootCatalog = await fetch(`${STAC_BASE_URL}/catalog.json`, { type: "json" });
+  const rootCatalog = await fetch(`${STAC_BASE_URL}/catalog.json`, STAC_FETCH_OPTIONS);
   const childLinks = (rootCatalog.links || []).filter((l) => l.rel === "child");
 
   const entries = await Promise.all(
@@ -14,7 +21,7 @@ module.exports = async function () {
       const href = process.env.STAC_BASE_URL
         ? link.href.replace("https://stac.dynamical.org", process.env.STAC_BASE_URL)
         : link.href;
-      const collection = await fetch(href, { type: "json" });
+      const collection = await fetch(href, STAC_FETCH_OPTIONS);
       return { status: "live", ...reshapeStacCollection(collection) };
     }),
   );
