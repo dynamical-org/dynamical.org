@@ -8,7 +8,10 @@ module.exports = async function () {
 
   const entries = await Promise.all(
     childLinks.map(async (link) => {
-      const collection = await fetch(link.href, { type: "json" });
+      // Child links are absolute (stac.dynamical.org). Rewrite to STAC_BASE_URL
+      // so local builds can point at a locally-served stac/ tree.
+      const href = link.href.replace("https://stac.dynamical.org", STAC_BASE_URL);
+      const collection = await fetch(href, { type: "json" });
       return { status: "live", ...reshapeStacCollection(collection) };
     }),
   );
@@ -72,9 +75,7 @@ function reshapeStacCollection(collection) {
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const exampleLinks = (collection.links || []).filter((l) => l.rel === "example");
-  const githubUrl = exampleLinks.find((l) => l.type === "application/x-ipynb+json")?.href;
-  const colabUrl = exampleLinks.find((l) => l.type === "text/html")?.href;
+  const notebooks = parseNotebooks(collection.links);
 
   const licenseLinks = (collection.links || []).filter((l) => l.rel === "license");
 
@@ -98,7 +99,36 @@ function reshapeStacCollection(collection) {
     forecast_resolution: summaryValue("forecast_resolution"),
     dimensions,
     variables,
-    githubUrl,
-    colabUrl,
+    notebooks,
   };
+}
+
+// Pair `rel:example` links into notebooks by the `{slug}.ipynb` filename
+// they share. Each notebook ends up with a github (ipynb json) URL and a
+// colab (html) URL. Backward-compatible with STAC output that emits a single
+// pair per dataset.
+function parseNotebooks(links) {
+  const examples = (links || []).filter((l) => l.rel === "example");
+  const order = [];
+  const bySlug = {};
+  for (const link of examples) {
+    const match = link.href.match(/([^/]+)\.ipynb(?:$|\?|#)/);
+    if (!match) continue;
+    const slug = match[1];
+    if (!bySlug[slug]) {
+      order.push(slug);
+      const title = (link.title || "")
+        .replace(/\s*\((?:GitHub|Colab)\)\s*$/i, "")
+        .trim();
+      bySlug[slug] = { slug, title: title || slug };
+    }
+    if (link.type === "application/x-ipynb+json") {
+      bySlug[slug].githubUrl = link.href;
+    } else if (link.type === "text/html") {
+      bySlug[slug].colabUrl = link.href;
+    }
+  }
+  return order
+    .map((slug) => bySlug[slug])
+    .filter((nb) => nb.githubUrl && nb.colabUrl);
 }

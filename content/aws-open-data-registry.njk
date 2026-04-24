@@ -5,7 +5,12 @@ pagination:
   size: 1
 permalink: 'aws/dynamical-{{model.id}}.yaml'
 ---
-{%- set entries = model.datasets | selectattr('githubUrl') | list -%}
+{%- set entries = [] -%}
+{%- for dataset in model.datasets -%}
+  {%- if dataset.notebooks.length -%}
+    {%- set _ = entries.push(dataset) -%}
+  {%- endif -%}
+{%- endfor -%}
 {%- set bucket = "dynamical-" ~ model.id -%}
 Name: {{model.name}} - dynamical.org Icechunk Zarr
 Description: |
@@ -43,11 +48,13 @@ Resources:
 DataAtWork:
   Tutorials:
     {%- for entry in entries %}
-    - Title: {{entry.name}} python quickstart notebook
-      URL: {{entry.githubUrl}}
-      NotebookURL: {{entry.githubUrl}}
+      {%- for notebook in entry.notebooks %}
+    - Title: "{{ entry.name }} — {{ notebook.title }}"
+      URL: {{ notebook.githubUrl }}
+      NotebookURL: {{ notebook.githubUrl }}
       AuthorName: dynamical.org
       AuthorURL: https://dynamical.org
+      {%- endfor %}
     {%- endfor %}
 ADXCategories:
   - Environmental Data
