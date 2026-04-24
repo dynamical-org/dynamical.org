@@ -3,8 +3,6 @@ pagination:
   data: catalog.entries
   alias: entry
   size: 1
-  filter:
-    entry.githubUrl
 permalink: 'earthmover/{{entry.dataset_id}}.md'
 ---
 {%- set model = catalog.models | find('id', entry.model_id) -%}
@@ -28,11 +26,13 @@ permalink: 'earthmover/{{entry.dataset_id}}.md'
 
 _Don't see what you're looking for or have a question? Contact feedback@dynamical.org._
 
-{% if entry.githubUrl %}
+{% if entry.notebooks.length %}
 ## Examples
 
-* [Open notebook in github]({{ entry.githubUrl }})
-* [Open notebook in colab]({{ entry.colabUrl }})
+{% for notebook in entry.notebooks -%}
+* [{{ notebook.title }} (Github)]({{ notebook.githubUrl }})
+* [{{ notebook.title }} (Colab)]({{ notebook.colabUrl }})
+{% endfor %}
 {% endif %}
 
 ## Dimensions

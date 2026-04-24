@@ -88,24 +88,22 @@ eleventyComputed:
   {% endif %}
   <h2>Examples</h2>
   <table>
-    {% if entry.githubUrl %}
+    {% for notebook in entry.notebooks %}
       <tr>
         <td style="text-align: center"><img src="/assets/github-mark.svg" height="18"/>
         </td>
         <td>
-          <a href="{{ entry.githubUrl }}">Open notebook in github</a>
+          <a href="{{ notebook.githubUrl }}">{{ notebook.title }} (Github)</a>
         </td>
       </tr>
-    {% endif %}
-    {% if entry.colabUrl %}
       <tr>
         <td style="text-align: center;"><img src="/assets/colab.svg" height="18"/>
         </td>
         <td>
-          <a href="{{ entry.colabUrl }}">Open notebook in colab</a>
+          <a href="{{ notebook.colabUrl }}">{{ notebook.title }} (Colab)</a>
         </td>
       </tr>
-    {% endif %}
+    {% endfor %}
   </table>
   {% for example in entry.examples %}
     <div class="frame">
