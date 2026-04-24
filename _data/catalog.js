@@ -4,9 +4,9 @@ const STAC_BASE_URL = process.env.STAC_BASE_URL || "https://stac.dynamical.org";
 
 // `npm run build` sets this to "0s" so production builds always pick up the
 // latest STAC — we don't want to publish a site that references stale catalog
-// data. `npm start` (dev server) leaves it unset and keeps the default 1-day
-// cache so iterating on templates stays fast.
-const STAC_CACHE_DURATION = process.env.STAC_CACHE_DURATION || "1d";
+// data. `npm start` (dev server) leaves it unset and keeps a 1-hour cache so
+// iterating on templates stays fast without going too far out of date.
+const STAC_CACHE_DURATION = process.env.STAC_CACHE_DURATION || "1h";
 const STAC_FETCH_OPTIONS = { type: "json", duration: STAC_CACHE_DURATION };
 
 module.exports = async function () {
