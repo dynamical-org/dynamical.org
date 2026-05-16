@@ -45,6 +45,12 @@
   --status-track-bg: #e9e9ee;
 
   --status-on-track: var(--status-on-time);
+
+  /* Brand radius tokens — mirror dynamical-org/brand colors_and_type.css.
+     sm matches the logo shoulder fillet (2.5px); md = popups; lg = dark frame. */
+  --radius-sm: 2.5px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -288,15 +294,13 @@ caption {
 
 .hero-cta {
   display: inline-block;
-  padding: 0.8rem 2rem;
+  padding: 0.6rem 1.4rem;
   border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   color: var(--header-color);
   text-decoration: none;
-  text-transform: uppercase;
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  letter-spacing: 1px;
-  transition: background-color 0.15s, color 0.15s;
 }
 
 .hero-cta:visited {
@@ -574,7 +578,7 @@ article img {
   background: var(--popup-bg);
   color: var(--text-color);
   border: 1px solid var(--popup-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 1rem;
   box-shadow: 0 4px 12px var(--shadow-color);
   max-width: 300px;
