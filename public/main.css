@@ -185,6 +185,12 @@ p {
 }
 
 .table-container {
+  /* Caps the wrapper at the article column width (100% of .content =
+     78rem on wide viewports, body-content-area on narrow ones) and
+     scrolls horizontally when the table inside is wider. Default
+     block sizing already produces max-width:100% — written explicitly
+     so the intent is obvious. */
+  max-width: 100%;
   overflow-x: auto;
 }
 
