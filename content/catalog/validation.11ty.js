@@ -53,6 +53,15 @@ function wrapTables(html) {
   );
 }
 
+// The page generates its own H1 from the catalog entry name, so any H1
+// emitted by the rendered markdown is redundant. reformatters PR #614
+// drops the H1 from validation_summary.md; this strip keeps the page
+// looking right against both the current bucket output (still includes
+// the H1) and the post-#614 output (no H1).
+function stripH1(html) {
+  return html.replace(/<h1>[\s\S]*?<\/h1>\s*/g, "");
+}
+
 // Resolve bare-filename src/href on <img>/<a> against baseUrl. Anything
 // that already looks absolute (scheme, protocol-relative, root-relative,
 // or a bare fragment) is left alone — only relative refs get rewritten.
@@ -94,9 +103,11 @@ const CSS = `
 .validation-toc-rail {
   position: absolute;
   top: 0;
-  right: calc(100% + 3rem);
+  right: calc(100% + 2rem);
   width: 18rem;
   height: 100%;
+  padding-right: 1rem;
+  border-right: 1px solid var(--border-muted-color);
 }
 .md-toc {
   position: sticky;
@@ -143,18 +154,31 @@ const CSS = `
 }
 
 @media (max-width: 1180px) {
+  /* Rail collapses out of the left margin and renders in document flow
+     instead — inside validation-body, after the breadcrumb + H1. */
   .validation-toc-rail {
     position: static;
     width: auto;
     height: auto;
-    margin-bottom: 1.6rem;
+    margin: 0 0 2.4rem;
+    padding-right: 0;
+    border-right: none;
   }
   .md-toc {
     position: static;
     max-height: none;
     overflow: visible;
-    padding: 1rem 0;
+    padding: 0;
   }
+  /* No indicator and no nested subheaders when the TOC is in-flow —
+     it's just a flat list of section links right under the title.
+     Once the user scrolls past it, it's off-screen and the scroll-spy
+     wouldn't be useful, so we skip the visual effects entirely. */
+  .md-toc a { padding-left: 0; }
+  .md-toc a::before { display: none; }
+  .md-toc .toc-h3 { display: none; }
+  .md-toc .toc-h2 > ul { display: none; }
+
   .validation-body .table-scroll table { font-size: 1.2rem; }
   .validation-body .table-scroll th,
   .validation-body .table-scroll td {
@@ -166,6 +190,7 @@ ${markdownToc.CSS}
 
 function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
   let html = md.render(markdown);
+  html = stripH1(html);
   html = pngLinksOpenInNewTab(html);
 
   const annotated = markdownToc.annotateHeadings(html);
@@ -177,16 +202,22 @@ function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
 
   const tocHtml = markdownToc.buildTocHtml(annotated.headings);
   const breadcrumbName = datasetName || datasetId;
+  const pageTitle = `${breadcrumbName} validation report`;
 
+  // The TOC rail lives inside .validation-body, after the breadcrumb
+  // and H1. On wide viewports it absolute-positions itself out of flow
+  // into the left margin (containing block = .validation-wrapper). On
+  // narrow viewports it goes static and renders right under the H1.
   return `<div class="validation-wrapper">
-  <div class="validation-toc-rail">
-    <nav class="md-toc" aria-label="Table of contents">${tocHtml}</nav>
-  </div>
   <div class="md-toc-content validation-body">
     <div class="validation-breadcrumb">
       <a href="/catalog">Catalog</a> >
       <a href="/catalog/${datasetId}/">${breadcrumbName}</a> >
       Validation report
+    </div>
+    <h1>${pageTitle}</h1>
+    <div class="validation-toc-rail">
+      <nav class="md-toc" aria-label="Table of contents">${tocHtml}</nav>
     </div>
     ${html}
   </div>
