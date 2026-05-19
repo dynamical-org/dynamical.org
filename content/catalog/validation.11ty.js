@@ -46,10 +46,14 @@ function pngLinksOpenInNewTab(html) {
   return html.replace(/<a href="([^"]+\.png)">/g, '<a href="$1" target="_blank">');
 }
 
+// Match the site's catalog dataset page — wrap markdown tables in the
+// shared .table-container scroll wrapper and apply the .data class so
+// they pick up main.css's table styling (border, cell padding, header
+// underline) instead of duplicating it here.
 function wrapTables(html) {
   return html.replace(
-    /(<table>[\s\S]*?<\/table>)/g,
-    '<div class="table-scroll">$1</div>',
+    /<table>([\s\S]*?)<\/table>/g,
+    '<div class="table-container"><table class="data">$1</table></div>',
   );
 }
 
@@ -106,8 +110,6 @@ const CSS = `
   right: calc(100% + 2rem);
   width: 18rem;
   height: 100%;
-  padding-right: 1rem;
-  border-right: 1px solid var(--border-muted-color);
 }
 .md-toc {
   position: sticky;
@@ -115,6 +117,10 @@ const CSS = `
   font-size: 1.2rem;
   max-height: calc(100vh - 4rem);
   overflow-y: auto;
+  /* Border lives on the toc itself (not the full-height rail) so the
+     vertical line is only as tall as the visible TOC content. */
+  padding-right: 1rem;
+  border-right: 1px solid var(--border-muted-color);
 }
 
 .validation-body {
@@ -133,26 +139,6 @@ const CSS = `
   border: 1px solid var(--border-color);
   background: var(--bg-color);
 }
-.validation-body .table-scroll {
-  overflow-x: auto; margin: 1rem 0 2rem;
-}
-.validation-body .table-scroll table {
-  border-collapse: collapse;
-  border: 1px solid var(--border-color);
-  margin: 0;
-  max-width: 100%;
-}
-.validation-body .table-scroll th,
-.validation-body .table-scroll td {
-  padding: 0.8rem 1.6rem;
-  vertical-align: top;
-  border-right: 1px dotted var(--border-muted-color);
-}
-.validation-body .table-scroll th {
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 700;
-}
-
 @media (max-width: 1180px) {
   /* Rail collapses out of the left margin and renders in document flow
      instead — inside validation-body, after the breadcrumb + H1. */
@@ -161,14 +147,13 @@ const CSS = `
     width: auto;
     height: auto;
     margin: 0 0 2.4rem;
-    padding-right: 0;
-    border-right: none;
   }
   .md-toc {
     position: static;
     max-height: none;
     overflow: visible;
     padding: 0;
+    border-right: none;
   }
   /* No indicator and no nested subheaders when the TOC is in-flow —
      it's just a flat list of section links right under the title.
@@ -178,12 +163,6 @@ const CSS = `
   .md-toc a::before { display: none; }
   .md-toc .toc-h3 { display: none; }
   .md-toc .toc-h2 > ul { display: none; }
-
-  .validation-body .table-scroll table { font-size: 1.2rem; }
-  .validation-body .table-scroll th,
-  .validation-body .table-scroll td {
-    padding: 0.4rem 0.8rem;
-  }
 }
 ${markdownToc.CSS}
 `;
