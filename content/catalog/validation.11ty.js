@@ -126,10 +126,11 @@ function buildToc(sections, variables) {
 
 // Layout: the report body is centered at the same max-width as the
 // rest of the site (78rem), unaffected by the TOC. The TOC lives in a
-// rail anchored just outside the wrapper's right edge (so it sits in
-// what would otherwise be empty page margin), and stays sticky as the
-// page scrolls. Below ~1180px the rail collapses back into the flow
-// and renders above the content.
+// rail anchored just outside the wrapper's left edge (so it sits in
+// what would otherwise be empty page margin) and is right-aligned so
+// its items sit flush against the content's left edge. It stays sticky
+// as the page scrolls. Below ~1180px the rail collapses back into the
+// flow and renders above the content.
 //
 // Typography, link colors, base table style come from main.css.
 const CSS = `
@@ -141,7 +142,7 @@ const CSS = `
 .validation-toc-rail {
   position: absolute;
   top: 0;
-  left: calc(100% + 3rem);
+  right: calc(100% + 3rem);
   width: 18rem;
   height: 100%;
 }
@@ -151,6 +152,7 @@ const CSS = `
   font-size: 1.2rem;
   max-height: calc(100vh - 4rem);
   overflow-y: auto;
+  text-align: right;
 }
 .validation-toc .toc-heading {
   font-size: 1.3rem;
@@ -176,17 +178,9 @@ const CSS = `
   font-size: 1.4rem;
 }
 .validation-breadcrumb { margin-bottom: 2rem; }
-.validation-body h2 {
-  margin-top: 3.2rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--border-color);
-}
+.validation-body h2 { margin-top: 3.2rem; }
 .validation-body h3 { margin-top: 2.4rem; }
-.validation-body section.variable {
-  margin-top: 2.4rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--border-color);
-}
+.validation-body section.variable { margin-top: 2.4rem; }
 .validation-body .plots {
   display: flex; flex-direction: column;
   gap: 1rem; margin: 1rem 0 2rem;
@@ -229,6 +223,7 @@ const CSS = `
     max-height: none;
     overflow: visible;
     padding: 1rem 0;
+    text-align: left;
   }
   .validation-body .table-scroll table { font-size: 1.2rem; }
   .validation-body .table-scroll th,
