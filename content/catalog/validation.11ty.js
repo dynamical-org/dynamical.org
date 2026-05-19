@@ -124,28 +124,33 @@ function buildToc(sections, variables) {
 `;
 }
 
-// Layout: a flex wrapper centered at content-width + TOC-width. The TOC
-// floats off the left edge of the centered max-width report body on
-// wide viewports; below ~1100px both stack into a single column.
+// Layout: the report body is centered at the same max-width as the
+// rest of the site (78rem), unaffected by the TOC. The TOC lives in a
+// rail anchored just outside the wrapper's right edge (so it sits in
+// what would otherwise be empty page margin), and stays sticky as the
+// page scrolls. Below ~1180px the rail collapses back into the flow
+// and renders above the content.
 //
 // Typography, link colors, base table style come from main.css.
 const CSS = `
 .validation-wrapper {
-  display: flex;
-  align-items: flex-start;
-  gap: 3rem;
-  max-width: 99rem;
+  position: relative;
+  max-width: 78rem;
   margin: 0 auto;
+}
+.validation-toc-rail {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 3rem);
+  width: 18rem;
+  height: 100%;
 }
 .validation-toc {
   position: sticky;
-  top: 1rem;
-  flex: 0 0 18rem;
+  top: 2rem;
   font-size: 1.2rem;
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100vh - 4rem);
   overflow-y: auto;
-  border-left: 1px solid var(--border-muted-color);
-  padding-left: 1.6rem;
 }
 .validation-toc .toc-heading {
   font-size: 1.3rem;
@@ -168,9 +173,6 @@ const CSS = `
 .validation-toc a:hover { color: var(--link-color); }
 
 .validation-body {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 78rem;
   font-size: 1.4rem;
 }
 .validation-breadcrumb { margin-bottom: 2rem; }
@@ -215,20 +217,17 @@ const CSS = `
   font-weight: 700;
 }
 
-@media (max-width: 1100px) {
-  .validation-wrapper {
-    flex-direction: column;
-    max-width: 78rem;
-    gap: 1.6rem;
+@media (max-width: 1180px) {
+  .validation-toc-rail {
+    position: static;
+    width: auto;
+    height: auto;
+    margin-bottom: 1.6rem;
   }
   .validation-toc {
     position: static;
-    flex: none;
     max-height: none;
     overflow: visible;
-    border-left: none;
-    border-top: 1px solid var(--border-muted-color);
-    border-bottom: 1px solid var(--border-muted-color);
     padding: 1rem 0;
   }
   .validation-body .table-scroll table { font-size: 1.2rem; }
@@ -254,7 +253,7 @@ function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
   const breadcrumbName = datasetName || datasetId;
 
   return `<div class="validation-wrapper">
-  ${toc}
+  <div class="validation-toc-rail">${toc}</div>
   <article class="validation-body">
     <div class="validation-breadcrumb">
       <a href="/catalog">Catalog</a> >
