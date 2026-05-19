@@ -127,10 +127,9 @@ function buildToc(sections, variables) {
 // Layout: the report body is centered at the same max-width as the
 // rest of the site (78rem), unaffected by the TOC. The TOC lives in a
 // rail anchored just outside the wrapper's left edge (so it sits in
-// what would otherwise be empty page margin) and is right-aligned so
-// its items sit flush against the content's left edge. It stays sticky
-// as the page scrolls. Below ~1180px the rail collapses back into the
-// flow and renders above the content.
+// what would otherwise be empty page margin) and stays sticky as the
+// page scrolls. Below ~1180px the rail collapses back into the flow
+// and renders above the content.
 //
 // Typography, link colors, base table style come from main.css.
 const CSS = `
@@ -152,7 +151,6 @@ const CSS = `
   font-size: 1.2rem;
   max-height: calc(100vh - 4rem);
   overflow-y: auto;
-  text-align: right;
 }
 .validation-toc .toc-heading {
   font-size: 1.3rem;
@@ -223,7 +221,6 @@ const CSS = `
     max-height: none;
     overflow: visible;
     padding: 1rem 0;
-    text-align: left;
   }
   .validation-body .table-scroll table { font-size: 1.2rem; }
   .validation-body .table-scroll th,
@@ -249,14 +246,14 @@ function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
 
   return `<div class="validation-wrapper">
   <div class="validation-toc-rail">${toc}</div>
-  <article class="validation-body">
+  <div class="validation-body">
     <div class="validation-breadcrumb">
       <a href="/catalog">Catalog</a> >
       <a href="/catalog/${datasetId}/">${breadcrumbName}</a> >
       Validation report
     </div>
     ${html}
-  </article>
+  </div>
   <style>${CSS}</style>
 </div>`;
 }
