@@ -82,6 +82,12 @@ function reshapeStacCollection(collection) {
 
   const licenseLinks = (collection.links || []).filter((l) => l.rel === "license");
 
+  // Optional validation-report asset published by reformatters. Surface its
+  // href so the catalog page can offer a fallback raw-HTML link for datasets
+  // where the on-site rendering can't fetch the markdown source.
+  const validationAsset = (collection.assets || {})["validation_report"];
+  const validation_report_href = validationAsset ? validationAsset.href : null;
+
   return {
     license_md: licenseMd(licenseLinks),
     name: collection.title,
@@ -103,6 +109,7 @@ function reshapeStacCollection(collection) {
     dimensions,
     variables,
     notebooks,
+    validation_report_href,
   };
 }
 
