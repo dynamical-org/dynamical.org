@@ -46,12 +46,16 @@ function pngLinksOpenInNewTab(html) {
   return html.replace(/<a href="([^"]+\.png)">/g, '<a href="$1" target="_blank">');
 }
 
-// Apply the site's .data table class so markdown tables pick up
-// main.css's table styling (border, cell padding, header underline).
-// No .table-container wrapper — tables overflow naturally instead of
-// being clipped/scrolled inside a fixed box.
+// Apply the site's .table-container + .data table classes so markdown
+// tables match the catalog page. The site-wide .table-container rule
+// lets tables overflow their parent into the page margins when the
+// viewport has room and only scrolls horizontally when the viewport is
+// narrower than the table.
 function styleTables(html) {
-  return html.replace(/<table>/g, '<table class="data">');
+  return html.replace(
+    /<table>([\s\S]*?)<\/table>/g,
+    '<div class="table-container"><table class="data">$1</table></div>',
+  );
 }
 
 // The page generates its own H1 from the catalog entry name, so any H1
