@@ -3,15 +3,14 @@
 // layout to the standalone HTML report at
 // https://dataset-validation-reports.dynamical.org/<dataset-id>/latest/validation_report.html.
 //
-// Mirrors reformatters' src/scripts/validation/render.py — the same five
-// post-process transforms over markdown-it's HTML output, the same per-
-// variable checkbox toggle. Image references in the markdown are bare
-// filenames and get resolved against the report's baseUrl so the rendered
-// page can load them directly from R2.
+// Mirrors reformatters' src/scripts/validation/render.py output — the
+// same post-process transforms over markdown-it's HTML. Image refs in
+// the markdown are bare filenames and get resolved against the report's
+// baseUrl so the rendered page can load them directly from R2.
 //
-// The page inherits site chrome (base.njk + main.css). The TOC sits in a
-// sticky sidebar to the left of the content on wide screens and collapses
-// to an in-flow block on narrow ones.
+// The page inherits site chrome (base.njk + main.css). The TOC sits to
+// the left of the centered max-width content on wide viewports and
+// stacks above it on narrow ones.
 
 const MarkdownIt = require("markdown-it");
 
@@ -47,7 +46,7 @@ function wrapVariableSections(html) {
       `<img src="temporal_${v}.png" alt="${escapeAttr(v)} — time series comparison"></a>` +
       `</div>`;
     return (
-      `<section class="variable" id="var-${v}" data-var="${escapeAttr(v)}">` +
+      `<section class="variable" id="var-${v}">` +
       `<h3 class="var-heading"><code>${v}</code></h3>` +
       `${body}${plots}</section>`
     );
@@ -85,9 +84,9 @@ function wrapTables(html) {
   );
 }
 
-// Resolve bare-filename src/href on <img>/<a> against baseUrl. Anything that
-// already looks absolute (scheme, protocol-relative, root-relative, or a bare
-// fragment) is left alone — only relative refs get rewritten.
+// Resolve bare-filename src/href on <img>/<a> against baseUrl. Anything
+// that already looks absolute (scheme, protocol-relative, root-relative,
+// or a bare fragment) is left alone — only relative refs get rewritten.
 function rewriteAssetUrls(html, baseUrl) {
   const isAbsolute = (u) =>
     /^[a-z][a-z0-9+.-]*:/i.test(u) ||
@@ -113,39 +112,68 @@ function buildToc(sections, variables) {
     .map((s) => `<li><a href="#${s.slug}">${s.title}</a></li>`)
     .join("");
   const varItems = variables
-    .map(
-      (v) =>
-        `<li class="var-row"><input type="checkbox" checked data-var="${escapeAttr(v)}" ` +
-        `id="cb-${v}"><a href="#var-${v}">${v}</a></li>`,
-    )
+    .map((v) => `<li><a href="#var-${v}">${v}</a></li>`)
     .join("");
   return `
 <aside class="validation-toc" aria-label="Table of contents">
   <div class="toc-heading">Sections</div>
   <ul>${sectionItems}</ul>
   <div class="toc-heading">Variables</div>
-  <div class="var-actions">
-    <button type="button" data-action="all">all</button>
-    <button type="button" data-action="none">none</button>
-  </div>
   <ul>${varItems}</ul>
 </aside>
 `;
 }
 
-// Only the styles unique to the validation report. Base typography, colors,
-// link colors, headings, body table styling are inherited from main.css.
+// Layout: a flex wrapper centered at content-width + TOC-width. The TOC
+// floats off the left edge of the centered max-width report body on
+// wide viewports; below ~1100px both stack into a single column.
+//
+// Typography, link colors, base table style come from main.css.
 const CSS = `
-.validation-report { font-size: 1.4rem; }
-.validation-breadcrumb { margin-bottom: 2rem; }
-.validation-grid {
-  display: grid;
-  grid-template-columns: 22rem 1fr;
+.validation-wrapper {
+  display: flex;
+  align-items: flex-start;
   gap: 3rem;
-  align-items: start;
-  min-width: 0;
+  max-width: 99rem;
+  margin: 0 auto;
 }
-.validation-body { min-width: 0; }
+.validation-toc {
+  position: sticky;
+  top: 1rem;
+  flex: 0 0 18rem;
+  font-size: 1.2rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border-left: 1px solid var(--border-muted-color);
+  padding-left: 1.6rem;
+}
+.validation-toc .toc-heading {
+  font-size: 1.3rem;
+  color: var(--header-color);
+  margin: 1.4rem 0 0.6rem;
+  font-weight: 700;
+}
+.validation-toc .toc-heading:first-child { margin-top: 0; }
+.validation-toc ul { list-style: none; padding: 0; margin: 0; }
+.validation-toc li { margin: 0.2rem 0; }
+.validation-toc a {
+  color: var(--text-color);
+  text-decoration: none;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.validation-toc a:visited { color: var(--text-color); }
+.validation-toc a:hover { color: var(--link-color); }
+
+.validation-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 78rem;
+  font-size: 1.4rem;
+}
+.validation-breadcrumb { margin-bottom: 2rem; }
 .validation-body h2 {
   margin-top: 3.2rem;
   padding-bottom: 0.4rem;
@@ -157,7 +185,6 @@ const CSS = `
   padding-top: 0.6rem;
   border-top: 1px solid var(--border-color);
 }
-.validation-body section.variable.hidden { display: none; }
 .validation-body .plots {
   display: flex; flex-direction: column;
   gap: 1rem; margin: 1rem 0 2rem;
@@ -188,60 +215,19 @@ const CSS = `
   font-weight: 700;
 }
 
-.validation-toc {
-  position: sticky;
-  top: 1rem;
-  align-self: start;
-  font-size: 1.2rem;
-  border-left: 1px solid var(--border-muted-color);
-  padding-left: 1.6rem;
-  max-height: calc(100vh - 2rem);
-  overflow-y: auto;
-}
-.validation-toc .toc-heading {
-  font-size: 1.3rem;
-  color: var(--header-color);
-  margin: 1.6rem 0 0.6rem;
-  font-weight: 700;
-}
-.validation-toc .toc-heading:first-child { margin-top: 0; }
-.validation-toc ul { list-style: none; padding: 0; margin: 0; }
-.validation-toc li { margin: 0.2rem 0; }
-.validation-toc a {
-  color: var(--text-color);
-  text-decoration: none;
-  display: block;
-}
-.validation-toc a:visited { color: var(--text-color); }
-.validation-toc a:hover { color: var(--link-color); }
-.validation-toc .var-row { display: flex; align-items: center; gap: 0.6rem; }
-.validation-toc .var-row input { margin: 0; flex-shrink: 0; }
-.validation-toc .var-row a {
-  flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.validation-toc .var-actions {
-  display: flex; gap: 0.6rem; margin-bottom: 0.6rem;
-  font-size: 1.05rem; text-transform: uppercase; letter-spacing: 1px;
-}
-.validation-toc .var-actions button {
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
-  color: var(--header-color);
-  padding: 0.1rem 0.6rem;
-  cursor: pointer;
-  font-weight: 700; letter-spacing: 1px;
-  font-family: inherit;
-}
-.validation-toc .var-actions button:hover {
-  background: var(--header-color); color: var(--bg-color);
-}
-
-@media (max-width: 880px) {
-  .validation-grid { grid-template-columns: 1fr; gap: 1.6rem; }
+@media (max-width: 1100px) {
+  .validation-wrapper {
+    flex-direction: column;
+    max-width: 78rem;
+    gap: 1.6rem;
+  }
   .validation-toc {
-    position: static; max-height: none; overflow: visible;
-    border-left: none; border-top: 1px solid var(--border-muted-color);
+    position: static;
+    flex: none;
+    max-height: none;
+    overflow: visible;
+    border-left: none;
+    border-top: 1px solid var(--border-muted-color);
     border-bottom: 1px solid var(--border-muted-color);
     padding: 1rem 0;
   }
@@ -251,38 +237,6 @@ const CSS = `
     padding: 0.4rem 0.8rem;
   }
 }
-`;
-
-const JS = String.raw`
-(function () {
-  function cssEscape(s) { return s.replace(/(["\\])/g, '\\$1'); }
-  function applyVar(v, on) {
-    document.querySelectorAll('section.variable[data-var="' + cssEscape(v) + '"]')
-      .forEach(function (s) { s.classList.toggle('hidden', !on); });
-  }
-  document.querySelectorAll('.validation-toc a').forEach(function (a) {
-    a.addEventListener('click', function () {
-      var href = a.getAttribute('href') || '';
-      if (href.indexOf('#var-') === 0) {
-        var v = href.slice(5);
-        var cb = document.querySelector('input[data-var="' + cssEscape(v) + '"]');
-        if (cb && !cb.checked) { cb.checked = true; applyVar(v, true); }
-      }
-    });
-  });
-  document.querySelectorAll('input[data-var]').forEach(function (cb) {
-    cb.addEventListener('change', function () { applyVar(cb.dataset.var, cb.checked); });
-  });
-  var allBtn = document.querySelector('[data-action="all"]');
-  var noneBtn = document.querySelector('[data-action="none"]');
-  if (allBtn) allBtn.addEventListener('click', function () { setAll(true); });
-  if (noneBtn) noneBtn.addEventListener('click', function () { setAll(false); });
-  function setAll(on) {
-    document.querySelectorAll('input[data-var]').forEach(function (cb) {
-      cb.checked = on; applyVar(cb.dataset.var, on);
-    });
-  }
-})();
 `;
 
 function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
@@ -299,18 +253,17 @@ function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
   const toc = buildToc(annotated.sections, variables);
   const breadcrumbName = datasetName || datasetId;
 
-  return `<div class="content catalog-item validation-report">
-  <div class="validation-breadcrumb">
-    <a href="/catalog">Catalog</a> >
-    <a href="/catalog/${datasetId}/">${breadcrumbName}</a> >
-    Validation report
-  </div>
-  <div class="validation-grid">
-    ${toc}
-    <article class="validation-body">${html}</article>
-  </div>
+  return `<div class="validation-wrapper">
+  ${toc}
+  <article class="validation-body">
+    <div class="validation-breadcrumb">
+      <a href="/catalog">Catalog</a> >
+      <a href="/catalog/${datasetId}/">${breadcrumbName}</a> >
+      Validation report
+    </div>
+    ${html}
+  </article>
   <style>${CSS}</style>
-  <script>${JS}</script>
 </div>`;
 }
 
