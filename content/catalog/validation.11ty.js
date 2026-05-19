@@ -4,37 +4,30 @@
 // https://dataset-validation-reports.dynamical.org/<dataset-id>/latest/validation_report.html.
 //
 // Mirrors reformatters' src/scripts/validation/render.py output — the
-// same post-process transforms over markdown-it's HTML. Image refs in
-// the markdown are bare filenames and get resolved against the report's
-// baseUrl so the rendered page can load them directly from R2.
+// same post-process transforms over markdown-it's HTML, plus per-
+// variable plot injection. Image refs in the markdown are bare
+// filenames and get resolved against the report's baseUrl so the
+// rendered page can load them directly from R2.
 //
-// The page inherits site chrome (base.njk + main.css). The TOC sits to
-// the left of the centered max-width content on wide viewports and
-// stacks above it on narrow ones.
+// Page chrome and the scroll-spy TOC come from base.njk + main.css +
+// lib/markdown-toc.js. Everything in this file is validation-specific.
 
 const MarkdownIt = require("markdown-it");
+const markdownToc = require("../../lib/markdown-toc.js");
 
 const md = new MarkdownIt("commonmark").enable("table");
-
-function slugify(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function escapeAttr(s) {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
-// Per-variable headings render as <h3><code>name</code></h3>; other ### don't.
-function extractPerVarNames(html) {
-  return [...html.matchAll(/<h3><code>([^<]+)<\/code><\/h3>/g)].map((m) => m[1]);
-}
-
-function wrapVariableSections(html) {
-  const re = /<h3><code>([^<]+)<\/code><\/h3>([\s\S]*?)(?=<h[23][\s>]|$)/g;
-  return html.replace(re, (_full, varName, body) => {
+// Per-variable heading rows in the markdown are `### \`name\``, which
+// markdown-it renders as `<h3><code>name</code></h3>`. For each one,
+// append a `<div class="plots">` block of the three R2 plots that share
+// the variable's name as a filename suffix.
+function injectVariablePlots(html) {
+  const re = /(<h3 id="[^"]*"><code>([^<]+)<\/code><\/h3>)([\s\S]*?)(?=<h[23][\s>]|$)/g;
+  return html.replace(re, (_full, heading, varName, body) => {
     const v = varName;
     const plots =
       `<div class="plots">` +
@@ -45,31 +38,7 @@ function wrapVariableSections(html) {
       `<a href="temporal_${v}.png" target="_blank">` +
       `<img src="temporal_${v}.png" alt="${escapeAttr(v)} — time series comparison"></a>` +
       `</div>`;
-    return (
-      `<section class="variable" id="var-${v}">` +
-      `<h3 class="var-heading"><code>${v}</code></h3>` +
-      `${body}${plots}</section>`
-    );
-  });
-}
-
-function annotateH2(html) {
-  const sections = [];
-  const out = html.replace(/<h2>([\s\S]*?)<\/h2>/g, (_full, inner) => {
-    const plain = inner.replace(/<[^>]+>/g, "").trim();
-    const slug = slugify(plain);
-    sections.push({ slug, title: plain });
-    return `<h2 id="${slug}">${inner}</h2>`;
-  });
-  return { html: out, sections };
-}
-
-function annotateNonVarH3(html) {
-  return html.replace(/<h3>([\s\S]*?)<\/h3>/g, (full, inner) => {
-    if (inner.startsWith("<code>")) return full;
-    const plain = inner.replace(/<[^>]+>/g, "").trim();
-    const slug = slugify(plain);
-    return `<h3 id="${slug}">${inner}</h3>`;
+    return `${heading}${body}${plots}`;
   });
 }
 
@@ -107,23 +76,6 @@ function extractDatasetName(mdText, fallback) {
   return m ? m[1] : fallback;
 }
 
-function buildToc(sections, variables) {
-  const sectionItems = sections
-    .map((s) => `<li><a href="#${s.slug}">${s.title}</a></li>`)
-    .join("");
-  const varItems = variables
-    .map((v) => `<li><a href="#var-${v}">${v}</a></li>`)
-    .join("");
-  return `
-<aside class="validation-toc" aria-label="Table of contents">
-  <div class="toc-heading">Sections</div>
-  <ul>${sectionItems}</ul>
-  <div class="toc-heading">Variables</div>
-  <ul>${varItems}</ul>
-</aside>
-`;
-}
-
 // Layout: the report body is centered at the same max-width as the
 // rest of the site (78rem), unaffected by the TOC. The TOC lives in a
 // rail anchored just outside the wrapper's left edge (so it sits in
@@ -132,6 +84,7 @@ function buildToc(sections, variables) {
 // and renders above the content.
 //
 // Typography, link colors, base table style come from main.css.
+// Nested-tree styling + ▸ indicator come from lib/markdown-toc CSS.
 const CSS = `
 .validation-wrapper {
   position: relative;
@@ -145,32 +98,13 @@ const CSS = `
   width: 18rem;
   height: 100%;
 }
-.validation-toc {
+.md-toc {
   position: sticky;
   top: 2rem;
   font-size: 1.2rem;
   max-height: calc(100vh - 4rem);
   overflow-y: auto;
 }
-.validation-toc .toc-heading {
-  font-size: 1.3rem;
-  color: var(--header-color);
-  margin: 1.4rem 0 0.6rem;
-  font-weight: 700;
-}
-.validation-toc .toc-heading:first-child { margin-top: 0; }
-.validation-toc ul { list-style: none; padding: 0; margin: 0; }
-.validation-toc li { margin: 0.2rem 0; }
-.validation-toc a {
-  color: var(--text-color);
-  text-decoration: none;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.validation-toc a:visited { color: var(--text-color); }
-.validation-toc a:hover { color: var(--link-color); }
 
 .validation-body {
   font-size: 1.4rem;
@@ -178,7 +112,6 @@ const CSS = `
 .validation-breadcrumb { margin-bottom: 2rem; }
 .validation-body h2 { margin-top: 3.2rem; }
 .validation-body h3 { margin-top: 2.4rem; }
-.validation-body section.variable { margin-top: 2.4rem; }
 .validation-body .plots {
   display: flex; flex-direction: column;
   gap: 1rem; margin: 1rem 0 2rem;
@@ -216,7 +149,7 @@ const CSS = `
     height: auto;
     margin-bottom: 1.6rem;
   }
-  .validation-toc {
+  .md-toc {
     position: static;
     max-height: none;
     overflow: visible;
@@ -228,25 +161,28 @@ const CSS = `
     padding: 0.4rem 0.8rem;
   }
 }
+${markdownToc.CSS}
 `;
 
 function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
   let html = md.render(markdown);
   html = pngLinksOpenInNewTab(html);
-  const variables = extractPerVarNames(html);
-  const annotated = annotateH2(html);
+
+  const annotated = markdownToc.annotateHeadings(html);
   html = annotated.html;
-  html = annotateNonVarH3(html);
-  html = wrapVariableSections(html);
+
+  html = injectVariablePlots(html);
   html = wrapTables(html);
   html = rewriteAssetUrls(html, baseUrl);
 
-  const toc = buildToc(annotated.sections, variables);
+  const tocHtml = markdownToc.buildTocHtml(annotated.headings);
   const breadcrumbName = datasetName || datasetId;
 
   return `<div class="validation-wrapper">
-  <div class="validation-toc-rail">${toc}</div>
-  <div class="validation-body">
+  <div class="validation-toc-rail">
+    <nav class="md-toc" aria-label="Table of contents">${tocHtml}</nav>
+  </div>
+  <div class="md-toc-content validation-body">
     <div class="validation-breadcrumb">
       <a href="/catalog">Catalog</a> >
       <a href="/catalog/${datasetId}/">${breadcrumbName}</a> >
@@ -255,6 +191,7 @@ function renderFragment({ datasetId, baseUrl, markdown }, datasetName) {
     ${html}
   </div>
   <style>${CSS}</style>
+  <script>${markdownToc.JS}</script>
 </div>`;
 }
 
