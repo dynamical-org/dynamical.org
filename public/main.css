@@ -26,6 +26,14 @@
   --muted-text-2: #999999;
   --shadow-color: rgba(0, 0, 0, 0.15);
 
+  /* 1-bit ordered-dither shadow images: a 14x4 SVG tile with Bayer-style
+     coverage that fades dense → sparse left-to-right (the -l variant is
+     for left edges, the -r variant is the same pattern mirrored for
+     right edges via SVG transform). Tiled vertically via repeat-y at
+     14px x 4px. shape-rendering=crispEdges keeps cells pixel-aligned. */
+  --shadow-dither-l: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 4' preserveAspectRatio='none' shape-rendering='crispEdges'><g fill='black' fill-opacity='.4'><rect width='1' height='4'/><rect x='1' width='1' height='4'/><rect x='2' width='1' height='1'/><rect x='2' y='2' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='3' y='3' width='1' height='1'/><rect x='4' width='1' height='3'/><rect x='5' y='1' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='6' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='8' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='9' y='1' width='1' height='1'/><rect x='10' y='2' width='1' height='1'/><rect x='11' y='3' width='1' height='1'/></g></svg>");
+  --shadow-dither-r: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 4' preserveAspectRatio='none' shape-rendering='crispEdges'><g fill='black' fill-opacity='.4' transform='translate(14 0) scale(-1 1)'><rect width='1' height='4'/><rect x='1' width='1' height='4'/><rect x='2' width='1' height='1'/><rect x='2' y='2' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='3' y='3' width='1' height='1'/><rect x='4' width='1' height='3'/><rect x='5' y='1' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='6' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='8' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='9' y='1' width='1' height='1'/><rect x='10' y='2' width='1' height='1'/><rect x='11' y='3' width='1' height='1'/></g></svg>");
+
   --pill-available-bg: #5bc54a;
   --pill-available-fg: #081a08;
   --pill-muted-bg: #f0f0f0;
@@ -72,6 +80,9 @@
     --muted-text: #b5b5b5;
     --muted-text-2: #8f8f93;
     --shadow-color: rgba(0, 0, 0, 0.5);
+
+    --shadow-dither-l: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 4' preserveAspectRatio='none' shape-rendering='crispEdges'><g fill='white' fill-opacity='.5'><rect width='1' height='4'/><rect x='1' width='1' height='4'/><rect x='2' width='1' height='1'/><rect x='2' y='2' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='3' y='3' width='1' height='1'/><rect x='4' width='1' height='3'/><rect x='5' y='1' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='6' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='8' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='9' y='1' width='1' height='1'/><rect x='10' y='2' width='1' height='1'/><rect x='11' y='3' width='1' height='1'/></g></svg>");
+    --shadow-dither-r: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 4' preserveAspectRatio='none' shape-rendering='crispEdges'><g fill='white' fill-opacity='.5' transform='translate(14 0) scale(-1 1)'><rect width='1' height='4'/><rect x='1' width='1' height='4'/><rect x='2' width='1' height='1'/><rect x='2' y='2' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='3' y='3' width='1' height='1'/><rect x='4' width='1' height='3'/><rect x='5' y='1' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='6' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='8' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='9' y='1' width='1' height='1'/><rect x='10' y='2' width='1' height='1'/><rect x='11' y='3' width='1' height='1'/></g></svg>");
 
     --pill-muted-bg: #2a2a2d;
     --pill-muted-fg: #e8e8ea;
@@ -192,6 +203,33 @@ p {
      so the intent is obvious. */
   max-width: 100%;
   overflow-x: auto;
+  /* Edge indicators that appear only when content overflows on that
+     side. Three layers per side: a solid-color "cover" anchored to the
+     scrolled content (background-attachment: local) sits at the
+     content's left/right edge; behind it, a 1px border line and a
+     dithered fade shadow are anchored to the scroll viewport
+     (background-attachment: scroll) at the container's left/right edge.
+     When the content edge lines up with the viewport edge (scrolled to
+     that side, or no overflow), the cover hides both the border and
+     the shadow. Once scrolled off, both show through — the border
+     marks the cut, the dithered shadow signals "more content this way". */
+  background-image:
+    linear-gradient(var(--bg-color), var(--bg-color)),
+    linear-gradient(var(--bg-color), var(--bg-color)),
+    linear-gradient(var(--border-color), var(--border-color)),
+    linear-gradient(var(--border-color), var(--border-color)),
+    var(--shadow-dither-l),
+    var(--shadow-dither-r);
+  background-position: 0 0, 100% 0, 0 0, 100% 0, 0 0, 100% 0;
+  background-size:
+    16px 100%, 16px 100%,
+     1px 100%,  1px 100%,
+    14px 4px,  14px 4px;
+  background-repeat:
+    no-repeat, no-repeat,
+    no-repeat, no-repeat,
+    repeat-y,  repeat-y;
+  background-attachment: local, local, scroll, scroll, scroll, scroll;
 }
 
 table {
