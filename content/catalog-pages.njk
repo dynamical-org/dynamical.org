@@ -67,7 +67,6 @@ eleventyComputed:
     {%- set validationReport = validationReports.entries | find('datasetId', entry.dataset_id) %}
     {% if validationReport %}
       · <a href="/catalog/{{ entry.dataset_id }}/validation/">validation report</a>
-      (<a href="{{ validationReport.baseUrl }}validation_report.html">raw</a>)
     {% elif entry.validation_report_href %}
       · <a href="{{ entry.validation_report_href }}">validation report</a>
     {% endif %}
