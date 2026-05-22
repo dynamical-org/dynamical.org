@@ -106,6 +106,11 @@ const CSS = `
   border: 1px solid var(--border-color);
   background: var(--bg-color);
 }
+/* Validation reports embed long unbroken identifiers (variable names,
+   s3:// URLs, filenames) in <code> spans and h3 headings. Let them
+   break anywhere so they don't force horizontal scroll on mobile. */
+.md-toc-content code { overflow-wrap: anywhere; }
+.md-toc-content h3 { overflow-wrap: anywhere; }
 ${markdownToc.CSS}
 `;
 
