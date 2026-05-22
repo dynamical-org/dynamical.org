@@ -64,6 +64,12 @@ eleventyComputed:
   </table>
   <p>
     <span><a href="https://stac.dynamical.org/{{ entry.dataset_id }}/collection.json">STAC</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/{{ entry.dataset_id }}/collection.json">browse</a>)</span>
+    {%- set validationReport = validationReports.entries | find('datasetId', entry.dataset_id) %}
+    {% if validationReport %}
+      · <a href="/catalog/{{ entry.dataset_id }}/validation/">validation report</a>
+    {% elif entry.validation_report_href %}
+      · <a href="{{ entry.validation_report_href }}">validation report</a>
+    {% endif %}
   </p>
   {% if model.description %}
     <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
