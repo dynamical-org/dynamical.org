@@ -111,6 +111,10 @@ const CSS = `
    break anywhere so they don't force horizontal scroll on mobile. */
 .md-toc-content code { overflow-wrap: anywhere; }
 .md-toc-content h3 { overflow-wrap: anywhere; }
+/* Keep table cells on one line — .table-container already provides
+   horizontal scroll when the table is wider than the viewport. */
+.md-toc-content table.data td,
+.md-toc-content table.data th { white-space: nowrap; }
 ${markdownToc.CSS}
 `;
 
