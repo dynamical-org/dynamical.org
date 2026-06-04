@@ -46,12 +46,29 @@ permalink: /status/
       </div>
     </div>
 
-    {% for product in wxopticon.products %}
-    <section class="status-row" data-product-id="{{ product.id }}">
+    <div class="status-filters">
+      <fieldset>
+        <legend>Source</legend>
+        {% for origin in wxopticon.origins %}
+        <label><input type="checkbox" name="source" value="{{ origin }}" checked> {{ origin }}</label>
+        {% endfor %}
+      </fieldset>
+      <fieldset>
+        <legend>Agency</legend>
+        <label><input type="checkbox" name="agency" value="NOAA" checked> NOAA</label>
+        <label><input type="checkbox" name="agency" value="ECMWF" checked> ECMWF</label>
+        <label><input type="checkbox" name="agency" value="DWD" checked> DWD</label>
+      </fieldset>
+    </div>
+
+    {% for group in wxopticon.groups %}
+    <section class="status-group">
+      <h2 class="status-group-heading">{{ group.model }}</h2>
+      {% for product in group.products %}
+      <section class="status-row" data-product-id="{{ product.id }}" data-origin="{{ product.origin }}" data-agency="{{ product.agency }}">
       <div>
-        <strong>{{ product.label }}</strong>
+        <strong>{{ product.origin }}</strong>
         <div style="font-size:1.2rem;">
-          {% if product.source_label %}<div>{{ product.source_label }}</div>{% endif %}
           <div>{{ product.source }}</div>
           <div>{{ product.cadence_hours }}h init cadence</div>
           <div>{{ product.init_hours | join('/') }}z</div>
@@ -77,6 +94,9 @@ permalink: /status/
         </div>
       </div>
       <div class="status-stats">
+        {% if product.track == 'dynamical' %}
+        <div class="status-ingestion-lag" data-slot="ingestion-lag" hidden></div>
+        {% endif %}
         <div class="status-eta" data-slot="eta">
           <strong data-slot="eta-init">—</strong>
           <span data-slot="eta-state" hidden></span>
@@ -87,8 +107,12 @@ permalink: /status/
         </div>
       </div>
       <div id="row-details-{{ product.id }}" class="status-row-details" data-slot="row-details" hidden></div>
+      </section>
+      {% endfor %}
     </section>
     {% endfor %}
+
+    <p data-slot="filter-empty" hidden>No products match the current filters.</p>
 
     <footer class="status-footer">
       <div>Updated <span data-slot="generated-at">—</span></div>
