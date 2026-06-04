@@ -4,7 +4,10 @@ title: status
 permalink: /status/
 ---
 
-<div class="content">
+<div class="content md-toc-content">
+  <div class="md-toc-rail">
+    <nav class="md-toc" aria-label="Models">{{ wxopticon.tocHtml | safe }}</nav>
+  </div>
   <main id="status-app">
     <div class="status-ribbon" data-slot="ribbon" hidden>
       Backend data is more than 10 minutes old — it may be stalled.
@@ -63,7 +66,7 @@ permalink: /status/
 
     {% for group in wxopticon.groups %}
     <section class="status-group">
-      <h2 class="status-group-heading">{{ group.model }}</h2>
+      <h2 class="status-group-heading" id="{{ group.slug }}">{{ group.model }}</h2>
       {% for product in group.products %}
       <section class="status-row" data-product-id="{{ product.id }}" data-origin="{{ product.origin }}" data-agency="{{ product.agency }}">
       <div>
@@ -119,6 +122,8 @@ permalink: /status/
       <div>{{ wxopticon.window_days }}-day rolling window · polls every 15s</div>
     </footer>
   </main>
+  <style>{{ wxopticon.tocCss | safe }}</style>
+  <script>{{ wxopticon.tocJs | safe }}</script>
 </div>
 
 <script src="/wxopticon.js?v={{ 'public/wxopticon.js' | fileHash }}" defer></script>

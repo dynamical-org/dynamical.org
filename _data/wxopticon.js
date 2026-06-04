@@ -1,4 +1,5 @@
 const fetch = require("@11ty/eleventy-fetch");
+const markdownToc = require("../lib/markdown-toc.js");
 
 // Keep in sync with RECENT_INIT_COUNT in public/wxopticon.js
 const RECENT_INIT_COUNT = 10;
@@ -109,6 +110,8 @@ module.exports = async function () {
     items.sort((a, b) => (a.track === b.track ? 0 : a.track === "dynamical" ? -1 : 1));
     return {
       model,
+      // Anchor target for the table-of-contents link / group heading id.
+      slug: markdownToc.slugify(model),
       hasDynamical: items.some((p) => p.track === "dynamical"),
       products: items,
     };
@@ -118,9 +121,18 @@ module.exports = async function () {
   // Distinct origins present, in display order — drives the Source filter.
   const origins = ORIGIN_ORDER.filter((o) => products.some((p) => p.origin === o));
 
+  // Scroll-spy TOC of the model groups, reusing the same builder/CSS/JS as
+  // the validation report pages so the rail looks and behaves identically.
+  const tocHtml = markdownToc.buildTocHtml(
+    groups.map((g) => ({ level: 2, slug: g.slug, title: g.model })),
+  );
+
   return {
     groups,
     origins,
     window_days: summary.window_days,
+    tocHtml,
+    tocCss: markdownToc.CSS,
+    tocJs: markdownToc.JS,
   };
 };

@@ -123,6 +123,14 @@
         if (show) groupVisible++;
       }
       group.hidden = groupVisible === 0;
+      // Keep the TOC rail in sync: drop the link for a group that's been
+      // fully filtered out so the contents only list visible models.
+      const heading = group.querySelector(".status-group-heading");
+      if (heading && heading.id) {
+        const tocLink = document.querySelector('.md-toc a[href="#' + heading.id + '"]');
+        const tocItem = tocLink && tocLink.closest("li");
+        if (tocItem) tocItem.hidden = group.hidden;
+      }
       visible += groupVisible;
     }
     if (filterEmptySlot) filterEmptySlot.hidden = visible > 0;
