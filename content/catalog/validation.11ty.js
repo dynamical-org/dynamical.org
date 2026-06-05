@@ -23,16 +23,31 @@ function escapeAttr(s) {
 
 // Per-variable heading rows in the markdown are `### \`name\``, which
 // markdown-it renders as `<h3><code>name</code></h3>`. For each one,
-// append a `<div class="plots">` block of the three R2 plots that share
-// the variable's name as a filename suffix.
+// append a `<div class="plots">` block of the R2 plots that share the
+// variable's name as a filename suffix, in the order reformatters'
+// render.py emits them: nulls, value_timeseries, spatial, temporal.
+//
+// The full-period value_timeseries plot only exists for reports built
+// after reformatters PR #641, so it's injected only when this variable's
+// section carries the matching "Point time series statistics for the full
+// period" table (written alongside the plot by summary.py). Reports that
+// predate #641 keep the original three plots and pick up the fourth
+// automatically once their report is regenerated — no code change needed.
 function injectVariablePlots(html) {
   const re = /(<h3 id="[^"]*"><code>([^<]+)<\/code><\/h3>)([\s\S]*?)(?=<h[23][\s>]|$)/g;
   return html.replace(re, (_full, heading, varName, body) => {
     const v = varName;
+    const valueTimeseriesPlot = /Point time series statistics for the full period/.test(
+      body,
+    )
+      ? `<a href="value_timeseries_${v}.png" target="_blank">` +
+        `<img src="value_timeseries_${v}.png" alt="${escapeAttr(v)} — full-period value time series"></a>`
+      : "";
     const plots =
       `<div class="plots">` +
       `<a href="nulls_${v}.png" target="_blank">` +
       `<img src="nulls_${v}.png" alt="${escapeAttr(v)} — null fraction"></a>` +
+      valueTimeseriesPlot +
       `<a href="spatial_${v}.png" target="_blank">` +
       `<img src="spatial_${v}.png" alt="${escapeAttr(v)} — spatial comparison"></a>` +
       `<a href="temporal_${v}.png" target="_blank">` +
