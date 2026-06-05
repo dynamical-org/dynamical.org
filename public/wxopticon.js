@@ -411,10 +411,9 @@
 
   // Ingestion lag = time from upstream-source publish completion to our
   // derived-product publish completion (the dynamical.org SLA metric). Only
-  // dynamical.org rows carry the [data-slot="ingestion-lag"] node. Below
-  // MIN_INGESTION_SAMPLES (or while percentiles are still null) we say
-  // "insufficient data" plainly rather than rendering "—".
-  const MIN_INGESTION_SAMPLES = 20;
+  // dynamical.org rows carry the [data-slot="ingestion-lag"] node. The backend
+  // nulls the percentiles until it has enough samples, so we trust that signal:
+  // null percentiles → "insufficient data" rather than rendering "—".
   function renderIngestionLag(slot, product) {
     const stats = product.ingestion_lag_stats;
     if (!stats) {
@@ -423,7 +422,7 @@
       return;
     }
     slot.hidden = false;
-    if (stats.sample_init_count < MIN_INGESTION_SAMPLES || stats.p50_s == null) {
+    if (stats.p50_s == null) {
       slot.replaceChildren(
         el("strong", null, "ingestion lag"),
         el("span", null, "insufficient data")
