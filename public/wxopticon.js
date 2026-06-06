@@ -36,6 +36,11 @@
   const ribbonSlot = app.querySelector('[data-slot="ribbon"]');
   const returnLiveBtn = app.querySelector('[data-slot="return-live"]');
 
+  const sourceInputs = app.querySelectorAll('input[name="source"]');
+  const agencyInputs = app.querySelectorAll('input[name="agency"]');
+  const filterEmptySlot = app.querySelector('[data-slot="filter-empty"]');
+  const FILTER_KEY = "wxopticon:filters";
+
   let mode = "live";           // "live" = polling summary.json, "scrub" = frozen historical snapshot
   let latest = null;           // last successful live summary payload
   let lastFetchError = null;   // null if the most recent live fetch succeeded
@@ -98,6 +103,71 @@
   }
 
   setTimeMode(localStorage.getItem(TIME_MODE_KEY) === "local", false);
+
+  // ---- source / agency filters ---------------------------------------------
+
+  // A row is visible only when both its source and its agency are selected.
+  // Both filter groups default to all-checked (show everything); the rows
+  // themselves carry data-origin / data-agency from the build-time skeleton,
+  // so filtering is a pure DOM read with no re-classification here.
+  function applyFilters(persist) {
+    const sources = new Set([...sourceInputs].filter((i) => i.checked).map((i) => i.value));
+    const agencies = new Set([...agencyInputs].filter((i) => i.checked).map((i) => i.value));
+    let visible = 0;
+    // Hide a model group's heading once all of its rows are filtered out.
+    for (const group of app.querySelectorAll(".status-group")) {
+      let groupVisible = 0;
+      for (const row of group.querySelectorAll(".status-row")) {
+        const show = sources.has(row.dataset.origin) && agencies.has(row.dataset.agency);
+        row.hidden = !show;
+        if (show) groupVisible++;
+      }
+      group.hidden = groupVisible === 0;
+      // Keep the TOC rail in sync: drop the link for a group that's been
+      // fully filtered out so the contents only list visible models.
+      const heading = group.querySelector(".status-group-heading");
+      if (heading && heading.id) {
+        const tocLink = document.querySelector('.md-toc a[href="#' + heading.id + '"]');
+        const tocItem = tocLink && tocLink.closest("li");
+        if (tocItem) tocItem.hidden = group.hidden;
+      }
+      visible += groupVisible;
+    }
+    if (filterEmptySlot) filterEmptySlot.hidden = visible > 0;
+    if (persist) {
+      localStorage.setItem(
+        FILTER_KEY,
+        JSON.stringify({ sources: [...sources], agencies: [...agencies] })
+      );
+    }
+  }
+
+  function restoreFilters() {
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(FILTER_KEY));
+    } catch {
+      saved = null;
+    }
+    // Only override a group's defaults when its saved selection is present, so
+    // a stale payload (e.g. the old track-based shape) leaves new filters fully
+    // checked rather than hiding everything.
+    if (Array.isArray(saved?.sources)) {
+      const s = new Set(saved.sources);
+      sourceInputs.forEach((i) => { i.checked = s.has(i.value); });
+    }
+    if (Array.isArray(saved?.agencies)) {
+      const a = new Set(saved.agencies);
+      agencyInputs.forEach((i) => { i.checked = a.has(i.value); });
+    }
+    applyFilters(false);
+  }
+
+  [...sourceInputs, ...agencyInputs].forEach((i) =>
+    i.addEventListener("change", () => applyFilters(true))
+  );
+
+  restoreFilters();
 
   // ---- formatting -----------------------------------------------------------
 
@@ -271,6 +341,7 @@
       stateText,
       fmtPercent(init.completion_pct),
       init.latency_s != null ? `latency ${fmtLatency(init.latency_s)}` : null,
+      init.ingestion_lag_s != null ? `ingest +${fmtLatency(init.ingestion_lag_s)}` : null,
     ].filter(Boolean).join(" · ");
     if (!init.lead_groups || init.lead_groups.length === 0) return base;
     const groupParts = init.lead_groups.map((g) => {
@@ -338,9 +409,40 @@
     if (track) track.replaceChildren(...renderTrackContents(init));
   }
 
+  // Ingestion lag = time from upstream-source publish completion to our
+  // derived-product publish completion (the dynamical.org SLA metric). Only
+  // dynamical.org rows carry the [data-slot="ingestion-lag"] node. The backend
+  // nulls the percentiles until it has enough samples, so we trust that signal:
+  // null percentiles → "insufficient data" rather than rendering "—".
+  function renderIngestionLag(slot, product) {
+    const stats = product.ingestion_lag_stats;
+    if (!stats) {
+      slot.hidden = true;
+      slot.replaceChildren();
+      return;
+    }
+    slot.hidden = false;
+    if (stats.p50_s == null) {
+      slot.replaceChildren(
+        el("strong", null, "ingestion lag"),
+        el("span", null, "insufficient data")
+      );
+    } else {
+      slot.replaceChildren(
+        el("strong", null, "ingestion lag"),
+        el("span", null, `p50 ${fmtLatency(stats.p50_s)}`),
+        el("span", null, `p95 ${fmtLatency(stats.p95_s)}`),
+        el("span", null, `p99 ${fmtLatency(stats.p99_s)}`)
+      );
+    }
+  }
+
   function hydrateRow(product) {
     const row = app.querySelector(`.status-row[data-product-id="${product.id}"]`);
     if (!row) return;
+
+    const lagSlot = row.querySelector('[data-slot="ingestion-lag"]');
+    if (lagSlot) renderIngestionLag(lagSlot, product);
 
     const grid = row.querySelector('[data-slot="grid"]');
     const inits = product.recent_inits.slice(-RECENT_INIT_COUNT);

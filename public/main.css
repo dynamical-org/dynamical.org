@@ -757,6 +757,21 @@ article img {
 /* status page (/status/) */
 /* ------------------------------------------------------------------ */
 
+.status-group {
+  margin-top: 2.4rem;
+}
+
+.status-group:first-of-type {
+  margin-top: 0;
+}
+
+.status-group-heading {
+  font-size: 1.6rem;
+  margin: 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--text-color);
+}
+
 .status-row {
   display: grid;
   grid-template-columns: 19rem 1fr 16rem;
@@ -766,8 +781,16 @@ article img {
   align-items: start;
 }
 
-.status-row:first-of-type {
+/* First row in each group sits directly under the heading rule — no
+   double divider. */
+.status-group .status-row:first-of-type {
   border-top: none;
+}
+
+/* The author display:grid above outranks the UA [hidden] rule, so filtered
+   rows need an explicit override to actually hide. */
+.status-row[hidden] {
+  display: none;
 }
 
 .status-row-body {
@@ -1075,6 +1098,50 @@ body.status-time-local .t-utc {
   justify-content: flex-end;
   align-items: center;
   gap: 1.2rem;
+}
+
+.status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.6rem;
+  margin: 1.5rem 0;
+  font-size: 1.2rem;
+}
+
+.status-filters fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  border: 1px solid var(--border-muted-color);
+  padding: 0.6rem 1rem;
+}
+
+.status-filters legend {
+  padding: 0 0.4rem;
+  color: var(--muted-text);
+}
+
+.status-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status-ingestion-lag {
+  margin-bottom: 0.8rem;
+}
+
+.status-ingestion-lag strong {
+  display: block;
+  color: var(--text-color);
+}
+
+.status-ingestion-lag span {
+  display: block;
+  white-space: nowrap;
 }
 
 .status-ribbon:not([hidden]) {
