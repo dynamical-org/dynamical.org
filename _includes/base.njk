@@ -11,7 +11,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     {% set isPodcast = tags and ("podcast" in tags) %}
     {% set ogImage = socialImage or ("https://dynamical.org/assets/weathering/weathering_logo_figs.png" if isPodcast else "https://assets.dynamical.org/identity/logo/icon/icon-1024.png") %}
-    {% set ogTitle = (title + " — Weathering") if isPodcast else "dynamical.org" %}
+    {% set ogTitle = socialTitle or ((title + " — Weathering") if isPodcast else "dynamical.org") %}
     {% set ogDescription = description or metadata.description %}
     <meta property="og:type" content="{{ "article" if isPodcast else "website" }}"/>
     <meta property="og:title" content="{{ ogTitle }}"/>

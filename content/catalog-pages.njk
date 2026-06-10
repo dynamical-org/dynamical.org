@@ -7,6 +7,9 @@ pagination:
 permalink: 'catalog/{{entry.dataset_id | slugify}}/'
 eleventyComputed:
   title: '{{entry.name}}'
+  description: '{{ entry.description_meta }}'
+  socialTitle: '{{ entry.name }} — dynamical.org'
+  socialImage: '{{ entry.thumbnail }}'
 ---
 
 <style>

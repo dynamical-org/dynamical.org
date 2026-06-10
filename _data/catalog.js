@@ -1,4 +1,6 @@
 const fetch = require("@11ty/eleventy-fetch");
+const fs = require("fs");
+const path = require("path");
 
 const STAC_BASE_URL = process.env.STAC_BASE_URL || "https://stac.dynamical.org";
 
@@ -45,6 +47,23 @@ module.exports = async function () {
     models: Object.values(modelGroups),
   };
 };
+
+// Reduce markdown prose to a plain-text excerpt suitable for a meta
+// description / social card (strips links, inline code, emphasis markers;
+// collapses whitespace; truncates on a word boundary).
+function plainTextExcerpt(md, maxLen = 200) {
+  if (!md) return "";
+  let text = md
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[`*#>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length > maxLen) {
+    text = text.slice(0, maxLen).replace(/\s+\S*$/, "") + "…";
+  }
+  return text;
+}
 
 function licenseMd(licenseLinks) {
   if (!licenseLinks || licenseLinks.length === 0) return "";
@@ -95,7 +114,17 @@ function reshapeStacCollection(collection) {
   const validationAsset = (collection.assets || {})["validation_report"];
   const validation_report_href = validationAsset ? validationAsset.href : null;
 
+  // Per-dataset social-card thumbnail, keyed by dataset id under
+  // public/assets/catalog-thumbnails/. Null when no thumbnail is published so
+  // the page falls back to the default site image.
+  const thumbnailPath = path.join(__dirname, "..", "public", "assets", "catalog-thumbnails", `${collection.id}.jpg`);
+  const thumbnail = fs.existsSync(thumbnailPath)
+    ? `https://dynamical.org/assets/catalog-thumbnails/${collection.id}.jpg`
+    : null;
+
   return {
+    thumbnail,
+    description_meta: plainTextExcerpt(collection.description_summary),
     license_md: licenseMd(licenseLinks),
     name: collection.title,
     dataset_id: collection.id,
