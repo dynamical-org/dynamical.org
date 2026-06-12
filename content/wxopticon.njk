@@ -1,100 +1,19 @@
 ---
-layout: base
-title: status
 permalink: /status/
+eleventyExcludeFromCollections: true
 ---
-
-<div class="content">
-  <main id="status-app">
-    <div class="status-ribbon" data-slot="ribbon" hidden>
-      Backend data is more than 10 minutes old — it may be stalled.
-    </div>
-    <div data-slot="banners" style="font-size:1.2rem;"></div>
-
-    <div class="status-controls">
-      <select id="status-time-toggle">
-        <option value="utc">Coordinated Universal Time (UTC)</option>
-        <option value="local">Local time</option>
-      </select>
-      <button
-        type="button"
-        id="status-history-toggle"
-        aria-expanded="false"
-        aria-controls="status-history-panel"
-        aria-label="Toggle history scrub"
-        title="Toggle history scrub"
-        style="background:none;border:none;padding:0;font-size:1.8rem;cursor:pointer;"
-      >📅</button>
-    </div>
-    <div id="status-history-panel" hidden style="position:relative;padding-top:2.4rem;margin-top:2rem;margin-bottom:2rem;">
-      <span data-slot="scrub-label" aria-hidden="true">—</span>
-      <input
-        type="range"
-        id="status-history-range"
-        min="0"
-        max="0"
-        value="0"
-        step="1"
-        aria-label="Wxopticon history scrub"
-        aria-valuetext="live"
-        disabled
-        style="display:block;width:100%;"
-      >
-      <p data-slot="scrub-error" hidden></p>
-      <div style="text-align:right;margin-top:0.8rem;">
-        <button type="button" data-slot="return-live" hidden>return to live ⇥</button>
-      </div>
-    </div>
-
-    {% for product in wxopticon.products %}
-    <section class="status-row" data-product-id="{{ product.id }}">
-      <div>
-        <strong>{{ product.label }}</strong>
-        <div style="font-size:1.2rem;">
-          {% if product.source_label %}<div>{{ product.source_label }}</div>{% endif %}
-          <div>{{ product.source }}</div>
-          <div>{{ product.cadence_hours }}h init cadence</div>
-          <div>{{ product.init_hours | join('/') }}z</div>
-        </div>
-      </div>
-      <div class="status-row-body">
-        {% if product.lead_groups.length %}
-        <div class="status-group-labels" aria-hidden="true">
-          {# Skip the bottom-most group (always the f000 "0h" start signal) —
-             its band is a sliver and the label collides with the track border. #}
-          {% for g in product.lead_groups %}{% if not loop.first %}
-          <span style="bottom: {{ g.center_pct }}%">{{ g.label }}</span>
-          {% endif %}{% endfor %}
-        </div>
-        {% endif %}
-        <div class="status-grid" data-slot="grid">
-          {% for _ in range(0, product.recent_init_count) %}
-          <div class="status-bar" data-skeleton>
-            <div class="status-bar-track"></div>
-            <div class="status-bar-label"></div>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="status-stats">
-        <div class="status-eta" data-slot="eta">
-          <strong data-slot="eta-init">—</strong>
-          <span data-slot="eta-state" hidden></span>
-          <span data-slot="eta-line" hidden></span>
-        </div>
-        <div style="margin-top:0.8rem;">
-          <button type="button" data-slot="row-details-btn" class="eta-details-btn" aria-expanded="false" aria-controls="row-details-{{ product.id }}" hidden>more details</button>
-        </div>
-      </div>
-      <div id="row-details-{{ product.id }}" class="status-row-details" data-slot="row-details" hidden></div>
-    </section>
-    {% endfor %}
-
-    <footer class="status-footer">
-      <div>Updated <span data-slot="generated-at">—</span></div>
-      <div>{{ wxopticon.window_days }}-day rolling window · polls every 15s</div>
-    </footer>
-  </main>
-</div>
-
-<script src="/wxopticon.js?v={{ 'public/wxopticon.js' | fileHash }}" defer></script>
+{# The arrival dashboard moved to status.dynamical.org (served by the
+   wxopticon pub app); this stub preserves the old URL. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dynamical status</title>
+<meta http-equiv="refresh" content="0; url=https://status.dynamical.org/arrivals">
+<link rel="canonical" href="https://status.dynamical.org/arrivals">
+</head>
+<body>
+<p>The status page moved to
+  <a href="https://status.dynamical.org/arrivals">status.dynamical.org/arrivals</a>.</p>
+</body>
+</html>
