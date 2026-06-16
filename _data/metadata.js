@@ -10,5 +10,5 @@ module.exports = {
   },
   // BetterStack Errors frontend (JS tag) ingest token. Publishable — it ships
   // to the browser by design. App: "dynamical.org" (javascript_errors).
-  betterstackErrorsToken: "jBWijdgJFX4ZGVJiDRJQ5SEv",
+  betterstackErrorsToken: "mvH2kP3pYS3hZ2LnroXKPcUx",
 };
