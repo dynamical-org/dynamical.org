@@ -31,6 +31,27 @@ function dedent(input) {
   return lines.map((line) => line.slice(minIndent)).join("\n");
 }
 
+// Turn a page URL into a filesystem-safe slug for its social card, e.g.
+// "/" -> "index", "/sla/" -> "sla", "/updates/2026-06-01/" -> "updates-2026-06-01".
+// Used by both the `ogSlug` filter (in base.njk) and the `ogCards` collection so
+// the og:image URL and the generated PNG path always agree.
+function ogSlug(url) {
+  const trimmed = String(url || "/").replace(/^\/+|\/+$/g, "");
+  if (!trimmed) return "index";
+  return trimmed.replace(/\//g, "-").replace(/[^a-z0-9-]/gi, "-");
+}
+
+// Reverse the HTML-attribute escaping Nunjucks applies to og:title /
+// og:description so the rendered card shows literal characters (& " ' < >).
+function decodeEntities(str) {
+  return String(str)
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
 const CACHE_DIR = path.join(__dirname, ".cache");
 const CACHE_FILE = path.join(CACHE_DIR, "github-contributors.json");
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -99,6 +120,68 @@ module.exports = function (eleventyConfig) {
   );
 
   eleventyConfig.addPlugin(pluginImages);
+
+  eleventyConfig.addFilter("ogSlug", ogSlug);
+
+  // Generate a social card PNG for every page whose og:image points at the
+  // generated-card path. We key off the rendered HTML (rather than a collection)
+  // so the cards stay aligned with base.njk even for pages that opt out of
+  // collections (e.g. the unlisted /sla page with eleventyExcludeFromCollections).
+  // Podcast episodes and pages with a `socialImage` override get a different
+  // og:image, so they're skipped here automatically.
+  eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
+    const { renderCard } = require("./lib/og-card.js");
+    const metadata = require("./_data/metadata.js");
+
+    const metaTag = (html, prop) => {
+      const m = html.match(
+        new RegExp(`<meta property="${prop}" content="([^"]*)"`)
+      );
+      return m ? decodeEntities(m[1]) : "";
+    };
+    // og:title is "dynamical.org" sitewide unless a page sets socialTitle, so
+    // the card headline comes from the page's own <title> ("dynamical.org - X"),
+    // with an explicit socialTitle (surfaced via og:title) winning when present.
+    const cardTitle = (html) => {
+      const ogTitle = metaTag(html, "og:title");
+      if (ogTitle && ogTitle !== metadata.title) return ogTitle;
+      const m = html.match(/<title>([^<]*)<\/title>/);
+      let pageTitle = m ? decodeEntities(m[1]).trim() : "";
+      pageTitle = pageTitle.replace(/^dynamical\.org\s*-?\s*/, "").trim();
+      if (pageTitle.toLowerCase() === "home") pageTitle = "";
+      return pageTitle || metadata.title;
+    };
+
+    const outputDir = (dir && dir.output) || "docs";
+    const seen = new Set();
+    for (const result of results) {
+      if (!result.outputPath || !result.outputPath.endsWith(".html")) continue;
+      const image = metaTag(result.content, "og:image");
+      const slugMatch = image.match(/\/assets\/og\/([^"/]+)\.png$/);
+      if (!slugMatch) continue;
+      const slug = slugMatch[1];
+      if (seen.has(slug)) continue;
+      seen.add(slug);
+
+      // The shared default card is brand-only and must be deterministic, so it
+      // ignores whichever titleless page happens to be processed first.
+      const isDefault = slug === "default";
+      const title = isDefault ? metadata.title : cardTitle(result.content);
+      let subtitle = isDefault
+        ? metadata.description
+        : metaTag(result.content, "og:description");
+      // When the description leads with the headline (e.g. socialTitle is the
+      // first clause of the description), drop the duplicate so the card reads
+      // headline + the remaining detail instead of repeating itself.
+      if (subtitle.toLowerCase().startsWith(title.toLowerCase())) {
+        subtitle = subtitle.slice(title.length).replace(/^[\s–—:.,-]+/, "");
+      }
+      const png = await renderCard({ title, subtitle });
+      const outPath = path.join(outputDir, "assets", "og", `${slug}.png`);
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      fs.writeFileSync(outPath, png);
+    }
+  });
 
   eleventyConfig.addFilter("fileHash", function (filePath) {
     const content = fs.readFileSync(path.join(__dirname, filePath));
