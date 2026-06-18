@@ -1,0 +1,159 @@
+---
+layout: base.njk
+title: catalog SLA
+description: A commercial SLA for the dynamical.org weather catalog — operational guarantees, a dedicated support relationship, and performance remedies.
+eleventyExcludeFromCollections: true
+---
+
+<style>
+  /* The shared table.data.small sets white-space:nowrap, which forces this
+     three-column comparison wider than the 78rem content column and triggers a
+     horizontal scrollbar on full-size screens. Let these cells wrap instead. */
+  .sla-table td,
+  .sla-table th {
+    white-space: normal;
+  }
+</style>
+
+<div class="content">
+  <h1>Catalog SLA</h1>
+  <h2>Build on open weather data with a contract behind it.</h2>
+
+  <p>
+    <strong>dynamical.org</strong> publishes an analysis-ready, multi-model
+    Zarr/Icechunk weather catalog. Our commercial SLA supports the operation and
+    development of the dynamical.org catalog and services, and adds a dedicated
+    support relationship, operational guarantees, and performance remedies.
+  </p>
+
+  <h3>What the SLA covers</h3>
+  <ul>
+    <li>
+      <strong>99.5% uptime</strong> on the data-serving path (STAC + hot-storage
+      reads), measured monthly from multiple regions.
+    </li>
+    <li>
+      <strong>A committed per-data-product latency window</strong>, measured from
+      source release — with sub-10-second update latency for virtualized data
+      products and rapid timeliness for rechunked data products. Fully auditable.
+    </li>
+    <li>
+      <strong>Data-pipeline webhooks</strong> the moment a model run starts, makes
+      progress, or completes. Optionally attach a function: small Python that runs
+      in a sandbox the instant the event fires, with the dataset preloaded as an
+      <code>xarray.Dataset</code>, returning a summary, a threshold alert, or a
+      rendered plot on the payload — no compute of your own to run.
+    </li>
+  </ul>
+
+  <h3>Tiers</h3>
+  <div class="table-container">
+    <table class="data small sla-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Small Business</th>
+          <th>Enterprise</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Data · timeliness · uptime</td>
+          <td>Identical</td>
+          <td>Identical</td>
+        </tr>
+        <tr>
+          <td><strong>P1 response</strong> (data inaccessible)</td>
+          <td>6 business hours</td>
+          <td><strong>4 hours, 24/7</strong></td>
+        </tr>
+        <tr>
+          <td>P2 response</td>
+          <td>12 business hours</td>
+          <td>12 hours, 24/7</td>
+        </tr>
+        <tr>
+          <td>P3 response</td>
+          <td>48 business hours</td>
+          <td>1 business day</td>
+        </tr>
+        <tr>
+          <td>Service credit / breach</td>
+          <td>15% (50% monthly cap)</td>
+          <td>25% uptime / 20% timeliness (100% cap)</td>
+        </tr>
+        <tr>
+          <td>Chronic-breach exit</td>
+          <td>—</td>
+          <td>Terminate + refund after 3 months</td>
+        </tr>
+        <tr>
+          <td>Breaking-change notice</td>
+          <td>≥10 business days</td>
+          <td>≥20 business days + staging</td>
+        </tr>
+        <tr>
+          <td>Relationship</td>
+          <td>Email · webhooks · status page</td>
+          <td>Named contact · shared channel · reviews</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <strong>Small Business</strong> is designed for small organizations (under 50
+    employees).
+  </p>
+
+  <h3>Pricing</h3>
+  <p>Simple, and built to reward depth — never metered by usage.</p>
+  <div class="table-container">
+    <table class="data small sla-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="right">Small Business</th>
+          <th class="right">Enterprise</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Single data product</td>
+          <td class="right">~$3,000 / yr</td>
+          <td class="right">~$12,000 / yr</td>
+        </tr>
+        <tr>
+          <td>Full catalog</td>
+          <td class="right"><strong>~$6,000 / yr</strong></td>
+          <td class="right"><strong>~$24,000 / yr</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <em
+      >Run dynamical.org infrastructure on-premises for data products in your own
+      cloud. Reach out at
+      <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.</em
+    >
+  </p>
+
+  <h3>Built to last</h3>
+  <p>
+    The commercial SLA funds the sustainable operation and growth of dynamical.org,
+    a public-benefit not-for-profit. The data products are hosted on a combination
+    of open-data programs and commercial storage contracts, with redundancy built in
+    to mitigate potential changes in open-storage programs.
+  </p>
+  <p>
+    Supporting dynamical.org leads to the deployment of new data products, and
+    commercial contract holders help drive our roadmap.
+  </p>
+
+  <hr style="margin-top: 30px; margin-bottom: 30px" />
+  <p>
+    <strong>Marshall Moutenot</strong> ·
+    <a href="mailto:marshall@dynamical.org">marshall@dynamical.org</a> ·
+    <a href="https://stac.dynamical.org/catalog.json">catalog</a>
+  </p>
+</div>
