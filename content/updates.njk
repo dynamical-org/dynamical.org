@@ -30,10 +30,33 @@ redirect_from: [/follow, /follow.html]
 
 <div class="content">
 {%- for post in collections.updates | reverse -%}
+  {%- if post.data.kind == "note" -%}
+  {# Lab notes are too long to inline — link out to their own page. #}
+  <a class="note-card" href="{{ post.url }}">
+    <div class="note-meta">
+      <span class="status-pill status-pill--other">{{ post.data.status or "Lab note" }}</span>
+      <em>{{ post.page.date | readableDate }}</em>
+    </div>
+    <h2>{{ post.data.title }}</h2>
+    {%- if post.data.summary %}<p class="note-summary">{{ post.data.summary }}</p>{% endif -%}
+    <div class="note-card-footer">
+      {%- if post.data.authors -%}
+      <span class="note-byline">
+        {%- for author in post.data.authors -%}{{ author.name or author }}{% if not loop.last %}, {% endif %}{%- endfor -%}
+      </span>
+      {%- endif -%}
+      <span class="note-read">Read →</span>
+    </div>
+  </a>
+  {%- else -%}
   <article>
-    <h2>{{post.data.title}}</h2>
-    <em>{{post.page.date | readableDate}}</em>
-    {{post.content | safe}}
+    <div class="note-meta">
+      <span class="status-pill status-pill--other">Update</span>
+      <em>{{ post.page.date | readableDate }}</em>
+    </div>
+    <h2>{{ post.data.title }}</h2>
+    {{ post.content | safe }}
   </article>
+  {%- endif -%}
 {%- endfor -%}
 </div>

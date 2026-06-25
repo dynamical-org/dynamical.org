@@ -1,0 +1,43 @@
+---
+layout: base.njk
+---
+
+{# Annotate headings + build the scroll-spy TOC over the rendered body. #}
+{% set toc = content | tocify %}
+
+<article class="content md-toc-content note">
+  <p><a href="/updates">← back to all updates</a></p>
+
+  <header class="note-header">
+    <div class="note-meta">
+      <span class="status-pill status-pill--other">{{ status or "Lab note" }}</span>
+      <em>{{ page.date | readableDate }}</em>
+    </div>
+    <h1>{{ title }}</h1>
+    {%- if authors %}
+    <p class="note-byline">
+      {%- for author in authors -%}
+        {%- if author.url %}<a href="{{ author.url }}">{{ author.name }}</a>
+        {%- else %}{{ author.name or author }}{% endif -%}
+        {%- if not loop.last %}, {% endif -%}
+      {%- endfor -%}
+    </p>
+    {%- endif %}
+    {%- if summary %}
+    <p class="note-summary">{{ summary }}</p>
+    {%- endif %}
+  </header>
+
+  {%- if toc.toc %}
+  <div class="md-toc-rail">
+    <nav class="md-toc" aria-label="Table of contents">{{ toc.toc | safe }}</nav>
+  </div>
+  {%- endif %}
+
+  <div class="note-body">
+    {{ toc.html | safe }}
+  </div>
+
+  <style>{{ tocCSS | safe }}</style>
+  <script>{{ tocJS | safe }}</script>
+</article>

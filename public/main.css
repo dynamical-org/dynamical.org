@@ -533,6 +533,100 @@ article img {
   background-color: var(--code-bg);
 }
 
+/* --- Updates / lab notes ------------------------------------------------ */
+
+/* Type pill + date row shared by inline updates, note cards, and note pages. */
+.note-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.note-meta em {
+  color: var(--muted-text);
+}
+
+/* Lab-note summary card in the /updates stream. Mirrors the inline
+   <article>'s margin/padding so card and article edges align. */
+a.note-card {
+  display: block;
+  border: 1px solid var(--border-color);
+  margin: 2rem -3rem;
+  padding: 2rem 3rem;
+  color: inherit;
+  text-decoration: none;
+}
+a.note-card:hover {
+  border-color: var(--link-color);
+}
+.note-card h2 {
+  margin-top: 0.5rem;
+}
+.note-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-top: 1rem;
+  color: var(--muted-text);
+}
+.note-read {
+  font-weight: 700;
+  white-space: nowrap;
+}
+a.note-card:hover .note-read {
+  text-decoration: underline;
+}
+
+/* Lab-note page header: byline + abstract. */
+.note-header {
+  margin-bottom: 2.5rem;
+}
+.note-byline {
+  color: var(--muted-text);
+  margin: 0.5rem 0 0;
+}
+.note-summary {
+  margin: 1rem 0 0;
+}
+.note-header .note-summary {
+  border-left: 3px solid var(--border-muted-color);
+  padding-left: 1rem;
+  line-height: 1.6;
+}
+
+/* Low-tech figures (figure shortcode or inline <figure> HTML). */
+figure {
+  margin: 2rem 0;
+}
+figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+}
+figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+  color: var(--muted-text);
+}
+
+/* markdown-it-footnote output (citations on lab notes). */
+.footnotes-sep {
+  border: none;
+  border-top: 1px solid var(--border-muted-color);
+  margin-top: 3rem;
+}
+.footnotes {
+  font-size: 0.9em;
+  color: var(--muted-text);
+}
+.footnote-ref a,
+.footnote-backref {
+  text-decoration: none;
+}
+
 .frame {
   margin: 2rem auto;
   border: 1px solid #292929;

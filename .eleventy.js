@@ -11,6 +11,8 @@ const path = require("path");
 const crypto = require("crypto");
 
 const pluginImages = require("./eleventy.config.images.js");
+const markdownToc = require("./lib/markdown-toc.js");
+const markdownItFootnote = require("markdown-it-footnote");
 
 // html: true lets inline HTML (e.g. <a>, <code>) in STAC-provided markdown
 // pass through so we can migrate prose without breaking mid-markdown links.
@@ -122,6 +124,40 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addPlugin(pluginImages);
 
   eleventyConfig.addFilter("ogSlug", ogSlug);
+
+  // Enable inline HTML and academic-style footnotes in markdown-rendered
+  // content (lab notes lean on footnotes for citations). Additive over
+  // 11ty's default markdown-it; the validation report uses its own
+  // isolated markdown-it instance and is unaffected.
+  eleventyConfig.amendLibrary("md", (mdLib) => {
+    mdLib.set({ html: true });
+    mdLib.use(markdownItFootnote);
+  });
+
+  // Run the shared scroll-spy TOC component (lib/markdown-toc.js) over
+  // already-rendered markdown HTML. Returns { html, toc } so a layout can
+  // drop the annotated body and the TOC nav in separate places. The
+  // accompanying CSS/JS are exposed as global data (tocCSS / tocJS).
+  eleventyConfig.addFilter("tocify", (html) => {
+    const { html: annotated, headings } = markdownToc.annotateHeadings(html || "");
+    return { html: annotated, toc: markdownToc.buildTocHtml(headings) };
+  });
+  eleventyConfig.addGlobalData("tocCSS", markdownToc.CSS);
+  eleventyConfig.addGlobalData("tocJS", markdownToc.JS);
+
+  // Low-tech figure with caption for long-form notes:
+  //   {% figure "/assets/notes/foo.png", "alt text" %}Figure 1. Caption.{% endfigure %}
+  // Plain <figure> HTML works too (markdown html:true), this is the
+  // convenience form. Caption is the paired body (markdown-free, inline HTML ok).
+  eleventyConfig.addPairedShortcode("figure", function (caption, src, alt) {
+    const cap = String(caption || "").trim();
+    return (
+      `<figure>` +
+      `<img src="${src}" alt="${alt || ""}">` +
+      (cap ? `<figcaption>${cap}</figcaption>` : "") +
+      `</figure>`
+    );
+  });
 
   // Generate a social card PNG for every page whose og:image points at the
   // generated-card path. We key off the rendered HTML (rather than a collection)

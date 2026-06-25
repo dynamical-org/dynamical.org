@@ -89,6 +89,10 @@
         {% set latestContent = latestPodcast %}
         {% set contentType = "New podcast episode" %}
         {% set contentIcon = "🎙️" %}
+      {% elseif latestUpdate.data.kind == "note" %}
+        {% set latestContent = latestUpdate %}
+        {% set contentType = "New lab note" %}
+        {% set contentIcon = "📝" %}
       {% else %}
         {% set latestContent = latestUpdate %}
         {% set contentType = "Latest update" %}
@@ -120,10 +124,10 @@
             })();
           </script>
         </div>
-        {% if not isPodcast %}
-          <a href="/updates" class="popup-title">{{ latestContent.data.title }}</a>
-        {% else %}
+        {% if isPodcast or latestContent.data.kind == "note" %}
           <a href="{{ latestContent.url }}" class="popup-title">{{ latestContent.data.title }}</a>
+        {% else %}
+          <a href="/updates" class="popup-title">{{ latestContent.data.title }}</a>
         {% endif %}
         <div class="popup-date">{{ latestContent.date | readableDate }}</div>
       </div>
