@@ -4,33 +4,13 @@ title: home
 redirects_from: /index.html
 ---
 
-<style>
-  .frame {
-    margin: 8rem auto;
-  }
-</style>
-
 <div class="hero-section">
   <div class="hero-content">
-    <h1 class="hero-heading">dynamical.org</h1>
-    <p class="hero-subtitle">
-      Easy, fast weather data.
+    <p class="mission-statement">
+      An independent non-profit advancing how the world accesses, understands,
+      and acts on weather and climate data.
     </p>
-    <a href="/catalog" class="hero-cta">Explore the Catalog &rarr;</a>
-    <div class="hero-stats">
-      <div class="hero-stat">
-        <div class="hero-stat-value">1PB+</div>
-        <div class="hero-stat-label">archived</div>
-      </div>
-      <div class="hero-stat">
-        <div class="hero-stat-value">{{ usage.requestsDisplay }}</div>
-        <div class="hero-stat-label">requests served</div>
-      </div>
-      <div class="hero-stat">
-        <div class="hero-stat-value">{{ catalog.entries | size }}</div>
-        <div class="hero-stat-label">data products</div>
-      </div>
-    </div>
+    <h1 class="hero-wordmark">dynamical.org</h1>
   </div>
   <div class="hero-visual">
     <canvas id="globe-canvas"></canvas>
@@ -41,76 +21,6 @@ redirects_from: /index.html
     </div>
     <div id="globe-footnote" class="globe-footnote"></div>
   </div>
-</div>
-
-<section class="content home-mission">
-  <!-- TODO: refine this identity statement (à la Ink & Switch's "An independent
-       research lab exploring the future of tools for thought."). Weather zarrs
-       are the means, not the mission. -->
-  <p class="mission-statement">
-    An independent non-profit advancing how the world accesses, understands,
-    and acts on weather and climate data.
-  </p>
-</section>
-
-<div class="frame">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">
-      7-day lead of 25th-percentile temperature over Europe
-    </div>
-  </div>
-  {% frameHighlight "py", "frameContent frameContentDesktop" %}
-ds = dynamical_catalog.open("noaa-gefs-forecast-35-day")
-(
-    ds["temperature_2m"]
-    .sel(init_time="2025-01-01T00")
-    .sel(lead_time="7d")
-    .sel(latitude=slice(70, 20), longitude=slice(0, 50))
-    .quantile(0.25, dim="ensemble_member")
-    .plot()
-)
-  {% endframeHighlight %}
-  {% frameHighlight "py", "frameContent frameContentMobile" %}
-ds = dynamical_catalog.open("noaa-gefs-forecast-35-day")
-(
-    ds["temperature_2m"]
-    .sel(init_time="2025-01-01T00")
-    .sel(lead_time="7d")
-    .sel(latitude=slice(70, 20), longitude=slice(0, 50))
-    .quantile(0.25, dim="ensemble_member")
-    .plot()
-)
-  {% endframeHighlight %}
-  <img
-    class="frameResult"
-    src="./assets/gefs_temperature_q25_europe.png"
-    alt="A plot showing precipitation in Mongolia for 2024-04-01"
-  />
-</div>
-
-<div class="frame">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">
-      Precipitation over time in Ulaanbaatar, Mongolia
-    </div>
-  </div>
-  {% frameHighlight "py", "frameContent frameContentDesktop" %}
-ds = dynamical_catalog.open("noaa-gefs-analysis")
-ds["precipitation_surface"].sel(latitude=47.9, longitude=106.9, method="nearest").plot()
-  {% endframeHighlight %}
-  {% frameHighlight "py", "frameContent frameContentMobile" %}
-ds = dynamical_catalog.open("noaa-gefs-analysis")
-ds["precipitation_surface"] \
-  .sel(latitude=47.9, longitude=106.9, method="nearest") \
-  .plot()
-  {% endframeHighlight %}
-  <img
-    class="frameResult"
-    src="./assets/gefs_precipitation_surface_2024-04-01T00-00.png"
-    alt="A plot showing precipitation in Mongolia for 2024-04-01"
-  />
 </div>
 
 <section class="content home-section">

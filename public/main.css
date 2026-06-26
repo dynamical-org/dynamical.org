@@ -317,66 +317,12 @@ caption {
   min-width: 0;
 }
 
-.hero-heading {
-  font-size: 4rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  margin: 0 0 1.6rem;
-  color: var(--header-color);
-}
-
-.hero-subtitle {
+.hero-wordmark {
   font-size: 1.8rem;
-  line-height: 1.5;
-  color: var(--muted-text);
-  margin: 0 0 2.4rem;
-}
-
-.hero-cta {
-  display: inline-block;
-  padding: 0.6rem 1.4rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--header-color);
-  text-decoration: none;
-  font-size: 1.4rem;
   font-weight: 700;
-}
-
-.hero-cta:visited {
-  color: var(--header-color);
-}
-
-.hero-cta:hover {
-  background-color: var(--header-color);
-  color: var(--bg-color);
-}
-
-.hero-stats {
-  display: flex;
-  margin-top: 3.2rem;
-}
-
-.hero-stat {
-  padding: 0 2rem;
-  border-left: 1px solid var(--border-muted-color);
-}
-
-.hero-stat:first-child {
-  padding-left: 0;
-  border-left: none;
-}
-
-.hero-stat-value {
-  font-size: 2.4rem;
-  font-weight: 700;
-  color: var(--header-color);
-  line-height: 1.2;
-}
-
-.hero-stat-label {
-  font-size: 1.2rem;
+  letter-spacing: -0.3px;
   color: var(--muted-text);
+  margin: 2rem 0 0;
 }
 
 .hero-visual {
@@ -785,7 +731,6 @@ a.work-item:hover h3 { text-decoration: underline; }
 }
 
 /* Homepage mission statement + section heads. */
-.home-mission { margin-top: 4rem; margin-bottom: 4rem; }
 .mission-statement {
   font-size: clamp(2.2rem, 4vw, 3.2rem);
   line-height: 1.25;
@@ -971,20 +916,9 @@ a.work-item:hover h3 { text-decoration: underline; }
     order: -1;
   }
 
-  .hero-heading {
-    display: none;
-  }
-
   .hero-content {
     text-align: center;
   }
-
-  .hero-stats {
-    flex-wrap: wrap;
-    gap: 1.6rem 0;
-    justify-content: center;
-  }
-
 
   .frame {
     margin: 4rem auto;
