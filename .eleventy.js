@@ -125,6 +125,15 @@ module.exports = function (eleventyConfig) {
 
   eleventyConfig.addFilter("ogSlug", ogSlug);
 
+  // The site feeds (Atom + JSON) carry both the newsletter (updates) and
+  // long-form research posts, newest last (templates reverse for display).
+  eleventyConfig.addCollection("feedItems", (api) => {
+    return [
+      ...api.getFilteredByTag("updates"),
+      ...api.getFilteredByTag("research"),
+    ].sort((a, b) => a.date - b.date);
+  });
+
   // Enable inline HTML and academic-style footnotes in markdown-rendered
   // content (lab notes lean on footnotes for citations). Additive over
   // 11ty's default markdown-it; the validation report uses its own

@@ -6,11 +6,12 @@ layout: base.njk
 {% set toc = content | tocify %}
 
 <article class="content md-toc-content note">
-  <p><a href="/updates">← back to all updates</a></p>
+  <p><a href="/research">← back to research</a></p>
 
   <header class="note-header">
     <div class="note-meta">
-      <span class="status-pill status-pill--other">{{ status or "Lab note" }}</span>
+      <span class="status-pill status-pill--other">{{ type or "Note" }}</span>
+      {%- if status %}<span class="status-pill status-pill--other">{{ status }}</span>{% endif %}
       <em>{{ page.date | readableDate }}</em>
     </div>
     <h1>{{ title }}</h1>

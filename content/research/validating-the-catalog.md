@@ -1,5 +1,5 @@
 ---
-kind: note
+type: "Lab note"
 title: "How we validate the catalog"
 date: 2026-06-20
 status: "Draft"

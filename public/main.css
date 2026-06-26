@@ -491,15 +491,109 @@ nav ul li:first-child {
 footer {
   max-width: 78rem;
   margin: 6rem auto 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--popup-border);
+  padding: 3rem 3rem 0;
+  border-top: 1px solid var(--border-color);
   color: var(--muted-text);
   font-size: 1.4rem;
-  text-align: center;
 }
 
-footer > div + div {
-  margin-top: 0.5rem;
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.6fr;
+  gap: 3rem;
+}
+
+.footer-col h2 {
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted-text);
+  margin: 0 0 1.2rem;
+}
+
+.footer-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.footer-dispatch p {
+  margin: 0 0 1.2rem;
+  max-width: 36ch;
+}
+
+.footer-subscribe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.footer-subscribe input {
+  flex: 1;
+  min-width: 16rem;
+  font-family: inherit;
+  font-size: 1.4rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+.footer-subscribe button {
+  font-family: inherit;
+  font-size: 1.4rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.7rem 1.2rem;
+  border: 1px solid var(--border-color);
+  background: var(--text-color);
+  color: var(--bg-color);
+}
+
+.footer-subscribe button:hover {
+  background: var(--link-color);
+  border-color: var(--link-color);
+  color: #fff;
+}
+
+.footer-archive {
+  margin: 1rem 0 0;
+}
+
+.footer-base {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 3rem;
+  padding: 1.2rem 0;
+  border-top: 1px solid var(--popup-border);
+  font-size: 1.2rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  footer {
+    padding: 3rem 1.5rem 0;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
 }
 
 #footer-frame {
@@ -625,6 +719,94 @@ figcaption {
 .footnote-ref a,
 .footnote-backref {
   text-decoration: none;
+}
+
+/* --- Research hub + homepage resource sections ------------------------- */
+
+.dim { color: var(--muted-text); }
+
+.section-intro { margin-bottom: 3rem; }
+.lede {
+  font-size: 1.7rem;
+  line-height: 1.5;
+  max-width: 60ch;
+  color: var(--text-color);
+}
+
+/* Section label shared by /research blocks and homepage sections. */
+.block-label {
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted-text);
+  margin: 0;
+  font-weight: 700;
+}
+
+.block { margin: 4rem 0; }
+.block .block-label { margin-bottom: 1.5rem; }
+
+/* Research areas grid. */
+.area-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+.area-card {
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+}
+.area-card h3 { margin: 0 0 0.5rem; }
+.area-card p { margin: 0; color: var(--muted-text); }
+
+/* Featured work list. */
+.work-list { display: flex; flex-direction: column; }
+a.work-item {
+  display: flex;
+  gap: 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 2rem 0;
+  border-bottom: 1px solid var(--border-muted-color);
+  color: inherit;
+  text-decoration: none;
+}
+a.work-item:first-child { border-top: 1px solid var(--border-muted-color); }
+a.work-item:hover h3 { text-decoration: underline; }
+.work-main { min-width: 0; }
+.work-main h3 { margin: 0.6rem 0 0.4rem; }
+.work-main p { margin: 0; color: var(--muted-text); max-width: 60ch; }
+.work-area { font-size: 1.2rem; color: var(--muted-text); }
+.work-meta {
+  flex: none;
+  font-size: 1.2rem;
+  color: var(--muted-text);
+  white-space: nowrap;
+}
+
+/* Homepage mission statement + section heads. */
+.home-mission { margin-top: 4rem; margin-bottom: 4rem; }
+.mission-statement {
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  max-width: 24ch;
+  margin: 0;
+  text-wrap: balance;
+}
+.home-section { margin-top: 6rem; }
+.home-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.home-section-link { font-size: 1.3rem; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .area-grid { grid-template-columns: 1fr; }
+  a.work-item { flex-direction: column; gap: 0.5rem; }
 }
 
 .frame {

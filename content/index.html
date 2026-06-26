@@ -43,6 +43,16 @@ redirects_from: /index.html
   </div>
 </div>
 
+<section class="content home-mission">
+  <!-- TODO: refine this identity statement (à la Ink & Switch's "An independent
+       research lab exploring the future of tools for thought."). Weather zarrs
+       are the means, not the mission. -->
+  <p class="mission-statement">
+    An independent non-profit advancing how the world accesses, understands,
+    and acts on weather and climate data.
+  </p>
+</section>
+
 <div class="frame">
   <div class="frameHeader">
     <div class="frameHeaderTitle">dynamical.org</div>
@@ -102,5 +112,42 @@ ds["precipitation_surface"] \
     alt="A plot showing precipitation in Mongolia for 2024-04-01"
   />
 </div>
+
+<section class="content home-section">
+  <div class="home-section-head">
+    <h2 class="block-label">Research areas</h2>
+    <a href="/research" class="home-section-link">All research →</a>
+  </div>
+  <div class="area-grid">
+    {%- for area in research.areas %}
+    <div class="area-card">
+      <h3>{{ area.title }}</h3>
+      <p>{{ area.blurb }}</p>
+    </div>
+    {%- endfor %}
+  </div>
+</section>
+
+<section class="content home-section">
+  <div class="home-section-head">
+    <h2 class="block-label">Featured work</h2>
+    <a href="/research" class="home-section-link">See all →</a>
+  </div>
+  <div class="work-list">
+    {%- for item in research.featured %}
+    <a class="work-item" href="{{ item.url }}">
+      <div class="work-main">
+        <div class="note-meta">
+          <span class="status-pill status-pill--other">{{ item.type }}</span>
+          {%- if item.area %}<span class="work-area">{{ item.area }}</span>{% endif %}
+        </div>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.blurb }}</p>
+      </div>
+      <span class="work-meta">{% if item.year %}{{ item.year }} · {% endif %}{{ item.type }} →</span>
+    </a>
+    {%- endfor %}
+  </div>
+</section>
 
 <script src="/globe.js"></script>

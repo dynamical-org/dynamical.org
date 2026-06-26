@@ -1,0 +1,79 @@
+---
+layout: base.njk
+title: research
+---
+
+<div class="content">
+  <header class="section-intro">
+    <h1>Research</h1>
+    <p class="lede">
+      How we build, validate, and evaluate open weather &amp; climate data — the
+      areas we work in, the projects that come out of them, and the notes and
+      papers we write along the way.
+    </p>
+  </header>
+
+  {# ---- Research areas ---- #}
+  <section class="block">
+    <h2 class="block-label">Research areas</h2>
+    <div class="area-grid">
+      {%- for area in research.areas %}
+      <div class="area-card">
+        <h3>{{ area.title }}</h3>
+        <p>{{ area.blurb }}</p>
+      </div>
+      {%- endfor %}
+    </div>
+  </section>
+
+  {# ---- Featured work ---- #}
+  <section class="block">
+    <h2 class="block-label">Featured work</h2>
+    <div class="work-list">
+      {%- for item in research.featured %}
+      <a class="work-item" href="{{ item.url }}">
+        <div class="work-main">
+          <div class="note-meta">
+            <span class="status-pill status-pill--other">{{ item.type }}</span>
+            {%- if item.area %}<span class="work-area">{{ item.area }}</span>{% endif %}
+          </div>
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.blurb }}</p>
+          {%- if item.code %}
+          {% frameHighlight "py", "frameContent" %}
+ds = dynamical_catalog.open("noaa-gfs-forecast")
+          {% endframeHighlight %}
+          {%- endif %}
+        </div>
+        <span class="work-meta">{% if item.year %}{{ item.year }} · {% endif %}{{ item.type }} →</span>
+      </a>
+      {%- endfor %}
+    </div>
+  </section>
+
+  {# ---- All notes & papers (auto from the research collection) ---- #}
+  {%- set posts = collections.research | reverse %}
+  {%- if posts | length %}
+  <section class="block">
+    <h2 class="block-label">Notes &amp; papers</h2>
+    {%- for post in posts %}
+    <a class="note-card" href="{{ post.url }}">
+      <div class="note-meta">
+        <span class="status-pill status-pill--other">{{ post.data.type or "Note" }}</span>
+        <em>{{ post.page.date | readableDate }}</em>
+      </div>
+      <h2>{{ post.data.title }}</h2>
+      {%- if post.data.summary %}<p class="note-summary">{{ post.data.summary }}</p>{% endif -%}
+      <div class="note-card-footer">
+        {%- if post.data.authors -%}
+        <span class="note-byline">
+          {%- for author in post.data.authors -%}{{ author.name or author }}{% if not loop.last %}, {% endif %}{%- endfor -%}
+        </span>
+        {%- endif -%}
+        <span class="note-read">Read →</span>
+      </div>
+    </a>
+    {%- endfor %}
+  </section>
+  {%- endif %}
+</div>
