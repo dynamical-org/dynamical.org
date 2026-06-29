@@ -6,17 +6,15 @@ layout: base.njk
 {% set toc = content | tocify %}
 
 <article class="content md-toc-content note">
-  <p><a href="/research">← back to research</a></p>
-
   <header class="note-header">
-    <div class="note-meta">
-      <span class="status-pill status-pill--other">{{ type or "Note" }}</span>
-      {%- if status %}<span class="status-pill status-pill--other">{{ status }}</span>{% endif %}
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--muted-text);">
+      <span>{{ type or "Note" }}</span>
+      {%- if status %}<span>· {{ status }}</span>{% endif %}
       <em>{{ page.date | readableDate }}</em>
     </div>
     <h1>{{ title }}</h1>
     {%- if authors %}
-    <p class="note-byline">
+    <p style="color: var(--muted-text); margin: 0.5rem 0 0;">
       {%- for author in authors -%}
         {%- if author.url %}<a href="{{ author.url }}">{{ author.name }}</a>
         {%- else %}{{ author.name or author }}{% endif -%}
@@ -25,7 +23,7 @@ layout: base.njk
     </p>
     {%- endif %}
     {%- if summary %}
-    <p class="note-summary">{{ summary }}</p>
+    <p style="margin: 1rem 0 0; line-height: 1.6;">{{ summary }}</p>
     {%- endif %}
   </header>
 

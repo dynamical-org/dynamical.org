@@ -101,6 +101,11 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
 module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
+  // The includes/layouts dir (`../_includes`) lives outside the `content` input
+  // dir, so `--serve` doesn't watch it by default — edits to base.njk and other
+  // layouts wouldn't trigger a rebuild. Watch it explicitly.
+  eleventyConfig.addWatchTarget("./_includes/");
+
   eleventyConfig.addPlugin(pluginRss);
   eleventyConfig.addPlugin(EleventyHtmlBasePlugin);
 
@@ -132,6 +137,54 @@ module.exports = function (eleventyConfig) {
       ...api.getFilteredByTag("updates"),
       ...api.getFilteredByTag("research"),
     ].sort((a, b) => a.date - b.date);
+  });
+
+  // Research areas, ordered by the `order` frontmatter (cards on the homepage
+  // and /research hub; each links to its own page under /research/<slug>/).
+  eleventyConfig.addCollection("areas", (api) =>
+    api
+      .getFilteredByTag("researchAreas")
+      .sort((a, b) => (a.data.order || 0) - (b.data.order || 0))
+  );
+
+  // Everything that can be "work": projects (metadata-only) plus long-form
+  // research notes/papers. Area pages filter this by `areas`; the homepage and
+  // hub filter it by `featured`.
+  eleventyConfig.addCollection("researchWork", (api) => [
+    ...api.getFilteredByTag("projects"),
+    ...api.getFilteredByTag("research"),
+  ]);
+
+  // Curated highlights: any work item with a `featured` number, ascending.
+  eleventyConfig.addCollection("featuredWork", (api) =>
+    [
+      ...api.getFilteredByTag("projects"),
+      ...api.getFilteredByTag("research"),
+    ]
+      .filter((item) => item.data.featured != null)
+      .sort((a, b) => a.data.featured - b.data.featured)
+  );
+
+  // Keep only the work items tagged to a given area slug.
+  eleventyConfig.addFilter("inArea", (items, slug) =>
+    (items || []).filter((item) => (item.data.areas || []).includes(slug))
+  );
+
+  // Split work items by `type` (e.g. projects vs. everything else). Nunjucks
+  // lacks Jinja's selectattr/equalto, so we filter explicitly.
+  eleventyConfig.addFilter("ofType", (items, type) =>
+    (items || []).filter((item) => item.data.type === type)
+  );
+  eleventyConfig.addFilter("notType", (items, type) =>
+    (items || []).filter((item) => item.data.type !== type)
+  );
+
+  // Map area slugs to their display titles (for the area tag on work cards).
+  eleventyConfig.addFilter("areaTitles", (slugs, areas) => {
+    const titleBySlug = Object.fromEntries(
+      (areas || []).map((a) => [a.fileSlug, a.data.title])
+    );
+    return (slugs || []).map((slug) => titleBySlug[slug] || slug);
   });
 
   // Enable inline HTML and academic-style footnotes in markdown-rendered
