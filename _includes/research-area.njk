@@ -1,0 +1,39 @@
+---
+layout: base.njk
+---
+{% from "work-item.njk" import workItem %}
+
+{# The intro section is the area's Markdown body; everything below is the work
+   tagged to this area, split into projects and writing. #}
+{%- set slug = page.fileSlug %}
+{%- set related = collections.researchWork | inArea(slug) %}
+{%- set projects = related | ofType("Project") %}
+{%- set writing = related | notType("Project") %}
+
+<article class="content note">
+  <header class="note-header">
+    <h1>{{ title }}</h1>
+  </header>
+
+  <div class="note-body">
+    {{ content | safe }}
+  </div>
+
+  {%- if projects | length %}
+  <section class="block">
+    <h2 class="block-label">Projects</h2>
+    <div class="work-list">
+      {%- for item in projects %}{{ workItem(item) }}{% endfor %}
+    </div>
+  </section>
+  {%- endif %}
+
+  {%- if writing | length %}
+  <section class="block">
+    <h2 class="block-label">Notes &amp; papers</h2>
+    <div class="work-list">
+      {%- for item in writing %}{{ workItem(item) }}{% endfor %}
+    </div>
+  </section>
+  {%- endif %}
+</article>

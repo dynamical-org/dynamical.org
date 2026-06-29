@@ -11,6 +11,8 @@ const path = require("path");
 const crypto = require("crypto");
 
 const pluginImages = require("./eleventy.config.images.js");
+const markdownToc = require("./lib/markdown-toc.js");
+const markdownItFootnote = require("markdown-it-footnote");
 
 // html: true lets inline HTML (e.g. <a>, <code>) in STAC-provided markdown
 // pass through so we can migrate prose without breaking mid-markdown links.
@@ -99,6 +101,11 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
 module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
+  // The includes/layouts dir (`../_includes`) lives outside the `content` input
+  // dir, so `--serve` doesn't watch it by default — edits to base.njk and other
+  // layouts wouldn't trigger a rebuild. Watch it explicitly.
+  eleventyConfig.addWatchTarget("./_includes/");
+
   eleventyConfig.addPlugin(pluginRss);
   eleventyConfig.addPlugin(EleventyHtmlBasePlugin);
 
@@ -122,6 +129,97 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addPlugin(pluginImages);
 
   eleventyConfig.addFilter("ogSlug", ogSlug);
+
+  // The site feeds (Atom + JSON) carry both the newsletter (updates) and
+  // long-form research posts, newest last (templates reverse for display).
+  eleventyConfig.addCollection("feedItems", (api) => {
+    return [
+      ...api.getFilteredByTag("updates"),
+      ...api.getFilteredByTag("research"),
+    ].sort((a, b) => a.date - b.date);
+  });
+
+  // Research areas, ordered by the `order` frontmatter (cards on the homepage
+  // and /research hub; each links to its own page under /research/<slug>/).
+  eleventyConfig.addCollection("areas", (api) =>
+    api
+      .getFilteredByTag("researchAreas")
+      .sort((a, b) => (a.data.order || 0) - (b.data.order || 0))
+  );
+
+  // Everything that can be "work": projects (metadata-only) plus long-form
+  // research notes/papers. Area pages filter this by `areas`; the homepage and
+  // hub filter it by `featured`.
+  eleventyConfig.addCollection("researchWork", (api) => [
+    ...api.getFilteredByTag("projects"),
+    ...api.getFilteredByTag("research"),
+  ]);
+
+  // Curated highlights: any work item with a `featured` number, ascending.
+  eleventyConfig.addCollection("featuredWork", (api) =>
+    [
+      ...api.getFilteredByTag("projects"),
+      ...api.getFilteredByTag("research"),
+    ]
+      .filter((item) => item.data.featured != null)
+      .sort((a, b) => a.data.featured - b.data.featured)
+  );
+
+  // Keep only the work items tagged to a given area slug.
+  eleventyConfig.addFilter("inArea", (items, slug) =>
+    (items || []).filter((item) => (item.data.areas || []).includes(slug))
+  );
+
+  // Split work items by `type` (e.g. projects vs. everything else). Nunjucks
+  // lacks Jinja's selectattr/equalto, so we filter explicitly.
+  eleventyConfig.addFilter("ofType", (items, type) =>
+    (items || []).filter((item) => item.data.type === type)
+  );
+  eleventyConfig.addFilter("notType", (items, type) =>
+    (items || []).filter((item) => item.data.type !== type)
+  );
+
+  // Map area slugs to their display titles (for the area tag on work cards).
+  eleventyConfig.addFilter("areaTitles", (slugs, areas) => {
+    const titleBySlug = Object.fromEntries(
+      (areas || []).map((a) => [a.fileSlug, a.data.title])
+    );
+    return (slugs || []).map((slug) => titleBySlug[slug] || slug);
+  });
+
+  // Enable inline HTML and academic-style footnotes in markdown-rendered
+  // content (lab notes lean on footnotes for citations). Additive over
+  // 11ty's default markdown-it; the validation report uses its own
+  // isolated markdown-it instance and is unaffected.
+  eleventyConfig.amendLibrary("md", (mdLib) => {
+    mdLib.set({ html: true });
+    mdLib.use(markdownItFootnote);
+  });
+
+  // Run the shared scroll-spy TOC component (lib/markdown-toc.js) over
+  // already-rendered markdown HTML. Returns { html, toc } so a layout can
+  // drop the annotated body and the TOC nav in separate places. The
+  // accompanying CSS/JS are exposed as global data (tocCSS / tocJS).
+  eleventyConfig.addFilter("tocify", (html) => {
+    const { html: annotated, headings } = markdownToc.annotateHeadings(html || "");
+    return { html: annotated, toc: markdownToc.buildTocHtml(headings) };
+  });
+  eleventyConfig.addGlobalData("tocCSS", markdownToc.CSS);
+  eleventyConfig.addGlobalData("tocJS", markdownToc.JS);
+
+  // Low-tech figure with caption for long-form notes:
+  //   {% figure "/assets/notes/foo.png", "alt text" %}Figure 1. Caption.{% endfigure %}
+  // Plain <figure> HTML works too (markdown html:true), this is the
+  // convenience form. Caption is the paired body (markdown-free, inline HTML ok).
+  eleventyConfig.addPairedShortcode("figure", function (caption, src, alt) {
+    const cap = String(caption || "").trim();
+    return (
+      `<figure>` +
+      `<img src="${src}" alt="${alt || ""}">` +
+      (cap ? `<figcaption>${cap}</figcaption>` : "") +
+      `</figure>`
+    );
+  });
 
   // Generate a social card PNG for every page whose og:image points at the
   // generated-card path. We key off the rendered HTML (rather than a collection)

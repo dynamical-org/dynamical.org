@@ -22,6 +22,7 @@
 
   --popup-bg: #ffffff;
   --popup-border: #cccccc;
+  --surface-muted: #f7f7f7;
   --muted-text: #666666;
   --muted-text-2: #999999;
   --shadow-color: rgba(0, 0, 0, 0.15);
@@ -39,20 +40,6 @@
   --pill-muted-bg: #f0f0f0;
   --pill-muted-fg: #111111;
   --pill-muted-border: #d0d0d0;
-
-  /* wxopticon arrival-status colors (light) */
-  --status-on-time: #5bc54a;
-  --status-on-time-fg: #081a08;
-  --status-in-progress: #f4b942;
-  --status-in-progress-fg: #1a1204;
-  --status-late: #ff8c3e;
-  --status-late-fg: #200a00;
-  --status-failed: #e5484d;
-  --status-failed-fg: #ffffff;
-  --status-unobserved: #a8a8ad;
-  --status-track-bg: #e9e9ee;
-
-  --status-on-track: var(--status-on-time);
 
   /* Brand radius tokens — mirror dynamical-org/brand colors_and_type.css.
      sm matches the logo shoulder fillet (2.5px); md = popups; lg = dark frame. */
@@ -77,6 +64,7 @@
 
     --popup-bg: #151517;
     --popup-border: #3a3a3d;
+    --surface-muted: #161618;
     --muted-text: #b5b5b5;
     --muted-text-2: #8f8f93;
     --shadow-color: rgba(0, 0, 0, 0.5);
@@ -87,18 +75,6 @@
     --pill-muted-bg: #2a2a2d;
     --pill-muted-fg: #e8e8ea;
     --pill-muted-border: #3a3a3d;
-
-    /* wxopticon arrival-status colors (dark) */
-    --status-on-time: #3fbe29;
-    --status-on-time-fg: #e8ffea;
-    --status-in-progress: #d8a030;
-    --status-in-progress-fg: #1a1204;
-    --status-late: #e67230;
-    --status-late-fg: #200a00;
-    --status-failed: #d2383d;
-    --status-failed-fg: #ffffff;
-    --status-unobserved: #6a6a6d;
-    --status-track-bg: #232326;
   }
 }
 
@@ -281,18 +257,6 @@ table.data.small th {
   white-space: nowrap;
 }
 
-.catalog-glyph {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-  margin-right: 0.8rem;
-}
-
-.catalog-glyph svg {
-  height: 1em;
-  width: 1em;
-}
-
 .catalog-table tr.catalog-group-last td,
 .catalog-table tr.catalog-group-last + tr td {
   border-top: 1px solid var(--border-color);
@@ -315,68 +279,6 @@ caption {
 
 .hero-section > * {
   min-width: 0;
-}
-
-.hero-heading {
-  font-size: 4rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  margin: 0 0 1.6rem;
-  color: var(--header-color);
-}
-
-.hero-subtitle {
-  font-size: 1.8rem;
-  line-height: 1.5;
-  color: var(--muted-text);
-  margin: 0 0 2.4rem;
-}
-
-.hero-cta {
-  display: inline-block;
-  padding: 0.6rem 1.4rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--header-color);
-  text-decoration: none;
-  font-size: 1.4rem;
-  font-weight: 700;
-}
-
-.hero-cta:visited {
-  color: var(--header-color);
-}
-
-.hero-cta:hover {
-  background-color: var(--header-color);
-  color: var(--bg-color);
-}
-
-.hero-stats {
-  display: flex;
-  margin-top: 3.2rem;
-}
-
-.hero-stat {
-  padding: 0 2rem;
-  border-left: 1px solid var(--border-muted-color);
-}
-
-.hero-stat:first-child {
-  padding-left: 0;
-  border-left: none;
-}
-
-.hero-stat-value {
-  font-size: 2.4rem;
-  font-weight: 700;
-  color: var(--header-color);
-  line-height: 1.2;
-}
-
-.hero-stat-label {
-  font-size: 1.2rem;
-  color: var(--muted-text);
 }
 
 .hero-visual {
@@ -491,15 +393,85 @@ nav ul li:first-child {
 footer {
   max-width: 78rem;
   margin: 6rem auto 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--popup-border);
+  padding: 3rem 3rem 1rem;
+  background: var(--surface-muted);
+  border-radius: var(--radius-md);
   color: var(--muted-text);
   font-size: 1.4rem;
-  text-align: center;
 }
 
-footer > div + div {
-  margin-top: 0.5rem;
+.footer-grid {
+  display: grid;
+  grid-template-columns: 0.7fr 1fr 1.9fr;
+  gap: 3rem;
+}
+
+.footer-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.footer-dispatch p {
+  margin: 0 0 1.2rem;
+  max-width: 36ch;
+}
+
+.footer-subscribe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.footer-subscribe input[type="email"] {
+  flex: 1;
+  min-width: 16rem;
+  font-family: inherit;
+  font-size: 1.4rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+.footer-archive {
+  margin: 1rem 0 0;
+}
+
+.footer-base {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 3rem;
+  padding: 1.2rem 0;
+  border-top: 1px solid var(--popup-border);
+  font-size: 1.2rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  footer {
+    padding: 3rem 1.5rem 1rem;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
 }
 
 #footer-frame {
@@ -521,6 +493,12 @@ article {
   padding: 2rem 3rem;
 }
 
+/* Long-form note + area pages are full content pages, not stream cards: drop
+   the card box (kept for the inline updates stream). */
+article.note {
+  border: none;
+}
+
 article img {
   max-width: 100%;
 }
@@ -531,6 +509,120 @@ article img {
 
 .content pre[class*="language-"] {
   background-color: var(--code-bg);
+}
+
+/* --- Updates / lab notes ------------------------------------------------ */
+
+/* Lab-note page header. */
+.note-header {
+  margin-bottom: 2.5rem;
+}
+
+/* Low-tech figures (figure shortcode or inline <figure> HTML). */
+figure {
+  margin: 2rem 0;
+}
+figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+}
+figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+  color: var(--muted-text);
+}
+
+/* markdown-it-footnote output (citations on lab notes). */
+.footnotes-sep {
+  border: none;
+  border-top: 1px solid var(--border-muted-color);
+  margin-top: 3rem;
+}
+.footnotes {
+  font-size: 0.9em;
+  color: var(--muted-text);
+}
+.footnote-ref a,
+.footnote-backref {
+  text-decoration: none;
+}
+
+/* --- Research hub + homepage resource sections ------------------------- */
+
+.dim { color: var(--muted-text); }
+
+/* Section label shared by /research blocks, homepage sections, and footer columns. */
+.block-label,
+.footer-col h2 {
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted-text);
+  font-weight: 700;
+}
+.block-label { margin: 0; }
+.footer-col h2 { margin: 0 0 1.2rem; }
+
+.block { margin: 4rem 0; }
+.block .block-label { margin-bottom: 1.5rem; }
+
+/* Research areas grid. */
+.area-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+.area-card {
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+}
+a.area-card { display: block; color: inherit; text-decoration: none; }
+a.area-card:hover h3 { text-decoration: underline; }
+.area-card h3 { margin: 0 0 0.5rem; }
+.area-card p { margin: 0; color: var(--muted-text); }
+
+/* Featured work list. */
+.work-list { display: flex; flex-direction: column; }
+a.work-item {
+  display: block;
+  position: relative;
+  padding: 2rem 0;
+  border-bottom: 1px solid var(--border-muted-color);
+  color: inherit;
+  text-decoration: none;
+}
+a.work-item:first-child { border-top: 1px solid var(--border-muted-color); }
+a.work-item:last-child { border-bottom: none; }
+a.work-item:hover h3 { text-decoration: underline; }
+.work-main { min-width: 0; }
+/* Reserve room on the title line for the absolutely-positioned meta so a long
+   title wraps before it; the blurb below spans the full width. */
+.work-main h3 { margin: 0 0 0.4rem; padding-right: 13rem; }
+.work-main p { margin: 0; color: var(--muted-text); }
+
+/* Homepage mission statement + section heads. */
+.mission-statement {
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  max-width: 24ch;
+  margin: 0;
+  text-wrap: balance;
+}
+.home-section { margin-top: 6rem; }
+.home-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .area-grid { grid-template-columns: 1fr; }
 }
 
 .frame {
@@ -585,16 +677,6 @@ article img {
   font-size: 1.5rem;
   letter-spacing: 0.1px;
   line-height: 22.5px;
-}
-
-.frameContentMobile {
-  display: none;
-}
-
-.frameResult {
-  width: 100%;
-  outline: 1px solid #292929;
-  display: block;
 }
 
 #newsletter {
@@ -695,31 +777,17 @@ article img {
     order: -1;
   }
 
-  .hero-heading {
-    display: none;
-  }
-
   .hero-content {
     text-align: center;
   }
 
-  .hero-stats {
-    flex-wrap: wrap;
-    gap: 1.6rem 0;
-    justify-content: center;
+  /* Center the max-width box itself, not just the text inside it. */
+  .mission-statement {
+    margin-inline: auto;
   }
-
 
   .frame {
     margin: 4rem auto;
-  }
-
-  .frameContentDesktop + .frameContentMobile {
-    display: none;
-  }
-
-  .frameContentMobile {
-    display: block;
   }
 
   .frameHeaderTitle {
@@ -752,357 +820,3 @@ article img {
     filter: invert(1);
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* status page (/status/) */
-/* ------------------------------------------------------------------ */
-
-.status-row {
-  display: grid;
-  grid-template-columns: 19rem 1fr 16rem;
-  gap: 2rem;
-  padding: 1.6rem 0;
-  border-top: 1px solid var(--border-muted-color);
-  align-items: start;
-}
-
-.status-row:first-of-type {
-  border-top: none;
-}
-
-.status-row-body {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  min-width: 0;
-}
-
-/* Left-aligned y-axis column: one label per lead group, centered on its
-   band. Height matches .status-bar-track so percentages line up. */
-.status-group-labels {
-  position: relative;
-  flex-shrink: 0;
-  width: 2.6rem;
-  height: 13rem;
-  font-size: 1rem;
-  color: var(--muted-text);
-  line-height: 1;
-}
-
-.status-group-labels span {
-  position: absolute;
-  right: 0;
-  transform: translateY(50%);
-  white-space: nowrap;
-}
-
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: 0.6rem;
-  min-height: 10rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.status-bar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  outline: none;
-}
-
-.status-bar-track {
-  position: relative;
-  width: 100%;
-  height: 13rem;
-  border: 1px solid var(--text-color);
-  overflow: hidden;
-}
-
-.status-bar-fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--fill, 0%);
-}
-
-/* Stacked lead-group segments (when summary.json carries lead_groups).
-   Each band is positioned absolutely within the track — --band-bottom
-   is the cumulative share of leads below this band, --band-height is
-   this group's share. --fill is the share of that band that's arrived.
-   The inner div is what carries the status-keyed background color so
-   the band outline (hairline separator) stays visible even at 0% fill. */
-.status-bar-fill-group {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: var(--band-bottom, 0%);
-  height: var(--band-height, 0%);
-}
-
-.status-bar-fill-group + .status-bar-fill-group:not(:last-child) {
-  border-top: 1px solid var(--text-color);
-}
-
-.status-bar-fill-inner {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--fill, 0%);
-}
-
-.status-bar[data-skeleton] {
-  animation: status-skeleton-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes status-skeleton-pulse {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.6; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .status-bar[data-skeleton] {
-    animation: none;
-    opacity: 0.45;
-  }
-}
-
-/* Status fills — solid color per (status, on_timedness) pair. Single-fill
-   rules below only fire on pre-lead-groups snapshots (every current product
-   emits lead_groups); the stacked-segment rules further down handle the
-   normal path. Unobserved / failed / not_started use the track-level rules
-   (dotted border, no fill). */
-
-.status-bar[data-status="complete"][data-on-timedness="on_time"] .status-bar-fill {
-  background-color: var(--status-on-time);
-}
-
-.status-bar[data-status="complete"][data-on-timedness="late"] .status-bar-fill {
-  background-color: var(--status-late);
-}
-
-.status-bar[data-status="processing"] .status-bar-fill {
-  background-color: var(--status-in-progress);
-}
-
-.status-bar[data-status="processing"][data-on-timedness="on_track"] .status-bar-fill {
-  background-color: var(--status-on-track);
-}
-
-.status-bar[data-status="failed"] .status-bar-fill {
-  background-color: var(--status-failed);
-  /* Failed is terminal — always fill the full bar so a 0%-completion
-     failure still reads as "failed" instead of blank. Exact completion is
-     in the bar's title tooltip. */
-  height: 100%;
-}
-
-/* Stacked group segments: the class suffix `g-{key}` is `on_timedness ??
-   status`, so complete/processing collapse into their timedness values. */
-.status-bar-fill-group.g-on_time .status-bar-fill-inner {
-  background-color: var(--status-on-time);
-}
-
-.status-bar-fill-group.g-on_track .status-bar-fill-inner {
-  background-color: var(--status-on-track);
-}
-
-.status-bar-fill-group.g-delayed .status-bar-fill-inner {
-  background-color: var(--status-in-progress);
-}
-
-/* insufficient_data = run is processing but we have no baseline to judge
-   timeliness (n < min_samples). Render muted-grey per #66 so it doesn't
-   masquerade as "delayed" amber. */
-.status-bar-fill-group.g-insufficient_data .status-bar-fill-inner {
-  background-color: var(--status-unobserved);
-}
-
-.status-bar-fill-group.g-late .status-bar-fill-inner {
-  background-color: var(--status-late);
-}
-
-.status-bar-fill-group.g-failed .status-bar-fill-inner {
-  background-color: var(--status-failed);
-  height: 100%;
-}
-
-/* Not-started = leads in this group haven't arrived yet during an
-   in-progress run. Dotted border echoes the unobserved track treatment
-   so it reads as "expected but not yet seen". */
-.status-bar-fill-group.g-not_started {
-  border: 1px dotted var(--status-unobserved);
-}
-
-.status-bar-fill-group.g-not_started .status-bar-fill-inner,
-.status-bar-fill-group.g-unobserved .status-bar-fill-inner {
-  display: none;
-}
-
-/* Unobserved = monitoring-coverage gap, not a publication failure.
-   Empty bar with a dotted outline reads as "no information" without
-   implying something broke. */
-.status-bar[data-status="unobserved"] .status-bar-track {
-  border-style: dotted;
-  border-color: var(--status-unobserved);
-}
-
-.status-bar[data-status="unobserved"] .status-bar-fill,
-.status-bar[data-status="unobserved"] .status-bar-fill-group {
-  display: none;
-}
-
-.status-bar-label {
-  font-size: 1rem;
-  text-align: center;
-  line-height: 1.2;
-  min-height: 2.4em;
-  color: var(--muted-text);
-}
-
-.status-bar-label strong {
-  display: block;
-  color: var(--text-color);
-}
-
-.status-stats {
-  text-align: right;
-  font-size: 1.2rem;
-  color: var(--muted-text);
-
-}
-
-.status-eta strong {
-  display: block;
-  color: var(--text-color);
-}
-
-.status-eta span {
-  display: block;
-  white-space: nowrap;
-}
-
-.status-eta [data-on-timedness="on_track"],
-.status-eta [data-on-timedness="on_time"] {
-  color: var(--status-on-time);
-}
-
-.status-eta [data-on-timedness="delayed"] {
-  color: var(--status-in-progress);
-}
-
-.status-eta [data-on-timedness="late"] {
-  color: var(--status-late);
-}
-
-/* insufficient_data / unobserved — no trustworthy signal yet, stay muted. */
-.status-eta [data-on-timedness="insufficient_data"],
-.status-eta [data-on-timedness="unobserved"] {
-  color: var(--muted-text);
-}
-
-.eta-details-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: var(--link-color);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.status-row-details {
-  grid-column: 1 / -1;
-  padding: 1rem 0 0.4rem;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.status-row-details table.data {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.eta-g-on_time { color: var(--status-on-time); }
-.eta-g-on_track { color: var(--status-on-time); }
-.eta-g-insufficient_data { color: var(--muted-text); }
-.eta-g-unobserved { color: var(--muted-text); }
-.eta-g-delayed { color: var(--status-in-progress); }
-.eta-g-not_started { color: var(--muted-text); }
-.eta-g-late { color: var(--status-late); }
-.eta-g-failed { color: var(--status-failed); }
-
-.status-footer {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-muted-color);
-  color: var(--muted-text);
-  font-size: 1.1rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.2rem;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-banner {
-  margin-bottom: 1.5rem;
-  padding: 0.8rem 1.2rem;
-  border-radius: 0.4rem;
-  color: var(--text-color);
-  font-size: 1.2rem;
-}
-
-.status-banner--error {
-  border: 1px solid var(--status-failed);
-  background-color: color-mix(in srgb, var(--status-failed) 15%, transparent);
-}
-
-body:not(.status-time-local) .t-local {
-  display: none;
-}
-body.status-time-local .t-utc {
-  display: none;
-}
-
-.status-controls {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 1.2rem;
-}
-
-.status-ribbon:not([hidden]) {
-  font-size: 1.2rem;
-  padding: 0.8rem 1.2rem;
-  margin-bottom: 1.5rem;
-  border: 1px solid var(--status-in-progress);
-  background: color-mix(in srgb, var(--status-in-progress) 18%, transparent);
-}
-
-#status-history-panel span {
-  position: absolute;
-  top: 0;
-  left: var(--thumb-pct, 50%);
-  transform: translateX(-50%);
-  font-size: 1.2rem;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-@media (max-width: 900px) {
-  .status-row {
-    grid-template-columns: 1fr;
-  }
-
-  .status-stats {
-    display: block;
-    text-align: left;
-  }
-}
-

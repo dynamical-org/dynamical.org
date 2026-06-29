@@ -7,13 +7,13 @@ permalink: /feed/feed.xml
   <subtitle>{{ metadata.description }}</subtitle>
   <link href="{{ permalink | htmlBaseUrl(metadata.url) }}" rel="self" />
   <link href="{{ metadata.url | addPathPrefixToFullUrl }}" />
-  <updated>{{ collections.updates | getNewestCollectionItemDate | dateToRfc3339 }}</updated>
+  <updated>{{ collections.feedItems | getNewestCollectionItemDate | dateToRfc3339 }}</updated>
   <id>{{ metadata.url }}</id>
   <author>
     <name>{{ metadata.author.name }}</name>
     <email>{{ metadata.author.email }}</email>
   </author>
-  {%- for post in collections.updates | reverse %} {% set absolutePostUrl %}{{ post.url | htmlBaseUrl(metadata.url)
+  {%- for post in collections.feedItems | reverse %} {% set absolutePostUrl %}{{ post.url | htmlBaseUrl(metadata.url)
   }}{% endset %}
   <entry>
     <title>{{ post.data.title }}</title>

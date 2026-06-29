@@ -58,9 +58,9 @@
       <ul>
         <li><a href="/" class="nav-lockup"><picture><source srcset="https://assets.dynamical.org/identity/logo/lockup/lockup-white.svg" media="(prefers-color-scheme: dark)"><img src="https://assets.dynamical.org/identity/logo/lockup/lockup-black.svg" alt="dynamical.org" height="30"></picture></a></li>
         <li><a href="/catalog">catalog</a></li>
-        <li><a href="/about">about</a></li>
+        <li><a href="/#research">research</a></li>
         <li><a href="/updates">updates</a></li>
-        <li><a href="/scorecard">scorecard</a></li>
+        <li><a href="/about">about</a></li>
         <li><a href="/podcast">podcast</a></li>
         <li><a href="https://status.dynamical.org">status</a></li>
       </ul>
@@ -68,32 +68,79 @@
     {{ content | safe }}
 
     <footer role="contentinfo">
-      <div>
-        <a href="https://github.com/dynamical-org">GitHub</a> ·
-        <a href="https://www.linkedin.com/company/dynamical-org">LinkedIn</a> ·
-        <a href="https://youtube.com/@dynamical-org">YouTube</a> ·
-        <a href="/feed/feed.xml">Atom</a> ·
-        <a href="/feed/feed.json">RSS JSON</a>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h2>Explore</h2>
+          <ul>
+            <li><a href="/#research">Research</a></li>
+            <li><a href="/#updates">Updates</a></li>
+            <li><a href="/catalog">Catalog</a></li>
+            <li><a href="/podcast">Podcast</a></li>
+            <li><a href="https://status.dynamical.org">Status</a></li>
+            <li><a href="/about">About</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h2>Connect</h2>
+          <ul>
+            <li><a href="https://github.com/dynamical-org">GitHub</a></li>
+            <li><a href="https://www.linkedin.com/company/dynamical-org">LinkedIn</a></li>
+            <li><a href="https://youtube.com/@dynamical-org">YouTube</a></li>
+            <li><a href="/feed/feed.xml">Atom</a> · <a href="/feed/feed.json">JSON</a></li>
+            <li><a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-dispatch">
+          <h2>Dispatch</h2>
+          <p>New datasets, validation findings, and lab notes — a few times a month.
+          <form
+            action="https://buttondown.email/api/emails/embed-subscribe/dynamical"
+            method="post"
+            target="popupwindow"
+            onsubmit="window.open('https://buttondown.email/dynamical', 'popupwindow')"
+            class="footer-subscribe"
+          >
+            <label class="visually-hidden" for="footer-email">Email</label>
+            <input type="email" id="footer-email" name="email" placeholder="marshall@dynamical.org"/>
+            <input type="hidden" value="1" name="embed"/>
+            <input type="submit" value="Subscribe"/>
+          </form>
+          <p class="footer-archive"><a href="/updates">Browse the archive →</a></p>
+        </div>
       </div>
-      <div>
-        dynamical.org · Built {% currentBuildDate %}
+      <div class="footer-base">
+        <span>dynamical.org · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">BY-NC-SA 4.0</a></span>
+        <span>Built {% currentBuildDate %}</span>
       </div>
     </footer>
 
     <!-- Latest content popup -->
     {% set latestUpdate = collections.updates | reverse | first %}
+    {% set latestResearch = collections.research | reverse | first %}
     {% set latestPodcast = collections.podcast | reverse | first %}
-    {% set isPodcast = latestPodcast and (not latestUpdate or latestPodcast.date > latestUpdate.date) %}
-    {% if latestPodcast or latestUpdate %}
-      {% if isPodcast %}
-        {% set latestContent = latestPodcast %}
-        {% set contentType = "New podcast episode" %}
-        {% set contentIcon = "🎙️" %}
-      {% else %}
-        {% set latestContent = latestUpdate %}
-        {% set contentType = "Latest update" %}
-        {% set contentIcon = "📰" %}
-      {% endif %}
+
+    {# Pick the most recent across updates, research, and podcast. #}
+    {% set latestContent = null %}
+    {% set contentType = "" %}
+    {% set contentIcon = "" %}
+    {% set contentUrl = "" %}
+    {% if latestUpdate %}
+      {% set latestContent = latestUpdate %}
+      {% set contentType = "Latest update" %}
+      {% set contentIcon = "📰" %}
+      {% set contentUrl = "/updates" %}
+    {% endif %}
+    {% if latestResearch and (not latestContent or latestResearch.date > latestContent.date) %}
+      {% set latestContent = latestResearch %}
+      {% set contentType = "New " + ((latestResearch.data.type or "note") | lower) %}
+      {% set contentIcon = "📝" %}
+      {% set contentUrl = latestResearch.url %}
+    {% endif %}
+    {% if latestPodcast and (not latestContent or latestPodcast.date > latestContent.date) %}
+      {% set latestContent = latestPodcast %}
+      {% set contentType = "New podcast episode" %}
+      {% set contentIcon = "🎙️" %}
+      {% set contentUrl = latestPodcast.url %}
     {% endif %}
     {% if latestContent %}
       <div id="latest-popup">
@@ -120,11 +167,7 @@
             })();
           </script>
         </div>
-        {% if not isPodcast %}
-          <a href="/updates" class="popup-title">{{ latestContent.data.title }}</a>
-        {% else %}
-          <a href="{{ latestContent.url }}" class="popup-title">{{ latestContent.data.title }}</a>
-        {% endif %}
+        <a href="{{ contentUrl }}" class="popup-title">{{ latestContent.data.title }}</a>
         <div class="popup-date">{{ latestContent.date | readableDate }}</div>
       </div>
     {% endif %}

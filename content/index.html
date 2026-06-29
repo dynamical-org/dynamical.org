@@ -2,35 +2,15 @@
 layout: base.njk
 title: home
 redirects_from: /index.html
+templateEngineOverride: njk
 ---
-
-<style>
-  .frame {
-    margin: 8rem auto;
-  }
-</style>
+{% from "work-item.njk" import workItem %}
 
 <div class="hero-section">
   <div class="hero-content">
-    <h1 class="hero-heading">dynamical.org</h1>
-    <p class="hero-subtitle">
-      Easy, fast weather data.
+    <p class="mission-statement">
+      A research lab advancing how we access, understand, and act on data about our world.
     </p>
-    <a href="/catalog" class="hero-cta">Explore the Catalog &rarr;</a>
-    <div class="hero-stats">
-      <div class="hero-stat">
-        <div class="hero-stat-value">1PB+</div>
-        <div class="hero-stat-label">archived</div>
-      </div>
-      <div class="hero-stat">
-        <div class="hero-stat-value">{{ usage.requestsDisplay }}</div>
-        <div class="hero-stat-label">requests served</div>
-      </div>
-      <div class="hero-stat">
-        <div class="hero-stat-value">{{ catalog.entries | size }}</div>
-        <div class="hero-stat-label">data products</div>
-      </div>
-    </div>
   </div>
   <div class="hero-visual">
     <canvas id="globe-canvas"></canvas>
@@ -43,64 +23,27 @@ redirects_from: /index.html
   </div>
 </div>
 
-<div class="frame">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">
-      7-day lead of 25th-percentile temperature over Europe
-    </div>
+<section class="content home-section" id="research">
+  <div class="home-section-head">
+    <h2 class="block-label">Research areas</h2>
   </div>
-  {% frameHighlight "py", "frameContent frameContentDesktop" %}
-ds = dynamical_catalog.open("noaa-gefs-forecast-35-day")
-(
-    ds["temperature_2m"]
-    .sel(init_time="2025-01-01T00")
-    .sel(lead_time="7d")
-    .sel(latitude=slice(70, 20), longitude=slice(0, 50))
-    .quantile(0.25, dim="ensemble_member")
-    .plot()
-)
-  {% endframeHighlight %}
-  {% frameHighlight "py", "frameContent frameContentMobile" %}
-ds = dynamical_catalog.open("noaa-gefs-forecast-35-day")
-(
-    ds["temperature_2m"]
-    .sel(init_time="2025-01-01T00")
-    .sel(lead_time="7d")
-    .sel(latitude=slice(70, 20), longitude=slice(0, 50))
-    .quantile(0.25, dim="ensemble_member")
-    .plot()
-)
-  {% endframeHighlight %}
-  <img
-    class="frameResult"
-    src="./assets/gefs_temperature_q25_europe.png"
-    alt="A plot showing precipitation in Mongolia for 2024-04-01"
-  />
-</div>
+  <div class="area-grid">
+    {%- for area in collections.areas %}
+    <a class="area-card" href="{{ area.url }}">
+      <h3>{{ area.data.title }}</h3>
+      <p>{{ area.data.blurb }}</p>
+    </a>
+    {%- endfor %}
+  </div>
+</section>
 
-<div class="frame">
-  <div class="frameHeader">
-    <div class="frameHeaderTitle">dynamical.org</div>
-    <div class="frameHeaderSubtitle">
-      Precipitation over time in Ulaanbaatar, Mongolia
-    </div>
+<section class="content home-section">
+  <div class="home-section-head">
+    <h2 class="block-label">Featured work</h2>
   </div>
-  {% frameHighlight "py", "frameContent frameContentDesktop" %}
-ds = dynamical_catalog.open("noaa-gefs-analysis")
-ds["precipitation_surface"].sel(latitude=47.9, longitude=106.9, method="nearest").plot()
-  {% endframeHighlight %}
-  {% frameHighlight "py", "frameContent frameContentMobile" %}
-ds = dynamical_catalog.open("noaa-gefs-analysis")
-ds["precipitation_surface"] \
-  .sel(latitude=47.9, longitude=106.9, method="nearest") \
-  .plot()
-  {% endframeHighlight %}
-  <img
-    class="frameResult"
-    src="./assets/gefs_precipitation_surface_2024-04-01T00-00.png"
-    alt="A plot showing precipitation in Mongolia for 2024-04-01"
-  />
-</div>
+  <div class="work-list">
+    {%- for item in collections.featuredWork %}{{ workItem(item) }}{% endfor %}
+  </div>
+</section>
 
 <script src="/globe.js"></script>

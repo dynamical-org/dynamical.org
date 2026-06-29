@@ -13,7 +13,7 @@ permalink: /feed/feed.json
     "url": "{{ metadata.author.url }}"
   },
   "items": [
-    {%- for post in collections.updates | reverse %}
+    {%- for post in collections.feedItems | reverse %}
     {%- set absolutePostUrl = post.url | htmlBaseUrl(metadata.url) %}
     {
       "id": "{{ absolutePostUrl }}",
