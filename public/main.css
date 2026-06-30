@@ -605,12 +605,12 @@ a.work-item:hover h3 { text-decoration: underline; }
 
 /* Homepage mission statement + section heads. */
 .mission-statement {
-  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  font-size: clamp(2.0rem, 4vw, 3.4rem);
   line-height: 1.25;
   letter-spacing: -0.01em;
   max-width: 24ch;
   margin: 0;
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 .home-section { margin-top: 6rem; }
 .home-section-head {
