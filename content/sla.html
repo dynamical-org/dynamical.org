@@ -14,10 +14,22 @@ eleventyExcludeFromCollections: true
   .sla-table th {
     white-space: normal;
   }
+
+  /* Display headline — align with the homepage .mission-statement treatment
+     (clamp size, tight line-height, negative tracking, balanced wrap) rather
+     than the unstyled browser default this page would otherwise inherit. */
+  .content h1 {
+    font-size: clamp(2.4rem, 3.5vw, 3.4rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    max-width: 24ch;
+    margin-top: 1rem;
+  }
 </style>
 
 <div class="content">
-  <h1>Build critical training and operational infrastructure on dynamical.org.</h1>
+  <h1>Build critical training and operational infrastructure on dynamical.org</h1>
 
   <p>
     <strong>dynamical.org</strong> publishes an analysis-ready, multi-model
@@ -26,7 +38,15 @@ eleventyExcludeFromCollections: true
     support relationship, operational guarantees, and performance remedies.
   </p>
 
-  <h3>What the SLA covers</h3>
+  <h3>Free, public access stays free</h3>
+  <p>
+    The public dynamical.org catalog is free and open, and that is not going away —
+    free access is on a best-effort basis with no SLA. The commercial SLA exists to
+    <strong>sustain and improve the reliability of that free access</strong>, not to
+    paywall it.
+  </p>
+
+  <h3>What the commercial SLA adds</h3>
   <ul>
     <li>
       <strong>99.5% uptime</strong> on the data-serving path (STAC + hot-storage
@@ -52,6 +72,7 @@ eleventyExcludeFromCollections: true
       <thead>
         <tr>
           <th></th>
+          <th>Public (free)</th>
           <th>Small Business</th>
           <th>Enterprise</th>
         </tr>
@@ -59,41 +80,49 @@ eleventyExcludeFromCollections: true
       <tbody>
         <tr>
           <td>Data · timeliness · uptime</td>
+          <td>Best-effort, no guarantee</td>
           <td>Identical</td>
           <td>Identical</td>
         </tr>
         <tr>
           <td><strong>P1 response</strong> (data inaccessible)</td>
+          <td>Community</td>
           <td>6 business hours</td>
           <td><strong>4 hours, 24/7</strong></td>
         </tr>
         <tr>
           <td>P2 response</td>
+          <td>Community</td>
           <td>12 business hours</td>
           <td>12 hours, 24/7</td>
         </tr>
         <tr>
           <td>P3 response</td>
+          <td>—</td>
           <td>48 business hours</td>
           <td>1 business day</td>
         </tr>
         <tr>
           <td>Service credit / breach</td>
+          <td>—</td>
           <td>15% (50% monthly cap)</td>
           <td>25% uptime / 20% timeliness (100% cap)</td>
         </tr>
         <tr>
           <td>Chronic-breach exit</td>
           <td>—</td>
+          <td>—</td>
           <td>Terminate + refund after 3 months</td>
         </tr>
         <tr>
           <td>Breaking-change notice</td>
+          <td>Changelog</td>
           <td>≥10 business days</td>
           <td>≥20 business days + staging</td>
         </tr>
         <tr>
           <td>Relationship</td>
+          <td>Public status page · email</td>
           <td>Email · webhooks · status page</td>
           <td>Named contact · shared channel · reviews</td>
         </tr>
@@ -112,6 +141,7 @@ eleventyExcludeFromCollections: true
       <thead>
         <tr>
           <th></th>
+          <th class="right">Public (free)</th>
           <th class="right">Small Business</th>
           <th class="right">Enterprise</th>
         </tr>
@@ -119,11 +149,13 @@ eleventyExcludeFromCollections: true
       <tbody>
         <tr>
           <td>Single data product</td>
+          <td class="right">Free</td>
           <td class="right">~$3,000 / yr</td>
           <td class="right">~$12,000 / yr</td>
         </tr>
         <tr>
           <td>Full catalog</td>
+          <td class="right"><strong>Free</strong></td>
           <td class="right"><strong>~$6,000 / yr</strong></td>
           <td class="right"><strong>~$24,000 / yr</strong></td>
         </tr>
@@ -147,7 +179,9 @@ eleventyExcludeFromCollections: true
   </p>
   <p>
     Supporting dynamical.org leads to the deployment of new data products, and
-    commercial contract holders help drive our roadmap.
+    commercial contract holders help drive our roadmap. Every commercial contract
+    directly improves the reliability and longevity of the free, public access that
+    the broader community depends on.
   </p>
 
   <hr style="margin-top: 30px; margin-bottom: 30px" />
