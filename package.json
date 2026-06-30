@@ -6,6 +6,8 @@
   "scripts": {
     "build": "STAC_CACHE_DURATION=0s npx @11ty/eleventy",
     "start": "npx @11ty/eleventy --serve --port=8081",
+    "start:staging": "STAC_BASE_URL=https://stac-staging.dynamical.org npx @11ty/eleventy --serve --port=8081",
+    "build:staging": "STAC_BASE_URL=https://stac-staging.dynamical.org STAC_CACHE_DURATION=0s npx @11ty/eleventy",
     "clean": "rm -r docs .cache"
   },
   "repository": {
