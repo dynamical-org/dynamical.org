@@ -2,7 +2,16 @@ const fetch = require("@11ty/eleventy-fetch");
 const fs = require("fs");
 const path = require("path");
 
-const STAC_BASE_URL = process.env.STAC_BASE_URL || "https://stac.dynamical.org";
+// On Cloudflare Pages, preview deployments (every branch except the production
+// `main` branch — i.e. PR previews) build against the staging STAC catalog so
+// catalog changes can be previewed before going live; production builds use
+// prod. An explicit STAC_BASE_URL always wins, e.g. `npm run start:staging` or
+// pointing at a locally-served stac/ tree.
+const STAC_BASE_URL =
+  process.env.STAC_BASE_URL ||
+  (process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_BRANCH !== "main"
+    ? "https://stac-staging.dynamical.org"
+    : "https://stac.dynamical.org");
 
 // `npm run build` sets this to "0s" so production builds always pick up the
 // latest STAC — we don't want to publish a site that references stale catalog

@@ -1,6 +1,13 @@
 const fetch = require("@11ty/eleventy-fetch");
 
-const STAC_BASE_URL = process.env.STAC_BASE_URL || "https://stac.dynamical.org";
+// On Cloudflare Pages, preview deployments (every branch except production
+// `main` — i.e. PR previews) build against the staging STAC catalog; production
+// uses prod. Explicit STAC_BASE_URL always wins.
+const STAC_BASE_URL =
+  process.env.STAC_BASE_URL ||
+  (process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_BRANCH !== "main"
+    ? "https://stac-staging.dynamical.org"
+    : "https://stac.dynamical.org");
 const VALIDATION_BASE_URL =
   process.env.VALIDATION_REPORTS_BASE_URL ||
   "https://dataset-validation-reports.dynamical.org";
