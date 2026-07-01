@@ -17,7 +17,8 @@ eleventyExcludeFromCollections: true
 </style>
 
 <div class="content">
-  <h1 style="margin-top: 4rem; margin-bottom: 4rem;">Build critical training and operational infrastructure on dynamical.org</h1>
+  <h1 style="margin-top: 4rem; margin-bottom: 1rem;">Commercial SLA</h1>
+  <h2 style="margin-top: 0; margin-bottom: 4rem;">Build critical training and operational infrastructure on dynamical.org</h2>
 
   <p>
     <strong>dynamical.org</strong> publishes an analysis-ready, multi-model
@@ -61,7 +62,7 @@ eleventyExcludeFromCollections: true
         <tr>
           <th></th>
           <th>Enterprise</th>
-          <th>Startup</th>
+          <th>Startup<sup class="footnote-ref"><a href="#fn4" id="fnref4">[4]</a></sup></th>
           <th>Public (free)</th>
         </tr>
       </thead>
@@ -73,25 +74,31 @@ eleventyExcludeFromCollections: true
           <td>Best-effort, no guarantee</td>
         </tr>
         <tr>
-          <td><strong>P1 response</strong> (data inaccessible)</td>
+          <td>Low-latency target / breach</td>
+          <td>&lt;10s / 5m</td>
+          <td>&lt;10s / 20m</td>
+          <td>&lt;10s / —</td>
+        </tr>
+        <tr>
+          <td><strong>P1 response</strong><sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup></td>
           <td><strong>4 hours, 24/7</strong></td>
           <td>6 business hours</td>
           <td>Community</td>
         </tr>
         <tr>
-          <td>P2 response</td>
+          <td>P2 response<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup></td>
           <td>12 hours, 24/7</td>
           <td>12 business hours</td>
           <td>Community</td>
         </tr>
         <tr>
-          <td>P3 response</td>
+          <td>P3 response<sup class="footnote-ref"><a href="#fn3" id="fnref3">[3]</a></sup></td>
           <td>1 business day</td>
           <td>48 business hours</td>
           <td>—</td>
         </tr>
         <tr>
-          <td>Service credit / breach</td>
+          <td>Service credit per breach</td>
           <td>25% uptime / 20% timeliness (100% cap)</td>
           <td>15% (50% monthly cap)</td>
           <td>—</td>
@@ -117,11 +124,6 @@ eleventyExcludeFromCollections: true
       </tbody>
     </table>
   </div>
-  <p>
-    <strong>Startup</strong> is designed for early-stage companies (under $5M annual
-    revenue).
-  </p>
-
   <h3>Pricing</h3>
   <p>Simple, and built to reward depth — never metered by usage.</p>
   <div class="table-container">
@@ -152,9 +154,9 @@ eleventyExcludeFromCollections: true
   </div>
   <p>
     <em
-      >Run dynamical.org infrastructure on-premises for data products in your own
-      cloud. Reach out at
-      <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.</em
+      >Separately, we provide support to run dynamical.org infrastructure
+      on-premises for data products in your own cloud. Reach out at
+      <a href="mailto:marshall@dynamical.org">marshall@dynamical.org</a>.</em
     >
   </p>
 
@@ -178,4 +180,41 @@ eleventyExcludeFromCollections: true
     <a href="mailto:marshall@dynamical.org">marshall@dynamical.org</a> ·
     <a href="https://stac.dynamical.org/catalog.json">catalog</a>
   </p>
+
+  <hr class="footnotes-sep" />
+  <section class="footnotes">
+    <ol class="footnotes-list">
+      <li id="fn1" class="footnote-item">
+        <p>
+          <strong>P1 · Critical</strong> — the data-serving path is down: STAC or
+          hot-storage reads failing catalog-wide, or a contracted data product fully
+          inaccessible. No workaround.
+          <a href="#fnref1" class="footnote-backref">↩︎</a>
+        </p>
+      </li>
+      <li id="fn2" class="footnote-item">
+        <p>
+          <strong>P2 · Major</strong> — partial or degraded service: elevated error
+          rates or latency, or a single data product stale, missing a run, or
+          intermittently failing, while the rest of the catalog is usable.
+          <a href="#fnref2" class="footnote-backref">↩︎</a>
+        </p>
+      </li>
+      <li id="fn3" class="footnote-item">
+        <p>
+          <strong>P3 · Minor</strong> — limited-impact issues, questions, or
+          requests: documentation, cosmetic, or non-blocking behavior with a
+          workaround.
+          <a href="#fnref3" class="footnote-backref">↩︎</a>
+        </p>
+      </li>
+      <li id="fn4" class="footnote-item">
+        <p>
+          <strong>Startup</strong> is designed for early-stage companies (under $5M
+          annual revenue).
+          <a href="#fnref4" class="footnote-backref">↩︎</a>
+        </p>
+      </li>
+    </ol>
+  </section>
 </div>
