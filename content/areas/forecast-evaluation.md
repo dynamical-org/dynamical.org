@@ -9,4 +9,4 @@ variable, by region, against observations or against a reanalysis, with metrics
 that reward sharpness or metrics that reward calibration. Each choice encodes an
 opinion about what "good" means.
 
-We explore the tradeoffs of these choices, with the aim to create a framework to determine _which_ forecast to trust for a given situation. We are particularly interested in how probabilistic forecasts should be optimally leveraged in human-driven decision-making processes.
+We explore the tradeoffs of these choices, with the aim to create a framework to determine _which_ forecasts to trust for a given situation. We are particularly interested in how probabilistic forecasts should be optimally leveraged in human-driven decision-making processes.
