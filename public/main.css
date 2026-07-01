@@ -152,6 +152,20 @@ h6 {
   margin-top: 2rem;
   margin-bottom: 1rem;
   color: var(--header-color);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Larger headings get slightly tighter leading; smaller ones get more air.
+   Kept gentle because IBM Plex Mono already reads tight. */
+h1 {
+  line-height: 1.15;
+}
+
+h5,
+h6 {
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 p {
@@ -322,6 +336,7 @@ caption {
   font-size: 0.75rem;
   color: var(--muted-text-2);
   white-space: nowrap;
+  min-width: 5rem;
 }
 
 #globe-slider {
@@ -359,12 +374,30 @@ caption {
   color: var(--muted-text-2);
   text-align: center;
   margin-top: 0.4rem;
+  min-height: 1.6rem;
 }
 
 .globe-footnote a {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* Placeholders: a plain box filling each element until globe.js populates it,
+   so the content appears without shifting layout. */
+.globe-footnote:empty,
+.globe-time-label:empty {
+  background-color: var(--muted-text-2);
+  opacity: 0.4;
+}
+
+.globe-footnote:empty {
+  width: 300px;
+  max-width: 90vw;
+}
+
+.globe-time-label:empty {
+  height: 1em;
 }
 
 nav,
@@ -618,8 +651,8 @@ a.work-item:hover h3 { text-decoration: underline; }
 /* Homepage mission statement + section heads. */
 .mission-statement {
   font-size: clamp(2.0rem, 4vw, 3.4rem);
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   max-width: 24ch;
   margin: 0;
   text-wrap: pretty;
