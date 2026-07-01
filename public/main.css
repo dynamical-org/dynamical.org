@@ -158,6 +158,18 @@ p {
   margin-bottom: 1.2rem;
 }
 
+/* Give bullet/numbered lists in article content room to breathe. Without
+   this, multi-line list items (e.g. the SLA page) run together and are hard
+   to scan. Scoped to .content so nav/footer lists keep their own layout. */
+.content ul,
+.content ol {
+  margin-bottom: 1.2rem;
+}
+
+.content li + li {
+  margin-top: 0.6rem;
+}
+
 .small-note {
   font-size: 0.9em;
   color: var(--muted-text);
