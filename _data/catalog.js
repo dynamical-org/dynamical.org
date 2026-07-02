@@ -99,7 +99,7 @@ function reshapeStacCollection(collection) {
     };
   });
 
-  const variables = Object.entries(cubeVars).map(([name, v]) => ({
+  const rawVariables = Object.entries(cubeVars).map(([name, v]) => ({
     name,
     long_name: v.long_name,
     short_name: v.short_name,
@@ -107,6 +107,13 @@ function reshapeStacCollection(collection) {
     units: v.unit,
     dimension_names: v.dimensions,
   }));
+
+  // Variables at the root zarr group (e.g. `temperature_2m`) are listed
+  // directly, unchanged from before. Variables under a nested zarr group
+  // (e.g. `model_level/geopotential_height`) are split off into named
+  // groups so the catalog page can render them behind disclosures instead
+  // of flooding a single flat table.
+  const { variables, variableGroups } = groupVariables(rawVariables);
 
   const summaryValue = (key) => {
     const value = (collection.summaries || {})[key];
@@ -153,9 +160,37 @@ function reshapeStacCollection(collection) {
     forecast_resolution: summaryValue("forecast_resolution"),
     dimensions,
     variables,
+    variableGroups,
     notebooks,
     validation_report_href,
   };
+}
+
+// Split cube:variables into root (single-level) variables and named groups
+// based on a `group/name` prefix in the variable's key, e.g.
+// `model_level/geopotential_height` belongs to the `model_level` group as
+// `geopotential_height`. Variables with no `/` stay in the flat root list.
+function groupVariables(rawVariables) {
+  const variables = [];
+  const groupsByName = {};
+  const groupOrder = [];
+
+  rawVariables.forEach((variable) => {
+    const slashIndex = variable.name.lastIndexOf("/");
+    if (slashIndex === -1) {
+      variables.push(variable);
+      return;
+    }
+    const groupName = variable.name.slice(0, slashIndex);
+    const name = variable.name.slice(slashIndex + 1);
+    if (!groupsByName[groupName]) {
+      groupsByName[groupName] = { name: groupName, variables: [] };
+      groupOrder.push(groupName);
+    }
+    groupsByName[groupName].variables.push({ ...variable, name });
+  });
+
+  return { variables, variableGroups: groupOrder.map((name) => groupsByName[name]) };
 }
 
 // Pair `rel:example` links into notebooks by the `{slug}.ipynb` filename
