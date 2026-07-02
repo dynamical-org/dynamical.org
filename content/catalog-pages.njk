@@ -36,6 +36,9 @@ eleventyComputed:
   .variable-group > summary > strong {
     margin-left: 0.5em;
   }
+  .variable-dimensions {
+    white-space: nowrap;
+  }
 </style>
 {% macro variableTable(variables) %}
   <div class="table-container">
@@ -43,7 +46,7 @@ eleventyComputed:
       <tr>
         <th/>
         <th class='right'>units</th>
-        <th class='right'>dimensions</th>
+        <th class='right variable-dimensions'>dimensions</th>
       </tr>
       {% for variable in variables %}
         <tr>
@@ -55,7 +58,7 @@ eleventyComputed:
             {% endif %}
           </td>
           <td class='right'>{{ variable.units }}</td>
-          <td class='right'>{{ variable.dimension_names.join(' × ') }}</td>
+          <td class='right variable-dimensions'>{{ variable.dimension_names.join(' × ') }}</td>
         </tr>
         <tr class="metadata-comment">
           <td colspan="3">
