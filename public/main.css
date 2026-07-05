@@ -542,6 +542,8 @@ article {
    the card box (kept for the inline updates stream). */
 article.note {
   border: none;
+  margin: 2rem auto;
+  padding: 0;
 }
 
 article img {
