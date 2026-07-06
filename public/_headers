@@ -1,0 +1,13 @@
+# Cloudflare Pages headers. Copied to the site root via passthrough in
+# .eleventy.js and read by Cloudflare Pages from the build output.
+#
+# The generated plain-text files legitimately contain UTF-8 characters
+# sourced from STAC prose (e.g. the ellipsis "…" and em dash "—"). A .txt
+# file can't declare its own charset, so pin it here — otherwise clients that
+# default text/plain to Windows-1252 render mojibake ("â€¦").
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+/llms-full.txt
+  Content-Type: text/plain; charset=utf-8
+/robots.txt
+  Content-Type: text/plain; charset=utf-8

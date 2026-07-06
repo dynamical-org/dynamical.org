@@ -8,20 +8,25 @@ eleventyExcludeFromCollections: true
 
 All content below is public and requires no authentication. Machine-readable dataset metadata is available as schema.org/Dataset JSON-LD on each catalog page and as STAC Collection JSON. A fuller dump of dataset details is at /llms-full.txt.
 
+**The STAC catalog at https://stac.dynamical.org/catalog.json is the authoritative source of truth** for data product documentation, dataset metadata, and data asset (Zarr/Icechunk) locations. This file and the catalog pages are generated from it — when in doubt, read STAC. For convenient programmatic access, use the `dynamical-catalog` Python library (`pip install dynamical-catalog`): `import dynamical_catalog; ds = dynamical_catalog.open("noaa-gfs-forecast")`.
+
 ## Catalog
+
+Forecast datasets archive past and present model runs; each run is identified by its initialization time (`init_time`) and steps forward along `lead_time`. Analysis datasets concatenate the earliest lead times of successive runs into a continuous best-estimate record. Each entry below gives domain, resolution, forecast length, and update cadence — read its STAC Collection or /llms-full.txt for the full variable list and detail.
 {% for model in catalog.models %}
 ### {{ model.name | safe }}
 {%- for dataset in model.datasets %}
-- [{{ dataset.name | safe }}]({{ dataset.catalog_url }}): {{ dataset.description_meta | safe }} STAC: {{ dataset.stac_href }}
+- **[{{ dataset.name | safe }}]({{ dataset.catalog_url }})** (`{{ dataset.dataset_id }}`) — {{ dataset.spatial_domain | safe }}, {{ dataset.spatial_resolution | safe }}.{% if dataset.forecast_domain %} {{ dataset.forecast_domain | safe }}; {{ dataset.forecast_resolution | safe }}.{% endif %} {{ dataset.time_domain | safe }}; {{ dataset.time_resolution | replace("Forecasts initialized ", "") | safe }}. STAC: {{ dataset.stac_href }}
 {%- endfor %}
 {% endfor %}
 ## Data access
-- [STAC catalog root]({{ metadata.url }}stac/): entry point to all dataset STAC Collections — https://stac.dynamical.org/catalog.json
-- [Catalog index]({{ metadata.url }}catalog/): human-readable catalog of all datasets
-- Datasets are distributed as Icechunk (Zarr) repositories on S3; see the access example and `distribution` in each dataset's JSON-LD or STAC Collection.
+- STAC catalog (source of truth): https://stac.dynamical.org/catalog.json — the authoritative index of every dataset's STAC Collection, documenting variables, dimensions, spatial/temporal extent, license, and exact data asset (Zarr/Icechunk) locations. Prefer STAC over any other source for machine-readable metadata and asset URIs.
+- Python library (recommended): `dynamical-catalog` — `import dynamical_catalog; ds = dynamical_catalog.open("<dataset-id>")`. See the runnable examples on each catalog page.
+- [Catalog index]({{ metadata.url }}catalog/): human-readable catalog of all datasets. [STAC redirect]({{ metadata.url }}stac/).
+- Datasets are distributed as Icechunk (Zarr) repositories; see each STAC Collection's `assets` (and the `distribution` in each catalog page's JSON-LD) for exact locations.
 
 ## Docs & examples
-- Each catalog page includes runnable Python examples and links to example notebooks (GitHub + Colab).
+- Each catalog page includes runnable `dynamical-catalog` Python examples and links to example notebooks (GitHub + Colab).
 - [Observation data notes]({{ metadata.url }}observation-data/): background on observation datasets.
 
 ## Quality & operations

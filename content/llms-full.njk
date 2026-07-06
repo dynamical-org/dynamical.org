@@ -6,6 +6,8 @@ eleventyExcludeFromCollections: true
 
 > {{ metadata.description | safe }} This is an expanded, single-file dump of every dataset in the dynamical.org catalog: prose descriptions, spatial/temporal domain, resolution, license, data-access assets, and the full variable list. All content is public and requires no authentication. A concise index is at /llms.txt.
 
+**The STAC catalog at https://stac.dynamical.org/catalog.json is the authoritative source of truth** for data product documentation, dataset metadata, and data asset (Zarr/Icechunk) locations. The entries below are generated from it — for the most complete and current metadata (all variables, dimensions, extents, and exact asset URIs), read each dataset's STAC Collection linked below. For convenient programmatic access, use the `dynamical-catalog` Python library (`pip install dynamical-catalog`): `import dynamical_catalog; ds = dynamical_catalog.open("<dataset-id>")`.
+
 Datasets are cloud-optimized weather/climate archives distributed as Icechunk (Zarr) repositories, described by STAC Collections at https://stac.dynamical.org and rendered as human pages under {{ metadata.url }}catalog/.
 {% for model in catalog.models %}
 ## {{ model.name | safe }}
