@@ -1,0 +1,37 @@
+---
+permalink: /llms-full.txt
+eleventyExcludeFromCollections: true
+---
+# dynamical.org - full catalog
+
+> {{ metadata.description | safe }} This is an expanded, single-file dump of every dataset in the dynamical.org catalog: prose descriptions, spatial/temporal domain, resolution, license, data-access assets, and the full variable list. All content is public and requires no authentication. A concise index is at /llms.txt.
+
+**The STAC catalog at https://stac.dynamical.org/catalog.json is the authoritative source of truth** for data product documentation, dataset metadata, and data asset (Zarr/Icechunk) locations. The entries below are generated from it - for the most complete and current metadata (all variables, dimensions, extents, and exact asset URIs), read each dataset's STAC Collection linked below. For convenient programmatic access, use the `dynamical-catalog` Python library (`pip install dynamical-catalog`): `import dynamical_catalog; ds = dynamical_catalog.open("<dataset-id>")`.
+
+For LLM agents, an MCP server is live at https://mcp.dynamical.org/mcp (server name `dynamical-catalog`, streamable HTTP transport) with tools `search_catalog`, `get_dataset_info`, `get_access_pattern`, and `list_recent_runs` - prefer these for programmatic discovery, access snippets, and forecast-run freshness.
+
+Datasets are cloud-optimized weather/climate archives distributed as Icechunk (Zarr) repositories, described by STAC Collections at https://stac.dynamical.org and rendered as human pages under {{ metadata.url }}catalog/.
+{% for model in catalog.models %}
+## {{ model.name | safe }}
+{% if model.description %}{{ model.description | safe }}
+{% endif %}{% for entry in model.datasets %}
+### {{ entry.name | safe }}
+
+- Page: {{ entry.catalog_url }}
+- STAC Collection: {{ entry.stac_href }}
+- Spatial domain: {{ entry.spatial_domain | safe }} (resolution: {{ entry.spatial_resolution | safe }})
+- Time domain: {{ entry.time_domain | safe }} (resolution: {{ entry.time_resolution | safe }})
+{%- if entry.forecast_domain %}
+- Forecast domain: {{ entry.forecast_domain | safe }} (resolution: {{ entry.forecast_resolution | safe }})
+{%- endif %}
+{%- if entry.license %}
+- License: {{ entry.license | safe }}{% if entry.license_url %} ({{ entry.license_url }}){% endif %}
+{%- endif %}
+{%- for dist in entry.distributions %}{% if 'data' in dist.roles %}
+- Data asset ({{ dist.type }}): {{ dist.href }}
+{%- endif %}{% endfor %}
+
+{{ entry.description_summary | safe }}
+
+Variables: {% for v in entry.variables %}{{ v.name | safe }}{% if v.units %} [{{ v.units | safe }}]{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% for g in entry.variableGroups %}{% for v in g.variables %}, {{ g.name | safe }}/{{ v.name | safe }}{% if v.units %} [{{ v.units | safe }}]{% endif %}{% endfor %}{% endfor %}
+{% endfor %}{% endfor %}

@@ -4,6 +4,7 @@ pagination:
   data: catalog.entries
   alias: entry
   size: 1
+  addAllPagesToCollections: true
 permalink: 'catalog/{{entry.dataset_id | slugify}}/'
 eleventyComputed:
   title: '{{entry.name}}'
@@ -40,6 +41,7 @@ eleventyComputed:
     white-space: nowrap;
   }
 </style>
+<script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 {% macro variableTable(variables) %}
   <div class="table-container">
     <table class="data">

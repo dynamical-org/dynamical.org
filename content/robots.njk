@@ -1,0 +1,47 @@
+---
+permalink: /robots.txt
+eleventyExcludeFromCollections: true
+---
+# dynamical.org — all content is public and requires no authentication.
+# AI crawlers and agents are explicitly welcome to index and cite this catalog.
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: {{ metadata.url }}sitemap.xml
+
+# LLM-friendly index (https://llmstxt.org): {{ metadata.url }}llms.txt
+# Expanded catalog dump: {{ metadata.url }}llms-full.txt

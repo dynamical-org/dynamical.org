@@ -20,6 +20,16 @@ const STAC_BASE_URL =
 const STAC_CACHE_DURATION = process.env.STAC_CACHE_DURATION || "1h";
 const STAC_FETCH_OPTIONS = { type: "json", duration: STAC_CACHE_DURATION };
 
+// Canonical public site + STAC hosts for machine-readable metadata (llms.txt,
+// schema.org JSON-LD). Always production, regardless of STAC_BASE_URL — the
+// links we advertise to crawlers must point at the live public endpoints, not
+// a staging preview.
+const SITE_URL = "https://dynamical.org/";
+const STAC_PUBLIC_URL = "https://stac.dynamical.org";
+// Single Zenodo DOI covering the dynamical.org catalog (also rendered as a
+// badge on each catalog page in content/catalog-pages.njk).
+const DATASET_DOI = "10.5281/zenodo.18777399";
+
 module.exports = async function () {
   const rootCatalog = await fetch(`${STAC_BASE_URL}/catalog.json`, STAC_FETCH_OPTIONS);
   const childLinks = (rootCatalog.links || []).filter((l) => l.rel === "child");
@@ -36,6 +46,21 @@ module.exports = async function () {
       return { status: "live", ...reshapeStacCollection(collection) };
     }),
   );
+
+  // Structured-data contract: llms.txt and schema.org/Dataset JSON-LD are
+  // generated from these same entries, so they can't reference a dataset that
+  // isn't in STAC. The real drift risk is upstream STAC dropping/renaming a
+  // field our machine-readable output depends on — which would silently emit
+  // broken schema.org. Fail the build instead. `npm run build` runs on
+  // Cloudflare Pages, so a throw here aborts the deploy.
+  validateEntries(entries);
+
+  // Attach the schema.org/Dataset object per entry so templates can emit it
+  // with `{{ entry.jsonld | dump | safe }}` — one source of truth with the
+  // catalog pages.
+  entries.forEach((entry) => {
+    entry.jsonld = buildDatasetJsonLd(entry);
+  });
 
   const modelGroups = {};
   entries.forEach((entry) => {
@@ -130,6 +155,20 @@ function reshapeStacCollection(collection) {
   const validationAsset = (collection.assets || {})["validation_report"];
   const validation_report_href = validationAsset ? validationAsset.href : null;
 
+  // Surface every published STAC asset generically as a distribution. Today
+  // this is the single `icechunk` (s3://) asset; when reformatters adds an
+  // HTTPS mirror asset it flows through here with no code change. The JSON-LD
+  // builder filters to the data-role assets.
+  const distributions = Object.entries(collection.assets || {}).map(([key, a]) => ({
+    key,
+    href: a.href,
+    type: a.type,
+    title: a.title,
+    roles: a.roles || [],
+  }));
+
+  const licenseLink = licenseLinks[0] || null;
+
   // Per-dataset social-card thumbnail, keyed by dataset id under
   // public/assets/catalog-thumbnails/. Null when no thumbnail is published so
   // the page falls back to the default site image.
@@ -163,7 +202,115 @@ function reshapeStacCollection(collection) {
     variableGroups,
     notebooks,
     validation_report_href,
+    // Machine-readable metadata for structured data (JSON-LD, llms.txt).
+    distributions,
+    spatial_bbox: collection.extent?.spatial?.bbox?.[0] || null,
+    temporal_interval: collection.extent?.temporal?.interval?.[0] || null,
+    license: collection.license || null,
+    license_url: licenseLink ? licenseLink.href : null,
+    version: collection.version || null,
+    keywords: collection.keywords || null,
+    stac_href: `${STAC_PUBLIC_URL}/${collection.id}/collection.json`,
+    catalog_url: `${SITE_URL}catalog/${collection.id}/`,
   };
+}
+
+// schema.org/Dataset for one catalog entry. Derived entirely from STAC fields
+// surfaced above so it stays in lockstep with the rendered catalog page.
+function buildDatasetJsonLd(entry) {
+  const org = { "@type": "Organization", name: "dynamical.org", url: SITE_URL };
+
+  // Advertise the data-role assets (the s3:// Icechunk repo today, an HTTPS
+  // mirror in future), plus the STAC Collection JSON as a metadata endpoint.
+  const distribution = entry.distributions
+    .filter((a) => a.roles.includes("data"))
+    .map((a) => ({
+      "@type": "DataDownload",
+      ...(a.title ? { name: a.title } : {}),
+      ...(a.type ? { encodingFormat: a.type } : {}),
+      contentUrl: a.href,
+    }));
+  distribution.push({
+    "@type": "DataDownload",
+    name: "STAC Collection metadata",
+    encodingFormat: "application/json",
+    contentUrl: entry.stac_href,
+  });
+
+  // Root variables plus any nested-group variables (qualified with their
+  // group prefix), so schema.org lists the dataset's full variable set even
+  // when the catalog page renders some behind group disclosures.
+  const allVariables = [
+    ...entry.variables,
+    ...(entry.variableGroups || []).flatMap((g) =>
+      g.variables.map((v) => ({ ...v, name: `${g.name}/${v.name}` })),
+    ),
+  ];
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "@id": entry.catalog_url,
+    name: entry.name,
+    description: entry.description_meta || plainTextExcerpt(entry.description),
+    url: entry.catalog_url,
+    sameAs: entry.stac_href,
+    isAccessibleForFree: true,
+    creator: org,
+    publisher: org,
+    identifier: `https://doi.org/${DATASET_DOI}`,
+    distribution,
+    variableMeasured: allVariables.map((v) => ({
+      "@type": "PropertyValue",
+      name: v.name,
+      ...(v.long_name ? { description: v.long_name } : {}),
+      ...(v.units ? { unitText: v.units } : {}),
+    })),
+  };
+  if (entry.version) schema.version = entry.version;
+  if (entry.license_url) schema.license = entry.license_url;
+  if (entry.keywords) schema.keywords = entry.keywords;
+  if (entry.spatial_bbox) {
+    // STAC bbox is [west, south, east, north]; schema.org GeoShape.box is
+    // "south west north east" (min lat, min lon, max lat, max lon).
+    const [west, south, east, north] = entry.spatial_bbox;
+    schema.spatialCoverage = {
+      "@type": "Place",
+      geo: { "@type": "GeoShape", box: `${south} ${west} ${north} ${east}` },
+    };
+  }
+  if (entry.temporal_interval && entry.temporal_interval[0]) {
+    // ISO 8601 interval; open-ended ("..") when STAC leaves the end null.
+    const [start, end] = entry.temporal_interval;
+    schema.temporalCoverage = `${start}/${end || ".."}`;
+  }
+  return schema;
+}
+
+// Fail the build if any live entry is missing a field the machine-readable
+// output depends on. Aggregates all problems into one error so a broken STAC
+// publish surfaces every offending dataset at once.
+function validateEntries(entries) {
+  const problems = [];
+  for (const e of entries) {
+    const id = e.dataset_id || "(unknown id)";
+    if (!e.name) problems.push(`${id}: missing title`);
+    if (!e.distributions.some((a) => a.roles.includes("data"))) {
+      problems.push(`${id}: no data-role asset (STAC assets: ${e.distributions.map((a) => a.key).join(", ") || "none"})`);
+    }
+    if (!Array.isArray(e.spatial_bbox) || e.spatial_bbox.length !== 4) {
+      problems.push(`${id}: missing/invalid extent.spatial.bbox`);
+    }
+    if (!e.temporal_interval || !e.temporal_interval[0]) {
+      problems.push(`${id}: missing extent.temporal.interval start`);
+    }
+    if (!e.license_url) problems.push(`${id}: no license link (rel="license")`);
+  }
+  if (problems.length) {
+    throw new Error(
+      `catalog.js: ${problems.length} STAC dataset(s) fail the structured-data contract:\n  - ${problems.join("\n  - ")}`,
+    );
+  }
 }
 
 // Split cube:variables into root (single-level) variables and named groups
