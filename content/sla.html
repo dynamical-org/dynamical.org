@@ -48,10 +48,7 @@ eleventyExcludeFromCollections: true
     </li>
     <li>
       <strong>Data-pipeline webhooks</strong> the moment a model run starts, makes
-      progress, or completes. Optionally attach a function: small Python that runs
-      in a sandbox the instant the event fires, with the dataset preloaded as an
-      <code>xarray.Dataset</code>, returning a summary, a threshold alert, or a
-      rendered plot on the payload — no compute of your own to run.
+      progress, or completes. 
     </li>
   </ul>
 
@@ -187,30 +184,26 @@ eleventyExcludeFromCollections: true
       <li id="fn1" class="footnote-item">
         <p>
           <strong>P1 · Critical</strong> — the data-serving path is down: STAC or
-          hot-storage reads failing catalog-wide, or a contracted data product fully
-          inaccessible. No workaround.
+          hot-storage reads failing for catalog catalog data products. No workaround.
           <a href="#fnref1" class="footnote-backref">↩︎</a>
         </p>
       </li>
       <li id="fn2" class="footnote-item">
         <p>
           <strong>P2 · Major</strong> — partial or degraded service: elevated error
-          rates or latency, or a single data product stale, missing a run, or
-          intermittently failing, while the rest of the catalog is usable.
+          rates, consistent latency, or data product staleness.
           <a href="#fnref2" class="footnote-backref">↩︎</a>
         </p>
       </li>
       <li id="fn3" class="footnote-item">
         <p>
-          <strong>P3 · Minor</strong> — limited-impact issues, questions, or
-          requests: documentation, cosmetic, or non-blocking behavior with a
-          workaround.
+          <strong>P3 · Minor</strong> — limited-impact issues or degredation to experimental data products  or tooling. Also includes questions, requests, or issues with a workaround.
           <a href="#fnref3" class="footnote-backref">↩︎</a>
         </p>
       </li>
       <li id="fn4" class="footnote-item">
         <p>
-          <strong>Startup</strong> is designed for early-stage companies (under $5M
+          <strong>Startup</strong> is designed for early-stage organizations (under $5M
           annual revenue).
           <a href="#fnref4" class="footnote-backref">↩︎</a>
         </p>
