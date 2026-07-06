@@ -1,0 +1,36 @@
+---
+permalink: /llms.txt
+eleventyExcludeFromCollections: true
+---
+# dynamical.org
+
+> {{ metadata.description | safe }} dynamical.org publishes a public catalog of cloud-optimized weather and climate datasets (NOAA GFS, GEFS, HRRR, MRMS, ECMWF IFS/AIFS, DWD ICON) as analysis-ready Zarr/Icechunk archives, with STAC metadata, Python access examples, and validation reports.
+
+All content below is public and requires no authentication. Machine-readable dataset metadata is available as schema.org/Dataset JSON-LD on each catalog page and as STAC Collection JSON. A fuller dump of dataset details is at /llms-full.txt.
+
+## Catalog
+{% for model in catalog.models %}
+### {{ model.name | safe }}
+{%- for dataset in model.datasets %}
+- [{{ dataset.name | safe }}]({{ dataset.catalog_url }}): {{ dataset.description_meta | safe }} STAC: {{ dataset.stac_href }}
+{%- endfor %}
+{% endfor %}
+## Data access
+- [STAC catalog root]({{ metadata.url }}stac/): entry point to all dataset STAC Collections — https://stac.dynamical.org/catalog.json
+- [Catalog index]({{ metadata.url }}catalog/): human-readable catalog of all datasets
+- Datasets are distributed as Icechunk (Zarr) repositories on S3; see the access example and `distribution` in each dataset's JSON-LD or STAC Collection.
+
+## Docs & examples
+- Each catalog page includes runnable Python examples and links to example notebooks (GitHub + Colab).
+- [Observation data notes]({{ metadata.url }}observation-data/): background on observation datasets.
+
+## Quality & operations
+- [Weather station scorecard]({{ metadata.url }}scorecard/): forecast accuracy vs. observations across US weather stations.
+- [Status](https://status.dynamical.org): live uptime and incident history.
+- Per-dataset validation reports are linked from each catalog page.
+
+## About & updates
+- [About]({{ metadata.url }}about/): what dynamical.org is and who builds it.
+- [Updates]({{ metadata.url }}updates/): new datasets, validation findings, and lab notes.
+- [Research]({{ metadata.url }}#research): research areas and notes.
+- [Atom feed]({{ metadata.url }}feed/feed.xml) · [JSON feed]({{ metadata.url }}feed/feed.json)

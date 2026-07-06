@@ -4,6 +4,7 @@ pagination:
   data: catalog.entries
   alias: entry
   size: 1
+  addAllPagesToCollections: true
 permalink: 'catalog/{{entry.dataset_id | slugify}}/'
 eleventyComputed:
   title: '{{entry.name}}'
@@ -27,6 +28,7 @@ eleventyComputed:
     color: rgb(45, 45, 45);
   }
 </style>
+<script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 <div class="content catalog-item">
   {%- set model = catalog.models | find('id', entry.model_id) %}
   <div>

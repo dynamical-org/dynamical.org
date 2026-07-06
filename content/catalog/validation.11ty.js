@@ -177,6 +177,7 @@ class ValidationReportPage {
         data: "validationReports.entries",
         size: 1,
         alias: "entry",
+        addAllPagesToCollections: true,
       },
       permalink: ({ entry }) => `catalog/${entry.datasetId}/validation/`,
       eleventyComputed: {
