@@ -8,6 +8,8 @@ eleventyExcludeFromCollections: true
 
 **The STAC catalog at https://stac.dynamical.org/catalog.json is the authoritative source of truth** for data product documentation, dataset metadata, and data asset (Zarr/Icechunk) locations. The entries below are generated from it — for the most complete and current metadata (all variables, dimensions, extents, and exact asset URIs), read each dataset's STAC Collection linked below. For convenient programmatic access, use the `dynamical-catalog` Python library (`pip install dynamical-catalog`): `import dynamical_catalog; ds = dynamical_catalog.open("<dataset-id>")`.
 
+For LLM agents, an MCP server is live at https://mcp.dynamical.org/mcp (server name `dynamical-catalog`, streamable HTTP transport) with tools `search_catalog`, `get_dataset_info`, `get_access_pattern`, and `list_recent_runs` — prefer these for programmatic discovery, access snippets, and forecast-run freshness.
+
 Datasets are cloud-optimized weather/climate archives distributed as Icechunk (Zarr) repositories, described by STAC Collections at https://stac.dynamical.org and rendered as human pages under {{ metadata.url }}catalog/.
 {% for model in catalog.models %}
 ## {{ model.name | safe }}

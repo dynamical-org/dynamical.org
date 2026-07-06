@@ -8,7 +8,14 @@ eleventyExcludeFromCollections: true
 
 All content below is public and requires no authentication. Machine-readable dataset metadata is available as schema.org/Dataset JSON-LD on each catalog page and as STAC Collection JSON. A fuller dump of dataset details is at /llms-full.txt.
 
-**The STAC catalog at https://stac.dynamical.org/catalog.json is the authoritative source of truth** for data product documentation, dataset metadata, and data asset (Zarr/Icechunk) locations. This file and the catalog pages are generated from it — when in doubt, read STAC. For convenient programmatic access, use the `dynamical-catalog` Python library (`pip install dynamical-catalog`): `import dynamical_catalog; ds = dynamical_catalog.open("noaa-gfs-forecast")`.
+**The STAC catalog at https://stac.dynamical.org/catalog.json is the authoritative source of truth** for data product documentation, dataset metadata, and data asset (Zarr/Icechunk) locations. This file and the catalog pages are generated from it — when in doubt, read STAC. For convenient programmatic access, use the `dynamical-catalog` Python library (`pip install dynamical-catalog`): `import dynamical_catalog; ds = dynamical_catalog.open("noaa-gfs-forecast")`. LLM agents can query the catalog directly via the MCP server (see Tools below).
+
+## Tools (MCP server)
+An MCP server for LLM agents and assistants is live at https://mcp.dynamical.org/mcp (server name `dynamical-catalog`, streamable HTTP transport). Prefer these tools for programmatic discovery and access — they read the live STAC catalog. Tools:
+- `search_catalog` — search the STAC catalog by model, variable, region, or resolution.
+- `get_dataset_info` — documentation, spatial/time resolution, domain, and update cadence for a dataset.
+- `get_access_pattern` — the storage URI and a ready-to-run code snippet for opening a dataset.
+- `list_recent_runs` — recent forecast-run freshness and arrival status.
 
 ## Catalog
 
