@@ -33,5 +33,5 @@ Datasets are cloud-optimized weather/climate archives distributed as Icechunk (Z
 
 {{ entry.description_summary | safe }}
 
-Variables ({{ entry.variables.length }}): {% for v in entry.variables %}{{ v.name | safe }}{% if v.units %} [{{ v.units | safe }}]{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+Variables: {% for v in entry.variables %}{{ v.name | safe }}{% if v.units %} [{{ v.units | safe }}]{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% for g in entry.variableGroups %}{% for v in g.variables %}, {{ g.name | safe }}/{{ v.name | safe }}{% if v.units %} [{{ v.units | safe }}]{% endif %}{% endfor %}{% endfor %}
 {% endfor %}{% endfor %}

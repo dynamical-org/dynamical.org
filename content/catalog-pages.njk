@@ -27,8 +27,50 @@ eleventyComputed:
     background-color: rgb(250, 250, 250);
     color: rgb(45, 45, 45);
   }
+  .variable-group {
+    margin-top: 1rem;
+  }
+  .variable-group > summary {
+    cursor: pointer;
+    font-size: 1.1em;
+  }
+  .variable-group > summary > strong {
+    margin-left: 0.5em;
+  }
+  .variable-dimensions {
+    white-space: nowrap;
+  }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
+{% macro variableTable(variables) %}
+  <div class="table-container">
+    <table class="data">
+      <tr>
+        <th/>
+        <th class='right'>units</th>
+        <th class='right variable-dimensions'>dimensions</th>
+      </tr>
+      {% for variable in variables %}
+        <tr>
+          <td>
+            <strong>{{ variable.name }}</strong>{% if variable.short_name %} (<code>{{ variable.short_name }}</code>){% endif %}
+            <p class="metadata-comment">{{ variable.long_name }}</p>
+            {% if variable.comment %}
+              <p class="metadata-comment">{{ variable.comment }}</p>
+            {% endif %}
+          </td>
+          <td class='right'>{{ variable.units }}</td>
+          <td class='right variable-dimensions'>{{ variable.dimension_names.join(' × ') }}</td>
+        </tr>
+        <tr class="metadata-comment">
+          <td colspan="3">
+            <span></span>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endmacro %}
 <div class="content catalog-item">
   {%- set model = catalog.models | find('id', entry.model_id) %}
   <div>
@@ -152,33 +194,13 @@ eleventyComputed:
     </table>
   </div>
   <h2>Variables</h2>
-  <div class="table-container">
-    <table class="data">
-      <tr>
-        <th/>
-        <th class='right'>units</th>
-        <th class='right'>dimensions</th>
-      </tr>
-      {% for variable in entry.variables %}
-        <tr>
-          <td>
-            <strong>{{ variable.name }}</strong>{% if variable.short_name %} (<code>{{ variable.short_name }}</code>){% endif %}
-            <p class="metadata-comment">{{ variable.long_name }}</p>
-            {% if variable.comment %}
-              <p class="metadata-comment">{{ variable.comment }}</p>
-            {% endif %}
-          </td>
-          <td class='right'>{{ variable.units }}</td>
-          <td class='right'>{{ variable.dimension_names.join(' × ') }}</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      {% endfor %}
-    </table>
-  </div>
+  {{ variableTable(entry.variables) }}
+  {% for group in entry.variableGroups %}
+    <details class="variable-group">
+      <summary><strong>{{ group.name | replace("_", " ") | title }}</strong> ({{ group.variables.length }} variable{{ "s" if group.variables.length != 1 }})</summary>
+      {{ variableTable(group.variables) }}
+    </details>
+  {% endfor %}
   <p class="metadata-comment">
     Don't see what you're looking for? Let us know at
     <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
