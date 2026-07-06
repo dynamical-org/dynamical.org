@@ -23,7 +23,7 @@ Forecast datasets archive past and present model runs; each run is identified by
 {% for model in catalog.models %}
 ### {{ model.name | safe }}
 {%- for dataset in model.datasets %}
-- **[{{ dataset.name | safe }}]({{ dataset.catalog_url }})** (`{{ dataset.dataset_id }}`) - {{ dataset.spatial_domain | safe }}, {{ dataset.spatial_resolution | safe }}.{% if dataset.forecast_domain %} {{ dataset.forecast_domain | safe }}; {{ dataset.forecast_resolution | safe }}.{% endif %} {{ dataset.time_domain | safe }}; {{ dataset.time_resolution | replace("Forecasts initialized ", "") | safe }}. STAC: {{ dataset.stac_href }}
+- **[{{ dataset.title | safe }}]({{ dataset.catalog_url }})** (`{{ dataset.id }}`) - {{ dataset.spatial_domain | safe }}, {{ dataset.spatial_resolution | safe }}.{% if dataset.forecast_domain %} {{ dataset.forecast_domain | safe }}; {{ dataset.forecast_resolution | safe }}.{% endif %} {{ dataset.time_domain | safe }}; {{ dataset.time_resolution | replace("Forecasts initialized ", "") | safe }}. STAC: {{ dataset.stac_href }}
 {%- endfor %}
 {% endfor %}
 ## Data access

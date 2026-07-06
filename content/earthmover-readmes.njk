@@ -3,7 +3,7 @@ pagination:
   data: catalog.entries
   alias: entry
   size: 1
-permalink: 'earthmover/{{entry.dataset_id}}.md'
+permalink: 'earthmover/{{entry.id}}.md'
 ---
 {%- set model = catalog.models | find('id', entry.model_id) -%}
 

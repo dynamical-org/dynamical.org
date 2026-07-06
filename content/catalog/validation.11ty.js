@@ -189,10 +189,10 @@ class ValidationReportPage {
   render({ entry, catalog }) {
     const catalogEntry =
       catalog && catalog.entries
-        ? catalog.entries.find((e) => e.dataset_id === entry.datasetId)
+        ? catalog.entries.find((e) => e.id === entry.datasetId)
         : null;
     const datasetName =
-      (catalogEntry && catalogEntry.name) ||
+      (catalogEntry && catalogEntry.title) ||
       extractDatasetName(entry.markdown, entry.datasetId);
     return renderFragment(entry, datasetName);
   }

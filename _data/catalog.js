@@ -178,38 +178,35 @@ function reshapeStacCollection(collection) {
     : null;
 
   return {
+    // Use the STAC Collection directly for everything it already exposes at
+    // the top level: id, title, description, attribution, model_id,
+    // model_name, description_summary/details/model, examples, license,
+    // version, keywords, summaries, extent, links, assets, cube:*. Templates
+    // read these STAC-native fields (entry.id, entry.title, ...) as-is.
+    ...collection,
+    // Below: only fields that require transforming STAC structures, or
+    // derived values the site needs.
+    dimensions,
+    variables,
+    variableGroups,
+    notebooks,
+    distributions,
     thumbnail,
-    description_meta: plainTextExcerpt(collection.description_summary),
+    validation_report_href,
     license_md: licenseMd(licenseLinks),
-    name: collection.title,
-    dataset_id: collection.id,
-    description: collection.description,
-    attribution: collection.attribution,
-    model_id: collection.model_id,
-    model_name: collection.model_name,
-    description_summary: collection.description_summary,
-    description_details: collection.description_details,
-    description_model: collection.description_model,
-    examples: collection.examples,
+    license_url: licenseLink ? licenseLink.href : null,
+    description_meta: plainTextExcerpt(collection.description_summary),
+    // STAC summaries are single-element arrays; unwrap to scalars.
     spatial_domain: summaryValue("spatial_domain"),
     spatial_resolution: summaryValue("spatial_resolution"),
     time_domain: summaryValue("time_domain"),
     time_resolution: summaryValue("time_resolution"),
     forecast_domain: summaryValue("forecast_domain"),
     forecast_resolution: summaryValue("forecast_resolution"),
-    dimensions,
-    variables,
-    variableGroups,
-    notebooks,
-    validation_report_href,
-    // Machine-readable metadata for structured data (JSON-LD, llms.txt).
-    distributions,
+    // Extracted from STAC extent for structured data (JSON-LD).
     spatial_bbox: collection.extent?.spatial?.bbox?.[0] || null,
     temporal_interval: collection.extent?.temporal?.interval?.[0] || null,
-    license: collection.license || null,
-    license_url: licenseLink ? licenseLink.href : null,
-    version: collection.version || null,
-    keywords: collection.keywords || null,
+    // Canonical public URLs.
     stac_href: `${STAC_PUBLIC_URL}/${collection.id}/collection.json`,
     catalog_url: `${SITE_URL}catalog/${collection.id}/`,
   };
@@ -251,7 +248,7 @@ function buildDatasetJsonLd(entry) {
     "@context": "https://schema.org",
     "@type": "Dataset",
     "@id": entry.catalog_url,
-    name: entry.name,
+    name: entry.title,
     description: entry.description_meta || plainTextExcerpt(entry.description),
     url: entry.catalog_url,
     sameAs: entry.stac_href,
@@ -293,8 +290,8 @@ function buildDatasetJsonLd(entry) {
 function validateEntries(entries) {
   const problems = [];
   for (const e of entries) {
-    const id = e.dataset_id || "(unknown id)";
-    if (!e.name) problems.push(`${id}: missing title`);
+    const id = e.id || "(unknown id)";
+    if (!e.title) problems.push(`${id}: missing title`);
     if (!e.distributions.some((a) => a.roles.includes("data"))) {
       problems.push(`${id}: no data-role asset (STAC assets: ${e.distributions.map((a) => a.key).join(", ") || "none"})`);
     }

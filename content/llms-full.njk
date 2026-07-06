@@ -15,7 +15,7 @@ Datasets are cloud-optimized weather/climate archives distributed as Icechunk (Z
 ## {{ model.name | safe }}
 {% if model.description %}{{ model.description | safe }}
 {% endif %}{% for entry in model.datasets %}
-### {{ entry.name | safe }}
+### {{ entry.title | safe }}
 
 - Page: {{ entry.catalog_url }}
 - STAC Collection: {{ entry.stac_href }}
