@@ -28,9 +28,9 @@ title: catalog
             {% endif %}
             <td>
               {% if entry.status == 'live' or entry.status == 'available' %}
-                <a href="/catalog/{{ entry.dataset_id | slugify }}">{{ entry.name | replace(model.name, '') | trim }}</a>
+                <a href="/catalog/{{ entry.id | slugify }}">{{ entry.title | replace(model.name, '') | trim }}</a>
               {% else %}
-                {{ entry.name | replace(model.name, '') | trim }} ({{ entry.status }})
+                {{ entry.title | replace(model.name, '') | trim }} ({{ entry.status }})
               {% endif %}
             </td>
             <td>{{ entry.spatial_resolution }}</td>
