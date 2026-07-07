@@ -25,12 +25,12 @@ title: catalog
       {%- set optTag %}<span class="opt-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
       {% if entry.status == 'live' or entry.status == 'available' %}
         <a class="cat-row" href="/catalog/{{ entry.id | slugify }}">
-          <div class="cat-row-head">{{ entry.model_name }}{{ optTag | safe }}</div>
+          <div class="cat-row-head"><span class="cat-name">{{ entry.model_name }}</span>{{ optTag | safe }}</div>
           <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
         </a>
       {% else %}
         <div class="cat-row">
-          <div class="cat-row-head">{{ entry.model_name }} ({{ entry.status }}){{ optTag | safe }}</div>
+          <div class="cat-row-head"><span class="cat-name">{{ entry.model_name }} ({{ entry.status }})</span>{{ optTag | safe }}</div>
           <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
         </div>
       {% endif %}
