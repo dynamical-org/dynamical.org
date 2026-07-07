@@ -566,16 +566,19 @@ article img {
 }
 
 /* Updates archive index (/updates): a lean list of entries — date, linked
-   title, and a short summary — each linking to its own /updates/<date>/ page. */
+   title, and a short summary — each linking to its own /updates/<date>/ page.
+   Capped to a reading measure so the hairline separators track the text
+   rather than stretching the full 78rem content width. */
 .update-index {
   list-style: none;
   margin: 0;
   padding: 0;
+  max-width: 58rem;
 }
 
 .update-index-item {
-  padding: 2rem 0;
-  border-top: 1px solid var(--border-color);
+  padding: 3rem 0;
+  border-top: 1px solid var(--popup-border);
 }
 
 /* Override the generic `.content li + li` spacing so the bordered rows stay
@@ -584,34 +587,35 @@ article img {
   margin-top: 0;
 }
 
-.update-index-item:last-child {
-  border-bottom: 1px solid var(--border-color);
-}
-
 .update-index-item time {
   display: block;
-  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
   color: var(--muted-text);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .update-index-item h2 {
-  margin: 0.3rem 0 0.6rem;
+  margin: 0 0 0.9rem;
+  font-size: 2rem;
+  line-height: 1.25;
 }
 
 .update-index-item h2 a {
+  color: var(--text-color);
   text-decoration: none;
 }
 
 .update-index-item h2 a:hover {
+  color: var(--link-color);
   text-decoration: underline;
 }
 
 .update-index-item p {
   margin: 0;
   color: var(--muted-text);
-  max-width: 70ch;
+  line-height: 1.6;
 }
 
 /* Low-tech figures (figure shortcode or inline <figure> HTML). */
