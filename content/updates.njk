@@ -29,11 +29,13 @@ redirect_from: [/follow, /follow.html]
 </div>
 
 <div class="content">
-{%- for post in collections.updates | reverse -%}
-  <article>
-    <h2>{{ post.data.title }}</h2>
-    <em>{{ post.page.date | readableDate }}</em>
-    {{ post.content | safe }}
-  </article>
-{%- endfor -%}
+  <ul class="update-index">
+  {%- for post in collections.updates | reverse -%}
+    <li class="update-index-item">
+      <time datetime="{{ post.page.date | isoDate }}">{{ post.page.date | readableDate }}</time>
+      <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
+      <p>{{ post.data.description or (post.templateContent | excerpt) }}</p>
+    </li>
+  {%- endfor -%}
+  </ul>
 </div>

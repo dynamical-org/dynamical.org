@@ -565,6 +565,55 @@ article img {
   margin-bottom: 2.5rem;
 }
 
+/* Updates archive index (/updates): a lean list of entries — date, linked
+   title, and a short summary — each linking to its own /updates/<date>/ page. */
+.update-index {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.update-index-item {
+  padding: 2rem 0;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Override the generic `.content li + li` spacing so the bordered rows stay
+   flush and evenly spaced (including the first item). */
+.update-index .update-index-item + .update-index-item {
+  margin-top: 0;
+}
+
+.update-index-item:last-child {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.update-index-item time {
+  display: block;
+  font-size: 1.3rem;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.update-index-item h2 {
+  margin: 0.3rem 0 0.6rem;
+}
+
+.update-index-item h2 a {
+  text-decoration: none;
+}
+
+.update-index-item h2 a:hover {
+  text-decoration: underline;
+}
+
+.update-index-item p {
+  margin: 0;
+  color: var(--muted-text);
+  max-width: 70ch;
+}
+
 /* Low-tech figures (figure shortcode or inline <figure> HTML). */
 figure {
   margin: 2rem 0;

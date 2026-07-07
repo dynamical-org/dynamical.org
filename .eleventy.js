@@ -309,6 +309,28 @@ module.exports = function (eleventyConfig) {
     return DateTime.fromJSDate(dateObj, { zone: "utc" }).toISO();
   });
 
+  // Derive a short plain-text summary from rendered HTML for archive listings
+  // (e.g. the /updates index). Strips tags/entities, collapses whitespace, and
+  // truncates on a word boundary. A page's own `description` frontmatter should
+  // win over this when present.
+  eleventyConfig.addFilter("excerpt", (content, maxLength) => {
+    const limit = maxLength || 220;
+    const text = String(content || "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#(?:39|x27);/g, "'")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length <= limit) return text;
+    const truncated = text.slice(0, limit);
+    const lastSpace = truncated.lastIndexOf(" ");
+    return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + "…";
+  });
+
   eleventyConfig.addGlobalData("contributors", async () => {
     const githubHeaders = process.env.GITHUB_TOKEN
       ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
