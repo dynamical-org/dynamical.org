@@ -222,8 +222,13 @@ function reshapeStacCollection(collection) {
     // Access-pattern optimization, derived from the collection id: a `-spatial`
     // suffix marks a space-optimized (virtual) dataset chunked for whole-grid
     // reads; everything else is time-optimized (rechunked archive) for pulling
-    // long time series at a point.
+    // long time series at a point. Space-optimized datasets carry the model's
+    // complete variable set; time-optimized ones carry a curated subset.
     optimization: collection.id.endsWith("-spatial") ? "space" : "time",
+    // Total variables across the root group and any nested groups — surfaced on
+    // the catalog list as "N variables" (or "complete" for space-optimized).
+    variable_count:
+      variables.length + variableGroups.reduce((n, g) => n + g.variables.length, 0),
   };
 }
 

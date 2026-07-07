@@ -11,79 +11,41 @@ title: catalog
     </div>
   </div>
 
-  {% macro nameLink(entry) %}
-    {%- if entry.status == 'live' or entry.status == 'available' -%}
-      <a href="/catalog/{{ entry.id | slugify }}">{{ entry.model_name }}</a>
-    {%- else -%}
-      {{ entry.model_name }} ({{ entry.status }})
-    {%- endif -%}
-  {% endmacro %}
-
-  {% macro badge(entry) %}
-    <span class="opt-badge opt-badge--{{ entry.optimization }}">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>
-  {% endmacro %}
-
   {% macro meta(entry, isForecast) %}
+    {%- set vars = "complete" if entry.optimization == "space" else (entry.variable_count | string) + " variables" -%}
     {%- if isForecast -%}
-      {{ entry.spatial_domain }} · {{ entry.spatial_resolution }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") }}
+      {{ entry.spatial_domain }} · {{ entry.spatial_resolution }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") }} · {{ vars }}
     {%- else -%}
-      {{ entry.spatial_domain }} · {{ entry.spatial_resolution }} · {{ entry.time_resolution }} · {{ entry.time_domain }}
+      {{ entry.spatial_domain }} · {{ entry.spatial_resolution }} · {{ entry.time_resolution }} · {{ entry.time_domain }} · {{ vars }}
     {%- endif -%}
   {% endmacro %}
 
   {% macro listSection(entries, isForecast) %}
     <div class="cat-list">
       {% for entry in entries %}
-        <div class="cat-row">
-          <div class="cat-row-head">{{ nameLink(entry) }}{{ badge(entry) }}</div>
-          <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
-          <div class="cat-desc">{{ entry.description }}</div>
-        </div>
+        {%- set optTag %}<span class="opt-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
+        {% if entry.status == 'live' or entry.status == 'available' %}
+          <a class="cat-row" href="/catalog/{{ entry.id | slugify }}">
+            <div class="cat-row-head">{{ entry.model_name }}{{ optTag | safe }}</div>
+            <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
+          </a>
+        {% else %}
+          <div class="cat-row cat-row--inactive">
+            <div class="cat-row-head">{{ entry.model_name }} ({{ entry.status }}){{ optTag | safe }}</div>
+            <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
+          </div>
+        {% endif %}
       {% endfor %}
     </div>
   {% endmacro %}
 
-  {% macro cardSection(entries, isForecast) %}
-    <div class="cat-cards">
-      {% for entry in entries %}
-        <div class="cat-card">
-          <div class="cat-card-head">{{ nameLink(entry) }}{{ badge(entry) }}</div>
-          <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
-          <div class="cat-desc">{{ entry.description }}</div>
-          {% if entry.status == 'live' or entry.status == 'available' %}
-            <a class="cat-go" href="/catalog/{{ entry.id | slugify }}">→ view dataset</a>
-          {% endif %}
-        </div>
-      {% endfor %}
-    </div>
-  {% endmacro %}
-
-  {% set forecastsIntro = "Archives of past and present model runs, identified by initialization time and stepping forward across lead times." %}
-  {% set analysesIntro = "Best-estimate archives of past weather, built by concatenating the earliest hours of each historical run into a continuous time series." %}
-
-  <p class="cat-note"><em>Preview — two layout options below; pick one and I'll drop the other.</em></p>
-
-  <hr style="margin: 2rem 0 3rem;" />
-  <h2>Option A — list</h2>
-
-  <h3>Forecasts</h3>
-  <p class="cat-intro">{{ forecastsIntro }}</p>
+  <h2>Forecasts</h2>
+  <p class="cat-intro">Archives of past and present model runs, identified by initialization time and stepping forward across lead times.</p>
   {{ listSection(catalog.forecasts, true) }}
 
-  <h3 style="margin-top: 3rem;">Analyses</h3>
-  <p class="cat-intro">{{ analysesIntro }}</p>
+  <h2 style="margin-top: 4rem;">Analyses</h2>
+  <p class="cat-intro">Best-estimate archives of past weather, built by concatenating the earliest hours of each historical run into a continuous time series.</p>
   {{ listSection(catalog.analyses, false) }}
-
-  <hr style="margin: 6rem 0 3rem;" />
-  <h2>Option B — cards</h2>
-
-  <h3>Forecasts</h3>
-  <p class="cat-intro">{{ forecastsIntro }}</p>
-  {{ cardSection(catalog.forecasts, true) }}
-
-  <h3 style="margin-top: 3rem;">Analyses</h3>
-  <p class="cat-intro">{{ analysesIntro }}</p>
-  {{ cardSection(catalog.analyses, false) }}
 
   <hr style="margin: 6rem 0;" />
   <h2>Roadmap</h2>
