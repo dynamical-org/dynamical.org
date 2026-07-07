@@ -714,12 +714,22 @@
   }
 
   // --- Load data and start ---
-  fetch("https://assets.dynamical.org/site/globe-data.json")
-    .then(function (res) {
-      if (!res.ok) throw new Error(res.status);
-      return res.json();
-    })
-    .then(initGlobe);
+  function loadGlobeData(retriesLeft) {
+    fetch("https://assets.dynamical.org/site/globe-data.json")
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.status);
+        return res.json();
+      })
+      .then(initGlobe)
+      .catch(function () {
+        // Transient CDN hiccup (429/500/network blip) — retry once, then give
+        // up quietly; the globe just won't render.
+        if (retriesLeft > 0) {
+          setTimeout(function () { loadGlobeData(retriesLeft - 1); }, 1000);
+        }
+      });
+  }
+  loadGlobeData(1);
 
   // --- Mouse/touch drag to rotate ---
   var dragSensitivity = Math.PI / canvas.width; // ~π per canvas-width
