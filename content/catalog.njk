@@ -57,9 +57,9 @@ title: catalog
   {% macro meta(entry, isForecast) %}
     {%- set vars = "all variables" if entry.optimization == "space" else (entry.variable_count | string) + " variables" -%}
     {%- if isForecast -%}
-      {{ entry.spatial_domain }} · {{ entry.spatial_resolution }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") }} · {{ vars }}
+      {{ entry.spatial_domain }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") }}
     {%- else -%}
-      {{ entry.spatial_domain }} · {{ entry.spatial_resolution }} · {{ entry.time_resolution }} · {{ entry.time_domain }} · {{ vars }}
+      {{ entry.spatial_domain }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox }} · {{ entry.time_domain | dateOnly }} · {{ entry.time_resolution }}
     {%- endif -%}
   {% endmacro %}
 
@@ -88,19 +88,14 @@ title: catalog
   <p>Best-estimate archives of past weather, built by concatenating the earliest hours of each historical run into a continuous time series.</p>
   {{ listSection(catalog.analyses, false) }}
 
+  <h2 style="margin-top: 4rem;">Experimental</h2>
+  <a class="cat-row" href="/catalog/asos-parquet">
+    <span class="cat-name">Global Airport Observations (ASOS/AWOS)</span>
+    <div class="cat-meta">Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</div>
+  </a>
+
   <hr style="margin: 6rem 0;" />
   <h2>Roadmap</h2>
   <p>To view work in progress and upcoming roadmap, check out the <a href="https://github.com/orgs/dynamical-org/projects/1">dynamical.org Github project</a>.</p>
-
-  <hr style="margin: 6rem 0;" />
-  <h2>Experimental</h2>
-  <div class="table-container">
-    <table class="data catalog-table">
-      <tr>
-        <td><a href="/catalog/asos-parquet">Global Airport Observations (ASOS/AWOS)</a></td>
-        <td>Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</td>
-      </tr>
-    </table>
-  </div>
 
 </div>

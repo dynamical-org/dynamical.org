@@ -399,6 +399,20 @@ module.exports = function (eleventyConfig) {
     input ? md.render(dedent(input)) : ""
   );
 
+  // Strip the approximate-km parenthetical from a spatial resolution, e.g.
+  // "0.25 degrees (~20km)" -> "0.25 degrees". Handles multiple occurrences
+  // (some resolutions list two, e.g. GEFS). Used on the catalog list.
+  eleventyConfig.addFilter("stripApprox", (s) =>
+    (s || "").replace(/\s*\(~[^)]*\)/g, "")
+  );
+
+  // Drop the time-of-day from a datetime range, e.g.
+  // "2021-05-01 00:00:00 UTC to Present" -> "2021-05-01 UTC to Present".
+  // Used for the analysis record on the catalog list.
+  eleventyConfig.addFilter("dateOnly", (s) =>
+    (s || "").replace(/ \d{2}:\d{2}:\d{2}/g, "")
+  );
+
   return {
     dir: {
       input: "content",
