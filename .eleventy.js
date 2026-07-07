@@ -413,6 +413,19 @@ module.exports = function (eleventyConfig) {
     (s || "").replace(/ \d{2}:\d{2}:\d{2}/g, "")
   );
 
+  // Abbreviate hour units on the catalog list, e.g. "every 6 hours" ->
+  // "every 6h", "1 hour" -> "1h", "0-384 hours (0-16 days)" -> "0-384h ...".
+  eleventyConfig.addFilter("abbrevHours", (s) =>
+    (s || "").replace(/ hours?\b/g, "h")
+  );
+
+  // Render an analysis time step of the form "N hour(s)" as "N hourly step"
+  // (normalizing "3.0" -> "3"). Anything that doesn't match is left as-is.
+  eleventyConfig.addFilter("hourlyStep", (s) => {
+    const match = /^(\d+(?:\.\d+)?)\s+hours?$/.exec((s || "").trim());
+    return match ? `${parseFloat(match[1])} hourly step` : s;
+  });
+
   return {
     dir: {
       input: "content",
