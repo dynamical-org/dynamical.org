@@ -276,29 +276,86 @@ table.data.small th {
   white-space: nowrap;
 }
 
-/* Catalog list tables (forecasts / analyses) */
-.catalog-list td {
-  vertical-align: top;
-}
-
-/* Model name is the primary scan target; the STAC one-liner sits under it. */
-.catalog-list td:first-child {
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.catalog-list .cat-desc {
-  font-weight: 400;
-  font-size: 1.2rem;
-  color: var(--muted-text);
-  white-space: normal;
-  margin-top: 0.2rem;
-  max-width: 32rem;
-}
-
+/* Catalog listings (forecasts / analyses) — shared bits */
 .cat-intro {
   color: var(--muted-text);
   text-wrap: balance;
+}
+
+.cat-note {
+  color: var(--muted-text);
+}
+
+/* Metadata line: domain · resolution · cadence · horizon. */
+.cat-meta {
+  color: var(--muted-text);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cat-desc {
+  text-wrap: pretty;
+}
+
+.opt-badge {
+  margin-left: 0.6rem;
+}
+
+/* Option A — list */
+.cat-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cat-row {
+  padding: 1.4rem 0;
+  border-bottom: 1px dotted var(--border-muted-color);
+}
+
+.cat-row-head {
+  font-weight: 700;
+}
+
+.cat-row .cat-meta {
+  margin: 0.3rem 0;
+}
+
+/* Option B — cards */
+.cat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(23rem, 1fr));
+  gap: 1.2rem;
+  margin: 1rem 0;
+}
+
+.cat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.cat-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-weight: 700;
+}
+
+.cat-card-head .opt-badge {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.cat-card .cat-desc {
+  flex: 1;
+}
+
+.cat-go {
+  margin-top: 0.3rem;
 }
 
 /* Access-pattern badge in the "Optimized for" column. */
