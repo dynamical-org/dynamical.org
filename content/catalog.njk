@@ -21,30 +21,28 @@ title: catalog
   {% endmacro %}
 
   {% macro listSection(entries, isForecast) %}
-    <div class="cat-list">
-      {% for entry in entries %}
-        {%- set optTag %}<span class="opt-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
-        {% if entry.status == 'live' or entry.status == 'available' %}
-          <a class="cat-row" href="/catalog/{{ entry.id | slugify }}">
-            <div class="cat-row-head">{{ entry.model_name }}{{ optTag | safe }}</div>
-            <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
-          </a>
-        {% else %}
-          <div class="cat-row cat-row--inactive">
-            <div class="cat-row-head">{{ entry.model_name }} ({{ entry.status }}){{ optTag | safe }}</div>
-            <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
-          </div>
-        {% endif %}
-      {% endfor %}
-    </div>
+    {% for entry in entries %}
+      {%- set optTag %}<span class="opt-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
+      {% if entry.status == 'live' or entry.status == 'available' %}
+        <a class="cat-row" href="/catalog/{{ entry.id | slugify }}">
+          <div class="cat-row-head">{{ entry.model_name }}{{ optTag | safe }}</div>
+          <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
+        </a>
+      {% else %}
+        <div class="cat-row">
+          <div class="cat-row-head">{{ entry.model_name }} ({{ entry.status }}){{ optTag | safe }}</div>
+          <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
+        </div>
+      {% endif %}
+    {% endfor %}
   {% endmacro %}
 
   <h2>Forecasts</h2>
-  <p class="cat-intro">Archives of past and present model runs, identified by initialization time and stepping forward across lead times.</p>
+  <p>Archives of past and present model runs, identified by initialization time and stepping forward across lead times.</p>
   {{ listSection(catalog.forecasts, true) }}
 
   <h2 style="margin-top: 4rem;">Analyses</h2>
-  <p class="cat-intro">Best-estimate archives of past weather, built by concatenating the earliest hours of each historical run into a continuous time series.</p>
+  <p>Best-estimate archives of past weather, built by concatenating the earliest hours of each historical run into a continuous time series.</p>
   {{ listSection(catalog.analyses, false) }}
 
   <hr style="margin: 6rem 0;" />

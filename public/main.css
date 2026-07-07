@@ -277,16 +277,6 @@ table.data.small th {
 }
 
 /* Catalog list (forecasts / analyses) */
-.cat-intro {
-  color: var(--muted-text);
-  text-wrap: balance;
-}
-
-.cat-list {
-  display: flex;
-  flex-direction: column;
-}
-
 .cat-row {
   display: block;
   padding: 1.2rem;
