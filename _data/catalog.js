@@ -76,9 +76,19 @@ module.exports = async function () {
     modelGroups[entry.model_id].datasets.push(entry);
   });
 
+  // Split live (non-deprecated) datasets into the two families the catalog
+  // page lists separately: forecasts (have a forecast lead-time domain) and
+  // analyses (best-estimate archives, no forecast domain). Preserves
+  // catalog.json child order within each list.
+  const liveEntries = entries.filter((e) => e.status !== "deprecated");
+  const forecasts = liveEntries.filter((e) => e.forecast_domain);
+  const analyses = liveEntries.filter((e) => !e.forecast_domain);
+
   return {
     entries,
     models: Object.values(modelGroups),
+    forecasts,
+    analyses,
   };
 };
 
@@ -209,6 +219,11 @@ function reshapeStacCollection(collection) {
     // Canonical public URLs.
     stac_href: `${STAC_PUBLIC_URL}/${collection.id}/collection.json`,
     catalog_url: `${SITE_URL}catalog/${collection.id}/`,
+    // Access-pattern optimization, derived from the collection id: a `-spatial`
+    // suffix marks a space-optimized (virtual) dataset chunked for whole-grid
+    // reads; everything else is time-optimized (rechunked archive) for pulling
+    // long time series at a point.
+    optimization: collection.id.endsWith("-spatial") ? "space" : "time",
   };
 }
 

@@ -276,16 +276,52 @@ table.data.small th {
   white-space: nowrap;
 }
 
-/* Catalog grouped table */
-.catalog-table .catalog-model-cell {
-  font-weight: 700;
+/* Catalog list tables (forecasts / analyses) */
+.catalog-list td {
   vertical-align: top;
+}
+
+/* Model name is the primary scan target; the STAC one-liner sits under it. */
+.catalog-list td:first-child {
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.catalog-table tr.catalog-group-last td,
-.catalog-table tr.catalog-group-last + tr td {
-  border-top: 1px solid var(--border-color);
+.catalog-list .cat-desc {
+  font-weight: 400;
+  font-size: 1.2rem;
+  color: var(--muted-text);
+  white-space: normal;
+  margin-top: 0.2rem;
+  max-width: 32rem;
+}
+
+.cat-intro {
+  color: var(--muted-text);
+  text-wrap: balance;
+}
+
+/* Access-pattern badge in the "Optimized for" column. */
+.opt-badge {
+  display: inline-block;
+  padding: 0.05em 0.55em;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.opt-badge--time {
+  background: var(--pill-muted-bg);
+  color: var(--pill-muted-fg);
+  border-color: var(--pill-muted-border);
+}
+
+.opt-badge--space {
+  background: var(--pill-available-bg);
+  color: var(--pill-available-fg);
 }
 
 caption {
