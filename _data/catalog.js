@@ -227,7 +227,7 @@ function reshapeStacCollection(collection) {
     // time-optimized ones carry a curated subset.
     optimization: /-spatial(-dev)?$/.test(collection.id) ? "space" : "time",
     // Total variables across the root group and any nested groups — surfaced on
-    // the catalog list as "N variables" (or "complete" for space-optimized).
+    // the catalog list as "N variables" (or "all variables" for space-optimized).
     variable_count:
       variables.length + variableGroups.reduce((n, g) => n + g.variables.length, 0),
   };

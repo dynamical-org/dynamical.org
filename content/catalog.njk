@@ -12,7 +12,7 @@ title: catalog
   </div>
 
   {% macro meta(entry, isForecast) %}
-    {%- set vars = "complete" if entry.optimization == "space" else (entry.variable_count | string) + " variables" -%}
+    {%- set vars = "all variables" if entry.optimization == "space" else (entry.variable_count | string) + " variables" -%}
     {%- if isForecast -%}
       {{ entry.spatial_domain }} · {{ entry.spatial_resolution }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") }} · {{ vars }}
     {%- else -%}
