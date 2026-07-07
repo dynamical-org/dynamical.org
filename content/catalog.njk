@@ -57,9 +57,9 @@ title: catalog
   {% macro meta(entry, isForecast) %}
     {%- set vars = "all variables" if entry.optimization == "space" else (entry.variable_count | string) + " variables" -%}
     {%- if isForecast -%}
-      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") }}
+      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox | replace(" degrees", "°") }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") }}
     {%- else -%}
-      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox }} · {{ entry.time_domain | dateOnly }} · {{ entry.time_resolution }}
+      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox | replace(" degrees", "°") }} · {{ entry.time_domain | dateOnly }} · {{ entry.time_resolution }}
     {%- endif -%}
   {% endmacro %}
 
