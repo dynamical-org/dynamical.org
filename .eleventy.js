@@ -315,14 +315,21 @@ module.exports = function (eleventyConfig) {
   // win over this when present.
   eleventyConfig.addFilter("excerpt", (content, maxLength) => {
     const limit = maxLength || 220;
+    // Decode the handful of entities we care about in a single pass. Sequential
+    // per-entity replaces can double-unescape (e.g. "&amp;lt;" -> "&lt;" -> "<"),
+    // so match them all at once and never re-scan the replacement text.
+    const entities = {
+      "&amp;": "&",
+      "&lt;": "<",
+      "&gt;": ">",
+      "&quot;": '"',
+      "&#39;": "'",
+      "&#x27;": "'",
+      "&nbsp;": " ",
+    };
     const text = String(content || "")
       .replace(/<[^>]+>/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#(?:39|x27);/g, "'")
-      .replace(/&nbsp;/g, " ")
+      .replace(/&(?:amp|lt|gt|quot|#39|#x27|nbsp);/g, (m) => entities[m])
       .replace(/\s+/g, " ")
       .trim();
     if (text.length <= limit) return text;
