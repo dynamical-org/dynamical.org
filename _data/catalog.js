@@ -220,11 +220,12 @@ function reshapeStacCollection(collection) {
     stac_href: `${STAC_PUBLIC_URL}/${collection.id}/collection.json`,
     catalog_url: `${SITE_URL}catalog/${collection.id}/`,
     // Access-pattern optimization, derived from the collection id: a `-spatial`
-    // suffix marks a space-optimized (virtual) dataset chunked for whole-grid
-    // reads; everything else is time-optimized (rechunked archive) for pulling
-    // long time series at a point. Space-optimized datasets carry the model's
-    // complete variable set; time-optimized ones carry a curated subset.
-    optimization: collection.id.endsWith("-spatial") ? "space" : "time",
+    // suffix (or the `-spatial-dev` staging variant) marks a space-optimized
+    // (virtual) dataset chunked for whole-grid reads; everything else is
+    // time-optimized (rechunked archive) for pulling long time series at a
+    // point. Space-optimized datasets carry the model's complete variable set;
+    // time-optimized ones carry a curated subset.
+    optimization: /-spatial(-dev)?$/.test(collection.id) ? "space" : "time",
     // Total variables across the root group and any nested groups — surfaced on
     // the catalog list as "N variables" (or "complete" for space-optimized).
     variable_count:
