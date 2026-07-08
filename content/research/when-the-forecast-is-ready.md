@@ -15,7 +15,7 @@ summary: >-
 
 Forecast production is a factory assembly line, a fulfillment center, and a delivery route all in one. Lewis Fry Richardson's Weather Forecasting Factory was not too far off.
 
-{% figure "/assets/notes/conlin-1.jpg" %}“Weather Forecasting Factory” by Stephen Conlin, 1986. Based on the description in Weather Prediction by Numerical Process, by L.F. Richardson, Cambridge University Press, 1922, and on advice from Prof. John Byrne, Trinity College Dublin. Image: ink and water colour, c. 50 x 38.5 cm. © Stephen Conlin 1986. All Rights Reserved ´. (Courtesy: Hendrik Hoffmann, School of Mathematics & Statistics, University College Dublin){% endfigure %}
+{% figure "/assets/notes/conlin-1.jpg" %}“Weather Forecasting Factory” by Stephen Conlin, 1986. Based on the description in Weather Prediction by Numerical Process, by L.F. Richardson, Cambridge University Press, 1922, and on advice from Prof. John Byrne, Trinity College Dublin. Image: ink and water colour, c. 50 x 38.5 cm. © Stephen Conlin 1986. All Rights Reserved ´. (Courtesy: Hendrik Hoffmann, School of Mathematics & Statistics, University College Dublin [Source](https://www.emetsoc.org/resources/rff/)){% endfigure %}
 
 Every dataset in the dynamical.org catalog (so far) is downstream of a model run that
 someone else produces on their own cadence. And the initialization is just the beginning (literally and philosophically). Then the files start landing, one by one, eventually
@@ -55,7 +55,7 @@ hours become available:
 | `started`    | the first file of a run lands (any lead time)                     |
 | `progress`   | every lead ≤ a lead-group horizon is available (e.g. `progress:f240`) |
 | `complete`   | the full run is available — you don't need to know group names    |
-| `delayed`    | the expected completion time (p95, plus a small buffer) passed while the run is still in flight |
+| `delayed`    | the run is still in flight a minute past its expected completion time (p95) |
 
 I went back and forth on the correct threshold for "delayed." Raw p95 turned out to be too harsh: for a very consistent feed the distribution is so tight that p95 sits only slightly above the median, so firing exactly at p95 would page on roughly 1 in 20 perfectly normal runs. So we nudge the trigger just past it — p95 + 1 minute — which keeps ordinary run-to-run variation quiet and lets only genuinely stalled runs cross the line. I still think it could be an area where further tweaks are needed. As we roll out our own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
 
@@ -137,7 +137,7 @@ is currently allowlisted, so [get in touch](mailto:feedback@dynamical.org) if
 you'd like to try it. You can even attach a small sandboxed Python function that runs
 against the just-arrived dataset and shapes the payload or filters out deliveries you don't want.
 
-{% figure "/assets/notes/wxopticon-slack.jpg", "A Slack channel showing a wxopticon boundary notification delivered through an incoming webhook, with the run's product, init time, and the milestone it crossed." %}wxopticon also supports Slack-style incoming webhooks, so boundaries can land straight in a channel.{% endfigure %}
+{% figure "/assets/notes/wxopticon-slack.png", "A Slack channel showing a wxopticon boundary notification delivered through an incoming webhook, with the run's product, init time, and the milestone it crossed." %}wxopticon also supports Slack-style incoming webhooks, so boundaries can land straight in a channel.{% endfigure %}
 
 ## Prefer polling? The status feed
 
