@@ -4,31 +4,8 @@ title: catalog
 ---
 
 <style>
-  /* Catalog list (forecasts / analyses) — scoped to this page. */
-  .cat-section {
-    list-style: none;
-    padding-inline-start: 0px;
-   }
-
-  .cat-section li {
-    padding: 1.2rem 0;
-  }
-
-  .cat-section li:not(:last-of-type) {
-    border-bottom: 1px dotted var(--border-muted-color);
-    }
-
-  .cat-section li a, .cat-section li a:visited {
-    display: block;
-    color: inherit;
-    text-decoration: none;
-  }
-
-  .cat-section li a:focus-visible {
-    outline: 2px solid var(--link-color);
-    outline-offset: 2px;
-  }
-
+  /* Catalog list uses the shared .index-list skeleton; these are just the
+     catalog-specific title/tag/meta styles. */
   .cat-name {
     font-weight: 700;
     text-decoration: underline;
@@ -67,7 +44,7 @@ title: catalog
   {% endmacro %}
 
   {% macro listSection(entries, isForecast) %}
-    <ul class="cat-section">
+    <ul class="index-list">
     {% for entry in entries %}
       <li>
       {%- set optTag %}<span class="cat-type-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
@@ -94,7 +71,7 @@ title: catalog
   {{ listSection(catalog.analyses, false) }}
 
   <h2 style="margin-top: 4rem;">Experimental</h2>
-  <ul class='cat-section'>
+  <ul class="index-list">
   <li>
   <a href="/catalog/asos-parquet">
     <span class="cat-name">Global Airport Observations (ASOS/AWOS)</span>

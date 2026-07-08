@@ -29,9 +29,9 @@ redirect_from: [/follow, /follow.html]
 </div>
 
 <div class="content">
-  <ul class="update-index">
+  <ul class="index-list update-index">
   {%- for post in collections.updates | reverse -%}
-    <li class="update-index-item">
+    <li>
       <time datetime="{{ post.page.date | isoDate }}">{{ post.page.date | readableDate }}</time>
       <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
       <p>{{ post.data.description or (post.templateContent | excerpt) }}</p>
