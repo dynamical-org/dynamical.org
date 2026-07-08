@@ -309,6 +309,35 @@ module.exports = function (eleventyConfig) {
     return DateTime.fromJSDate(dateObj, { zone: "utc" }).toISO();
   });
 
+  // Derive a short plain-text summary from rendered HTML for archive listings
+  // (e.g. the /updates index). Strips tags/entities, collapses whitespace, and
+  // truncates on a word boundary. A page's own `description` frontmatter should
+  // win over this when present.
+  eleventyConfig.addFilter("excerpt", (content, maxLength) => {
+    const limit = maxLength || 220;
+    // Decode the handful of entities we care about in a single pass. Sequential
+    // per-entity replaces can double-unescape (e.g. "&amp;lt;" -> "&lt;" -> "<"),
+    // so match them all at once and never re-scan the replacement text.
+    const entities = {
+      "&amp;": "&",
+      "&lt;": "<",
+      "&gt;": ">",
+      "&quot;": '"',
+      "&#39;": "'",
+      "&#x27;": "'",
+      "&nbsp;": " ",
+    };
+    const text = String(content || "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&(?:amp|lt|gt|quot|#39|#x27|nbsp);/g, (m) => entities[m])
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length <= limit) return text;
+    const truncated = text.slice(0, limit);
+    const lastSpace = truncated.lastIndexOf(" ");
+    return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + "…";
+  });
+
   eleventyConfig.addGlobalData("contributors", async () => {
     const githubHeaders = process.env.GITHUB_TOKEN
       ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
