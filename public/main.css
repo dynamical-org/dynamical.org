@@ -256,7 +256,7 @@ table.data th {
 
 table.data td,
 table.data th {
-  padding: 10px 20px;
+  padding: 5px 10px;
   border-right: 1px dotted var(--border-muted-color);
 }
 
