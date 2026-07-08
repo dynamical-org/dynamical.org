@@ -37,35 +37,68 @@ eleventyComputed:
   .variable-group > summary > strong {
     margin-left: 0.5em;
   }
-  .variable-dimensions {
+
+  /* Variables — dense table. Dimensions are stated once above (they're
+     identical across a group's variables) rather than repeated per row. */
+  .var-note,
+  .var-dims-note {
+    margin: 0 0 0.75rem;
+    color: var(--muted-text);
+    font-size: 1.25rem;
+  }
+  table.var-table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid var(--border-color);
+  }
+  .var-table th,
+  .var-table td {
+    text-align: left;
+    padding: 0.5rem 1rem;
+    vertical-align: baseline;
+  }
+  .var-table th {
+    border-bottom: 1px solid var(--border-color);
+  }
+  .var-table tr:not(:last-child) td {
+    border-bottom: 1px dotted var(--border-muted-color);
+  }
+  .var-table .var-units {
+    text-align: right;
     white-space: nowrap;
+    color: var(--muted-text);
+  }
+  .var-name {
+    font-weight: 700;
+  }
+  .var-src {
+    color: var(--muted-text);
+  }
+  .var-desc {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--muted-text);
+    font-size: 1.25rem;
   }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 {% macro variableTable(variables) %}
+  {%- set commonDims = variables[0].dimension_names | join(' × ') -%}
+  <p class="var-dims-note">Dimensions: <code>{{ commonDims }}</code></p>
   <div class="table-container">
-    <table class="data">
+    <table class="var-table">
       <tr>
-        <th/>
-        <th class='right'>units</th>
-        <th class='right variable-dimensions'>dimensions</th>
+        <th>variable</th>
+        <th class="var-units">units</th>
       </tr>
       {% for variable in variables %}
+        {%- set varDims = variable.dimension_names | join(' × ') -%}
         <tr>
           <td>
-            <strong>{{ variable.name }}</strong>{% if variable.short_name %} (<code>{{ variable.short_name }}</code>){% endif %}
-            <p class="metadata-comment">{{ variable.long_name }}</p>
-            {% if variable.comment %}
-              <p class="metadata-comment">{{ variable.comment }}</p>
-            {% endif %}
+            <span class="var-name">{{ variable.name }}</span>{% if variable.short_name %} <code class="var-src" title="Source (GRIB) short name — reference only, not an access key">{{ variable.short_name }}</code>{% endif %}
+            <span class="var-desc">{{ variable.long_name }}{% if variable.comment %} — {{ variable.comment }}{% endif %}{% if varDims != commonDims %} · dimensions: {{ varDims }}{% endif %}</span>
           </td>
-          <td class='right'>{{ variable.units }}</td>
-          <td class='right variable-dimensions'>{{ variable.dimension_names.join(' × ') }}</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
+          <td class="var-units">{{ variable.units }}</td>
         </tr>
       {% endfor %}
     </table>
@@ -194,6 +227,7 @@ eleventyComputed:
     </table>
   </div>
   <h2>Variables</h2>
+  <p class="var-note">Access a variable by its name (the bold identifier, e.g. <code>ds["{{ entry.variables[0].name }}"]</code>). The <code>code</code> beside it is the source GRIB short name, shown for reference — it is not an access key.</p>
   {{ variableTable(entry.variables) }}
   {% for group in entry.variableGroups %}
     <details class="variable-group">
