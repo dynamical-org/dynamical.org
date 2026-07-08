@@ -125,12 +125,29 @@ function reshapeStacCollection(collection) {
   const cubeDims = collection["cube:dimensions"] || {};
   const cubeVars = collection["cube:variables"] || {};
 
+  // Chunk/shard size per dimension, read from the first variable that uses
+  // each dimension (uniform across a dataset's variables for a given
+  // dimension). Surfaced in the Dimensions table to show the cloud-optimized
+  // storage layout.
+  const chunkShardByDim = {};
+  for (const dimName of Object.keys(cubeDims)) {
+    for (const v of Object.values(cubeVars)) {
+      const idx = (v.dimensions || []).indexOf(dimName);
+      if (idx !== -1) {
+        chunkShardByDim[dimName] = { chunk: (v.chunks || [])[idx], shard: (v.shards || [])[idx] };
+        break;
+      }
+    }
+  }
+
   const dimensions = Object.entries(cubeDims).map(([name, d]) => {
     const [min, max] = d.extent ?? [null, null];
     return {
       name,
       units: d.unit,
       statistics_approximate: { min, max },
+      chunk: (chunkShardByDim[name] || {}).chunk ?? null,
+      shard: (chunkShardByDim[name] || {}).shard ?? null,
     };
   });
 
