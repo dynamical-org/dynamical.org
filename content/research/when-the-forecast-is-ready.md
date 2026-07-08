@@ -38,7 +38,7 @@ sources and dynamical.org's own catalog stores, and it answers two operational q
   arrival history.
 - **Is this run on time?** — per-init status measured against the distribution of prior
   arrivals for that product, so "late" means late relative to how this feed
-  actually behaves.
+  usually behaves.
 
 You can see all of this on the [pipeline status page](https://status.dynamical.org/pipeline).
 
@@ -57,7 +57,7 @@ hours become available:
 | `complete`   | the full run is available — you don't need to know group names    |
 | `delayed`    | the run is still in flight a minute past its expected completion time (p95) |
 
-I went back and forth on the correct threshold for "delayed," and I think it could be an area where further tweaks are needed. As we roll out our own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
+I went back and forth on the correct threshold for "delayed." Raw p95 turned out to be too harsh: for a very consistent feed the distribution is so tight that p95 sits only slightly above the median, so firing exactly at p95 would page on roughly 1 in 20 perfectly normal runs. So we nudge the trigger just past it — p95 + 1 minute — which keeps ordinary run-to-run variation quiet and lets only genuinely stalled runs cross the line. I still think it could be an area where further tweaks are needed. As we roll out our own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
 
 ## How it works, briefly
 
@@ -103,7 +103,7 @@ AIFS-ENS: its median run finishes in 5h57m, but its slowest one percent of runs
 stretch past 13 hours. The value isn't the common run, which is boringly regular; it's catching the handful each year that stall, and the four runs — out of roughly 8,700, a 99.95% completion rate — that never completed.
 
 One last thing the log settles: **how far the cloud copy lags.** Every NOAA model
-is disseminated through both NOAA's NOMADS server and an AWS S3 bucket (via NOAA's
+is disseminated through both NOAA's NOMADS server and a range of cloud providers (S3, GCS, Azure, and others, via NOAA's
 Open Data Dissemination program), and a consumer might read whichever it sees first (we, for example, blend our reads across sources in an attempt to optimize and roll with NOMADS rate limits).
 
 For GFS, NOMADS is always first. Across roughly 75,000 files carrying the same
@@ -137,7 +137,7 @@ is currently allowlisted, so [get in touch](mailto:feedback@dynamical.org) if
 you'd like to try it. You can even attach a small sandboxed Python function that runs
 against the just-arrived dataset and shapes the payload or filters out deliveries you don't want.
 
-{% figure "/assets/notes/wxopticon-slack.png" %}It also supports Slack-style webhooks.{% endfigure %}
+{% figure "/assets/notes/wxopticon-slack.png", "A Slack channel showing a wxopticon boundary notification delivered through an incoming webhook, with the run's product, init time, and the milestone it crossed." %}wxopticon also supports Slack-style incoming webhooks, so boundaries can land straight in a channel.{% endfigure %}
 
 ## Prefer polling? The status feed
 
