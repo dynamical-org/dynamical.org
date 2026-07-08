@@ -4,6 +4,7 @@ title: "Knowing the moment a forecast is ready"
 date: 2026-07-07
 areas:
   - weather-product-design
+featured: 3
 summary: >-
   Forecast files don't arrive all at once — they trickle in over minutes or
   hours, on a cadence set by whoever produces the model. To stop guessing, we
