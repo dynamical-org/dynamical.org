@@ -3,6 +3,29 @@ layout: base.njk
 title: catalog
 ---
 
+<style>
+  /* Catalog list uses the shared .index-list skeleton; these are just the
+     catalog-specific title/tag/meta styles. */
+  .cat-name {
+    font-weight: 700;
+    text-decoration: underline;
+    color: var(--link-color);
+  }
+
+  .cat-type-tag {
+    margin-left: 1rem;
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .cat-meta {
+    margin-top: 0.3rem;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
 <div class="content">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>Catalog</h1>
@@ -11,49 +34,54 @@ title: catalog
     </div>
   </div>
 
-  <div class="table-container">
-    <table class="data catalog-table">
-      <tr>
-        <th>Model</th>
-        <th></th>
-        <th>Resolution</th>
-        <th>Domain</th>
-      </tr>
-      {% for model in catalog.models %}
-        {% set liveEntries = model.datasets | rejectWhere("status", "deprecated") %}
-        {% for entry in liveEntries %}
-          <tr{% if loop.last %} class="catalog-group-last"{% endif %}>
-            {% if loop.first %}
-              <td rowspan="{{ liveEntries | length }}" class="catalog-model-cell">{{ model.name }}</td>
-            {% endif %}
-            <td>
-              {% if entry.status == 'live' or entry.status == 'available' %}
-                <a href="/catalog/{{ entry.id | slugify }}">{{ entry.title | replace(model.name, '') | trim }}</a>
-              {% else %}
-                {{ entry.title | replace(model.name, '') | trim }} ({{ entry.status }})
-              {% endif %}
-            </td>
-            <td>{{ entry.spatial_resolution }}</td>
-            <td>{{ entry.spatial_domain }}</td>
-          </tr>
-        {% endfor %}
-      {% endfor %}
-    </table>
-  </div>
+  {% macro meta(entry, isForecast) %}
+    {%- set vars = "all variables" if entry.optimization == "space" else (entry.variable_count | string) + " variables" -%}
+    {%- if isForecast -%}
+      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") | abbrevHours }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") | abbrevHours }}
+    {%- else -%}
+      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours }} · {{ entry.time_domain | dateOnly }} · {{ entry.time_resolution | hourlyStep }}
+    {%- endif -%}
+  {% endmacro %}
+
+  {% macro listSection(entries, isForecast) %}
+    <ul class="index-list">
+    {% for entry in entries %}
+      <li>
+      {%- set optTag %}<span class="cat-type-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
+      {% if entry.status == 'live' or entry.status == 'available' %}
+        <a href="/catalog/{{ entry.id | slugify }}">
+          <span class="cat-name">{{ entry.model_name }}</span>{{ optTag | safe }}
+          <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
+        </a>
+      {% else %}
+        <span class="cat-name">{{ entry.model_name }} ({{ entry.status }})</span>{{ optTag | safe }}
+        <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
+      {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  {% endmacro %}
+
+  <h2>Forecasts</h2>
+  <p>Archives of past and present model runs, identified by initialization time and stepping forward across lead times.</p>
+  {{ listSection(catalog.forecasts, true) }}
+
+  <h2 style="margin-top: 4rem;">Analyses</h2>
+  <p>Best-estimate archives of past weather, built by concatenating the earliest hours of each historical run into a continuous time series.</p>
+  {{ listSection(catalog.analyses, false) }}
+
+  <h2 style="margin-top: 4rem;">Experimental</h2>
+  <ul class="index-list">
+  <li>
+  <a href="/catalog/asos-parquet">
+    <span class="cat-name">Global Airport Observations (ASOS/AWOS)</span>
+    <div class="cat-meta">Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</div>
+  </a>
+  </li>
+  </ul>
 
   <hr style="margin: 6rem 0;" />
   <h2>Roadmap</h2>
   <p>To view work in progress and upcoming roadmap, check out the <a href="https://github.com/orgs/dynamical-org/projects/1">dynamical.org Github project</a>.</p>
-
-  <hr style="margin: 6rem 0;" />
-  <h2>Experimental</h2>
-  <div class="table-container">
-    <table class="data catalog-table">
-      <tr>
-        <td><a href="/catalog/asos-parquet">Global Airport Observations (ASOS/AWOS)</a></td>
-        <td>Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</td>
-      </tr>
-    </table>
-  </div>
 
 </div>

@@ -10,11 +10,13 @@
 {%-   set year = item.data.year or (item.date | readableDate("yyyy")) %}
 {%-   if year %}{% set meta = year ~ " · " ~ meta %}{% endif %}
 {%- endif %}
-<a class="work-item" href="{{ item.data.url if isProject else item.url }}">
-  <div class="work-main">
-    <h3>{{ item.data.title }}</h3>
-    {%- if isProject %}{{ item.templateContent | safe }}{% elif item.data.summary %}<p>{{ item.data.summary }}</p>{% endif %}
-  </div>
-  <span style="position: absolute; top: 2rem; right: 0; font-size: 1.2rem; color: var(--muted-text); white-space: nowrap;">{{ meta }} →</span>
-</a>
+<li>
+  <a class="work-item" href="{{ item.data.url if isProject else item.url }}">
+    <div class="work-main">
+      <h3>{{ item.data.title }}</h3>
+      {%- if isProject %}{{ item.templateContent | safe }}{% elif item.data.summary %}<p>{{ item.data.summary }}</p>{% endif %}
+    </div>
+    <span style="position: absolute; top: 0; right: 0; font-size: 1.2rem; color: var(--muted-text); white-space: nowrap;">{{ meta }} →</span>
+  </a>
+</li>
 {% endmacro %}

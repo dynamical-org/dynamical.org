@@ -22,18 +22,18 @@ layout: base.njk
   {%- if projects | length %}
   <section class="block">
     <h2 class="block-label">Projects</h2>
-    <div class="work-list">
+    <ul class="index-list work-list">
       {%- for item in projects %}{{ workItem(item) }}{% endfor %}
-    </div>
+    </ul>
   </section>
   {%- endif %}
 
   {%- if writing | length %}
   <section class="block">
     <h2 class="block-label">Notes &amp; papers</h2>
-    <div class="work-list">
+    <ul class="index-list work-list">
       {%- for item in writing %}{{ workItem(item) }}{% endfor %}
-    </div>
+    </ul>
   </section>
   {%- endif %}
 </article>

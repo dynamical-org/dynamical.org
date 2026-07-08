@@ -256,7 +256,7 @@ table.data th {
 
 table.data td,
 table.data th {
-  padding: 10px 20px;
+  padding: 5px 10px;
   border-right: 1px dotted var(--border-muted-color);
 }
 
@@ -274,18 +274,6 @@ table.data.small td,
 table.data.small th {
   padding: 4px 12px;
   white-space: nowrap;
-}
-
-/* Catalog grouped table */
-.catalog-table .catalog-model-cell {
-  font-weight: 700;
-  vertical-align: top;
-  white-space: nowrap;
-}
-
-.catalog-table tr.catalog-group-last td,
-.catalog-table tr.catalog-group-last + tr td {
-  border-top: 1px solid var(--border-color);
 }
 
 caption {
@@ -565,6 +553,76 @@ article img {
   margin-bottom: 2.5rem;
 }
 
+/* Updates archive index (/updates): a lean list of entries — date, linked
+   title, and a short summary — each linking to its own /updates/<date>/ page.
+   Capped to a reading measure so the hairline separators track the text
+   rather than stretching the full 78rem content width. */
+/* Shared vertical "index list" skeleton — used by the catalog, the /updates
+   archive, and the featured-work lists. Each list sets its own density and
+   separator via the custom properties and layers on its own title/meta styles;
+   the reset, row separators, link reset, and focus ring are shared. */
+.index-list {
+  --index-row-padding: 1.2rem;
+  --index-row-border: 1px dotted var(--border-muted-color);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.index-list > li {
+  padding: var(--index-row-padding) 0;
+}
+/* Separator between rows only. Beats the generic `.content li + li` margin by
+   equal specificity + later source order. */
+.index-list > li + li {
+  margin-top: 0;
+}
+.index-list > li:not(:last-child) {
+  border-bottom: var(--index-row-border);
+}
+.index-list a,
+.index-list a:visited {
+  color: inherit;
+  text-decoration: none;
+}
+.index-list > li > a {
+  display: block; /* row-level anchors (catalog, featured work) */
+}
+.index-list a:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+}
+
+/* /updates archive index */
+.update-index {
+  --index-row-padding: 3rem;
+  --index-row-border: 1px solid var(--popup-border);
+  max-width: 58rem;
+}
+.update-index time {
+  display: block;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.update-index h2 {
+  margin: 0 0 0.9rem;
+  font-size: 2rem;
+  line-height: 1.25;
+}
+.update-index h2 a:hover {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+.update-index p {
+  margin: 0;
+  color: var(--muted-text);
+  line-height: 1.6;
+}
+
 /* Low-tech figures (figure shortcode or inline <figure> HTML). */
 figure {
   margin: 2rem 0;
@@ -631,18 +689,12 @@ a.area-card:hover h3 { text-decoration: underline; }
 .area-card h3 { margin: 0 0 0.5rem; }
 .area-card p { margin: 0; color: var(--muted-text); }
 
-/* Featured work list. */
-.work-list { display: flex; flex-direction: column; }
-a.work-item {
-  display: block;
-  position: relative;
-  padding: 2rem 0;
-  border-bottom: 1px solid var(--border-muted-color);
-  color: inherit;
-  text-decoration: none;
+/* Featured work list — builds on the shared .index-list skeleton. */
+.work-list {
+  --index-row-padding: 2rem;
+  --index-row-border: 1px solid var(--border-muted-color);
 }
-a.work-item:first-child { border-top: 1px solid var(--border-muted-color); }
-a.work-item:last-child { border-bottom: none; }
+a.work-item { position: relative; }
 a.work-item:hover h3 { text-decoration: underline; }
 .work-main { min-width: 0; }
 /* Reserve room on the title line for the absolutely-positioned meta so a long

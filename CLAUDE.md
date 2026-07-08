@@ -45,6 +45,19 @@ Templates in `content/catalog-pages.njk` use Eleventy pagination to generate ind
 
 **Notebook Embedding**: `embedNotebookContent` filter fetches Jupyter notebooks and strips outputs for cleaner embedding.
 
+## Styling & markup conventions
+
+Write lean, semantic markup with as few classes and declarations as possible. The catalog list in `content/catalog.njk` is the reference example. Before adding a class or a rule, ask whether an existing element, selector, or inherited value already covers it.
+
+- **Semantic elements over `div` soup.** A list of things is a `<ul>`/`<li>`; use the element that already means the thing before reaching for `<div class="…">`. (The catalog rows are `<li>`, not `<div class="cat-row">`.)
+- **One container class; select children contextually.** Give the wrapper a single class and reach inward with element/descendant selectors (`.cat-section li`, `.cat-section li a`) instead of inventing a class for every node (`.cat-row`, `.cat-row-head`, …).
+- **Structural pseudo-classes, not template conditionals or modifier classes.** Use `:not(:last-of-type)`, `:first-child`, etc. for edge cases like separators rather than `loop.last` checks or extra classes.
+- **Inherit; don't restate.** Only write a declaration if it changes something. Let color, size, and weight cascade from the base stylesheet unless a specific override is genuinely needed.
+- **Name only what you target directly.** A class earns its place when you actually select or reuse it (`.cat-name`, `.cat-meta`). Nodes reached only contextually don't need one.
+- **Page-scoped CSS lives in the template.** Styles used by a single page go in a `<style>` block at the top of that template (see `catalog.njk`, `catalog-pages.njk`) — not in global `public/main.css`. Reserve `main.css` for genuinely shared rules and the design tokens.
+- **Reuse the design tokens.** Pull colors, borders, and radii from the `:root` custom properties in `main.css` (`var(--link-color)`, `var(--border-muted-color)`, `var(--radius-sm)`, …) so light/dark themes keep working — never hardcode hex values in a page.
+- **Shared list pattern.** Vertical lists of linked rows (the catalog, `/updates`, featured work) share the `.index-list` base in `main.css` — a `<ul>` reset, row separators, link reset, and focus ring. To add a list, use `<ul class="index-list …">`, tune `--index-row-padding` / `--index-row-border`, and layer on the title/meta styles; don't rebuild the skeleton.
+
 ## Editing the Catalog
 
 1. Edit `_data/catalog.js` to add/modify dataset entries

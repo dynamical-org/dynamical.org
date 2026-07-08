@@ -309,6 +309,35 @@ module.exports = function (eleventyConfig) {
     return DateTime.fromJSDate(dateObj, { zone: "utc" }).toISO();
   });
 
+  // Derive a short plain-text summary from rendered HTML for archive listings
+  // (e.g. the /updates index). Strips tags/entities, collapses whitespace, and
+  // truncates on a word boundary. A page's own `description` frontmatter should
+  // win over this when present.
+  eleventyConfig.addFilter("excerpt", (content, maxLength) => {
+    const limit = maxLength || 220;
+    // Decode the handful of entities we care about in a single pass. Sequential
+    // per-entity replaces can double-unescape (e.g. "&amp;lt;" -> "&lt;" -> "<"),
+    // so match them all at once and never re-scan the replacement text.
+    const entities = {
+      "&amp;": "&",
+      "&lt;": "<",
+      "&gt;": ">",
+      "&quot;": '"',
+      "&#39;": "'",
+      "&#x27;": "'",
+      "&nbsp;": " ",
+    };
+    const text = String(content || "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&(?:amp|lt|gt|quot|#39|#x27|nbsp);/g, (m) => entities[m])
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length <= limit) return text;
+    const truncated = text.slice(0, limit);
+    const lastSpace = truncated.lastIndexOf(" ");
+    return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + "…";
+  });
+
   eleventyConfig.addGlobalData("contributors", async () => {
     const githubHeaders = process.env.GITHUB_TOKEN
       ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
@@ -395,9 +424,48 @@ module.exports = function (eleventyConfig) {
     return array.filter((item) => item[property] !== value);
   });
 
+  // Render markdown, and give any table the site's data-table treatment
+  // (bordered `.data` style + horizontal-scroll container). Markdown tables
+  // are always real tabular data, unlike the hand-authored layout tables in
+  // templates, so this styles them without a per-call wrapper. Mirrors the
+  // wrap in content/catalog/validation.11ty.js.
   eleventyConfig.addFilter("markdown", (input) =>
-    input ? md.render(dedent(input)) : ""
+    input
+      ? md
+          .render(dedent(input))
+          .replace(
+            /<table>([\s\S]*?)<\/table>/g,
+            '<div class="table-container"><table class="data">$1</table></div>'
+          )
+      : ""
   );
+
+  // Strip the approximate-km parenthetical from a spatial resolution, e.g.
+  // "0.25 degrees (~20km)" -> "0.25 degrees". Handles multiple occurrences
+  // (some resolutions list two, e.g. GEFS). Used on the catalog list.
+  eleventyConfig.addFilter("stripApprox", (s) =>
+    (s || "").replace(/\s*\(~[^)]*\)/g, "")
+  );
+
+  // Drop the time-of-day from a datetime range, e.g.
+  // "2021-05-01 00:00:00 UTC to Present" -> "2021-05-01 UTC to Present".
+  // Used for the analysis record on the catalog list.
+  eleventyConfig.addFilter("dateOnly", (s) =>
+    (s || "").replace(/ \d{2}:\d{2}:\d{2}/g, "")
+  );
+
+  // Abbreviate hour units on the catalog list, e.g. "every 6 hours" ->
+  // "every 6h", "1 hour" -> "1h", "0-384 hours (0-16 days)" -> "0-384h ...".
+  eleventyConfig.addFilter("abbrevHours", (s) =>
+    (s || "").replace(/ hours?\b/g, "h")
+  );
+
+  // Render an analysis time step of the form "N hour(s)" as "N hourly step"
+  // (normalizing "3.0" -> "3"). Anything that doesn't match is left as-is.
+  eleventyConfig.addFilter("hourlyStep", (s) => {
+    const match = /^(\d+(?:\.\d+)?)\s+hours?$/.exec((s || "").trim());
+    return match ? `${parseFloat(match[1])} hourly step` : s;
+  });
 
   return {
     dir: {

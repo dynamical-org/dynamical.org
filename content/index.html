@@ -41,9 +41,9 @@ templateEngineOverride: njk
   <div class="home-section-head">
     <h2 class="block-label">Featured work</h2>
   </div>
-  <div class="work-list">
+  <ul class="index-list work-list">
     {%- for item in collections.featuredWork %}{{ workItem(item) }}{% endfor %}
-  </div>
+  </ul>
 </section>
 
 <script src="/globe.js"></script>
