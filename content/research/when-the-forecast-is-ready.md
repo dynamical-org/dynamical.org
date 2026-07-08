@@ -55,7 +55,7 @@ hours become available:
 | `started`    | the first file of a run lands (any lead time)                     |
 | `progress`   | every lead ≤ a lead-group horizon is available (e.g. `progress:f240`) |
 | `complete`   | the full run is available — you don't need to know group names    |
-| `delayed`    | the expected completion time (p95) passed while the run is still in flight |
+| `delayed`    | the run is still in flight a minute past its expected completion time (p95) |
 
 I went back and forth on the correct threshold for "delayed," and I think it could be an area where further tweaks are needed. As we roll out our own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
 
