@@ -424,8 +424,20 @@ module.exports = function (eleventyConfig) {
     return array.filter((item) => item[property] !== value);
   });
 
+  // Render markdown, and give any table the site's data-table treatment
+  // (bordered `.data` style + horizontal-scroll container). Markdown tables
+  // are always real tabular data, unlike the hand-authored layout tables in
+  // templates, so this styles them without a per-call wrapper. Mirrors the
+  // wrap in content/catalog/validation.11ty.js.
   eleventyConfig.addFilter("markdown", (input) =>
-    input ? md.render(dedent(input)) : ""
+    input
+      ? md
+          .render(dedent(input))
+          .replace(
+            /<table>([\s\S]*?)<\/table>/g,
+            '<div class="table-container"><table class="data">$1</table></div>'
+          )
+      : ""
   );
 
   // Strip the approximate-km parenthetical from a spatial resolution, e.g.

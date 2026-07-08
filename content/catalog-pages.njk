@@ -226,31 +226,6 @@ eleventyComputed:
       {% endfor %}
     </table>
   </div>
-  <h2>Chunks &amp; shards</h2>
-  <p class="var-note">How each dimension is tiled for storage — the chunk (smallest unit fetched) and shard (group of chunks written as one object) size along each axis.</p>
-  <div class="table-container">
-    <table class="data">
-      <tr>
-        <th/>
-        <th class='right'>chunk</th>
-        <th class='right'>shard</th>
-      </tr>
-      {% for dim in entry.dimensions %}
-        <tr>
-          <td>
-            <strong>{{ dim.name }}</strong>
-          </td>
-          <td class='right'>{{ dim.chunk }}</td>
-          <td class='right'>{{ dim.shard }}</td>
-        </tr>
-        <tr class="metadata-comment">
-          <td colspan="3">
-            <span></span>
-          </td>
-        </tr>
-      {% endfor %}
-    </table>
-  </div>
   <h2>Variables</h2>
   <p class="var-note">Access a variable by its name (the bold identifier, e.g. <code>ds["{{ entry.variables[0].name }}"]</code>). The <code>code</code> beside it is the source GRIB short name, shown for reference — it is not an access key.</p>
   {{ variableTable(entry.variables) }}
