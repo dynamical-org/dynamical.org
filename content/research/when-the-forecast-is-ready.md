@@ -1,11 +1,15 @@
 ---
 type: "Lab note"
-title: "Knowing the moment the data is ready"
-date: 2026-07-01
+title: "Knowing the moment a forecast is ready"
+date: 2026-07-07
 areas:
   - weather-product-design
 summary: >-
-  TODO
+  Forecast files don't arrive all at once — they trickle in over minutes or
+  hours, on a cadence set by whoever produces the model. To stop guessing, we
+  built wxopticon: a tool that watches upstream weather sources and answers two
+  operational questions — when to expect a given dataset, and whether a run is
+  on time relative to how that feed actually behaves.
 ---
 
 Forecast production is a factory assembly line, a fulfillment center, and a delivery route all in one. Lewis Fry Richardson's Weather Forecasting Factory was not too far off.
@@ -15,7 +19,7 @@ Forecast production is a factory assembly line, a fulfillment center, and a deli
 Every dataset in the dynamical.org catalog (so far) is downstream of a model run that
 someone else produces on their own cadence. And the initialization is just the beginning (literally and philosophically). Then the files start landing, one by one, eventually
 trickling in over tens of minutes (or even hours) rather than appearing all at once. If your
-pipeline depends on that data, you have two bad options: pretend you can devine a cron schedule that will "always work," or poll blindly and waste work re-checking storage that hasn't changed after it did.
+pipeline depends on that data, you have two bad options: pretend you can divine a cron schedule that will "always work," or poll blindly.
 
 And to add to that, we had questions like:
 
@@ -26,18 +30,18 @@ And to add to that, we had questions like:
 
 These questions and many more we sought to understand deeply so that the dynamical.org catalog was resilient, low-latency, and designed with minute details about the upstream sources in mind.
 
-So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischeivious voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh nevermind). It watches upstream weather
+So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh never mind). It watches upstream weather
 sources and dynamical.org's own catalog stores, and it answers two operational questions:
 
 - **When can I expect lead-group X dataset Y?** — a next-run countdown learned from observed
   arrival history.
-- **Is this run on time?** — per-init status measured against the p99 of prior
+- **Is this run on time?** — per-init status measured against the distribution of prior
   arrivals for that product, so "late" means late relative to how this feed
   actually behaves.
 
 You can see all of this on the [pipeline status page](https://status.dynamical.org/pipeline).
 
-The second component is system that enables consumers to create subscriptions (via webhooks, Slack notifications, etc) to meaningful events (i.e. "notify me when IFS ENS progress:f024 is complete" or "notify me when GEFS on AWS is delayed").
+The second component is a system that enables consumers to create subscriptions (via webhooks, Slack notifications, etc) to meaningful events (e.g. "notify me when IFS ENS progress:f024 is complete" or "notify me when GEFS on AWS is delayed").
 
 ## What "ready" actually means
 
@@ -52,7 +56,7 @@ hours become available:
 | `complete`   | the full run is available — you don't need to know group names    |
 | `delayed`    | the expected completion time (p95) passed while the run is still in flight |
 
-I went back and forth on the correct threshold for "delayed," and I think it could be an area where further tweaks are needed. As we roll out out own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
+I went back and forth on the correct threshold for "delayed," and I think it could be an area where further tweaks are needed. As we roll out our own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
 
 ## How it works, briefly
 
@@ -63,7 +67,7 @@ pure replay of it.
 
 A monitoring cycle runs every few minutes: it replays the log to find the runs
 still expected, probes their upstream locations, and appends any new state
-transitions. For products with a notification stream (i.e. AWS SNS), a
+transitions. For products with a notification stream (e.g. AWS SNS), a
 continuous listener catches arrivals within seconds instead of waiting for the
 next cycle. Each new milestone is then fanned out to subscribers.
 
@@ -99,7 +103,7 @@ stretch past 13 hours. The value isn't the common run, which is boringly regular
 
 One last thing the log settles: **how far the cloud copy lags.** Every NOAA model
 is disseminated through both NOAA's NOMADS server and an AWS S3 bucket (via NOAA's
-Open Data Dissemination program), and a consumer might reads whichever it sees first (we, for example, blend our reads across sources in an attempt to optimize and roll with NOMADS rate limits).
+Open Data Dissemination program), and a consumer might read whichever it sees first (we, for example, blend our reads across sources in an attempt to optimize and roll with NOMADS rate limits).
 
 For GFS, NOMADS is always first. Across roughly 75,000 files carrying the same
 forecast hour, the S3 copy trailed NOMADS by a median of about a minute and a half
@@ -136,7 +140,7 @@ against the just-arrived dataset and shapes the payload or filters out deliverie
 
 ## Prefer polling? The status feed
 
-Not every consumer can accept inbound requests. For those of you who hear the soft, plodding footfall of the IT team plodding imperceptibly, but threateningly in the distance -- coming closer, ever closer at the mention of *webhooks*, wxopticon publishes the same
+Not every consumer can accept inbound requests. For those of you who hear the soft footfall of the IT team plodding imperceptibly, but threateningly, in the distance -- coming closer, ever closer at the mention of *webhooks*, wxopticon publishes the same
 events as a single JSON file you fetch on your own schedule, with no subscription or auth:
 
 **<https://assets.dynamical.org/wxopticon/feed.json>**
