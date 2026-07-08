@@ -5,43 +5,46 @@ title: catalog
 
 <style>
   /* Catalog list (forecasts / analyses) — scoped to this page. */
-  .cat-row {
-    display: block;
+  .cat-section {
+    list-style: none;
+    padding-inline-start: 0px;
+   }
+
+  .cat-section li {
     padding: 1.2rem 0;
-    border-bottom: 1px dotted var(--border-muted-color);
   }
-  /* The whole row is the click target; only the model name carries the link
-     color + hover underline (the optimization tag stays quiet). */
-  a.cat-row,
-  a.cat-row:visited {
+
+  .cat-section li:not(:last-of-type) {
+    border-bottom: 1px dotted var(--border-muted-color);
+    }
+
+  .cat-section li a, .cat-section li a:visited {
+    display: block;
     color: inherit;
     text-decoration: none;
   }
-  a.cat-row:focus-visible {
+
+  .cat-section li a:focus-visible {
     outline: 2px solid var(--link-color);
     outline-offset: 2px;
   }
+
   .cat-name {
     font-weight: 700;
-  }
-  a.cat-row .cat-name {
+    text-decoration: underline;
     color: var(--link-color);
   }
-  a.cat-row:hover .cat-name {
-    text-decoration: underline;
-  }
-  .opt-tag {
-    margin-left: 0.7rem;
-    font-size: 1.05rem;
+
+  .cat-type-tag {
+    margin-left: 1rem;
+    font-size: 1rem;
     font-weight: 400;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--muted-text-2);
   }
+
   .cat-meta {
     margin-top: 0.3rem;
-    color: var(--muted-text);
-    font-size: 1.25rem;
     font-variant-numeric: tabular-nums;
   }
 </style>
@@ -64,20 +67,22 @@ title: catalog
   {% endmacro %}
 
   {% macro listSection(entries, isForecast) %}
+    <ul class="cat-section">
     {% for entry in entries %}
-      {%- set optTag %}<span class="opt-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
+      <li>
+      {%- set optTag %}<span class="cat-type-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
       {% if entry.status == 'live' or entry.status == 'available' %}
-        <a class="cat-row" href="/catalog/{{ entry.id | slugify }}">
+        <a href="/catalog/{{ entry.id | slugify }}">
           <span class="cat-name">{{ entry.model_name }}</span>{{ optTag | safe }}
           <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
         </a>
       {% else %}
-        <div class="cat-row">
-          <span class="cat-name">{{ entry.model_name }} ({{ entry.status }})</span>{{ optTag | safe }}
-          <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
-        </div>
+        <span class="cat-name">{{ entry.model_name }} ({{ entry.status }})</span>{{ optTag | safe }}
+        <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
       {% endif %}
+      </li>
     {% endfor %}
+    </ul>
   {% endmacro %}
 
   <h2>Forecasts</h2>
@@ -89,10 +94,14 @@ title: catalog
   {{ listSection(catalog.analyses, false) }}
 
   <h2 style="margin-top: 4rem;">Experimental</h2>
-  <a class="cat-row" href="/catalog/asos-parquet">
+  <ul class='cat-section'>
+  <li>
+  <a href="/catalog/asos-parquet">
     <span class="cat-name">Global Airport Observations (ASOS/AWOS)</span>
     <div class="cat-meta">Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</div>
   </a>
+  </li>
+  </ul>
 
   <hr style="margin: 6rem 0;" />
   <h2>Roadmap</h2>
