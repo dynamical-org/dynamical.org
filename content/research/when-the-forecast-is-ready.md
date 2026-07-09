@@ -66,11 +66,13 @@ object storage. There is no database — **the log is the source of truth**, and
 everything else (the dashboard, on-timedness, the readiness milestones) is a
 pure replay of it.
 
-A monitoring cycle runs every few minutes: it replays the log to find the runs
-still expected, probes their upstream locations, and appends any new state
-transitions. For products with a notification stream (e.g. AWS SNS), a
+A lean detection scan runs every two minutes: it replays the log to find the runs
+still expected, probes their upstream locations, appends any new state
+transitions, and fans each new milestone out to subscribers. A separate
+summarize pass runs every five minutes to refresh the status feed and seed
+"delayed" signals. For products with a notification stream (e.g. AWS SNS), a
 continuous listener catches arrivals within seconds instead of waiting for the
-next cycle. Each new milestone is then fanned out to subscribers.
+next scan.
 
 Because the derived state is always a replay of the log, the same milestone can
 never be reported inconsistently across the webhook feed, the polling feed, and
@@ -124,11 +126,17 @@ a boundary you've subscribed to:
   "event_id": "noaa-gfs/external-noaa-gfs-aws/2026-06-10T06:00Z/complete",
   "group_id": "noaa-gfs",
   "product_id": "external-noaa-gfs-aws",
+  "product_label": "NOAA GFS forecast (AWS)",
   "init_time": "2026-06-10T06:00:00Z",
   "kind": "complete",
   "occurred_at": "2026-06-10T11:12:04Z"
 }
 ```
+
+Every event carries a human-readable `product_label` (with the AWS/NOMADS source
+badge baked in), and `progress`/`complete`/`delayed` events add a `lead_group`
+and `lead_group_label` naming the horizon they concern — so a payload reads on
+its own without a lookup table.
 
 Every delivery is signed (`X-Wxopticon-Signature`), retried with backoff on
 failure, and stable per boundary. Subscriptions are managed at
@@ -160,7 +168,9 @@ every run nests the same discrete events a webhook would deliver:
           "completion_pct": 0.62,
           "events": [
             { "event_id": "noaa-gfs/external-noaa-gfs-aws/2026-06-10T06:00Z/progress/f240",
-              "kind": "progress", "lead_group": "f240",
+              "group_id": "noaa-gfs", "product_id": "external-noaa-gfs-aws",
+              "product_label": "NOAA GFS forecast (AWS)",
+              "kind": "progress", "lead_group": "f240", "lead_group_label": "10d",
               "occurred_at": "2026-06-10T09:41:03Z" }
           ] }
       ]
