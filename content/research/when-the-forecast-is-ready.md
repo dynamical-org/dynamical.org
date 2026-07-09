@@ -15,7 +15,7 @@ summary: >-
 
 Forecast production is a factory assembly line, a fulfillment center, and a delivery route all in one. Lewis Fry Richardson's Weather Forecasting Factory was not too far off.
 
-{% figure "/assets/notes/conlin-1.jpg" %}“Weather Forecasting Factory” by Stephen Conlin, 1986. Based on the description in Weather Prediction by Numerical Process, by L.F. Richardson, Cambridge University Press, 1922, and on advice from Prof. John Byrne, Trinity College Dublin. Image: ink and water colour, c. 50 x 38.5 cm. © Stephen Conlin 1986. All Rights Reserved ´. (Courtesy: Hendrik Hoffmann, School of Mathematics & Statistics, University College Dublin [Source](https://www.emetsoc.org/resources/rff/)){% endfigure %}
+{% figure "/assets/notes/conlin-1.jpg" %}“Weather Forecasting Factory” by Stephen Conlin, 1986. Based on the description in Weather Prediction by Numerical Process, by L.F. Richardson, Cambridge University Press, 1922, and on advice from Prof. John Byrne, Trinity College Dublin. Image: ink and water colour, c. 50 x 38.5 cm. © Stephen Conlin 1986. All Rights Reserved ´. (Courtesy: Hendrik Hoffmann, School of Mathematics & Statistics, University College Dublin. <a href="https://www.emetsoc.org/resources/rff/">Source</a>){% endfigure %}
 
 Every dataset in the dynamical.org catalog (so far) is downstream of a model run that
 someone else produces on their own cadence. And the initialization is just the beginning (literally and philosophically). Then the files start landing, one by one, eventually

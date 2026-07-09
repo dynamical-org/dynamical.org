@@ -598,7 +598,6 @@ article img {
 .update-index {
   --index-row-padding: 3rem;
   --index-row-border: 1px solid var(--popup-border);
-  max-width: 58rem;
 }
 .update-index time {
   display: block;
