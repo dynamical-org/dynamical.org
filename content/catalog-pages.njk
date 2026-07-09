@@ -70,6 +70,10 @@ eleventyComputed:
   }
   .var-name {
     font-weight: 700;
+    display: block;
+  }
+  .var-long {
+    display: block;
   }
   .var-src {
     color: var(--muted-text);
@@ -95,8 +99,9 @@ eleventyComputed:
         {%- set varDims = variable.dimension_names | join(' × ') -%}
         <tr>
           <td>
-            <span class="var-name">{{ variable.name }}</span>{% if variable.short_name %} <code class="var-src" title="Source (GRIB) short name — reference only, not an access key">{{ variable.short_name }}</code>{% endif %}
-            <span class="var-desc">{{ variable.long_name }}{% if variable.comment %} — {{ variable.comment }}{% endif %}{% if varDims != commonDims %} · dimensions: {{ varDims }}{% endif %}</span>
+            <span class="var-name">{{ variable.name }}</span>
+            <span class="var-long">{{ variable.long_name }}{% if variable.short_name %} (<code class="var-src" title="Source (GRIB) short name, reference only, not an access key">{{ variable.short_name }}</code>){% endif %}</span>
+            {%- if variable.comment or varDims != commonDims %}<span class="var-desc">{{ variable.comment }}{% if variable.comment and varDims != commonDims %} · {% endif %}{% if varDims != commonDims %}dimensions: {{ varDims }}{% endif %}</span>{% endif %}
           </td>
           <td class="var-units">{{ variable.units }}</td>
         </tr>
@@ -227,7 +232,7 @@ eleventyComputed:
     </table>
   </div>
   <h2>Variables</h2>
-  <p class="var-note">Access a variable by its name (the bold identifier, e.g. <code>ds["{{ entry.variables[0].name }}"]</code>). The <code>code</code> beside it is the source GRIB short name, shown for reference — it is not an access key.</p>
+  <p class="var-note">Access a variable by its name (the bold identifier, e.g. <code>ds["{{ entry.variables[0].name }}"]</code>).</p>
   {{ variableTable(entry.variables) }}
   {% for group in entry.variableGroups %}
     <details class="variable-group">
