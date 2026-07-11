@@ -111,9 +111,22 @@ eleventyComputed:
 {% endmacro %}
 <div class="content catalog-item">
   {%- set model = catalog.models | find('id', entry.model_id) %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://dynamical.org/" },
+      { "@type": "ListItem", "position": 2, "name": "Catalog", "item": "https://dynamical.org/catalog/" },
+      {% if model %}{ "@type": "ListItem", "position": 3, "name": {{ model.name | dump | safe }}, "item": "https://dynamical.org/catalog/models/{{ model.id | slugify }}/" },
+      { "@type": "ListItem", "position": 4, "name": {{ entry.title | dump | safe }}, "item": "https://dynamical.org{{ page.url }}" }{% else %}{ "@type": "ListItem", "position": 3, "name": {{ entry.title | dump | safe }}, "item": "https://dynamical.org{{ page.url }}" }{% endif %}
+    ]
+  }
+  </script>
   <div>
     <a href="/catalog">Catalog</a>
-    > {{ entry.title }}
+    {% if model %}&gt; <a href="/catalog/models/{{ model.id | slugify }}/">{{ model.name }}</a>{% endif %}
+    &gt; {{ entry.title }}
   </div>
   <div style="margin: 3rem 0;">
     {% include "catalog-entry-status.njk" %}
