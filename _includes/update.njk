@@ -2,6 +2,22 @@
 layout: base.njk
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": {{ title | dump | safe }},
+  "datePublished": "{{ page.date | isoDate }}",
+  "dateModified": "{{ page.date | isoDate }}",
+  "description": {{ (description or metadata.description) | dump | safe }},
+  "url": "https://dynamical.org{{ page.url }}",
+  "mainEntityOfPage": "https://dynamical.org{{ page.url }}",
+  "image": "https://dynamical.org/assets/og/{{ page.url | ogSlug }}.png",
+  "author": { "@id": "https://dynamical.org/#organization" },
+  "publisher": { "@id": "https://dynamical.org/#organization" }
+}
+</script>
+
 <div class="content">
     <p><a href="/updates">← back to all updates</a></p>
     <h1>{{ title }}</h1>

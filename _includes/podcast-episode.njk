@@ -2,6 +2,26 @@
 layout: base.njk
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "PodcastEpisode",
+  "name": {{ title | dump | safe }},
+  "url": "https://dynamical.org{{ page.url }}",
+  "datePublished": "{{ page.date | isoDate }}",
+  {% if episode_number %}"episodeNumber": "{{ episode_number }}",{% endif %}
+  "description": {{ (description or metadata.description) | dump | safe }},
+  {% if audio_url %}"associatedMedia": { "@type": "MediaObject", "contentUrl": "{{ audio_url }}", "encodingFormat": "audio/mpeg" },{% endif %}
+  "partOfSeries": {
+    "@type": "PodcastSeries",
+    "name": "weathering",
+    "url": "https://dynamical.org/podcast/",
+    "webFeed": "https://dynamical.org/feed/podcast.xml"
+  },
+  "publisher": { "@id": "https://dynamical.org/#organization" }
+}
+</script>
+
 <div class="content">
   <h1>{{ title }}</h1>
   <a href="{{ apple_url }}">

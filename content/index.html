@@ -1,6 +1,7 @@
 ---
 layout: base.njk
-title: home
+title: "Cloud-optimized weather & climate data"
+description: "dynamical.org is a public catalog of cloud-optimized, analysis-ready weather and climate datasets — NOAA GFS, GEFS, HRRR and MRMS, ECMWF IFS and AIFS, and DWD ICON — published as free Zarr archives you can open directly with Xarray."
 redirects_from: /index.html
 templateEngineOverride: njk
 ---
@@ -10,6 +11,13 @@ templateEngineOverride: njk
   <div class="hero-content">
     <p class="mission-statement">
       A lab advancing how we <strong>access</strong>, <strong>understand</strong>, and <strong>act</strong> on data about our world.
+    </p>
+    <p class="mission-sub">
+      dynamical.org is a public catalog of cloud-optimized weather and climate data. We
+      republish forecasts and analyses from models like NOAA GFS, GEFS, HRRR and MRMS,
+      ECMWF IFS and AIFS, and DWD ICON as free, analysis-ready
+      <a href="/catalog">Zarr archives</a> you can open directly with Xarray — no GRIB
+      wrangling, no bulk downloads.
     </p>
   </div>
   <div class="hero-visual">
@@ -22,6 +30,17 @@ templateEngineOverride: njk
     <div id="globe-footnote" class="globe-footnote"></div>
   </div>
 </div>
+
+<section class="content home-section" id="data">
+  <div class="home-section-head">
+    <h2 class="block-label"><a href="/catalog">Data catalog</a></h2>
+  </div>
+  <ul class="index-list">
+    {%- for model in catalog.models %}
+    <li><a href="/catalog/models/{{ model.id }}/">{{ model.name }}</a></li>
+    {%- endfor %}
+  </ul>
+</section>
 
 <section class="content home-section" id="research">
   <div class="home-section-head">

@@ -710,6 +710,12 @@ a.work-item:hover h3 { text-decoration: underline; }
   margin: 0;
   text-wrap: pretty;
 }
+.mission-sub {
+  margin: 1.5rem 0 0;
+  max-width: 52ch;
+  color: var(--muted-text);
+  text-wrap: pretty;
+}
 .home-section { margin-top: 6rem; }
 .home-section-head {
   display: flex;
