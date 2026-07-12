@@ -87,8 +87,11 @@ eleventyComputed:
   }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
-{% macro variableTable(variables) %}
+{% macro variableTable(variables, groupName) %}
   {%- set commonDims = variables[0].dimension_names | join(' × ') -%}
+  {% if groupName %}
+    <p class="var-note">These variables live in the <code>{{ groupName }}</code> Zarr group (e.g. pass <code>group="{{ groupName }}"</code> to <code>dynamical_catalog.open()</code> or <code>xr.open_zarr()</code>).</p>
+  {% endif %}
   <p class="var-dims-note">Dimensions: <code>{{ commonDims }}</code></p>
   <div class="table-container">
     <table class="var-table">
@@ -251,7 +254,7 @@ eleventyComputed:
   {% for group in entry.variableGroups %}
     <details class="variable-group">
       <summary><strong>{{ group.name | replace("_", " ") | title }}</strong> ({{ group.variables.length }} variable{{ "s" if group.variables.length != 1 }})</summary>
-      {{ variableTable(group.variables) }}
+      {{ variableTable(group.variables, group.name) }}
     </details>
   {% endfor %}
   <p class="metadata-comment">
