@@ -9,6 +9,7 @@ permalink: 'catalog/{{entry.id | slugify}}/'
 eleventyComputed:
   title: '{{entry.title}}'
   description: '{{ entry.description_meta }}'
+  keywords: '{{ entry.model_name }}, {{ entry.title }}, {{ entry.model_name }} zarr, {{ entry.model_name }} data, {% if entry.forecast_domain %}weather forecast data{% else %}weather analysis data, reanalysis{% endif %}, cloud-optimized weather data, analysis-ready, Xarray, Icechunk'
   socialTitle: '{{ entry.title }} — dynamical.org'
   socialImage: '{{ entry.thumbnail }}'
 ---

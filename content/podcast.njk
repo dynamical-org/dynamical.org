@@ -2,7 +2,20 @@
 layout: base.njk
 title: weathering
 description: "At the intersection of weather forecasting, technology, and the unknowable. A scattered mix of academic papers, good books, philosophy, and the human relationship with weather. Hosted by Marshall, Marta, and Alden."
+keywords: "weathering podcast, weather podcast, forecasting podcast, meteorology podcast, weather and climate, weather forecasting"
 ---
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "PodcastSeries",
+  "name": "weathering",
+  "url": "https://dynamical.org{{ page.url }}",
+  "description": {{ description | dump | safe }},
+  "webFeed": "https://dynamical.org/feed/podcast.xml",
+  "publisher": { "@id": "https://dynamical.org/#organization" }
+}
+</script>
 
 <div class="content">
   <img src="/assets/weathering/weathering_logo_figs.png" alt="weathering logo" style="width: 100%; max-width: 300px; margin-bottom: 1rem;">
