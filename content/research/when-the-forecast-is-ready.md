@@ -29,7 +29,7 @@ And to add to that, we had questions like:
 - What does the rollout of a forecast look like, file by file, minute by minute?
 - How do different delivery routes (read: file destinations) impact latency?
 
-These questions and many more we sought to understand deeply so that the dynamical.org catalog was resilient, low-latency, and designed with minute details about the upstream sources in mind.
+These questions and many more we sought to understand deeply so that the dynamical.org catalog was resilient, low-latency, and designed with minute details about the upstream sources in mind. The prompt for actually sitting down and answering them was a [question Will Hobbs](https://www.linkedin.com/in/will-hobbs-93215023/) [posted on LinkedIn](https://www.linkedin.com/posts/will-hobbs-93215023_question-for-people-that-work-with-nwpaiwp-ugcPost-7449580009725267970-3FJU/) about NOAA model file availability. We needed something more definitive than trial-and-error guesses about the delay between model initialization and usable forecast files.
 
 So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh never mind). It watches upstream weather
 sources and dynamical.org's own catalog stores, and it answers two operational questions:
