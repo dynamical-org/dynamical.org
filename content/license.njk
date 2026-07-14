@@ -1,76 +1,35 @@
 ---
 layout: base.njk
 title: license
-socialTitle: dynamical.org licensing — website, datasets, and code
-description: What's under CC BY-NC-SA, what's under CC BY, and what's open source — the licenses covering the dynamical.org website, catalog datasets, and code.
+socialTitle: dynamical.org license
+description: The licenses covering the dynamical.org website and catalog datasets.
 permalink: /license/
 ---
-
-<style>
-  .license-name {
-    font-weight: 700;
-    text-decoration: underline;
-    color: var(--link-color);
-  }
-  .license-meta {
-    margin-top: 0.3rem;
-    color: var(--muted-text);
-  }
-</style>
 
 <div class="content">
   <h1 style="margin-top: 4rem; margin-bottom: 1rem;">License</h1>
 
-  <p>
-    dynamical.org is three things with three different licenses: this
-    website, the datasets in the catalog, and the code we publish. The
-    license on this page's footer only covers the first — the datasets and
-    code are generally more permissively licensed, so check the specific
-    section below before assuming a restriction applies to what you actually
-    want to use.
-  </p>
-
   <h3>Website</h3>
   <p>
-    The prose, design, and other original content of this website (excluding
-    the datasets and code described below) is licensed under
+    The content of this website, excluding the datasets described below, is
+    licensed under
     <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>.
   </p>
 
   <h3>Datasets</h3>
   <p>
-    Each dataset in the <a href="/catalog">catalog</a> states its own license
+    Each dataset in the <a href="/catalog">catalog</a> is licensed as stated
     on its catalog page and in its
     <a href="https://stac.dynamical.org/catalog.json">STAC Collection</a>
     metadata (the <code>license</code> field and <code>rel: "license"</code>
-    links). Most datasets are published under
-    <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, a
-    permissive license that allows commercial use with attribution. Some
-    carry additional terms from the originating agency (for example, ECMWF
-    data), which are linked alongside the CC BY 4.0 license on that dataset's
-    page.
+    links). Most datasets are licensed under
+    <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Some
+    carry additional terms from the originating agency, linked alongside the
+    CC BY 4.0 license on that dataset's page.
   </p>
 
-  <h3>Code</h3>
+  <h3>Contact</h3>
   <p>
-    Our software repositories are published at
-    <a href="https://github.com/dynamical-org">github.com/dynamical-org</a>,
-    each under its own license:
-  </p>
-  <ul class="index-list">
-  {% for repo in repos %}
-    <li>
-      <a href="{{ repo.url }}">
-        <span class="license-name">{{ repo.name }}</span>{% if repo.description %} — {{ repo.description }}{% endif %}
-        <div class="license-meta">{{ repo.license or "No license file published — all rights reserved by default" }}</div>
-      </a>
-    </li>
-  {% endfor %}
-  </ul>
-
-  <h3>Questions</h3>
-  <p>
-    If you're unsure whether a license covers your use case, email
-    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
+    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>
   </p>
 </div>
