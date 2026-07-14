@@ -12,6 +12,8 @@ eleventyComputed:
   keywords: '{{ entry.model_name }}, {{ entry.title }}, {{ entry.model_name }} zarr, {{ entry.model_name }} data, {% if entry.forecast_domain %}weather forecast data{% else %}weather analysis data, reanalysis{% endif %}, cloud-optimized weather data, analysis-ready, Xarray, Icechunk'
   socialTitle: '{{ entry.title }} — dynamical.org'
   socialImage: '{{ entry.thumbnail }}'
+  licenseName: '{{ entry.license_links[0].title }}'
+  licenseUrl: '{{ entry.license_links[0].href }}'
 ---
 
 <style>
