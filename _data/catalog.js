@@ -109,11 +109,15 @@ function plainTextExcerpt(md, maxLen = 200) {
   return text;
 }
 
+// Human-readable label for a STAC license link — raw titles are inconsistent
+// (e.g. "CC-BY-4.0", "CC BY 4.0 (additional terms)").
+function licenseLabel(link) {
+  return link.title.replace("CC-BY-4.0", "CC BY 4.0").replace(/\s*\(additional terms\)$/i, "");
+}
+
 function licenseMd(licenseLinks) {
   if (!licenseLinks || licenseLinks.length === 0) return "";
-  const labels = licenseLinks.map(
-    (l) => `[${l.title.replace("CC-BY-4.0", "CC BY 4.0").replace(/\s*\(additional terms\)$/i, "")}](${l.href})`,
-  );
+  const labels = licenseLinks.map((l) => `[${licenseLabel(l)}](${l.href})`);
   if (labels.length === 1) return `Dataset licensed under ${labels[0]}.`;
   const last = labels.pop();
   return `Dataset licensed under ${labels.join(", ")} and ${last}.`;
@@ -204,6 +208,7 @@ function reshapeStacCollection(collection) {
     thumbnail,
     validation_report_href,
     license_md: licenseMd(licenseLinks),
+    license_links: licenseLinks.map((l) => ({ title: licenseLabel(l), href: l.href })),
     license_url: licenseLink ? licenseLink.href : null,
     description_meta: plainTextExcerpt(collection.description_summary),
     // STAC summaries are single-element arrays; unwrap to scalars.
