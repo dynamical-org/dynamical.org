@@ -21,44 +21,55 @@ function escapeAttr(s) {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
+// Plot files R2 holds for each variable, keyed by the bold section label
+// that accompanies the plot in the variable's markdown body. Listed in the
+// order reformatters' render.py emits them.
+const PLOT_SECTIONS = [
+  ["Nulls", "nulls", "null fraction"],
+  ["Point time series", "value_timeseries", "full-period value time series"],
+  ["Spatial", "spatial", "spatial comparison"],
+  ["Temporal", "temporal", "time series comparison"],
+  ["Availability", "availability", "availability over append dim"],
+];
+
+// Filesystem-safe form of a (possibly group-pathed) variable name, matching
+// reformatters' scripts/validation/utils.py var_slug: group vars like
+// `model_level/temperature` are stored as `model_level__temperature.png`.
+function varSlug(v) {
+  return v.replace(/\//g, "__");
+}
+
 // Per-variable heading rows in the markdown are `### \`name\``, which
-// markdown-it renders as `<h3><code>name</code></h3>`. For each one,
-// append a `<div class="plots">` block of the R2 plots that share the
-// variable's name as a filename suffix, in the order reformatters'
-// render.py emits them: nulls, value_timeseries, spatial, temporal.
+// markdown-it renders as `<h3><code>name</code></h3>`. For each one, append
+// a `<div class="plots">` block of the R2 plots for that variable.
 //
-// The full-period value_timeseries plot only exists for reports built
-// after reformatters PR #641, so it's injected only when this variable's
-// section carries the matching "Point time series statistics for the full
-// period" table (written alongside the plot by summary.py). Reports that
-// predate #641 keep the original three plots and pick up the fourth
-// automatically once their report is regenerated — no code change needed.
+// Which plots a report carries — and their order — is derived from the bold
+// section labels present in the variable's body, so one code path renders
+// both report styles: materialized (Nulls, Spatial, Temporal) and virtual
+// (Point time series, Spatial, Temporal, Availability).
 function injectVariablePlots(html) {
-  const re = /(<h3 id="[^"]*"><code>([^<]+)<\/code><\/h3>)([\s\S]*?)(?=<h[23][\s>]|$)/g;
+  const re =
+    /(<h3 id="[^"]*"><code>([^<]+)<\/code><\/h3>)([\s\S]*?)(?=<h[23][\s>]|$)/g;
   return html.replace(re, (_full, heading, varName, body) => {
-    const v = varName;
-    const valueTimeseriesPlot = /Point time series statistics for the full period/.test(
-      body,
+    const slug = varSlug(varName);
+    const plots = PLOT_SECTIONS.filter(([label]) =>
+      body.includes(`<strong>${label}</strong>`),
     )
-      ? `<a href="value_timeseries_${v}.png" target="_blank">` +
-        `<img src="value_timeseries_${v}.png" alt="${escapeAttr(v)} — full-period value time series"></a>`
-      : "";
-    const plots =
-      `<div class="plots">` +
-      `<a href="nulls_${v}.png" target="_blank">` +
-      `<img src="nulls_${v}.png" alt="${escapeAttr(v)} — null fraction"></a>` +
-      valueTimeseriesPlot +
-      `<a href="spatial_${v}.png" target="_blank">` +
-      `<img src="spatial_${v}.png" alt="${escapeAttr(v)} — spatial comparison"></a>` +
-      `<a href="temporal_${v}.png" target="_blank">` +
-      `<img src="temporal_${v}.png" alt="${escapeAttr(v)} — time series comparison"></a>` +
-      `</div>`;
-    return `${heading}${body}${plots}`;
+      .map(
+        ([, prefix, alt]) =>
+          `<a href="${prefix}_${slug}.png" target="_blank">` +
+          `<img src="${prefix}_${slug}.png" alt="${escapeAttr(varName)} — ${alt}"></a>`,
+      )
+      .join("");
+    return `${heading}${body}<div class="plots">${plots}</div>`;
   });
 }
 
 function pngLinksOpenInNewTab(html) {
-  return html.replace(/<a href="([^"]+\.png)">/g, '<a href="$1" target="_blank">');
+  return html.replace(
+    /<a href="([^"]+\.png)">/g,
+    '<a href="$1" target="_blank">',
+  );
 }
 
 // Apply the site's .table-container + .data table classes so markdown
