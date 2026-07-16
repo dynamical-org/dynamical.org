@@ -34,17 +34,11 @@ eleventyComputed:
     align-items: baseline;
     gap: 0.6rem;
   }
-  .cat-type {
-    margin-left: auto;
-    flex-shrink: 0;
-    color: var(--muted-text);
-  }
   .cat-tags {
     margin-top: 0.3rem;
     color: var(--muted-text);
   }
-  .cat-tags svg,
-  .cat-type svg {
+  .cat-tags svg {
     margin-right: 0.3em;
   }
 </style>
@@ -112,12 +106,12 @@ eleventyComputed:
       {%- set tags %}<div class="cat-tags">{% for t in ds.access_tags %}{{ tagIcon(t.icon) }}{{ t.label }}{{ " · " if not loop.last }}{% endfor %}</div>{% endset -%}
       {% if ds.status == 'live' or ds.status == 'available' %}
         <a href="/catalog/{{ ds.id | slugify }}/">
-          <div class="cat-head"><span class="cat-name">{{ ds.title }}</span><span class="cat-id">{{ ds.id }}</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+          <div class="cat-head"><span class="cat-name">{{ ds.title }}</span><span class="cat-id">{{ ds.id }}</span></div>
           {{ tags | safe }}
           <div class="cat-meta">{{ ds.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ ds.spatial_resolution | stripApprox }}</div>
         </a>
       {% else %}
-        <div class="cat-head"><span class="cat-name">{{ ds.title }} ({{ ds.status }})</span><span class="cat-id">{{ ds.id }}</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+        <div class="cat-head"><span class="cat-name">{{ ds.title }} ({{ ds.status }})</span><span class="cat-id">{{ ds.id }}</span></div>
         {{ tags | safe }}
         <div class="cat-meta">{{ ds.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ ds.spatial_resolution | stripApprox }}</div>
       {% endif %}

@@ -234,23 +234,16 @@ function reshapeStacCollection(collection) {
     // Access-pattern optimization (see isVirtual above): virtual products are
     // space-optimized (whole-grid reads); everything else is time-optimized.
     optimization: isVirtual ? "space" : "time",
-    // Build-model archetype (icon + label), shown on the row's title line. The
-    // benefit tags below (access_tags) follow from it.
-    access_type: isVirtual
-      ? { icon: "layers", label: "virtual" }
-      : { icon: "brick-wall", label: "materialized" },
     // Benefit tags describing what the implementation is good for, keyed off
-    // isVirtual. Each has a Lucide `icon` key (rendered by tag-icon.njk) and a
-    // plaintext `label`; templates render them as an icon + label list.
+    // isVirtual and shown on the row's title line. Each has a Lucide `icon` key
+    // (rendered by tag-icon.njk) and a plaintext `label`; templates render them
+    // as an icon + label list.
     access_tags: isVirtual
       ? [
-          { icon: "rabbit", label: "low latency" },
           { icon: "map", label: "map-optimized" },
+          { icon: "rabbit", label: "low latency" },
         ]
-      : [
-          { icon: "clock", label: "time-optimized" },
-          { icon: "chart-line", label: "designed for analysis and training" },
-        ],
+      : [{ icon: "chart-line", label: "time-optimized" }],
     // Total variables across the root group and any nested groups — surfaced on
     // the catalog list as "N variables" (or "all variables" for space-optimized).
     variable_count:

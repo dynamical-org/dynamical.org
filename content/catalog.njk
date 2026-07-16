@@ -27,8 +27,7 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
     color: var(--link-color);
   }
 
-  /* Title row: id on the left, build-model archetype (virtual / materialized)
-     pushed to the right. */
+  /* Title row: id on the left. */
   .cat-head {
     display: flex;
     flex-wrap: wrap;
@@ -36,19 +35,12 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
     gap: 0.6rem;
   }
 
-  .cat-type {
-    margin-left: auto;
-    flex-shrink: 0;
-    color: var(--muted-text);
-  }
-
   /* Benefit tags: inline icon + label list. Icons inherit currentColor. */
   .cat-tags {
     margin-top: 0.3rem;
     color: var(--muted-text);
   }
-  .cat-tags svg,
-  .cat-type svg {
+  .cat-tags svg {
     margin-right: 0.3em;
   }
 
@@ -104,12 +96,12 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
         <li>
         {% if ds.status == 'live' or ds.status == 'available' %}
           <a href="/catalog/{{ ds.id | slugify }}">
-            <div class="cat-head"><span class="cat-name">{{ ds.id }}</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+            <div class="cat-head"><span class="cat-name">{{ ds.id }}</span></div>
             {{ tags(ds) }}
             <div class="cat-meta">{{ meta(ds) }}</div>
           </a>
         {% else %}
-          <div class="cat-head"><span class="cat-name">{{ ds.id }} ({{ ds.status }})</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+          <div class="cat-head"><span class="cat-name">{{ ds.id }} ({{ ds.status }})</span></div>
           {{ tags(ds) }}
           <div class="cat-meta">{{ meta(ds) }}</div>
         {% endif %}
