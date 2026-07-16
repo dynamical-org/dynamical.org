@@ -16,9 +16,18 @@ eleventyComputed:
   licenseUrl: '{{ entry.license_links[0].href }}'
 ---
 
+{% from "tag-icon.njk" import tagIcon %}
 <style>
   .content.catalog-item {
     font-size: 1.4rem;
+  }
+  /* Benefit tags: inline icon + label list. Icons inherit currentColor. */
+  .cat-tags {
+    margin-top: 0.3rem;
+    color: var(--muted-text);
+  }
+  .cat-tags svg {
+    margin-right: 0.3em;
   }
   .metadata-comment {
     font-size: 80%;
@@ -143,6 +152,7 @@ eleventyComputed:
   <div style="margin: 3rem 0;">
     {% include "catalog-entry-status.njk" %}
     <h1>{{ entry.title }}</h1>
+    <div class="cat-tags">{% for t in entry.access_tags %}{{ tagIcon(t.icon) }}{{ t.label }}{{ " · " if not loop.last }}{% endfor %}</div>
   </div>
   <table>
     <tr>
@@ -196,7 +206,7 @@ eleventyComputed:
             {% else %}
               {{ dataset.title }} ({{ dataset.status }})
             {% endif %}
-            - {{ dataset.description | safe }}
+            - {% for t in dataset.access_tags %}{{ tagIcon(t.icon) }}{{ t.label }}{{ " · " if not loop.last }}{% endfor %}
           </li>
         {% endif %}
       {% endfor %}

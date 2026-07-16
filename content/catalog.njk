@@ -27,12 +27,23 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
     color: var(--link-color);
   }
 
-  /* Title row: id on the left. */
+  /* Title row: title on the left, id pushed to the right (hidden on narrow
+     screens). */
   .cat-head {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0.6rem;
+  }
+  .cat-id {
+    margin-left: auto;
+    flex-shrink: 0;
+    color: var(--muted-text);
+  }
+  @media (max-width: 640px) {
+    .cat-id {
+      display: none;
+    }
   }
 
   /* Benefit tags: inline icon + label list. Icons inherit currentColor. */
@@ -96,12 +107,12 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
         <li>
         {% if ds.status == 'live' or ds.status == 'available' %}
           <a href="/catalog/{{ ds.id | slugify }}">
-            <div class="cat-head"><span class="cat-name">{{ ds.id }}</span></div>
+            <div class="cat-head"><span class="cat-name">{{ ds.title }}</span><span class="cat-id">{{ ds.id }}</span></div>
             {{ tags(ds) }}
             <div class="cat-meta">{{ meta(ds) }}</div>
           </a>
         {% else %}
-          <div class="cat-head"><span class="cat-name">{{ ds.id }} ({{ ds.status }})</span></div>
+          <div class="cat-head"><span class="cat-name">{{ ds.title }} ({{ ds.status }})</span><span class="cat-id">{{ ds.id }}</span></div>
           {{ tags(ds) }}
           <div class="cat-meta">{{ meta(ds) }}</div>
         {% endif %}
