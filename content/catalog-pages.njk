@@ -87,6 +87,12 @@ eleventyComputed:
     color: var(--muted-text);
     font-size: 1.25rem;
   }
+  /* The unsharded chunk table has only two columns, so let it shrink to its
+     content rather than stretching to the shared .data min-width. Sharded
+     chunk tables (three columns) keep the wider default. */
+  .detail-prose table.data:has(thead th:nth-child(2):last-child) {
+    min-width: 0;
+  }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 {% macro variableTable(variables, groupName) %}
@@ -273,5 +279,5 @@ eleventyComputed:
     <p>
     <a href="https://doi.org/10.5281/zenodo.18777399"><img src="https://zenodo.org/badge/859043226.svg" alt="DOI"/></a>
     </p>
-    {{ entry.description_details | markdown | safe }}
+    <div class="detail-prose">{{ entry.description_details | markdown | safe }}</div>
 </div>
