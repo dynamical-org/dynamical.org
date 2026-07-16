@@ -55,14 +55,14 @@ hours become available:
 | `started`    | the first file of a run lands (any lead time)                     |
 | `progress`   | every lead ≤ a lead-group horizon is available (e.g. `progress:f240`) |
 | `complete`   | the full run is available — you don't need to know group names    |
-| `delayed`    | the run is still in flight a minute past its expected completion time (p95) |
+| `delayed`    | the run is still in flight a minute past its expected completion time (p95 + margin) |
 
 I went back and forth on the correct threshold for "delayed." Raw p95 turned out to be too harsh: for a very consistent feed the distribution is so tight that p95 sits only slightly above the median, so firing exactly at p95 would page on roughly 1 in 20 perfectly normal runs. So we nudge the trigger just past it — p95 + 1 minute — which keeps ordinary run-to-run variation quiet and lets only genuinely stalled runs cross the line. I still think it could be an area where further tweaks are needed. As we roll out our own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
 
 ## How it works, briefly
 
 wxopticon is a set of stateless functions over a single append-only event log in
-object storage. There is no database — **the log is the source of truth**, and
+object storage. **The log is the source of truth**, and
 everything else (the dashboard, on-timedness, the readiness milestones) is a
 pure replay of it.
 
@@ -74,25 +74,20 @@ summarize pass runs every five minutes to refresh the status feed and seed
 continuous listener catches arrivals within seconds instead of waiting for the
 next scan.
 
-Because the derived state is always a replay of the log, the same milestone can
-never be reported inconsistently across the webhook feed, the polling feed, and
-the dashboard — they are three views of one computation.
-
 ## What a year of arrivals actually looks like
 
 Because every arrival is in the log, we can replay a whole year of it. Over the
 last 365 days wxopticon recorded roughly **1.8 million file arrivals across about
 8,700 runs** of thirteen upstream feeds.
 
-**A run arrives over time, not in an instant.** The moment a run *starts* and the
+**A run arrives over time.** The moment a run *starts* and the
 moment it's *complete* can be hours apart, and the shape of that arrival looks
 different for every model.
 
 {% figure "/assets/notes/arrival-staircase.png", "Scatter plots for four models, each point a forecast file positioned by its forecast hour (vertical) against hours after init time (horizontal). GFS traces a long diagonal, HRRR a tight one, GEFS two slopes with a plateau, AIFS a near-vertical band." %}Every file found over the last year, by forecast hour and how long after init time it landed; the dark line is the per-lead median. GFS trickles its 16-day run in over about two hours; HRRR's 48 hours land in a tight climb between roughly 50 and 110 minutes; GEFS races out to day 16, pauses, then delivers its 35-day tail in a burst almost a day later; AIFS drops its entire 15-day run in a single ~1-hour window. (A few files with rewritten upstream timestamps are clipped from view.){% endfigure %}
 
-This is why "ready" is a set of boundaries rather than one flag — a short-range
-consumer can start the instant the early leads land, hours before the archival
-tail shows up.
+This is why "ready" is a series of milestones; a short-range
+consumer can start using GEFS the instant the early lead groups land, long before the full run completes.
 
 **The feeds are punctualish!** Measured from init time to the last file of the run, the median completion runs about 1h47m for HRRR, 3h37m for DWD's ICON-EU, 5h15m for AIFS, 5h22m for GFS, and a full ~26h for GEFS's 35-day run.
 
@@ -189,5 +184,7 @@ served with `Cache-Control: max-age=5, stale-while-revalidate=10`, so feel free 
 - Watch the pipeline live: [status.dynamical.org/pipeline](https://status.dynamical.org/pipeline)
 - Poll the feed: [assets.dynamical.org/wxopticon/feed.json](https://assets.dynamical.org/wxopticon/feed.json)
 - Manage webhook subscriptions: [status.dynamical.org/webhooks](https://status.dynamical.org/webhooks)
+
+We continue to tune how "delayed" is determined, and are doing work to ingest, archive, and cross-reference source advisories (a dissemination delay from ECMWF, for example) with our observations.
 
 wxopticon is a living, but experimental piece of our infrastructure. If there's a source you'd like us to watch, or a boundary you wish you could subscribe to, [let us know](mailto:feedback@dynamical.org).
