@@ -26,8 +26,9 @@ eleventyComputed:
     margin-top: 0.3rem;
     color: var(--muted-text);
   }
-  .cat-tags svg {
-    margin-right: 0.3em;
+  .cat-tags svg,
+  .related-datasets svg {
+    margin-right: 0.4em;
   }
   .metadata-comment {
     font-size: 80%;
@@ -197,7 +198,7 @@ eleventyComputed:
   <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
   {% if model.datasets.length > 1 %}
     <h3>Related Datasets</h3>
-    <ul>
+    <ul class="related-datasets">
       {% for dataset in model.datasets %}
         {% if dataset.id != entry.id and dataset.status != "deprecated" %}
           <li>

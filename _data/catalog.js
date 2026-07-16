@@ -241,7 +241,7 @@ function reshapeStacCollection(collection) {
     access_tags: isVirtual
       ? [
           { icon: "map", label: "map-optimized" },
-          { icon: "rabbit", label: "low latency" },
+          { icon: "rabbit", label: "low-latency" },
         ]
       : [{ icon: "chart-line", label: "time-optimized" }],
     // Total variables across the root group and any nested groups — surfaced on
