@@ -148,10 +148,10 @@
 
     <!-- Latest content popup -->
     {% set latestUpdate = collections.updates | reverse | first %}
-    {% set latestResearch = collections.research | reverse | first %}
     {% set latestPodcast = collections.podcast | reverse | first %}
 
-    {# Pick the most recent across updates, research, and podcast. #}
+    {# Pick the most recent across updates and podcast. Lab notes (research) are
+       intentionally excluded from the popup. #}
     {% set latestContent = null %}
     {% set contentType = "" %}
     {% set contentIcon = "" %}
@@ -161,12 +161,6 @@
       {% set contentType = "Latest update" %}
       {% set contentIcon = "📰" %}
       {% set contentUrl = latestUpdate.url %}
-    {% endif %}
-    {% if latestResearch and (not latestContent or latestResearch.date > latestContent.date) %}
-      {% set latestContent = latestResearch %}
-      {% set contentType = "New " + ((latestResearch.data.type or "note") | lower) %}
-      {% set contentIcon = "📝" %}
-      {% set contentUrl = latestResearch.url %}
     {% endif %}
     {% if latestPodcast and (not latestContent or latestPodcast.date > latestContent.date) %}
       {% set latestContent = latestPodcast %}
