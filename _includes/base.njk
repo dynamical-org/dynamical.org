@@ -160,7 +160,7 @@
       {% set latestContent = latestUpdate %}
       {% set contentType = "Latest update" %}
       {% set contentIcon = "📰" %}
-      {% set contentUrl = "/updates" %}
+      {% set contentUrl = latestUpdate.url %}
     {% endif %}
     {% if latestResearch and (not latestContent or latestResearch.date > latestContent.date) %}
       {% set latestContent = latestResearch %}
