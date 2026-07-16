@@ -191,6 +191,13 @@ function reshapeStacCollection(collection) {
     ? `https://dynamical.org/assets/catalog-thumbnails/${collection.id}.jpg`
     : null;
 
+  // A `-virtual` (or legacy `-spatial`/`-spatial-dev`) id marks a virtual,
+  // space-optimized product chunked for whole-grid, low-latency reads; anything
+  // else is a materialized, time-optimized archive rechunked for point time
+  // series. Virtual products carry the model's complete variable set;
+  // materialized ones carry a curated subset.
+  const isVirtual = collection.id.includes("-virtual") || /-spatial(-dev)?$/.test(collection.id);
+
   return {
     // Use the STAC Collection directly for everything it already exposes at
     // the top level: id, title, description, attribution, model_id,
@@ -224,13 +231,26 @@ function reshapeStacCollection(collection) {
     // Canonical public URLs.
     stac_href: `${STAC_PUBLIC_URL}/${collection.id}/collection.json`,
     catalog_url: `${SITE_URL}catalog/${collection.id}/`,
-    // Access-pattern optimization, derived from the collection id: a `-spatial`
-    // suffix (or the `-spatial-dev` staging variant) marks a space-optimized
-    // (virtual) dataset chunked for whole-grid reads; everything else is
-    // time-optimized (rechunked archive) for pulling long time series at a
-    // point. Space-optimized datasets carry the model's complete variable set;
-    // time-optimized ones carry a curated subset.
-    optimization: /-spatial(-dev)?$/.test(collection.id) ? "space" : "time",
+    // Access-pattern optimization (see isVirtual above): virtual products are
+    // space-optimized (whole-grid reads); everything else is time-optimized.
+    optimization: isVirtual ? "space" : "time",
+    // Build-model archetype (icon + label), shown on the row's title line. The
+    // benefit tags below (access_tags) follow from it.
+    access_type: isVirtual
+      ? { icon: "layers", label: "virtual" }
+      : { icon: "brick-wall", label: "materialized" },
+    // Benefit tags describing what the implementation is good for, keyed off
+    // isVirtual. Each has a Lucide `icon` key (rendered by tag-icon.njk) and a
+    // plaintext `label`; templates render them as an icon + label list.
+    access_tags: isVirtual
+      ? [
+          { icon: "rabbit", label: "low latency" },
+          { icon: "map", label: "map-optimized" },
+        ]
+      : [
+          { icon: "clock", label: "time-optimized" },
+          { icon: "chart-line", label: "designed for analysis and training" },
+        ],
     // Total variables across the root group and any nested groups — surfaced on
     // the catalog list as "N variables" (or "all variables" for space-optimized).
     variable_count:

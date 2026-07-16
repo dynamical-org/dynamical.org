@@ -11,6 +11,7 @@ eleventyComputed:
   keywords: '{{ model.name }}, {{ model.name }} data, {{ model.name }} zarr, {{ model.name }} forecast, {{ model.name }} download, cloud-optimized weather data, analysis-ready, Xarray, Icechunk'
   socialTitle: '{{ model.name }} — dynamical.org'
 ---
+{% from "tag-icon.njk" import tagIcon %}
 <style>
   /* Mirrors the catalog index list styles (content/catalog.njk). */
   .cat-name {
@@ -18,16 +19,33 @@ eleventyComputed:
     text-decoration: underline;
     color: var(--link-color);
   }
-  .cat-type-tag {
-    margin-left: 1rem;
-    font-size: 1rem;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
   .cat-meta {
     margin-top: 0.3rem;
     color: var(--muted-text);
+  }
+  .cat-id {
+    margin-left: 1rem;
+    font-weight: 400;
+    color: var(--muted-text-2);
+  }
+  .cat-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  .cat-type {
+    margin-left: auto;
+    flex-shrink: 0;
+    color: var(--muted-text);
+  }
+  .cat-tags {
+    margin-top: 0.3rem;
+    color: var(--muted-text);
+  }
+  .cat-tags svg,
+  .cat-type svg {
+    margin-right: 0.3em;
   }
 </style>
 
@@ -91,14 +109,16 @@ eleventyComputed:
   {% macro variantRow(ds) %}
     {%- set vars = "all variables" if ds.optimization == "space" else (ds.variable_count | string) + " variables" -%}
     <li>
-      {%- set optTag %}<span class="cat-type-tag">{{ "space-optimized" if ds.optimization == "space" else "time-optimized" }}</span>{% endset -%}
+      {%- set tags %}<div class="cat-tags">{% for t in ds.access_tags %}{{ tagIcon(t.icon) }}{{ t.label }}{{ " · " if not loop.last }}{% endfor %}</div>{% endset -%}
       {% if ds.status == 'live' or ds.status == 'available' %}
         <a href="/catalog/{{ ds.id | slugify }}/">
-          <span class="cat-name">{{ ds.title }}</span>{{ optTag | safe }}
+          <div class="cat-head"><span class="cat-name">{{ ds.title }}</span><span class="cat-id">{{ ds.id }}</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+          {{ tags | safe }}
           <div class="cat-meta">{{ ds.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ ds.spatial_resolution | stripApprox }}</div>
         </a>
       {% else %}
-        <span class="cat-name">{{ ds.title }} ({{ ds.status }})</span>{{ optTag | safe }}
+        <div class="cat-head"><span class="cat-name">{{ ds.title }} ({{ ds.status }})</span><span class="cat-id">{{ ds.id }}</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+        {{ tags | safe }}
         <div class="cat-meta">{{ ds.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ ds.spatial_resolution | stripApprox }}</div>
       {% endif %}
     </li>
