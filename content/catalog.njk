@@ -4,21 +4,51 @@ title: catalog
 keywords: "cloud-optimized weather data, weather data catalog, analysis-ready weather data, weather forecast data, reanalysis data, GRIB alternative, Zarr, Icechunk, Xarray, NOAA GFS, GEFS, HRRR, ECMWF IFS, DWD ICON, open weather data"
 ---
 
+{% from "tag-icon.njk" import tagIcon %}
+
 <style>
-  /* Catalog list uses the shared .index-list skeleton; these are just the
-     catalog-specific title/tag/meta styles. */
+  /* Catalog grouped by model: each model heads a short .index-list of its
+     dataset variants (materialized / virtual / both). Uses the shared
+     .index-list skeleton plus these row styles (title flex + full-width specs).
+     The scroll-spy TOC rail (lib/markdown-toc.js, tocCSS/tocJS) navigates the
+     model-group <h2>s. */
+  .model-group {
+    margin-top: 2.5rem;
+  }
+  .model-group > strong {
+    display: block;
+    margin-bottom: 0.2rem;
+    scroll-margin-top: 2rem;
+  }
+
   .cat-name {
     font-weight: 700;
     text-decoration: underline;
     color: var(--link-color);
   }
 
-  .cat-type-tag {
-    margin-left: 1rem;
-    font-size: 1rem;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+  /* Title row: id on the left, build-model archetype (virtual / materialized)
+     pushed to the right. */
+  .cat-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+
+  .cat-type {
+    margin-left: auto;
+    flex-shrink: 0;
+    color: var(--muted-text);
+  }
+
+  /* Benefit tags: inline icon + label list. Icons inherit currentColor. */
+  .cat-tags {
+    margin-top: 0.3rem;
+    color: var(--muted-text);
+  }
+  .cat-tags svg,
+  .cat-type svg {
+    margin-right: 0.3em;
   }
 
   .cat-meta {
@@ -27,7 +57,13 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
   }
 </style>
 
-<div class="content">
+{%- set shownModels = [] -%}
+{%- for model in catalog.models -%}
+  {%- set live = model.datasets | selectattr("status", "!=", "deprecated") | list -%}
+  {%- if live.length -%}{%- set _ = shownModels.push({ model: model, datasets: live }) -%}{%- endif -%}
+{%- endfor -%}
+
+<div class="content md-toc-content">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
     <h1>Catalog</h1>
     <div style="margin-left: auto; display: flex; gap: 1rem; align-items: center;">
@@ -35,54 +71,70 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
     </div>
   </div>
 
-  {% macro meta(entry, isForecast) %}
-    {%- set vars = "all variables" if entry.optimization == "space" else (entry.variable_count | string) + " variables" -%}
-    {%- if isForecast -%}
-      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours }} · {{ entry.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") | abbrevHours }} · {{ entry.time_resolution | replace("Forecasts initialized ", "") | abbrevHours }}
+  <div class="md-toc-rail">
+    <nav class="md-toc" aria-label="Models">
+      <ul class="toc-tree">
+        {% for item in shownModels %}
+        <li class="toc-h2"><a href="#{{ item.model.id | slugify }}">{{ item.model.name }}</a></li>
+        {% endfor %}
+        <li class="toc-h2"><a href="#experimental">Experimental</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  {% macro meta(ds) %}
+    {%- set vars = "all variables" if ds.optimization == "space" else (ds.variable_count | string) + " variables" -%}
+    {%- if ds.forecast_domain -%}
+      {{ ds.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ ds.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours }} · {{ ds.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") | abbrevHours }} · {{ ds.time_resolution | replace("Forecasts initialized ", "") | abbrevHours }}
     {%- else -%}
-      {{ entry.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ entry.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours }} · {{ entry.time_domain | dateOnly }} · {{ entry.time_resolution | hourlyStep }}
+      {{ ds.spatial_domain | replace("Continental United States", "CONUS") }} · {{ vars }} · {{ ds.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours }} · {{ ds.time_domain | dateOnly }} · {{ ds.time_resolution | hourlyStep }}
     {%- endif -%}
   {% endmacro %}
 
-  {% macro listSection(entries, isForecast) %}
-    <ul class="index-list">
-    {% for entry in entries %}
-      <li>
-      {%- set optTag %}<span class="cat-type-tag">{{ "space-optimized" if entry.optimization == "space" else "time-optimized" }}</span>{% endset -%}
-      {% if entry.status == 'live' or entry.status == 'available' %}
-        <a href="/catalog/{{ entry.id | slugify }}">
-          <span class="cat-name">{{ entry.model_name }}</span>{{ optTag | safe }}
-          <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
-        </a>
-      {% else %}
-        <span class="cat-name">{{ entry.model_name }} ({{ entry.status }})</span>{{ optTag | safe }}
-        <div class="cat-meta">{{ meta(entry, isForecast) }}</div>
-      {% endif %}
-      </li>
-    {% endfor %}
-    </ul>
+  {% macro tags(ds) %}
+    <div class="cat-tags">{% for t in ds.access_tags %}{{ tagIcon(t.icon) }}{{ t.label }}{{ " · " if not loop.last }}{% endfor %}</div>
   {% endmacro %}
 
-  <h2>Forecasts</h2>
-  <p>Archives of past and present model runs, identified by initialization time and stepping forward across lead times.</p>
-  {{ listSection(catalog.forecasts, true) }}
+  {% for item in shownModels %}
+    <section class="model-group">
+      <strong id="{{ item.model.id | slugify }}">{{ item.model.name }}</strong>
+      <ul class="index-list">
+      {% for ds in item.datasets %}
+        <li>
+        {% if ds.status == 'live' or ds.status == 'available' %}
+          <a href="/catalog/{{ ds.id | slugify }}">
+            <div class="cat-head"><span class="cat-name">{{ ds.id }}</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+            {{ tags(ds) }}
+            <div class="cat-meta">{{ meta(ds) }}</div>
+          </a>
+        {% else %}
+          <div class="cat-head"><span class="cat-name">{{ ds.id }} ({{ ds.status }})</span><span class="cat-type">{{ tagIcon(ds.access_type.icon) }}{{ ds.access_type.label }}</span></div>
+          {{ tags(ds) }}
+          <div class="cat-meta">{{ meta(ds) }}</div>
+        {% endif %}
+        </li>
+      {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
 
-  <h2 style="margin-top: 4rem;">Analyses</h2>
-  <p>Best-estimate archives of past and present weather.</p>
-  {{ listSection(catalog.analyses, false) }}
-
-  <h2 style="margin-top: 4rem;">Experimental</h2>
-  <ul class="index-list">
-  <li>
-  <a href="/catalog/asos-parquet">
-    <span class="cat-name">Global Airport Observations (ASOS/AWOS)</span>
-    <div class="cat-meta">Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</div>
-  </a>
-  </li>
-  </ul>
+  <section class="model-group">
+    <strong id="experimental">Experimental</strong>
+    <ul class="index-list">
+    <li>
+      <a href="/catalog/asos-parquet">
+        <div class="cat-head"><span class="cat-name">Global Airport Observations (ASOS/AWOS)</span></div>
+        <div class="cat-meta">Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</div>
+      </a>
+    </li>
+    </ul>
+  </section>
 
   <hr style="margin: 6rem 0;" />
   <h2>Roadmap</h2>
   <p>To view work in progress and upcoming roadmap, check out the <a href="https://github.com/orgs/dynamical-org/projects/1">dynamical.org Github project</a>.</p>
 
 </div>
+
+<style>{{ tocCSS | safe }}</style>
+<script>{{ tocJS | safe }}</script>
