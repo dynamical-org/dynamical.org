@@ -120,8 +120,8 @@ permalink: /scorecard/station/{{ station.id }}/
   <div id="precipitation_surface-obs" class="scorecard-chart"></div>
   <div id="precipitation_surface-score" class="scorecard-chart"></div>
 </div>
-<script src="/vendor/d3.v7.min.js"></script>
-<script src="/vendor/topojson-client.v3.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3"></script>
 <script>
   const station = {{ station | dump | safe }};
   const width = 600;
@@ -133,7 +133,7 @@ permalink: /scorecard/station/{{ station.id }}/
     .attr("width", "100%")
     .attr("height", "auto")
     .attr("style", "max-width: 100%;");
-  d3.json("/vendor/us-atlas-states-10m.json").then(us => {
+  d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
     const state = topojson
       .feature(us, us.objects.states)
       .features
