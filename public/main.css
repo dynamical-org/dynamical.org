@@ -534,7 +534,8 @@ article.note {
   padding: 0;
 }
 
-article img {
+article img,
+.content img {
   max-width: 100%;
 }
 

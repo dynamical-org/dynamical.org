@@ -175,26 +175,29 @@
           <button id="latest-close" class="popup-close">
             &times;
           </button>
-          <script>
-            (function () {
-              const popup = document.getElementById('latest-popup');
-              const latestDate = "{{ latestContent.date | isoDate }}";
-              const seenDate = localStorage.getItem('latestPopupDate');
-              // if we've already seen this or something newer, hide the popup immediately
-              if (seenDate && seenDate >= latestDate) {
-                popup.style.display = 'none';
-                return;
-              }
-              // on close, record that we've seen this date
-              document.getElementById('latest-close').addEventListener('click', () => {
-                localStorage.setItem('latestPopupDate', latestDate);
-                popup.style.display = 'none';
-              });
-            })();
-          </script>
         </div>
         <a href="{{ contentUrl }}" class="popup-title">{{ latestContent.data.title }}</a>
         <div class="popup-date">{{ latestContent.date | readableDate }}</div>
+        <script>
+          (function () {
+            const popup = document.getElementById('latest-popup');
+            const latestDate = "{{ latestContent.date | isoDate }}";
+            const seenDate = localStorage.getItem('latestPopupDate');
+            // if we've already seen this or something newer, hide the popup immediately
+            if (seenDate && seenDate >= latestDate) {
+              popup.style.display = 'none';
+              return;
+            }
+            // record that we've seen this date, then hide the popup
+            const dismiss = () => {
+              localStorage.setItem('latestPopupDate', latestDate);
+              popup.style.display = 'none';
+            };
+            document.getElementById('latest-close').addEventListener('click', dismiss);
+            // clicking through to the post also dismisses it (navigation follows)
+            popup.querySelector('.popup-title').addEventListener('click', dismiss);
+          })();
+        </script>
       </div>
     {% endif %}
   </body>
