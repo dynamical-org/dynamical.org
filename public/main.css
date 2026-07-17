@@ -81,6 +81,11 @@
 /* html is set to 62.5% so that all the REM measurements are 1rem = 10px */
 html {
   font-size: 62.5%;
+  /* Stop mobile Safari from inflating the font of blocks that overflow the
+     viewport (e.g. a wide, horizontally-scrolling variable table), which made
+     its text larger than identical tables that happen to fit. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body,
