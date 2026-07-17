@@ -751,20 +751,43 @@
     canvas.style.cursor = "grab";
   });
 
+  // Axis-lock: decide once per gesture whether the finger is spinning the
+  // globe (horizontal) or scrolling the page (vertical). Until we're sure, we
+  // don't preventDefault, so a vertical drag scrolls the page as normal.
+  var touchStartX = 0, touchStartY = 0;
+  var touchAxis = null; // null = undecided, "h" = spin globe, "v" = page scroll
+  var AXIS_LOCK_PX = 8;  // movement before we commit to a direction
+
   canvas.addEventListener("touchstart", function (e) {
     if (e.touches.length !== 1) return;
     dragging = true;
-    dragLastX = e.touches[0].clientX;
+    touchAxis = null;
+    touchStartX = dragLastX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
   }, { passive: true });
   window.addEventListener("touchmove", function (e) {
     if (!dragging || e.touches.length !== 1) return;
-    e.preventDefault();
-    var dx = e.touches[0].clientX - dragLastX;
+    var x = e.touches[0].clientX;
+    var y = e.touches[0].clientY;
+    if (touchAxis === null) {
+      var adx = Math.abs(x - touchStartX);
+      var ady = Math.abs(y - touchStartY);
+      if (adx < AXIS_LOCK_PX && ady < AXIS_LOCK_PX) return; // too small to tell yet
+      touchAxis = adx > ady ? "h" : "v";
+      if (touchAxis === "v") {
+        dragging = false; // hand the gesture back to the browser to scroll
+        return;
+      }
+    }
+    if (touchAxis !== "h") return;
+    e.preventDefault(); // we own this horizontal gesture — spin, don't scroll
+    var dx = x - dragLastX;
     viewAngle += dx * dragSensitivity;
-    dragLastX = e.touches[0].clientX;
+    dragLastX = x;
   }, { passive: false });
   window.addEventListener("touchend", function () {
     dragging = false;
+    touchAxis = null;
   });
 
   canvas.style.cursor = "grab";

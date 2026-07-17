@@ -314,6 +314,9 @@ caption {
   aspect-ratio: 1;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  /* Let the browser handle vertical panning (page scroll) natively; the
+     globe only claims horizontal gestures to spin. See globe.js touch logic. */
+  touch-action: pan-y;
 }
 
 .globe-timeline {
