@@ -128,6 +128,6 @@ There's a limit to how we can manipulate data to improve UX (although in general
 
 ### What's next
 - For dynamical.org, we'll create both virtual and materialized products for all popular datasets. You'll find us initially releasing more virtual datasets since the commitment in ongoing storage is much lower.
-- Virtual `grib2.bz2`? (e.g. NOAA MRMS, DWD ICON-EU) you bet, thanks to the power of Zarr codec pipelines.
+- Virtual `grib2.bz2`? (e.g. NOAA MRMS, DWD ICON-EU) You bet, thanks to the power of Zarr codec pipelines.
 - We'll start virtualizing datasets that don't have public data, e.g. ECMWF pre-schedule delivery. That will come with its own challenges (no GRIB indexes). Because there's no need to decompress and recompress data, virtuals will still give us near-optimal latency.
 - More optimizations: what we have works great for 175 variables, but what about a 400-variable dataset? (HRDPS anyone?) Good thing there's more juice to squeeze.
