@@ -71,8 +71,8 @@ keywords: "weather forecast accuracy, forecast verification, weather model skill
         {% endfor %}
       </div>
     </div>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://unpkg.com/topojson-client@3"></script>
+    <script src="/vendor/d3.v7.min.js"></script>
+    <script src="/vendor/topojson-client.v3.min.js"></script>
     <script>
       const width = 975;
       const height = 610;
@@ -88,7 +88,7 @@ keywords: "weather forecast accuracy, forecast verification, weather model skill
         .attr("width", "100%")
         .attr("height", "auto")
         .attr("style", "max-width: 100%;");
-      d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json").then(us => {
+      d3.json("/vendor/us-atlas-states-albers-10m.json").then(us => {
         svg
           .append("g")
           .attr("fill", "#fff")
