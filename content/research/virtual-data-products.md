@@ -8,7 +8,7 @@ featured: 3
 summary: >-
   We want low-latency updates, completeness across variables and vertical
   levels, and fast access for both time-series and map reads — but at 14 PB and
-  a billion GRIB messages, no single Zarr does it all. Virtual Icechunk Zarrs
+  1 billion GRIB messages, no single Zarr does it all. Virtual Icechunk Zarrs
   complement our materialized (rechunked) products: here's why we build them,
   how we update them within seconds of the source, and the lessons from getting
   there.
@@ -17,7 +17,7 @@ summary: >-
 We want it all:
 - low-latency updates
 - completeness over time, variables, and vertical dimensions
-- access speed for time series and map-style reads
+- access speed for time-series and map-style reads
 
 But when your data is 14 PB and 1 billion GRIB messages, making that dream a reality takes some work. Virtual Icechunk Zarrs are a key complement to our materialized (rechunked) Zarrs that together get us one step closer to the catalog of our dreams.
 
@@ -30,7 +30,7 @@ For gridded weather data, thoughtfully designed virtual Zarrs offer three main b
 2. **Completeness** across variables and vertical dimensions. In cases where native files are already available publicly, we avoid storing the data ourselves, letting us offer all variables at all vertical levels for more models, more quickly.
 3. **Fast access.** Native files tend to be structured in a way that's optimal for reading the model's entire geographic area at a single time step.
 
-Adding virtual Zarrs gives us a catalog of options tuned to different jobs: our materialized (rechunked) products for training a regional time series model across a forecast archive, our virtual products for low-latency inference, an analysis product as a proxy for observations, and so on.
+Adding virtual Zarrs gives us a catalog of options tuned to different jobs: our materialized (rechunked) products for training a regional time-series model across a forecast archive, our virtual products for low-latency inference, an analysis product as a proxy for observations, and so on.
 
 ### Virtual what?
 The geospatial data sector spends a lot of time optimizing, sometimes prematurely. Is this one of those moments? We think it isn't: we started with the problems (latency, completeness) and worked backwards, exhausting our existing techniques before picking up a virtual approach.
@@ -84,7 +84,7 @@ These statistics are calculated on a relatively short history of our first virtu
 | pressure | 3.1 | 4.2 | 6.1 | 7.7 |
 | model    | 1.7 | 3.7 | 4.7 | 5.9 |
 
-{% figure "/assets/notes/latency_kde_by_type.png", "Virtual product update latency for NOAA HRRR forecast, by file type: surface, pressure, and model level" %}End-to-end latency between data availability at the source and in our virtual Icechunk Zarr, in seconds. Model level files (`wrfnat`) feed the fewest arrays and are the lowest latency, hinting there's even more room to optimize the larger surface and pressure groups.{% endfigure %}
+{% figure "/assets/notes/latency_kde_by_type.png", "Virtual product update latency for NOAA HRRR forecast, by file type: surface, pressure, and model level" %}End-to-end latency between data availability at the source and in our virtual Icechunk Zarr, in seconds. Model level files (`wrfnat`) feed the fewest arrays and have the lowest latency, hinting there's even more room to optimize the larger surface and pressure groups.{% endfigure %}
 
 ### How we update them fast
 
