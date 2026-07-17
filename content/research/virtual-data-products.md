@@ -46,11 +46,11 @@ The virtual Zarr concept grew out of the challenge: "We have these huge piles of
 So what happens when you read `ds["temperature_2m"].sel(time="…")` from a virtual Zarr?
 
 1. Xarray translates your coordinate selection into integer indexes.
-2. Zarr finds which chunks those indexes fall within (e.g. `temperature_2m/c/0/1/3` and `temperature_2m/c/4/5/6`) and asks the Zarr store for those chunks.
+2. Zarr finds which chunks those indexes fall within (e.g. `temperature_2m/c/0/1/2` and `temperature_2m/c/3/4/5`) and asks the Zarr store for those chunks.
 
 Up to this point, virtual and materialized Zarrs follow the same path. Here's where they diverge:
 
-3. Because this store is virtual, Icechunk takes a chunk key like `temperature_2m/c/0/1/3` and looks it up in its manifest to find a source URL and byte range, then fetches those bytes (from local disk, object storage, wherever the URL points).
+3. Because this store is virtual, Icechunk takes a chunk key like `temperature_2m/c/0/1/2` and looks it up in its manifest to find a source URL and byte range, then fetches those bytes (from local disk, object storage, wherever the URL points).
 4. Zarr picks back up, decoding the bytes using the `codec` named in the Zarr's metadata. In a materialized Zarr, that codec is often a standard compressor like zstd. In a virtual Zarr, it's a codec that knows how to read the native file format: netCDF, HDF5, or for GRIB weather data, the `GribberishCodec`.
 
 Once the bytes are decoded into an array, everything is back to standard Zarr: the array is indexed as usual, returning the values you asked for.
