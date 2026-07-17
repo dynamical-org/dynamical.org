@@ -1,7 +1,7 @@
 ---
 title: "Weather forecast evaluation"
 order: 2
-blurb: How do we evaluate which data product to use for a given decision?
+blurb: How do we evaluate which data products to use for a given decision?
 ---
 
 There are seemingly infinite ways to evaluate a forecast: by lead time, by

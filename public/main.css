@@ -81,6 +81,11 @@
 /* html is set to 62.5% so that all the REM measurements are 1rem = 10px */
 html {
   font-size: 62.5%;
+  /* Stop mobile Safari from inflating the font of blocks that overflow the
+     viewport (e.g. a wide, horizontally-scrolling variable table), which made
+     its text larger than identical tables that happen to fit. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body,
@@ -309,6 +314,9 @@ caption {
   aspect-ratio: 1;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  /* Let the browser handle vertical panning (page scroll) natively; the
+     globe only claims horizontal gestures to spin. See globe.js touch logic. */
+  touch-action: pan-y;
 }
 
 .globe-timeline {
@@ -534,7 +542,8 @@ article.note {
   padding: 0;
 }
 
-article img {
+article img,
+.content img {
   max-width: 100%;
 }
 
