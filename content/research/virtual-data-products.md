@@ -124,7 +124,7 @@ It's not enough to make them fast; we also wanted these virtual Zarrs to be as s
 A key element of ease of use for us was **drop-in compatibility with our existing materialized Zarrs.** For any variable in our materialized data products you can grab the same variable from the virtual product and you'll get the same values out. To make this happen we apply a few select, on-the-fly transformations to make the values you get back from our virtual Zarrs exactly match those from our materialized Zarrs. Matt Iannucci, the creator of Gribberish (also working at Earthmover), has been very helpful along the way as we contributed a couple new GribberishCodec options that do those [on](https://github.com/mpiannucci/gribberish/pull/169) [the](https://github.com/mpiannucci/gribberish/pull/161) [fly](https://github.com/mpiannucci/gribberish/pull/153).
 
 ### What's the catch?
-There's a limit to how we can manipulate data to improve UX (although we do this sparingly, regardless). The two most salient: you won't find a deaccumulated precipitation rate like in our materialized datasets, and we can't homogenize a variable which switched units sometime in its history (e.g. hPa -> Pa back in 2019).
+There's a limit to how we can manipulate data to improve UX (although we do this sparingly). The two most salient: you won't find a deaccumulated precipitation rate like in our materialized datasets, and we can't homogenize a variable which switched units sometime in its history (e.g. hPa -> Pa back in 2019).
 
 ### What's next
 - For dynamical.org, we'll create both virtual and materialized products for all popular datasets. You'll find us initially releasing more virtual datasets since the commitment in ongoing storage is much lower.
