@@ -71,7 +71,7 @@ There's nothing about virtual Zarrs that requires them to be faster for single-t
 
 Enough talk. Let us show you the numbers.
 
-We define latency as _the time between the moment a file first becomes available at the source and the moment that data is first available in our Zarrs_, specifically, a file's "modified" or "created" timestamp at the source, to the timestamp of the first Icechunk snapshot containing the same data.
+We define latency as _the time between the moment a file first becomes available at the source and the moment that data is first available in our Zarrs_ — specifically, from a file's "modified" or "created" timestamp at the source to the timestamp of the first Icechunk snapshot containing the same data.
 
 These statistics are calculated on a relatively short history of our first virtual Zarr, [NOAA HRRR forecast, 48 hour, virtual](https://dynamical.org/catalog/noaa-hrrr-forecast-48-hour-virtual/). As we build up a longer track record, we'll add them to our [data product pipeline status](https://status.dynamical.org/pipeline) page, where you can audit the [details](https://dynamical.org/research/when-the-forecast-is-ready/) and see them covered under tight latency thresholds in our [SLA](https://dynamical.org/sla/).
 
@@ -92,7 +92,7 @@ Three priorities guided the design of our virtual Zarr update pipeline: fast, co
 
 Push or poll? This is one of the core questions when designing a system that reacts to new data as it arrives. "Get notified right away" makes push notifications sound like the obvious choice wherever they're available. As you get into the details, the story becomes more complex: a dataset that produces many files at once (e.g. an ensemble run) needs debouncing regardless, since committing takes about a second and many files can land in that same second. And most national NWP agencies' operational file servers, the sources with the lowest latency, don't support push notifications at all. Backfills would need their own handling too, since there's no "new file" event to subscribe to for data that already exists.
 
-Polling at a high rate (a second or less) collapses all of these cases into a single path. A backfill polls once, stores what's there, and moves on; an update keeps polling until the full forecast has arrived. The same loop works across HTTP, FTP, and object stores, and across backfills and updates alike, eliminating a whole class of "the two code paths drifted apart" bugs. It's also resilient: if the process were to crash and restart, it catches back up on the next request.
+Polling at a high rate (a second or less) collapses all of these cases into a single path. A backfill polls once, stores what's there, and moves on; an update keeps polling until the full forecast has arrived. The same loop works across HTTP, FTP, and object stores, and across backfills and updates alike, eliminating a whole class of "two code paths drifted apart" bugs. It's also resilient: if the process were to crash and restart, it catches back up on the next request.
 
 An update in our code follows these steps:
 1. List all the files we expect to have when an update is complete. A quick, deterministic enumeration driven by the Zarr's coordinate labels.
@@ -110,7 +110,7 @@ In the end, the bottlenecks to low-latency updates come down to:
 
 Even for large ensemble forecasts, an incremental update with well-tuned manifest splits (see below) can do this work in a couple of seconds on modest hardware.
 
-That's not to say it was fast on the first try. Lots of N² or serial loops that don't matter at small N rear their head at the scale of a billion references and over 100 Zarr arrays. But the good news is that they're all solvable: (1) ultimately this is small data per update and computers are fast, and (2) AI does great with a verifiable objective, and wall clock time is exactly that. We're having fun working with AI to optimize this one.
+That's not to say it was fast on the first try. Lots of N² or serial loops that don't matter at small N rear their heads at the scale of a billion references and over 100 Zarr arrays. But the good news is that they're all solvable: (1) ultimately this is small data per update and computers are fast, and (2) AI does great with a verifiable objective, and wall clock time is exactly that. We're having fun working with AI to optimize this one.
 
 Here's an incomplete list of bumps we had to work out:
 - **Manifest splitting:** just like optimal Zarr design depends on thinking through access patterns and sizing chunks accordingly, chunking the _metadata_ is crucial in virtual datasets of substantial size. Too big, and commits are slow. Too small, and many tiny manifest files slow reads. [Icechunk docs](https://icechunk.io/en/stable/guides/performance/#configuring-splitting). Thanks to [Tom Nicholas](https://www.linkedin.com/in/tom-nicholas/) of Earthmover, who helped us think through manifest splitting. Check out his [write-up on the history of GRIBs and virtualizing them](https://www.earthmover.io/blog/virtual-grib-nbm).
