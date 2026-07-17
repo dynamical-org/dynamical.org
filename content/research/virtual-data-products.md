@@ -75,6 +75,8 @@ We define latency as _the time between the moment a file first becomes available
 
 These statistics are calculated on a relatively short history of our first virtual Zarr, [NOAA HRRR forecast, 48 hour, virtual](https://dynamical.org/catalog/noaa-hrrr-forecast-48-hour-virtual/). As we build up a longer track record, we'll add them to our [data product pipeline status](https://status.dynamical.org/pipeline) page, where you can audit the [details](https://dynamical.org/research/when-the-forecast-is-ready/) and see them covered under tight latency thresholds in our [SLA](https://dynamical.org/sla/).
 
+#### Latency (seconds)
+
 |          | p50 | p95 | p99 | max |
 | -------- | --- | --- | --- | --- |
 | all      | 2.9 | 4.2 | 5.9 | 7.7 |
@@ -82,9 +84,7 @@ These statistics are calculated on a relatively short history of our first virtu
 | pressure | 3.1 | 4.2 | 6.1 | 7.7 |
 | model    | 1.7 | 3.7 | 4.7 | 5.9 |
 
-*End-to-end latency between data availability at the source and in our virtual Icechunk Zarr, in seconds. Model level files (`wrfnat`) feed the fewest arrays and are the lowest latency, hinting there's even more room to optimize the larger surface and pressure groups.*
-
-{% figure "/assets/notes/latency_kde_by_type.png", "Virtual product update latency for NOAA HRRR forecast, by file type: surface, pressure, and model level" %}Distribution of end-to-end update latency for the virtual NOAA HRRR forecast, split by file type — surface, pressure, and model level. The model-level files feed the fewest arrays and cluster lowest.{% endfigure %}
+{% figure "/assets/notes/latency_kde_by_type.png", "Virtual product update latency for NOAA HRRR forecast, by file type: surface, pressure, and model level" %}End-to-end latency between data availability at the source and in our virtual Icechunk Zarr, in seconds. Model level files (`wrfnat`) feed the fewest arrays and are the lowest latency, hinting there's even more room to optimize the larger surface and pressure groups.{% endfigure %}
 
 ### How we update them fast
 
