@@ -115,7 +115,7 @@ That's not to say it was fast on the first try. Lots of N² or serial loops that
 Here's an incomplete list of bumps we had to work out:
 - **Manifest splitting:** just like optimal Zarr design depends on thinking through access patterns and sizing chunks accordingly, chunking the _metadata_ is crucial in virtual datasets of substantial size. Too big, and commits are slow. Too small, and many tiny manifest files slow reads. [Icechunk docs](https://icechunk.io/en/stable/guides/performance/#configuring-splitting). Thanks to Tom Nicholas of Earthmover, who helped us think through manifest splitting. Check out his [write-up on the history of GRIBs and virtualizing them](https://www.earthmover.io/blog/virtual-grib-nbm).
 - **Manifest flush concurrency on commit:** we contributed an [optimization](https://github.com/earth-mover/icechunk/issues/2273) to Icechunk to let users configure the concurrency used when downloading and uploading changed manifests during a commit. This doesn't need tuning unless you have lots of arrays being updated in one commit, but without it our end-to-end latency couldn't have gone below 50 seconds. Thanks to Sebastián Galkin of Earthmover, this will probably be on Icechunk `main` by the time you read this.
-- **Kubernetes pod compaction:** just say no. Thirty-second container startup after moving your pod?! Gasp. Kubernetes trying to save us money isn't something we want when we're sensitive to seconds.
+- **Kubernetes node consolidation:** just say no. Thirty-second container startup after moving your pod?! Gasp. Kubernetes trying to save us money isn't something we want when we're sensitive to seconds.
 
 ### Data product design and usability
 
