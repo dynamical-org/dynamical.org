@@ -137,8 +137,16 @@ df = duckdb.execute("""
 </div>
 
 <script type="module">
-  const duckdb = await import('https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm');
-  const Plot = await import('https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.13/+esm');
+  // duckdb-wasm and Observable Plot load from a third-party CDN; a failed import
+  // would otherwise reject this module's top-level await uncaught. Load them
+  // defensively so a CDN outage leaves a status message instead of an error.
+  let duckdb, Plot;
+  try {
+    duckdb = await import('https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm');
+    Plot = await import('https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.13/+esm');
+  } catch (error) {
+    console.error('Failed to load duckdb-wasm / Observable Plot from CDN', error);
+  }
 
   const DATA_BASE_URL = 'https://data.source.coop/dynamical/asos-parquet';
 
@@ -588,5 +596,9 @@ ORDER BY station, valid`
     }
   });
 
-  initDuckDB();
+  if (duckdb && Plot) {
+    initDuckDB();
+  } else {
+    updateStatus('Failed to load the query engine (CDN unavailable). Please reload to try again.');
+  }
 </script>
