@@ -54,10 +54,6 @@ function decodeEntities(str) {
     .replace(/&gt;/g, ">");
 }
 
-const CACHE_DIR = path.join(__dirname, ".cache");
-const CACHE_FILE = path.join(CACHE_DIR, "github-contributors.json");
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
-
 function mergeClasses(existingClasses, extraClasses) {
   const existing = String(existingClasses || "")
     .split(/\s+/)
@@ -336,47 +332,6 @@ module.exports = function (eleventyConfig) {
     const truncated = text.slice(0, limit);
     const lastSpace = truncated.lastIndexOf(" ");
     return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + "…";
-  });
-
-  eleventyConfig.addGlobalData("contributors", async () => {
-    const githubHeaders = process.env.GITHUB_TOKEN
-      ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
-      : {};
-
-    // Fetch all repos for the org
-    const repos = await fetch(
-      "https://api.github.com/orgs/dynamical-org/repos",
-      {
-        duration: "1d",
-        type: "json",
-        fetchOptions: { headers: githubHeaders },
-      }
-    );
-
-    const contributorsSet = new Set();
-
-    // Only include non-forked repos
-    const primaryRepos = repos.filter((repo) => !repo.fork);
-
-    for (const repo of primaryRepos) {
-      const repoContributors = await fetch(repo.contributors_url, {
-        duration: "1d",
-        type: "json",
-        fetchOptions: { headers: githubHeaders },
-      });
-
-      repoContributors.forEach((contributor) => {
-        if (contributor.type !== "Bot") {
-          contributorsSet.add(contributor.login);
-        }
-      });
-    }
-
-    const botLogins = new Set(["dependabot[bot]", "claude", "Copilot"]);
-    const contributorsList = Array.from(contributorsSet)
-      .filter((login) => !botLogins.has(login))
-      .sort();
-    return contributorsList;
   });
 
   eleventyConfig.addAsyncFilter("embedNotebookContent", async function (url) {
