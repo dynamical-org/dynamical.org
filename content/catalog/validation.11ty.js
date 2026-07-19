@@ -85,10 +85,8 @@ function styleTables(html) {
 }
 
 // The page generates its own H1 from the catalog entry name, so any H1
-// emitted by the rendered markdown is redundant. reformatters PR #614
-// drops the H1 from validation_summary.md; this strip keeps the page
-// looking right against both the current bucket output (still includes
-// the H1) and the post-#614 output (no H1).
+// emitted by the rendered markdown is redundant. Strip it so the page
+// looks right whether or not the source markdown includes an H1.
 function stripH1(html) {
   return html.replace(/<h1>[\s\S]*?<\/h1>\s*/g, "");
 }

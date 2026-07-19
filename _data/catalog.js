@@ -148,7 +148,7 @@ function reshapeStacCollection(collection) {
   }));
 
   // Variables at the root zarr group (e.g. `temperature_2m`) are listed
-  // directly, unchanged from before. Variables under a nested zarr group
+  // directly. Variables under a nested zarr group
   // (e.g. `model_level/geopotential_height`) are split off into named
   // groups so the catalog page can render them behind disclosures instead
   // of flooding a single flat table.
