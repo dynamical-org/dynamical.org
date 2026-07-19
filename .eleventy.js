@@ -1,5 +1,8 @@
 const { DateTime } = require("luxon");
-const pluginRss = require("@11ty/eleventy-plugin-rss");
+const {
+  dateToRfc3339,
+  getNewestCollectionItemDate,
+} = require("@11ty/eleventy-plugin-rss");
 const pluginSyntaxHighlight = require("@11ty/eleventy-plugin-syntaxhighlight");
 const { pairedShortcode } = require("@11ty/eleventy-plugin-syntaxhighlight");
 const { EleventyHtmlBasePlugin } = require("@11ty/eleventy");
@@ -106,7 +109,15 @@ module.exports = function (eleventyConfig) {
   // layouts wouldn't trigger a rebuild. Watch it explicitly.
   eleventyConfig.addWatchTarget("./_includes/");
 
-  eleventyConfig.addPlugin(pluginRss);
+  // Eleventy 3's eleventy-plugin-rss no longer ships a default plugin that
+  // auto-registers these filters, and its bundled filters would register after
+  // this config body runs — clobbering the custom `dateToRfc822` UTC override
+  // below. Register only the filters the feeds use, directly.
+  eleventyConfig.addFilter("dateToRfc3339", dateToRfc3339);
+  eleventyConfig.addFilter(
+    "getNewestCollectionItemDate",
+    getNewestCollectionItemDate
+  );
   eleventyConfig.addPlugin(EleventyHtmlBasePlugin);
 
   eleventyConfig.addPlugin(pluginSyntaxHighlight, {
