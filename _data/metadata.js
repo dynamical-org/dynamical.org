@@ -3,7 +3,7 @@ module.exports = {
   url: "https://dynamical.org/",
   language: "en",
   description:
-    "Advancing humanity's ability to access, understand, and act on accurate weather and climate data.",
+    "A not-for-profit research lab advancing how we access, understand, and act on data about our world.",
   author: {
     name: "dynamical.org",
     email: "marshall@dynamical.org",

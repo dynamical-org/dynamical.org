@@ -1,6 +1,8 @@
 ---
 layout: base
 title: Scorecard Metrics
+socialTitle: How the weather forecast scorecard is computed
+description: Definitions and implementation details for every forecast-verification metric in the dynamical.org scorecard.
 permalink: /scorecard/metrics/
 ---
 

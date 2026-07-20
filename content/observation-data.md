@@ -1,6 +1,8 @@
 ---
 layout: base
 title: Scorecard Observation Data
+socialTitle: Observations behind the weather forecast scorecard
+description: How dynamical.org processes and aligns ASOS weather-station observations to evaluate forecast accuracy.
 permalink: /scorecard/observation-data/
 ---
 
