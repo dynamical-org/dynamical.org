@@ -13,24 +13,33 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <link rel="canonical" href="https://dynamical.org{{ page.url }}"/>
     {% set isPodcast = tags and ("podcast" in tags) %}
+    {% set isArticle = tags and (("podcast" in tags) or ("updates" in tags) or ("research" in tags)) %}
     {# Titled pages get a unique social card; pages without a title (e.g. the many
        auto-generated scorecard pages) share one default brand card. #}
     {% set ogCardSlug = (page.url | ogSlug) if (socialTitle or title) else "default" %}
+    {% set isGeneratedOgImage = not socialImage and not isPodcast %}
     {% set ogImage = socialImage or ("https://dynamical.org/assets/weathering/weathering_logo_figs.png" if isPodcast else ("https://dynamical.org/assets/og/" + ogCardSlug + ".png")) %}
-    {% set ogTitle = socialTitle or (("weathering podcast - episode " + episode_number + ": " + title) if isPodcast else "dynamical.org") %}
+    {% set ogTitle = socialTitle or (("weathering podcast - episode " + episode_number + ": " + title) if isPodcast else (title or metadata.title)) %}
     {% set ogDescription = description or metadata.description %}
-    <meta property="og:type" content="{{ "article" if isPodcast else "website" }}"/>
+    {% set ogImageAlt = socialImageAlt or ogTitle %}
+    <meta property="og:type" content="{{ "article" if isArticle else "website" }}"/>
     <meta property="og:title" content="{{ ogTitle }}"/>
     <meta property="og:description" content="{{ ogDescription }}"/>
     <meta property="og:url" content="https://dynamical.org{{ page.url }}"/>
     <meta property="og:site_name" content="dynamical.org"/>
     <meta property="og:image" content="{{ ogImage }}"/>
+    <meta property="og:image:alt" content="{{ ogImageAlt }}"/>
+    {% if isGeneratedOgImage %}<meta property="og:image:type" content="image/png"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="630"/>
+    {% endif %}
     {% if isPodcast and audio_url %}<meta property="og:audio" content="{{ audio_url }}"/>
     <meta property="og:audio:type" content="audio/mpeg"/>
     {% endif %}<meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content="{{ ogTitle }}"/>
     <meta name="twitter:description" content="{{ ogDescription }}"/>
     <meta name="twitter:image" content="{{ ogImage }}"/>
+    <meta name="twitter:image:alt" content="{{ ogImageAlt }}"/>
     <link rel="stylesheet" type="text/css" href="/main.css?v={{ assets.mainCss }}"/>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>

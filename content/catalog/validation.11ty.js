@@ -193,6 +193,9 @@ class ValidationReportPage {
       permalink: ({ entry }) => `catalog/${entry.datasetId}/validation/`,
       eleventyComputed: {
         title: ({ entry }) => `Validation report — ${entry.datasetId}`,
+        socialTitle: ({ entry }) => `${entry.datasetId} validation report`,
+        description: ({ entry }) =>
+          `Completeness, spatial, temporal, and availability checks for the ${entry.datasetId} weather dataset.`,
       },
     };
   }

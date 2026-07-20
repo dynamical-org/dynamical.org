@@ -43,6 +43,21 @@ function ogSlug(url) {
   return trimmed.replace(/\//g, "-").replace(/[^a-z0-9-]/gi, "-");
 }
 
+// Short context label shown in the top-right corner of generated social cards.
+// Keep this tied to the public information architecture so pages get useful
+// context without every content file needing another frontmatter field.
+function ogLabel(url) {
+  const pathname = new URL(url || "https://dynamical.org/").pathname;
+  if (/^\/updates\//.test(pathname)) return "dispatch";
+  if (/^\/research\//.test(pathname)) return "research";
+  if (/^\/catalog\/[^/]+\/validation\//.test(pathname)) return "validation";
+  if (/^\/catalog\//.test(pathname)) return "data catalog";
+  if (/^\/scorecard\//.test(pathname)) return "forecast evaluation";
+  if (/^\/meetings\//.test(pathname)) return "steering committee";
+  if (pathname === "/about/") return "about";
+  return "weather + climate";
+}
+
 // Reverse the HTML-attribute escaping Nunjucks applies to og:title /
 // og:description so the rendered card shows literal characters (& " ' < >).
 function decodeEntities(str) {
@@ -270,7 +285,8 @@ module.exports = function (eleventyConfig) {
       if (subtitle.toLowerCase().startsWith(title.toLowerCase())) {
         subtitle = subtitle.slice(title.length).replace(/^[\s–—:.,-]+/, "");
       }
-      const png = await renderCard({ title, subtitle });
+      const url = metaTag(result.content, "og:url");
+      const png = await renderCard({ title, subtitle, label: ogLabel(url) });
       const outPath = path.join(outputDir, "assets", "og", `${slug}.png`);
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       fs.writeFileSync(outPath, png);
