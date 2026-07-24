@@ -52,10 +52,10 @@ hours become available:
 
 | kind         | fires when                                                        |
 |--------------|-------------------------------------------------------------------|
-| `started`    | the first file of a run lands (any lead time)                     |
-| `progress`   | every lead ≤ a lead-group horizon is available (e.g. `progress:f240`) |
+| `progress`   | every lead ≤ an intermediate lead-group horizon is available (e.g. `progress:f240`) |
 | `complete`   | the full run is available — you don't need to know group names    |
-| `delayed`    | the run is still in flight a minute past its expected completion time (p95 + margin) |
+| `in_flight`  | a still-running run is behind its learned schedule                |
+| `advisory`   | the upstream agency opens or resolves a dissemination advisory    |
 
 I went back and forth on the correct threshold for "delayed." Raw p95 turned out to be too harsh: for a very consistent feed the distribution is so tight that p95 sits only slightly above the median, so firing exactly at p95 would page on roughly 1 in 20 perfectly normal runs. So we nudge the trigger just past it — p95 + 1 minute — which keeps ordinary run-to-run variation quiet and lets only genuinely stalled runs cross the line. I still think it could be an area where further tweaks are needed. As we roll out our own [SLA](/sla), we will treat delayed for dynamical.org as a commitment rather than being driven by historical stats.
 
