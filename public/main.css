@@ -40,6 +40,14 @@
   --pill-muted-bg: #f0f0f0;
   --pill-muted-fg: #111111;
   --pill-muted-border: #d0d0d0;
+  /* Service-state pills complete the green/amber/red triad the field expects on a
+     status page. Deliberately theme-agnostic like --pill-available-*: each pair is
+     legible on both backgrounds, so severity never depends on the color scheme.
+     Both clear 4.5:1 against their own foreground for bold 12px labels. */
+  --pill-degraded-bg: #f5a623;
+  --pill-degraded-fg: #2a1a00;
+  --pill-down-bg: #c5221f;
+  --pill-down-fg: #ffffff;
 
   /* Brand radius tokens — mirror dynamical-org/brand colors_and_type.css.
      sm matches the logo shoulder fillet (2.5px); md = popups; lg = dark frame. */

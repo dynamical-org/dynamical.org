@@ -115,6 +115,26 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
 module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
+  // Gated on its own flag, not on STATUS_URL. STATUS_URL exists so the page can
+  // be pointed at a real alternate feed (staging, a moved bucket), and gating on
+  // it would mean any such build also published fabricated status data at a
+  // public URL. Only `npm run start:status` sets STATUS_FIXTURE.
+  //
+  // Restamped with build time rather than copied: the committed fixture pins
+  // generated_at so tests can assert on it, which would make the previewed page
+  // permanently show its "stale data" banner and hide the normal presentation.
+  if (process.env.STATUS_FIXTURE === "1") {
+    const fixture = JSON.parse(
+      fs.readFileSync("./test/fixtures/status.json", "utf8"),
+    );
+    fixture.generated_at = new Date().toISOString();
+    eleventyConfig.addTemplate(
+      "status-fixture.njk",
+      JSON.stringify(fixture, null, 2),
+      { permalink: "/status-fixture.json", eleventyExcludeFromCollections: true },
+    );
+  }
+
   // The includes/layouts dir (`../_includes`) lives outside the `content` input
   // dir, so `--serve` doesn't watch it by default — edits to base.njk and other
   // layouts wouldn't trigger a rebuild. Watch it explicitly.

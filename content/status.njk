@@ -1,0 +1,137 @@
+---
+layout: base.njk
+title: status
+description: Current health of dynamical.org datasets and public endpoints.
+permalink: /status/
+# Unlisted for the first iteration: reachable by direct URL, but absent from the
+# nav, the footer, sitemap.xml, and llms.txt. Deliberately not disallowed in
+# robots.txt — that file is public, so listing the path there would advertise the
+# very URL this is keeping quiet. noindex covers the crawler case.
+noindex: true
+sitemap: false
+---
+
+<style>
+  /* The one piece of at-a-glance signal on the page: a state-colored rule above
+     the summary. Neutral until the feed resolves. */
+  .status-overall {
+    padding-top: 1.6rem;
+    border-top: 0.6rem solid var(--muted-text);
+  }
+  .status-operational {
+    border-top-color: var(--pill-available-bg);
+  }
+  .status-degraded {
+    border-top-color: var(--pill-degraded-bg);
+  }
+  .status-down {
+    border-top-color: var(--pill-down-bg);
+  }
+  .status-groups section > header {
+    border-bottom: 1px solid var(--border-color);
+  }
+  .status-groups section > header p {
+    color: var(--muted-text);
+  }
+  .status-list {
+    --index-row-padding: 1rem;
+  }
+  /* Name left, state right; the state must not shrink or wrap mid-label. */
+  .status-list header {
+    display: flex;
+    gap: 1.2rem;
+    justify-content: space-between;
+  }
+  .status-list h3 {
+    margin: 0;
+  }
+  .status-list p {
+    margin: 0.4rem 0 0;
+    color: var(--muted-text);
+    font-size: 1.2rem;
+  }
+  /* One pill shape for every state, so severity is carried by color while the
+     text label stays the thing that actually conveys it. */
+  .status-label {
+    flex: 0 0 auto;
+    padding: 0.1rem 0.5rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .status-list [data-status="operational"] .status-label {
+    color: var(--pill-available-fg);
+    background: var(--pill-available-bg);
+  }
+  .status-list [data-status="degraded"] .status-label {
+    color: var(--pill-degraded-fg);
+    background: var(--pill-degraded-bg);
+  }
+  .status-list [data-status="down"] .status-label {
+    color: var(--pill-down-fg);
+    background: var(--pill-down-bg);
+  }
+  /* A state the publisher added that this page does not know yet. */
+  .status-list [data-status="unknown"] .status-label {
+    border: 1px solid var(--pill-muted-border);
+    color: var(--pill-muted-fg);
+    background: var(--pill-muted-bg);
+  }
+  @media (max-width: 680px) {
+    /* align-items keeps the state label shrink-wrapped; without it the column
+       cross-axis stretches the pill to the full row width. */
+    .status-list header {
+      flex-direction: column;
+      align-items: start;
+      gap: 0.4rem;
+    }
+  }
+</style>
+
+<main class="content" data-status-page data-status-url="{{ statusFeed }}">
+  <header>
+    <h1 style="margin-top: 4rem; margin-bottom: 1rem;">System status</h1>
+    <p>Current health of the weather and climate data we publish and the endpoints that serve it.</p>
+    <p id="status-as-of"><strong>As of —</strong></p>
+  </header>
+
+  {# aria-live belongs on the verdict, not the timestamp: the heading is what
+     changes from "Checking current status…" to the actual result. #}
+  <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading" aria-live="polite">
+    <h2 id="status-overall-heading">Checking current status…</h2>
+    <p id="status-summary">Loading the latest monitor results.</p>
+    <ul id="status-incidents" hidden></ul>
+  </section>
+
+  {# Left empty on purpose — status.mjs writes the text, so the live region
+     announces a content change rather than merely becoming visible. #}
+  <p id="status-stale" role="alert" hidden></p>
+
+  <div class="status-groups" id="status-groups" hidden style="margin-top: 4rem;">
+    <section aria-labelledby="platform-heading">
+      <header>
+        <h2 id="platform-heading">Platform</h2>
+        <p>Public services · trailing 90-day uptime</p>
+      </header>
+      <ul class="index-list status-list" id="status-platform"></ul>
+    </section>
+
+    <section aria-labelledby="datasets-heading" style="margin-top: 4rem;">
+      <header>
+        <h2 id="datasets-heading">Data products</h2>
+        <p>Update and validation jobs</p>
+      </header>
+      <ul class="index-list status-list" id="status-datasets"></ul>
+    </section>
+  </div>
+
+  <p style="margin-top: 4rem;">
+    For per-model run timing and upstream source arrival history, see the
+    <a href="https://status.dynamical.org">detailed data arrival status</a>.
+  </p>
+
+  <noscript>
+    <p>Status temporarily unavailable because JavaScript is disabled.</p>
+  </noscript>
+</main>
+
+<script type="module" src="/status.mjs"></script>
