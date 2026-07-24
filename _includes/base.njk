@@ -79,20 +79,16 @@
       ]
     }
     </script>
-    {% if metadata.betterstackErrorsToken %}<!-- BetterStack Errors: browser error tracking + pageview telemetry -->
+    {% if metadata.sentryPublicKey %}<!-- Sentry browser error monitoring (Loader Script): errors only, no tracing or replay -->
     <script>
-      !function(b,e,t,r){
-        b[t]=b[t]||function(...args){(b[t].q=b[t].q||[]).push(args)};
-        b[t].l=+new Date;
-        var s=e.createElement('script'); s.async=1; s.crossOrigin='anonymous';
-        s.src='https://betterstack.net/b.js?t='+r;
-        (e.head||e.getElementsByTagName('head')[0]).appendChild(s);
-      }(window,document,'betterstack','{{ metadata.betterstackErrorsToken }}');
-      // Only report from the production host; keeps local dev and *.pages.dev previews out of the dashboard.
-      if (location.hostname === 'dynamical.org') {
-        betterstack('init', { environment: 'production' });
-      }
-    </script>{% endif %}
+      // Defining sentryOnLoad defers init to us, so the loader only reports on the production host;
+      // keeps local dev and *.pages.dev previews out of the dashboard.
+      window.sentryOnLoad = function () {
+        if (location.hostname !== 'dynamical.org') return;
+        Sentry.init({ environment: 'production' });
+      };
+    </script>
+    <script src="https://js.sentry-cdn.com/{{ metadata.sentryPublicKey }}.min.js" crossorigin="anonymous" async></script>{% endif %}
   </head>
   <body>
     <nav aria-label="Primary">
