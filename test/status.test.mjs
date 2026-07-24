@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   isStatusDataStale,
+  partitionEndpoints,
   summarizeOverallStatus,
   validateStatusData,
 } from "../public/status.mjs";
@@ -21,6 +22,7 @@ const operationalData = {
     {
       id: "dynamical-org",
       name: "dynamical.org",
+      group: "platform",
       status: "operational",
       uptime_90d: 99.9,
     },
@@ -61,10 +63,32 @@ test("marks status data stale after twenty minutes", () => {
   );
 });
 
+test("separates platform uptime from upstream availability", () => {
+  const endpoints = [
+    operationalData.endpoints[0],
+    {
+      id: "noaa-nomads",
+      name: "NOAA NOMADS",
+      group: "upstream",
+      status: "operational",
+      uptime_90d: 99.8,
+    },
+  ];
+
+  assert.deepEqual(partitionEndpoints(endpoints), {
+    platform: [endpoints[0]],
+    upstream: [endpoints[1]],
+  });
+});
+
 test("rejects malformed or non-public status values", () => {
   const data = structuredClone(operationalData);
   data.datasets[0].status = "unknown";
 
   assert.throws(() => validateStatusData(data), /invalid status entry/i);
   assert.throws(() => validateStatusData({}), /invalid status document/i);
+
+  data.datasets[0].status = "operational";
+  delete data.endpoints[0].group;
+  assert.throws(() => validateStatusData(data), /invalid endpoint/i);
 });

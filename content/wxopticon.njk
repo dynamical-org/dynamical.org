@@ -162,20 +162,28 @@ eleventyExcludeFromCollections: true
   </p>
 
   <div class="status-groups" id="status-groups" hidden>
+    <section aria-labelledby="platform-heading">
+      <header>
+        <h2 id="platform-heading">Platform</h2>
+        <p>Public services · trailing 90-day uptime</p>
+      </header>
+      <ul class="status-list" id="status-platform"></ul>
+    </section>
+
     <section aria-labelledby="datasets-heading">
       <header>
-        <h2 id="datasets-heading">Datasets</h2>
+        <h2 id="datasets-heading">Data products</h2>
         <p>Update and validation jobs</p>
       </header>
       <ul class="status-list" id="status-datasets"></ul>
     </section>
 
-    <section aria-labelledby="endpoints-heading">
+    <section aria-labelledby="upstream-heading">
       <header>
-        <h2 id="endpoints-heading">Endpoints</h2>
-        <p>Five-minute external checks</p>
+        <h2 id="upstream-heading">Upstream dependencies</h2>
+        <p>Source availability · trailing 90-day uptime</p>
       </header>
-      <ul class="status-list" id="status-endpoints"></ul>
+      <ul class="status-list" id="status-upstream"></ul>
     </section>
   </div>
 

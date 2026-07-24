@@ -17,14 +17,23 @@
     {
       "id": "dynamical-org",
       "name": "dynamical.org",
+      "group": "platform",
       "status": "operational",
       "uptime_90d": 99.9
     },
     {
       "id": "stac-catalog",
       "name": "STAC catalog",
+      "group": "platform",
       "status": "operational",
       "uptime_90d": 100.0
+    },
+    {
+      "id": "noaa-nomads",
+      "name": "NOAA NOMADS",
+      "group": "upstream",
+      "status": "operational",
+      "uptime_90d": 99.8
     }
   ]
 }

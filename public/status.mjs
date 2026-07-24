@@ -1,4 +1,5 @@
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
+const ENDPOINT_GROUPS = new Set(["platform", "upstream"]);
 const STALE_AFTER_MS = 20 * 60 * 1000;
 
 function isStatusEntry(entry) {
@@ -23,6 +24,9 @@ export function validateStatusData(data) {
   if (![...data.datasets, ...data.endpoints].every(isStatusEntry)) {
     throw new TypeError("Invalid status entry");
   }
+  if (!data.endpoints.every((entry) => ENDPOINT_GROUPS.has(entry.group))) {
+    throw new TypeError("Invalid endpoint group");
+  }
   return data;
 }
 
@@ -42,6 +46,13 @@ export function summarizeOverallStatus(data) {
       ? "degraded"
       : "operational";
   return { status, incidents };
+}
+
+export function partitionEndpoints(endpoints) {
+  return {
+    platform: endpoints.filter((entry) => entry.group === "platform"),
+    upstream: endpoints.filter((entry) => entry.group === "upstream"),
+  };
 }
 
 function statusLabel(status) {
@@ -101,6 +112,7 @@ function renderGroup(list, entries, kind) {
 
 function renderStatus(root, data) {
   const overall = summarizeOverallStatus(data);
+  const endpoints = partitionEndpoints(data.endpoints);
   const overallPanel = root.querySelector("#status-overall");
   const heading = root.querySelector("#status-overall-heading");
   const summary = root.querySelector("#status-summary");
@@ -135,8 +147,17 @@ function renderStatus(root, data) {
 
   stale.hidden = !isStatusDataStale(data.generated_at);
   groups.hidden = false;
+  renderGroup(
+    root.querySelector("#status-platform"),
+    endpoints.platform,
+    "endpoint",
+  );
   renderGroup(root.querySelector("#status-datasets"), data.datasets, "dataset");
-  renderGroup(root.querySelector("#status-endpoints"), data.endpoints, "endpoint");
+  renderGroup(
+    root.querySelector("#status-upstream"),
+    endpoints.upstream,
+    "endpoint",
+  );
 }
 
 function renderUnavailable(root) {
