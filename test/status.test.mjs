@@ -34,7 +34,8 @@ const operationalData = {
 };
 
 test("accepts the published feed shape", () => {
-  assert.equal(validateStatusData(fixture), fixture);
+  // Returns a normalized copy, not the same reference, so compare by value.
+  assert.deepEqual(validateStatusData(fixture), fixture);
   assert.equal(fixture.datasets.length, 17);
   assert.deepEqual(summarizeOverallStatus(fixture), {
     status: "down",
@@ -86,10 +87,46 @@ test("marks status data stale after twenty minutes", () => {
   );
 });
 
-test("rejects malformed or non-public status values", () => {
-  const data = structuredClone(operationalData);
-  data.datasets[0].status = "unknown";
-
-  assert.throws(() => validateStatusData(data), /invalid status entry/i);
+test("rejects a malformed envelope", () => {
   assert.throws(() => validateStatusData({}), /invalid status document/i);
+  assert.throws(
+    () => validateStatusData({ ...operationalData, generated_at: "nope" }),
+    /invalid status document/i,
+  );
+  assert.throws(
+    () => validateStatusData({ ...operationalData, datasets: [{ id: 1 }] }),
+    /invalid status entry/i,
+  );
+});
+
+test("refuses a contentless document instead of reporting all clear", () => {
+  // The worst possible failure for a status page: a well-formed envelope with no
+  // components rendering as "All systems operational" during an outage.
+  assert.throws(
+    () => validateStatusData({ ...operationalData, datasets: [], endpoints: [] }),
+    /no components/i,
+  );
+  assert.throws(
+    () => validateStatusData({ ...operationalData, endpoints: [] }),
+    /no components/i,
+  );
+});
+
+test("keeps rendering when the publisher adds an unrecognized state", () => {
+  // The publisher deploys from a separate repo; a fourth state must degrade one
+  // row to Unknown, not black out the whole page.
+  const data = structuredClone(operationalData);
+  data.datasets.push({
+    id: "nasa-smap-level3-36km-v9",
+    name: "NASA SMAP Level 3, 36 km, v9",
+    status: "maintenance",
+  });
+
+  const validated = validateStatusData(data);
+
+  assert.equal(validated.datasets[1].status, "unknown");
+  assert.deepEqual(summarizeOverallStatus(validated), {
+    status: "degraded",
+    incidents: [{ name: "NASA SMAP Level 3, 36 km, v9", status: "unknown" }],
+  });
 });

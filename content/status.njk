@@ -3,6 +3,12 @@ layout: base.njk
 title: status
 description: Current health of dynamical.org datasets and public endpoints.
 permalink: /status/
+# Unlisted for the first iteration: reachable by direct URL, but absent from the
+# nav, the footer, sitemap.xml, and llms.txt. Deliberately not disallowed in
+# robots.txt — that file is public, so listing the path there would advertise the
+# very URL this is keeping quiet. noindex covers the crawler case.
+noindex: true
+sitemap: false
 ---
 
 <style>
@@ -44,15 +50,13 @@ permalink: /status/
     color: var(--muted-text);
     font-size: 1.2rem;
   }
+  /* One pill shape for every state, so severity is carried by color while the
+     text label stays the thing that actually conveys it. */
   .status-label {
     flex: 0 0 auto;
+    padding: 0.1rem 0.5rem;
     font-size: 1.2rem;
     font-weight: 700;
-  }
-  /* One pill shape for all three states so severity reads from color alone,
-     never from whether a row happens to be emphasized. */
-  .status-label {
-    padding: 0.1rem 0.5rem;
   }
   .status-list [data-status="operational"] .status-label {
     color: var(--pill-available-fg);
@@ -65,6 +69,12 @@ permalink: /status/
   .status-list [data-status="down"] .status-label {
     color: var(--pill-down-fg);
     background: var(--pill-down-bg);
+  }
+  /* A state the publisher added that this page does not know yet. */
+  .status-list [data-status="unknown"] .status-label {
+    border: 1px solid var(--pill-muted-border);
+    color: var(--pill-muted-fg);
+    background: var(--pill-muted-bg);
   }
   @media (max-width: 680px) {
     /* align-items keeps the state label shrink-wrapped; without it the column
@@ -81,18 +91,20 @@ permalink: /status/
   <header>
     <h1 style="margin-top: 4rem; margin-bottom: 1rem;">System status</h1>
     <p>Current health of the weather and climate data we publish and the endpoints that serve it.</p>
-    <p id="status-as-of" aria-live="polite"><strong>As of —</strong></p>
+    <p id="status-as-of"><strong>As of —</strong></p>
   </header>
 
-  <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading">
+  {# aria-live belongs on the verdict, not the timestamp: the heading is what
+     changes from "Checking current status…" to the actual result. #}
+  <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading" aria-live="polite">
     <h2 id="status-overall-heading">Checking current status…</h2>
     <p id="status-summary">Loading the latest monitor results.</p>
     <ul id="status-incidents" hidden></ul>
   </section>
 
-  <p id="status-stale" role="alert" hidden>
-    <strong>Status data is stale.</strong> The publisher has not refreshed this page in more than 20 minutes.
-  </p>
+  {# Left empty on purpose — status.mjs writes the text, so the live region
+     announces a content change rather than merely becoming visible. #}
+  <p id="status-stale" role="alert" hidden></p>
 
   <div class="status-groups" id="status-groups" hidden style="margin-top: 4rem;">
     <section aria-labelledby="platform-heading">

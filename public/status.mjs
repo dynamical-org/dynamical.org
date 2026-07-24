@@ -1,14 +1,22 @@
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
 const STALE_AFTER_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 function isStatusEntry(entry) {
   return (
-    entry &&
-    typeof entry.id === "string" &&
-    typeof entry.name === "string" &&
-    PUBLIC_STATUSES.has(entry.status)
+    entry && typeof entry.id === "string" && typeof entry.name === "string"
   );
+}
+
+// An unrecognized state is never treated as healthy. The publisher ships from a
+// separate repo on its own deploy, so the day it adds a fourth state this page
+// must keep working — showing that one row as unknown, not blacking out the
+// other sixteen that are fine.
+function normalizeEntry(entry) {
+  return PUBLIC_STATUSES.has(entry.status)
+    ? entry
+    : { ...entry, status: "unknown" };
 }
 
 export function validateStatusData(data) {
@@ -21,10 +29,20 @@ export function validateStatusData(data) {
   ) {
     throw new TypeError("Invalid status document");
   }
+  // A contentless-but-well-formed document must not read as "all clear". If the
+  // publisher's enumeration comes back empty during an outage, that is the one
+  // direction this page must never fail in.
+  if (data.datasets.length === 0 || data.endpoints.length === 0) {
+    throw new TypeError("Invalid status document: no components");
+  }
   if (![...data.datasets, ...data.endpoints].every(isStatusEntry)) {
     throw new TypeError("Invalid status entry");
   }
-  return data;
+  return {
+    ...data,
+    datasets: data.datasets.map(normalizeEntry),
+    endpoints: data.endpoints.map(normalizeEntry),
+  };
 }
 
 export function isStatusDataStale(generatedAt, now = new Date()) {
@@ -37,9 +55,11 @@ export function summarizeOverallStatus(data) {
     .filter((entry) => entry.status !== "operational")
     .map(({ name, status }) => ({ name, status }));
   const statuses = new Set(incidents.map(({ status }) => status));
+  // "unknown" counts as not-operational so the headline can never claim all
+  // clear while a component's state is unreadable.
   const status = statuses.has("down")
     ? "down"
-    : statuses.has("degraded")
+    : statuses.has("degraded") || statuses.has("unknown")
       ? "degraded"
       : "operational";
   return { status, incidents };
@@ -50,6 +70,7 @@ function statusLabel(status) {
     operational: "Operational",
     degraded: "Degraded",
     down: "Down",
+    unknown: "Unknown",
   }[status];
 }
 
@@ -65,11 +86,13 @@ function formatTimestamp(timestamp) {
 }
 
 function statusMark(status) {
-  return { operational: "●", degraded: "▲", down: "×" }[status];
+  return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[status];
 }
 
-// Uptime is only validated as a finite number, so keep the trailing-zero trim
-// but never let rounding promote an imperfect figure to a flat "100%".
+// uptime_90d is not validated in validateStatusData at all; the load-bearing
+// guard is the Number.isFinite check at the call site in renderGroup, without
+// which a string value would throw here. Trims trailing zeros, and never lets
+// rounding promote an imperfect figure to a flat "100%".
 export function formatUptime(uptime) {
   const rounded = uptime.toFixed(3);
   const capped = rounded === "100.000" && uptime < 100 ? "99.999" : rounded;
@@ -152,10 +175,27 @@ function renderStatus(root, data) {
   asOfLabel.append("As of ", generatedTime);
   asOf.replaceChildren(asOfLabel);
 
-  stale.hidden = !isStatusDataStale(data.generated_at);
+  // Write the text rather than only un-hiding it: screen readers announce a
+  // live region on content change, and handling of "already-populated region
+  // becomes visible" is inconsistent across NVDA/JAWS/VoiceOver.
+  setStale(
+    stale,
+    isStatusDataStale(data.generated_at)
+      ? "The publisher has not refreshed this page in more than 20 minutes."
+      : null,
+  );
   groups.hidden = false;
   renderGroup(root.querySelector("#status-platform"), data.endpoints, "endpoint");
   renderGroup(root.querySelector("#status-datasets"), data.datasets, "dataset");
+}
+
+function setStale(stale, message) {
+  stale.replaceChildren();
+  stale.hidden = message === null;
+  if (message === null) return;
+  const label = document.createElement("strong");
+  label.textContent = "Status data is stale.";
+  stale.append(label, ` ${message}`);
 }
 
 function renderUnavailable(root) {
@@ -166,9 +206,11 @@ function renderUnavailable(root) {
   root.querySelector("#status-summary").textContent =
     "The status feed could not be loaded. Try again shortly.";
   root.querySelector("#status-incidents").hidden = true;
-  root.querySelector("#status-stale").hidden = true;
+  setStale(root.querySelector("#status-stale"), null);
   root.querySelector("#status-groups").hidden = true;
-  root.querySelector("#status-as-of").textContent = "As of —";
+  const asOfLabel = document.createElement("strong");
+  asOfLabel.textContent = "As of —";
+  root.querySelector("#status-as-of").replaceChildren(asOfLabel);
 }
 
 async function loadStatus(root) {
@@ -192,5 +234,11 @@ async function loadStatus(root) {
 
 if (typeof document !== "undefined") {
   const root = document.querySelector("[data-status-page]");
-  if (root) loadStatus(root);
+  if (root) {
+    loadStatus(root);
+    // Matches the publisher's cadence and the feed's max-age, so a tab left
+    // open on a wall display keeps current instead of showing one frozen
+    // timestamp forever — which would also stop the stale banner ever firing.
+    setInterval(() => loadStatus(root), REFRESH_INTERVAL_MS);
+  }
 }

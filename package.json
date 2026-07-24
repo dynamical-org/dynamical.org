@@ -7,7 +7,7 @@
     "build": "STAC_CACHE_DURATION=0s npx @11ty/eleventy",
     "test": "node --test test/*.test.mjs",
     "start": "npx @11ty/eleventy --serve --port=8081",
-    "start:status": "STATUS_URL=/status-fixture.json npx @11ty/eleventy --serve --port=8081",
+    "start:status": "STATUS_FIXTURE=1 STATUS_URL=/status-fixture.json npx @11ty/eleventy --serve --port=8081",
     "start:staging": "STAC_BASE_URL=https://stac-staging.dynamical.org npx @11ty/eleventy --serve --port=8081",
     "build:staging": "STAC_BASE_URL=https://stac-staging.dynamical.org STAC_CACHE_DURATION=0s npx @11ty/eleventy",
     "clean": "rm -r docs .cache"

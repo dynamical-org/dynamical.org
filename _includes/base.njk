@@ -11,7 +11,8 @@
     {% else %}<meta name="license" content="name=BY-NC-SA(4.0), url=https://creativecommons.org/licenses/by-nc-sa/4.0/"/>
     {% endif %}
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <link rel="canonical" href="https://dynamical.org{{ page.url }}"/>
+    {% if noindex %}<meta name="robots" content="noindex, nofollow"/>
+    {% endif %}<link rel="canonical" href="https://dynamical.org{{ page.url }}"/>
     {% set isPodcast = tags and ("podcast" in tags) %}
     {% set isArticle = tags and (("podcast" in tags) or ("updates" in tags) or ("research" in tags)) %}
     {# Titled pages get a unique social card; pages without a title (e.g. the many
@@ -110,7 +111,7 @@
         <li><a href="/updates">updates</a></li>
         <li><a href="/about">about</a></li>
         <li><a href="/podcast">podcast</a></li>
-        <li><a href="/status">status</a></li>
+        <li><a href="https://status.dynamical.org">status</a></li>
       </ul>
     </nav>
     {{ content | safe }}
@@ -124,7 +125,7 @@
             <li><a href="/updates">Updates</a></li>
             <li><a href="/catalog">Catalog</a></li>
             <li><a href="/podcast">Podcast</a></li>
-            <li><a href="/status">Status</a></li>
+            <li><a href="https://status.dynamical.org">Status</a></li>
             <li><a href="/about">About</a></li>
           </ul>
         </div>
