@@ -103,6 +103,94 @@ eleventyComputed:
   .detail-prose table.data:has(thead th:nth-child(2):last-child) {
     min-width: 0;
   }
+
+  /* Open-snippet variants (dynamical-catalog vs pystac + icechunk) live in the
+     code frame: tabs top-left, the dynamical.org mark top-right, and the
+     example title in a status bar beneath the code. Colors are the frame's
+     fixed dark palette (see .frame/.frameHeader in main.css) — the widget is
+     always dark regardless of page theme. The frame is a query container so the
+     mark can drop from wordmark to icon before it would crowd the tabs. */
+  .frame {
+    container-type: inline-size;
+  }
+  .codeTabList {
+    display: flex;
+    height: 100%;
+    flex-shrink: 0;
+  }
+  .codeTab {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 12px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: #898989;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .codeTab:hover {
+    color: #fafafa;
+  }
+  .codeTab[aria-selected="true"] {
+    color: #fafafa;
+    border-bottom-color: #fafafa;
+  }
+  .codeTabPanel[hidden] {
+    display: none;
+  }
+  /* Brand mark, top-right. The hosted lockup carries ~13% empty space below its
+     artwork; scaling the image past a clipped box crops that padding so the
+     mark matches the icon's height and stays vertically centered (18 × 91.73/80
+     ≈ 20.6). */
+  .frameBrand {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+  .frameBrand-wordmark {
+    display: block;
+    height: 18px;
+    overflow: hidden;
+  }
+  .frameBrand-wordmark img {
+    display: block;
+    height: 20.6px;
+  }
+  .frameBrand-icon {
+    display: none;
+    height: 18px;
+    width: auto;
+  }
+  .frameStatus {
+    padding: 8px 16px;
+    background: black;
+    border-top: 1px solid #292929;
+    color: #898989;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  /* When the frame gets narrow, drop the wordmark to the icon and tighten the
+     header so the mark clears the two tabs. */
+  @container (max-width: 520px) {
+    .frameBrand-wordmark {
+      display: none;
+    }
+    .frameBrand-icon {
+      display: block;
+    }
+    .frameHeader {
+      padding: 0 10px;
+      gap: 8px;
+    }
+    .codeTab {
+      padding: 0 9px;
+    }
+  }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 {% macro variableTable(variables, groupName) %}
@@ -235,10 +323,28 @@ eleventyComputed:
   {% for example in entry.examples %}
     <div class="frame">
       <div class="frameHeader">
-        <div class="frameHeaderTitle">dynamical.org - {{ entry.title | truncate(30, true, '...') }}</div>
-        <div class="frameHeaderSubtitle">{{ example.title }}</div>
+        {% if example.variants %}
+          <div class="codeTabList" role="tablist" aria-label="{{ example.title }} — open method">
+            {% for variant in example.variants %}
+              <button type="button" class="codeTab" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ variant.label }}</button>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <span class="frameBrand" aria-hidden="true">
+          <span class="frameBrand-wordmark"><img src="https://assets.dynamical.org/identity/logo/lockup/lockup-white.svg" alt=""></span>
+          <img class="frameBrand-icon" src="https://assets.dynamical.org/identity/logo/icon/icon-white.svg" alt="">
+        </span>
       </div>
-      {{ example.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
+      {% if example.variants %}
+        {% for variant in example.variants %}
+          <div class="codeTabPanel" role="tabpanel"{% if not loop.first %} hidden{% endif %}>
+            {{ variant.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
+          </div>
+        {% endfor %}
+      {% else %}
+        {{ example.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
+      {% endif %}
+      <div class="frameStatus">{{ entry.title }} · {{ example.title }}</div>
     </div>
   {% endfor %}
   <h2>Dimensions</h2>
@@ -291,4 +397,24 @@ eleventyComputed:
     <a href="https://doi.org/10.5281/zenodo.18777399"><img src="https://zenodo.org/badge/859043226.svg" alt="DOI"/></a>
     </p>
     <div class="detail-prose">{{ entry.description_details | markdown | safe }}</div>
+
+<script>
+  // Switch between open-snippet variants within each code frame. Tabs live in
+  // the frame header, panels in the frame body, so scope the lookup to .frame.
+  document.querySelectorAll(".frame").forEach((frame) => {
+    const buttons = [...frame.querySelectorAll(".codeTab")];
+    const panels = [...frame.querySelectorAll(".codeTabPanel")];
+    if (buttons.length === 0) return;
+    buttons.forEach((button, i) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((b, j) => {
+          const active = i === j;
+          b.setAttribute("aria-selected", active ? "true" : "false");
+          b.tabIndex = active ? 0 : -1;
+          panels[j].hidden = !active;
+        });
+      });
+    });
+  });
+</script>
 </div>
