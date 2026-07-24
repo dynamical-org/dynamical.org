@@ -104,22 +104,14 @@ eleventyComputed:
     min-width: 0;
   }
 
-  /* Open-snippet variants (dynamical-catalog vs pystac + icechunk) share the
-     code frame's header: tabs on the left, a muted label on the right. Colors
-     match the frame's fixed dark palette in main.css (.frame/.frameHeader)
-     rather than the page's light/dark tokens — the code widget is always dark.
-     The header's own space-between handles the fallback (no tabs): the label
-     just sits left-aligned on its own. */
-  .frameTitle {
-    color: #898989;
-    font-size: 13px;
-    /* Keep the header a single 40px row: the label shrinks and ellipsizes
-       (min-width:0 lets it shrink below its content in the flex row) rather
-       than wrapping or pushing the tabs. */
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  /* Open-snippet variants (dynamical-catalog vs pystac + icechunk) live in the
+     code frame: tabs top-left, the dynamical.org mark top-right, and the
+     example title in a status bar beneath the code. Colors are the frame's
+     fixed dark palette (see .frame/.frameHeader in main.css) — the widget is
+     always dark regardless of page theme. The frame is a query container so the
+     mark can drop from wordmark to icon before it would crowd the tabs. */
+  .frame {
+    container-type: inline-size;
   }
   .codeTabList {
     display: flex;
@@ -150,11 +142,53 @@ eleventyComputed:
   .codeTabPanel[hidden] {
     display: none;
   }
-  /* Match the frame chrome's own breakpoint (main.css hides .frameHeaderTitle
-     here too): on narrow screens keep the tabs, drop the label. */
-  @media screen and (max-width: 1000px) {
-    .frameTitle {
+  /* Brand mark, top-right. The hosted lockup carries ~13% empty space below its
+     artwork; scaling the image past a clipped box crops that padding so the
+     mark matches the icon's height and stays vertically centered (18 × 91.73/80
+     ≈ 20.6). */
+  .frameBrand {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+  .frameBrand-wordmark {
+    display: block;
+    height: 18px;
+    overflow: hidden;
+  }
+  .frameBrand-wordmark img {
+    display: block;
+    height: 20.6px;
+  }
+  .frameBrand-icon {
+    display: none;
+    height: 18px;
+    width: auto;
+  }
+  .frameStatus {
+    padding: 8px 16px;
+    background: black;
+    border-top: 1px solid #292929;
+    color: #898989;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  /* When the frame gets narrow, drop the wordmark to the icon and tighten the
+     header so the mark clears the two tabs. */
+  @container (max-width: 520px) {
+    .frameBrand-wordmark {
       display: none;
+    }
+    .frameBrand-icon {
+      display: block;
+    }
+    .frameHeader {
+      padding: 0 10px;
+      gap: 8px;
+    }
+    .codeTab {
+      padding: 0 9px;
     }
   }
 </style>
@@ -296,7 +330,10 @@ eleventyComputed:
             {% endfor %}
           </div>
         {% endif %}
-        <div class="frameTitle">{{ entry.title }} · {{ example.title }}</div>
+        <span class="frameBrand" aria-hidden="true">
+          <span class="frameBrand-wordmark"><img src="https://assets.dynamical.org/identity/logo/lockup/lockup-white.svg" alt=""></span>
+          <img class="frameBrand-icon" src="https://assets.dynamical.org/identity/logo/icon/icon-white.svg" alt="">
+        </span>
       </div>
       {% if example.variants %}
         {% for variant in example.variants %}
@@ -307,6 +344,7 @@ eleventyComputed:
       {% else %}
         {{ example.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
       {% endif %}
+      <div class="frameStatus">{{ entry.title }} · {{ example.title }}</div>
     </div>
   {% endfor %}
   <h2>Dimensions</h2>
