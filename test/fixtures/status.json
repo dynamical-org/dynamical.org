@@ -2,38 +2,118 @@
   "generated_at": "2026-07-24T19:55:00Z",
   "datasets": [
     {
+      "id": "noaa-hrrr-analysis",
+      "name": "NOAA HRRR analysis",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T19:00:00Z"
+    },
+    {
+      "id": "noaa-hrrr-forecast-48-hour",
+      "name": "NOAA HRRR forecast, 48 hour",
+      "status": "degraded"
+    },
+    {
+      "id": "noaa-hrrr-forecast-48-hour-virtual",
+      "name": "NOAA HRRR forecast, 48 hour, virtual",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T19:00:00Z"
+    },
+    {
+      "id": "ecmwf-aifs-ens-forecast",
+      "name": "ECMWF AIFS ENS forecast",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T18:30:00Z"
+    },
+    {
+      "id": "dwd-icon-eu-forecast-5-day",
+      "name": "DWD ICON-EU forecast, 5 day",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T18:00:00Z"
+    },
+    {
+      "id": "noaa-gefs-analysis",
+      "name": "NOAA GEFS analysis",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T17:45:00Z"
+    },
+    {
+      "id": "noaa-gfs-analysis",
+      "name": "NOAA GFS analysis",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T18:15:00Z"
+    },
+    {
+      "id": "ecmwf-ifs-ens-forecast-15-day-0-25-degree",
+      "name": "ECMWF IFS ENS forecast, 15 day, 0.25 degree",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T14:20:00Z"
+    },
+    {
+      "id": "noaa-gefs-forecast-35-day",
+      "name": "NOAA GEFS forecast, 35 day",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T12:40:00Z"
+    },
+    {
+      "id": "noaa-mrms-conus-analysis-hourly",
+      "name": "NOAA MRMS CONUS analysis, hourly",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T19:30:00Z"
+    },
+    {
+      "id": "nasa-imerg-analysis-late",
+      "name": "NASA IMERG late analysis",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T16:00:00Z"
+    },
+    {
+      "id": "nasa-imerg-analysis-early",
+      "name": "NASA IMERG early analysis",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T18:50:00Z"
+    },
+    {
+      "id": "ecmwf-aifs-single-forecast",
+      "name": "ECMWF AIFS Single forecast",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T18:30:00Z"
+    },
+    {
+      "id": "nasa-smap-level3-36km-v9",
+      "name": "NASA SMAP Level 3, 36 km, v9",
+      "status": "down"
+    },
+    {
       "id": "noaa-gfs-forecast",
       "name": "NOAA GFS forecast",
       "status": "operational",
       "last_successful_update": "2026-07-24T18:00:00Z"
     },
     {
-      "id": "noaa-hrrr-forecast-48-hour",
-      "name": "NOAA HRRR forecast, 48 hour",
-      "status": "degraded"
+      "id": "noaa-ndvi-cdr-analysis",
+      "name": "NOAA NDVI CDR analysis",
+      "status": "operational",
+      "last_successful_update": "2026-07-23T22:10:00Z"
+    },
+    {
+      "id": "u-arizona-swann-analysis",
+      "name": "University of Arizona SWANN analysis",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T06:00:00Z"
     }
   ],
   "endpoints": [
     {
       "id": "dynamical-org",
       "name": "dynamical.org",
-      "group": "platform",
       "status": "operational",
-      "uptime_90d": 99.9
+      "uptime_90d": 99.982
     },
     {
       "id": "stac-catalog",
       "name": "STAC catalog",
-      "group": "platform",
       "status": "operational",
       "uptime_90d": 100.0
-    },
-    {
-      "id": "noaa-nomads",
-      "name": "NOAA NOMADS",
-      "group": "upstream",
-      "status": "operational",
-      "uptime_90d": 99.8
     }
   ]
 }

@@ -115,6 +115,14 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
 module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
+  // Serve the status fixture only when previewing with STATUS_URL set (see
+  // `npm run start:status`), so production builds never ship test data.
+  if (process.env.STATUS_URL) {
+    eleventyConfig.addPassthroughCopy({
+      "./test/fixtures/status.json": "/status-fixture.json",
+    });
+  }
+
   // The includes/layouts dir (`../_includes`) lives outside the `content` input
   // dir, so `--serve` doesn't watch it by default — edits to base.njk and other
   // layouts wouldn't trigger a rebuild. Watch it explicitly.

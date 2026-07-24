@@ -3,106 +3,44 @@ layout: base.njk
 title: status
 description: Current health of dynamical.org datasets and public endpoints.
 permalink: /status/
-eleventyExcludeFromCollections: true
 ---
 
 <style>
-  .status-page {
-    max-width: 96rem;
-  }
-  .status-page > header {
-    margin-bottom: 3rem;
-  }
-  .status-page > header h1 {
-    margin-bottom: 0.8rem;
-    font-size: clamp(3.2rem, 7vw, 6rem);
-  }
-  .status-as-of {
-    margin: 2rem 0 0;
-    padding: 1rem 1.4rem;
-    border-left: 0.5rem solid var(--border-color);
-    background: var(--surface-muted);
-    font-size: 1.6rem;
-    font-weight: 700;
-  }
+  /* The one piece of at-a-glance signal on the page: a state-colored rule above
+     the summary. Neutral until the feed resolves. */
   .status-overall {
-    padding: 2.4rem;
-    border: 1px solid var(--popup-border);
+    padding-top: 1.6rem;
     border-top: 0.6rem solid var(--muted-text);
-    border-radius: var(--radius-md);
-  }
-  .status-overall h2 {
-    margin-top: 0;
-    font-size: 2.4rem;
-  }
-  .status-overall p,
-  .status-overall ul {
-    margin-bottom: 0;
-  }
-  .status-overall li + li {
-    margin-top: 0.4rem;
   }
   .status-operational {
     border-top-color: var(--pill-available-bg);
   }
   .status-degraded {
-    border-top-color: var(--link-color);
+    border-top-color: var(--pill-degraded-bg);
   }
   .status-down {
-    border-top-color: var(--border-color);
-  }
-  .status-stale {
-    margin: 1.6rem 0 0;
-    padding: 1.2rem 1.4rem;
-    border: 1px solid var(--border-color);
-    font-weight: 700;
-  }
-  .status-groups {
-    margin-top: 4rem;
-  }
-  .status-groups section + section {
-    margin-top: 5rem;
+    border-top-color: var(--pill-down-bg);
   }
   .status-groups section > header {
-    display: flex;
-    gap: 2rem;
-    align-items: baseline;
-    justify-content: space-between;
     border-bottom: 1px solid var(--border-color);
   }
-  .status-groups h2 {
-    margin-bottom: 0.8rem;
-  }
   .status-groups section > header p {
-    margin: 0;
     color: var(--muted-text);
   }
   .status-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.2rem;
-    padding: 1.6rem 0 0;
-    list-style: none;
+    --index-row-padding: 1rem;
   }
-  .status-list li {
-    min-width: 0;
-    padding: 1.6rem;
-    border: 1px solid var(--popup-border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-muted);
-  }
+  /* Name left, state right; the state must not shrink or wrap mid-label. */
   .status-list header {
     display: flex;
     gap: 1.2rem;
-    align-items: start;
     justify-content: space-between;
   }
   .status-list h3 {
     margin: 0;
-    font-size: 1.4rem;
   }
   .status-list p {
-    margin: 1rem 0 0;
+    margin: 0.4rem 0 0;
     color: var(--muted-text);
     font-size: 1.2rem;
   }
@@ -111,44 +49,39 @@ eleventyExcludeFromCollections: true
     font-size: 1.2rem;
     font-weight: 700;
   }
-  .status-list [data-status="operational"] .status-label {
+  /* One pill shape for all three states so severity reads from color alone,
+     never from whether a row happens to be emphasized. */
+  .status-label {
     padding: 0.1rem 0.5rem;
-    border-radius: var(--radius-sm);
+  }
+  .status-list [data-status="operational"] .status-label {
     color: var(--pill-available-fg);
     background: var(--pill-available-bg);
   }
   .status-list [data-status="degraded"] .status-label {
-    color: var(--link-color);
+    color: var(--pill-degraded-fg);
+    background: var(--pill-degraded-bg);
   }
-  .status-detail {
-    margin-top: 4rem;
+  .status-list [data-status="down"] .status-label {
+    color: var(--pill-down-fg);
+    background: var(--pill-down-bg);
   }
   @media (max-width: 680px) {
-    .status-list {
-      grid-template-columns: 1fr;
-    }
+    /* align-items keeps the state label shrink-wrapped; without it the column
+       cross-axis stretches the pill to the full row width. */
     .status-list header {
       flex-direction: column;
-      gap: 0.8rem;
-    }
-    .status-groups section > header {
-      display: block;
-    }
-    .status-groups section > header p {
-      margin-bottom: 0.8rem;
+      align-items: start;
+      gap: 0.4rem;
     }
   }
 </style>
 
-<main
-  class="content status-page"
-  data-status-page
-  data-status-url="https://assets.dynamical.org/status/status.json"
->
+<main class="content" data-status-page data-status-url="{{ statusFeed }}">
   <header>
-    <h1>System status</h1>
+    <h1 style="margin-top: 4rem; margin-bottom: 1rem;">System status</h1>
     <p>Current health of the weather and climate data we publish and the endpoints that serve it.</p>
-    <p class="status-as-of" id="status-as-of" aria-live="polite">As of —</p>
+    <p id="status-as-of" aria-live="polite"><strong>As of —</strong></p>
   </header>
 
   <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading">
@@ -157,43 +90,35 @@ eleventyExcludeFromCollections: true
     <ul id="status-incidents" hidden></ul>
   </section>
 
-  <p class="status-stale" id="status-stale" role="alert" hidden>
-    Status data is stale. The publisher has not refreshed this page in more than 20 minutes.
+  <p id="status-stale" role="alert" hidden>
+    <strong>Status data is stale.</strong> The publisher has not refreshed this page in more than 20 minutes.
   </p>
 
-  <div class="status-groups" id="status-groups" hidden>
+  <div class="status-groups" id="status-groups" hidden style="margin-top: 4rem;">
     <section aria-labelledby="platform-heading">
       <header>
         <h2 id="platform-heading">Platform</h2>
         <p>Public services · trailing 90-day uptime</p>
       </header>
-      <ul class="status-list" id="status-platform"></ul>
+      <ul class="index-list status-list" id="status-platform"></ul>
     </section>
 
-    <section aria-labelledby="datasets-heading">
+    <section aria-labelledby="datasets-heading" style="margin-top: 4rem;">
       <header>
         <h2 id="datasets-heading">Data products</h2>
         <p>Update and validation jobs</p>
       </header>
-      <ul class="status-list" id="status-datasets"></ul>
-    </section>
-
-    <section aria-labelledby="upstream-heading">
-      <header>
-        <h2 id="upstream-heading">Upstream dependencies</h2>
-        <p>Source availability · trailing 90-day uptime</p>
-      </header>
-      <ul class="status-list" id="status-upstream"></ul>
+      <ul class="index-list status-list" id="status-datasets"></ul>
     </section>
   </div>
 
-  <p class="status-detail">
-    For per-model run timing and upstream arrival history, see the
+  <p style="margin-top: 4rem;">
+    For per-model run timing and upstream source arrival history, see the
     <a href="https://status.dynamical.org">detailed data arrival status</a>.
   </p>
 
   <noscript>
-    <p class="status-stale">Status temporarily unavailable because JavaScript is disabled.</p>
+    <p>Status temporarily unavailable because JavaScript is disabled.</p>
   </noscript>
 </main>
 

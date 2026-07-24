@@ -1,6 +1,6 @@
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
-const ENDPOINT_GROUPS = new Set(["platform", "upstream"]);
 const STALE_AFTER_MS = 20 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 10 * 1000;
 
 function isStatusEntry(entry) {
   return (
@@ -24,9 +24,6 @@ export function validateStatusData(data) {
   if (![...data.datasets, ...data.endpoints].every(isStatusEntry)) {
     throw new TypeError("Invalid status entry");
   }
-  if (!data.endpoints.every((entry) => ENDPOINT_GROUPS.has(entry.group))) {
-    throw new TypeError("Invalid endpoint group");
-  }
   return data;
 }
 
@@ -46,13 +43,6 @@ export function summarizeOverallStatus(data) {
       ? "degraded"
       : "operational";
   return { status, incidents };
-}
-
-export function partitionEndpoints(endpoints) {
-  return {
-    platform: endpoints.filter((entry) => entry.group === "platform"),
-    upstream: endpoints.filter((entry) => entry.group === "upstream"),
-  };
 }
 
 function statusLabel(status) {
@@ -78,6 +68,14 @@ function statusMark(status) {
   return { operational: "●", degraded: "▲", down: "×" }[status];
 }
 
+// Uptime is only validated as a finite number, so keep the trailing-zero trim
+// but never let rounding promote an imperfect figure to a flat "100%".
+export function formatUptime(uptime) {
+  const rounded = uptime.toFixed(3);
+  const capped = rounded === "100.000" && uptime < 100 ? "99.999" : rounded;
+  return capped.replace(/\.?0+$/, "");
+}
+
 function renderGroup(list, entries, kind) {
   list.replaceChildren();
   for (const entry of entries) {
@@ -85,15 +83,23 @@ function renderGroup(list, entries, kind) {
     const header = document.createElement("header");
     const name = document.createElement("h3");
     const state = document.createElement("span");
+    // The glyph duplicates the adjacent label, so keep it out of the
+    // accessibility tree instead of announcing "black circle Operational".
+    const mark = document.createElement("span");
 
     item.dataset.status = entry.status;
     name.textContent = entry.name;
     state.className = "status-label";
-    state.textContent = `${statusMark(entry.status)} ${statusLabel(entry.status)}`;
+    mark.setAttribute("aria-hidden", "true");
+    mark.textContent = statusMark(entry.status);
+    state.append(mark, ` ${statusLabel(entry.status)}`);
     header.append(name, state);
     item.append(header);
 
-    if (kind === "dataset" && entry.last_successful_update) {
+    if (
+      kind === "dataset" &&
+      Number.isFinite(Date.parse(entry.last_successful_update))
+    ) {
       const detail = document.createElement("p");
       const time = document.createElement("time");
       time.dateTime = entry.last_successful_update;
@@ -103,7 +109,7 @@ function renderGroup(list, entries, kind) {
     }
     if (kind === "endpoint" && Number.isFinite(entry.uptime_90d)) {
       const detail = document.createElement("p");
-      detail.textContent = `${entry.uptime_90d.toFixed(3).replace(/\.?0+$/, "")}% uptime over the last 90 days`;
+      detail.textContent = `${formatUptime(entry.uptime_90d)}% uptime over the last 90 days`;
       item.append(detail);
     }
     list.append(item);
@@ -112,7 +118,6 @@ function renderGroup(list, entries, kind) {
 
 function renderStatus(root, data) {
   const overall = summarizeOverallStatus(data);
-  const endpoints = partitionEndpoints(data.endpoints);
   const overallPanel = root.querySelector("#status-overall");
   const heading = root.querySelector("#status-overall-heading");
   const summary = root.querySelector("#status-summary");
@@ -143,21 +148,14 @@ function renderStatus(root, data) {
   const generatedTime = document.createElement("time");
   generatedTime.dateTime = data.generated_at;
   generatedTime.textContent = formatTimestamp(data.generated_at);
-  asOf.replaceChildren("As of ", generatedTime);
+  const asOfLabel = document.createElement("strong");
+  asOfLabel.append("As of ", generatedTime);
+  asOf.replaceChildren(asOfLabel);
 
   stale.hidden = !isStatusDataStale(data.generated_at);
   groups.hidden = false;
-  renderGroup(
-    root.querySelector("#status-platform"),
-    endpoints.platform,
-    "endpoint",
-  );
+  renderGroup(root.querySelector("#status-platform"), data.endpoints, "endpoint");
   renderGroup(root.querySelector("#status-datasets"), data.datasets, "dataset");
-  renderGroup(
-    root.querySelector("#status-upstream"),
-    endpoints.upstream,
-    "endpoint",
-  );
 }
 
 function renderUnavailable(root) {
@@ -178,6 +176,9 @@ async function loadStatus(root) {
     const response = await fetch(root.dataset.statusUrl, {
       cache: "no-store",
       headers: { Accept: "application/json" },
+      // Without a deadline a hung CDN connection leaves the page stuck on
+      // "Checking current status…" forever instead of the unavailable state.
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new Error(`Status request failed: ${response.status}`);

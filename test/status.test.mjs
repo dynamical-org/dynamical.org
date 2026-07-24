@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  formatUptime,
   isStatusDataStale,
-  partitionEndpoints,
   summarizeOverallStatus,
   validateStatusData,
 } from "../public/status.mjs";
+
+const fixture = JSON.parse(
+  readFileSync(new URL("./fixtures/status.json", import.meta.url), "utf8"),
+);
 
 const operationalData = {
   generated_at: "2026-07-24T19:55:00Z",
@@ -22,12 +27,30 @@ const operationalData = {
     {
       id: "dynamical-org",
       name: "dynamical.org",
-      group: "platform",
       status: "operational",
       uptime_90d: 99.9,
     },
   ],
 };
+
+test("accepts the published feed shape", () => {
+  assert.equal(validateStatusData(fixture), fixture);
+  assert.equal(fixture.datasets.length, 17);
+  assert.deepEqual(summarizeOverallStatus(fixture), {
+    status: "down",
+    incidents: [
+      { name: "NOAA HRRR forecast, 48 hour", status: "degraded" },
+      { name: "NASA SMAP Level 3, 36 km, v9", status: "down" },
+    ],
+  });
+});
+
+test("never rounds an imperfect uptime up to 100%", () => {
+  assert.equal(formatUptime(100), "100");
+  assert.equal(formatUptime(99.9999), "99.999");
+  assert.equal(formatUptime(99.9), "99.9");
+  assert.equal(formatUptime(99.95), "99.95");
+});
 
 test("summarizes an operational feed", () => {
   assert.deepEqual(summarizeOverallStatus(operationalData), {
@@ -63,32 +86,10 @@ test("marks status data stale after twenty minutes", () => {
   );
 });
 
-test("separates platform uptime from upstream availability", () => {
-  const endpoints = [
-    operationalData.endpoints[0],
-    {
-      id: "noaa-nomads",
-      name: "NOAA NOMADS",
-      group: "upstream",
-      status: "operational",
-      uptime_90d: 99.8,
-    },
-  ];
-
-  assert.deepEqual(partitionEndpoints(endpoints), {
-    platform: [endpoints[0]],
-    upstream: [endpoints[1]],
-  });
-});
-
 test("rejects malformed or non-public status values", () => {
   const data = structuredClone(operationalData);
   data.datasets[0].status = "unknown";
 
   assert.throws(() => validateStatusData(data), /invalid status entry/i);
   assert.throws(() => validateStatusData({}), /invalid status document/i);
-
-  data.datasets[0].status = "operational";
-  delete data.endpoints[0].group;
-  assert.throws(() => validateStatusData(data), /invalid endpoint/i);
 });
