@@ -104,20 +104,34 @@ eleventyComputed:
     min-width: 0;
   }
 
-  /* Tabs switching between the open-snippet variants (dynamical-catalog vs
-     pystac + icechunk) inside a code frame. Colors match the frame's fixed
-     dark palette in main.css (.frame/.frameHeader) rather than the page's
-     light/dark tokens — the code widget is always dark. */
+  /* Open-snippet variants (dynamical-catalog vs pystac + icechunk) share the
+     code frame's header: tabs on the left, a muted label on the right. Colors
+     match the frame's fixed dark palette in main.css (.frame/.frameHeader)
+     rather than the page's light/dark tokens — the code widget is always dark.
+     The header's own space-between handles the fallback (no tabs): the label
+     just sits left-aligned on its own. */
+  .frameTitle {
+    color: #898989;
+    font-size: 13px;
+    /* Keep the header a single 40px row: the label shrinks and ellipsizes
+       (min-width:0 lets it shrink below its content in the flex row) rather
+       than wrapping or pushing the tabs. */
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .codeTabList {
     display: flex;
-    gap: 4px;
-    padding: 0 8px;
-    background: black;
-    border-bottom: 1px solid #292929;
+    height: 100%;
+    flex-shrink: 0;
   }
   .codeTab {
     appearance: none;
-    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 12px;
     border: none;
     border-bottom: 2px solid transparent;
     background: transparent;
@@ -135,6 +149,13 @@ eleventyComputed:
   }
   .codeTabPanel[hidden] {
     display: none;
+  }
+  /* Match the frame chrome's own breakpoint (main.css hides .frameHeaderTitle
+     here too): on narrow screens keep the tabs, drop the label. */
+  @media screen and (max-width: 1000px) {
+    .frameTitle {
+      display: none;
+    }
   }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
@@ -268,22 +289,21 @@ eleventyComputed:
   {% for example in entry.examples %}
     <div class="frame">
       <div class="frameHeader">
-        <div class="frameHeaderTitle">dynamical.org - {{ entry.title | truncate(30, true, '...') }}</div>
-        <div class="frameHeaderSubtitle">{{ example.title }}</div>
-      </div>
-      {% if example.variants %}
-        <div class="codeTabs">
+        {% if example.variants %}
           <div class="codeTabList" role="tablist" aria-label="{{ example.title }} — open method">
             {% for variant in example.variants %}
               <button type="button" class="codeTab" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ variant.label }}</button>
             {% endfor %}
           </div>
-          {% for variant in example.variants %}
-            <div class="codeTabPanel" role="tabpanel"{% if not loop.first %} hidden{% endif %}>
-              {{ variant.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
-            </div>
-          {% endfor %}
-        </div>
+        {% endif %}
+        <div class="frameTitle">{{ entry.title }} · {{ example.title }}</div>
+      </div>
+      {% if example.variants %}
+        {% for variant in example.variants %}
+          <div class="codeTabPanel" role="tabpanel"{% if not loop.first %} hidden{% endif %}>
+            {{ variant.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
+          </div>
+        {% endfor %}
       {% else %}
         {{ example.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
       {% endif %}
@@ -341,10 +361,12 @@ eleventyComputed:
     <div class="detail-prose">{{ entry.description_details | markdown | safe }}</div>
 
 <script>
-  // Switch between open-snippet variants within each code frame.
-  document.querySelectorAll(".codeTabs").forEach((tabs) => {
-    const buttons = [...tabs.querySelectorAll(".codeTab")];
-    const panels = [...tabs.querySelectorAll(".codeTabPanel")];
+  // Switch between open-snippet variants within each code frame. Tabs live in
+  // the frame header, panels in the frame body, so scope the lookup to .frame.
+  document.querySelectorAll(".frame").forEach((frame) => {
+    const buttons = [...frame.querySelectorAll(".codeTab")];
+    const panels = [...frame.querySelectorAll(".codeTabPanel")];
+    if (buttons.length === 0) return;
     buttons.forEach((button, i) => {
       button.addEventListener("click", () => {
         buttons.forEach((b, j) => {
