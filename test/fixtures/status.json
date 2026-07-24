@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-07-24T19:55:00Z",
+  "datasets": [
+    {
+      "id": "noaa-gfs-forecast",
+      "name": "NOAA GFS forecast",
+      "status": "operational",
+      "last_successful_update": "2026-07-24T18:00:00Z"
+    },
+    {
+      "id": "noaa-hrrr-forecast-48-hour",
+      "name": "NOAA HRRR forecast, 48 hour",
+      "status": "degraded"
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "dynamical-org",
+      "name": "dynamical.org",
+      "status": "operational",
+      "uptime_90d": 99.9
+    },
+    {
+      "id": "stac-catalog",
+      "name": "STAC catalog",
+      "status": "operational",
+      "uptime_90d": 100.0
+    }
+  ]
+}

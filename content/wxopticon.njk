@@ -1,11 +1,192 @@
 ---
 layout: base.njk
 title: status
+description: Current health of dynamical.org datasets and public endpoints.
 permalink: /status/
 eleventyExcludeFromCollections: true
 ---
 
-<main class="content">
-  <h1>System status</h1>
-  <p>Loading the latest dataset and endpoint health…</p>
+<style>
+  .status-page {
+    max-width: 96rem;
+  }
+  .status-page > header {
+    margin-bottom: 3rem;
+  }
+  .status-page > header h1 {
+    margin-bottom: 0.8rem;
+    font-size: clamp(3.2rem, 7vw, 6rem);
+  }
+  .status-as-of {
+    margin: 2rem 0 0;
+    padding: 1rem 1.4rem;
+    border-left: 0.5rem solid var(--border-color);
+    background: var(--surface-muted);
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .status-overall {
+    padding: 2.4rem;
+    border: 1px solid var(--popup-border);
+    border-top: 0.6rem solid var(--muted-text);
+    border-radius: var(--radius-md);
+  }
+  .status-overall h2 {
+    margin-top: 0;
+    font-size: 2.4rem;
+  }
+  .status-overall p,
+  .status-overall ul {
+    margin-bottom: 0;
+  }
+  .status-overall li + li {
+    margin-top: 0.4rem;
+  }
+  .status-operational {
+    border-top-color: var(--pill-available-bg);
+  }
+  .status-degraded {
+    border-top-color: var(--link-color);
+  }
+  .status-down {
+    border-top-color: var(--border-color);
+  }
+  .status-stale {
+    margin: 1.6rem 0 0;
+    padding: 1.2rem 1.4rem;
+    border: 1px solid var(--border-color);
+    font-weight: 700;
+  }
+  .status-groups {
+    margin-top: 4rem;
+  }
+  .status-groups section + section {
+    margin-top: 5rem;
+  }
+  .status-groups section > header {
+    display: flex;
+    gap: 2rem;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .status-groups h2 {
+    margin-bottom: 0.8rem;
+  }
+  .status-groups section > header p {
+    margin: 0;
+    color: var(--muted-text);
+  }
+  .status-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.2rem;
+    padding: 1.6rem 0 0;
+    list-style: none;
+  }
+  .status-list li {
+    min-width: 0;
+    padding: 1.6rem;
+    border: 1px solid var(--popup-border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-muted);
+  }
+  .status-list header {
+    display: flex;
+    gap: 1.2rem;
+    align-items: start;
+    justify-content: space-between;
+  }
+  .status-list h3 {
+    margin: 0;
+    font-size: 1.4rem;
+  }
+  .status-list p {
+    margin: 1rem 0 0;
+    color: var(--muted-text);
+    font-size: 1.2rem;
+  }
+  .status-label {
+    flex: 0 0 auto;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .status-list [data-status="operational"] .status-label {
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--pill-available-fg);
+    background: var(--pill-available-bg);
+  }
+  .status-list [data-status="degraded"] .status-label {
+    color: var(--link-color);
+  }
+  .status-detail {
+    margin-top: 4rem;
+  }
+  @media (max-width: 680px) {
+    .status-list {
+      grid-template-columns: 1fr;
+    }
+    .status-list header {
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .status-groups section > header {
+      display: block;
+    }
+    .status-groups section > header p {
+      margin-bottom: 0.8rem;
+    }
+  }
+</style>
+
+<main
+  class="content status-page"
+  data-status-page
+  data-status-url="https://assets.dynamical.org/status/status.json"
+>
+  <header>
+    <h1>System status</h1>
+    <p>Current health of the weather and climate data we publish and the endpoints that serve it.</p>
+    <p class="status-as-of" id="status-as-of" aria-live="polite">As of —</p>
+  </header>
+
+  <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading">
+    <h2 id="status-overall-heading">Checking current status…</h2>
+    <p id="status-summary">Loading the latest monitor results.</p>
+    <ul id="status-incidents" hidden></ul>
+  </section>
+
+  <p class="status-stale" id="status-stale" role="alert" hidden>
+    Status data is stale. The publisher has not refreshed this page in more than 20 minutes.
+  </p>
+
+  <div class="status-groups" id="status-groups" hidden>
+    <section aria-labelledby="datasets-heading">
+      <header>
+        <h2 id="datasets-heading">Datasets</h2>
+        <p>Update and validation jobs</p>
+      </header>
+      <ul class="status-list" id="status-datasets"></ul>
+    </section>
+
+    <section aria-labelledby="endpoints-heading">
+      <header>
+        <h2 id="endpoints-heading">Endpoints</h2>
+        <p>Five-minute external checks</p>
+      </header>
+      <ul class="status-list" id="status-endpoints"></ul>
+    </section>
+  </div>
+
+  <p class="status-detail">
+    For per-model run timing and upstream arrival history, see the
+    <a href="https://status.dynamical.org">detailed data arrival status</a>.
+  </p>
+
+  <noscript>
+    <p class="status-stale">Status temporarily unavailable because JavaScript is disabled.</p>
+  </noscript>
 </main>
+
+<script type="module" src="/status.mjs"></script>
