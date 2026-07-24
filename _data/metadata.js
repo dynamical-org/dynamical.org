@@ -8,7 +8,7 @@ module.exports = {
     name: "dynamical.org",
     email: "marshall@dynamical.org",
   },
-  // BetterStack Errors frontend (JS tag) ingest token. Publishable — it ships
-  // to the browser by design. App: "dynamical.org" (javascript_errors).
-  betterstackErrorsToken: "mvH2kP3pYS3hZ2LnroXKPcUx",
+  // Sentry browser error monitoring public key (Loader Script). Publishable — it
+  // ships to the browser by design. Project: "dynamical-org-site" (javascript).
+  sentryPublicKey: "22aeb0b766a9bdd85f61d2bb69646da1",
 };

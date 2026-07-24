@@ -2,13 +2,13 @@
 layout: base.njk
 title: privacy policy
 socialTitle: dynamical.org privacy policy
-description: How dynamical.org handles data and privacy - mostly open, no-login access with minimal analytics.
+description: How dynamical.org handles data and privacy - mostly open, no-login access with minimal data collection.
 permalink: /privacy/
 ---
 
 <div class="content">
   <h1 style="margin-top: 4rem; margin-bottom: 1rem;">Privacy Policy</h1>
-  <p class="metadata-comment">Last updated: July 6, 2026</p>
+  <p class="metadata-comment">Last updated: July 24, 2026</p>
 
   <p>
     <strong>dynamical.org</strong> publishes a public catalog of cloud-optimized
@@ -28,12 +28,11 @@ permalink: /privacy/
       Cloudflare's own privacy policy.
     </li>
     <li>
-      <strong>Analytics and error monitoring:</strong> on the production site
-      (<code>dynamical.org</code>) we use BetterStack to record aggregate
-      page-view telemetry and JavaScript error reports. This helps us understand
-      which pages are useful and catch broken pages. It may include the page URL,
-      referrer, approximate location, and browser/device details. We do not use
-      it to build advertising profiles.
+      <strong>Error monitoring:</strong> on the production site
+      (<code>dynamical.org</code>) we use Sentry to capture JavaScript error
+      reports. This helps us catch broken pages. A report may include the page
+      URL, browser/device details, and a stack trace describing the error. We do
+      not use it to build advertising profiles.
     </li>
     <li>
       <strong>Newsletter:</strong> if you subscribe via the sign-up form, we
@@ -73,7 +72,7 @@ permalink: /privacy/
   <p>
     We rely on a small number of third parties to run the site, each with its own
     privacy practices: <strong>Cloudflare</strong> (hosting and CDN),
-    <strong>BetterStack</strong> (analytics and error monitoring),
+    <strong>Sentry</strong> (error monitoring),
     <strong>Buttondown</strong> (newsletter email), and <strong>GitHub</strong>
     (sign-in for experimental features). Dataset files are stored on cloud object
     storage (such as Amazon S3 and Cloudflare R2).
