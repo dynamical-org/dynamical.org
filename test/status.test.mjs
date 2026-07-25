@@ -41,11 +41,24 @@ test("accepts the published feed shape", () => {
   // 14, matching the collections in stac.dynamical.org/catalog.json — the
   // publisher deliberately excludes contrib datasets and source archivers.
   assert.equal(fixture.datasets.length, 14);
+  // Five endpoints across the page's two sections, plus the 14 datasets the feed
+  // still carries even though the page does not render them yet.
+  assert.deepEqual(
+    fixture.endpoints.map((entry) => [entry.id, entry.group]),
+    [
+      ["dynamical-org", "endpoint"],
+      ["stac-catalog", "endpoint"],
+      ["data-product-reads", "endpoint"],
+      ["wxopticon", "tool"],
+      ["scorecard", "tool"],
+    ],
+  );
   assert.deepEqual(summarizeOverallStatus(fixture), {
     status: "down",
     incidents: [
       { name: "NOAA HRRR forecast, 48 hour", status: "degraded" },
       { name: "ECMWF IFS ENS forecast, 15 day, 0.25 degree", status: "down" },
+      { name: "Data product reads", status: "down" },
     ],
   });
 });

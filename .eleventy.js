@@ -120,18 +120,47 @@ module.exports = function (eleventyConfig) {
   // it would mean any such build also published fabricated status data at a
   // public URL. Only `npm run start:status` sets STATUS_FIXTURE.
   //
-  // Restamped with build time rather than copied: the committed fixture pins
-  // generated_at so tests can assert on it, which would make the previewed page
-  // permanently show its "stale data" banner and hide the normal presentation.
+  // Restamped with build time rather than copied: the committed fixtures pin their
+  // timestamps so tests can assert on them, which would otherwise make the
+  // previewed page permanently show its "stale data" banner and render a bar strip
+  // that recedes further into the past every day.
   if (process.env.STATUS_FIXTURE === "1") {
+    const now = new Date();
     const fixture = JSON.parse(
       fs.readFileSync("./test/fixtures/status.json", "utf8"),
     );
-    fixture.generated_at = new Date().toISOString();
+    const shift = now.getTime() - Date.parse(fixture.generated_at);
+    fixture.generated_at = now.toISOString();
     eleventyConfig.addTemplate(
       "status-fixture.njk",
       JSON.stringify(fixture, null, 2),
-      { permalink: "/status-fixture.json", eleventyExcludeFromCollections: true },
+      { permalink: "/status-preview/status.json", eleventyExcludeFromCollections: true },
+    );
+
+    // Every event moves by the same delta, so the shape the fixture encodes — a
+    // brief blip, a longer outage, a coverage gap, an ongoing failure — survives
+    // intact while always ending at today.
+    const events = fs
+      .readFileSync("./test/fixtures/events.jsonl", "utf8")
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => {
+        const event = JSON.parse(line);
+        event.ts = new Date(Date.parse(event.ts) + shift).toISOString();
+        return JSON.stringify(event);
+      })
+      .join("\n");
+    eleventyConfig.addTemplate("status-events-fixture.njk", events + "\n", {
+      permalink: "/status-preview/events.jsonl",
+      eleventyExcludeFromCollections: true,
+    });
+    eleventyConfig.addTemplate(
+      "status-meta-fixture.njk",
+      JSON.stringify({ v: 1, reconciled_at: now.toISOString() }),
+      {
+        permalink: "/status-preview/meta.json",
+        eleventyExcludeFromCollections: true,
+      },
     );
   }
 
