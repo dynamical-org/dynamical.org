@@ -6,6 +6,7 @@ import {
   dailyBars,
   effectiveAsOf,
   parseEvents,
+  uptimeSummary,
 } from "../public/status-log.mjs";
 
 const AS_OF = new Date("2026-07-25T12:00:00Z");
@@ -229,4 +230,84 @@ test("the window caps at the requested number of days", () => {
   const spans = spansOf(coverage("2026-01-01T00:00:00Z", C, true, "operational"));
 
   assert.equal(dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).length, 90);
+});
+
+// --- uptime -----------------------------------------------------------------
+
+test("uptime is derived from the log, so it cannot contradict the bars", () => {
+  // The percentage used to come from Sentry's check counts while the strip came
+  // from the log, so a green number could sit above a red cell.
+  const spans = spansOf(
+    coverage("2026-07-15T00:00:00Z", C, true, "operational"),
+    transition("2026-07-20T00:00:00Z", C, "down"),
+    transition("2026-07-21T00:00:00Z", C, "operational"),
+  );
+
+  const { uptime, coverage: covered } = uptimeSummary(spans, {
+    asOf: AS_OF,
+    days: 90,
+  }).get(C);
+  const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
+
+  // One day down out of ten and a half observed.
+  assert.ok(uptime > 90 && uptime < 91, `unexpected uptime ${uptime}`);
+  assert.equal(covered, 100);
+  assert.equal(cells.filter((cell) => cell.state === "down").length, 1);
+});
+
+test("confirmed downtime never presents as a flat 100%", () => {
+  const spans = spansOf(
+    coverage("2026-01-01T00:00:00Z", C, true, "operational"),
+    transition("2026-07-25T11:59:59Z", C, "down"),
+  );
+
+  assert.equal(uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C).uptime, 99.999);
+});
+
+test("a coverage gap lowers coverage rather than uptime", () => {
+  // Uptime over monitored time would otherwise quietly shrink its own
+  // denominator whenever nobody was watching.
+  const spans = spansOf(
+    coverage("2026-07-15T00:00:00Z", C, true, "operational"),
+    coverage("2026-07-20T00:00:00Z", C, false),
+    coverage("2026-07-25T00:00:00Z", C, true, "operational"),
+  );
+
+  const { uptime, coverage: covered } = uptimeSummary(spans, {
+    asOf: AS_OF,
+    days: 90,
+  }).get(C);
+
+  assert.equal(uptime, 100);
+  assert.ok(covered > 50 && covered < 60, `unexpected coverage ${covered}`);
+});
+
+test("an unknown state is excluded from the denominator, not counted either way", () => {
+  const spans = spansOf(
+    coverage("2026-07-24T00:00:00Z", C, true, "operational"),
+    transition("2026-07-25T00:00:00Z", C, "maintenance"),
+  );
+
+  const { uptime, coverage: covered } = uptimeSummary(spans, {
+    asOf: AS_OF,
+    days: 90,
+  }).get(C);
+
+  assert.equal(uptime, 100);
+  assert.ok(covered < 100, "unknown time must show up as missing coverage");
+});
+
+test("an offset-less event timestamp is refused rather than shifted", () => {
+  // Date.parse reads it as local time, which is what Python emits without tzinfo.
+  const events = parseEvents(
+    jsonl(
+      { ts: "2026-07-20T00:00:00", kind: "coverage", component: C, monitored: true, state: "operational" },
+      coverage("2026-07-21T00:00:00Z", C, true, "operational"),
+    ),
+  );
+
+  assert.deepEqual(
+    events.map((e) => e.ts),
+    ["2026-07-21T00:00:00Z"],
+  );
 });

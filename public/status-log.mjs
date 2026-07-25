@@ -45,6 +45,13 @@ export function parseEvents(text) {
     // meant to be safe for an old client, and a semantic addition bumps `v`.
     if (event?.kind !== COVERAGE && event?.kind !== TRANSITION) continue;
     if (typeof event.component !== "string") continue;
+    // A UTC offset is required. Date.parse treats an offset-less date-time as
+    // *local*, which is exactly what Python's datetime.isoformat() emits without
+    // tzinfo — so a naive timestamp would silently shift every derived interval
+    // by the viewer's offset. The publisher refuses to write one; this end
+    // verifies rather than trusts, since the repos deploy independently.
+    if (typeof event.ts !== "string") continue;
+    if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(event.ts)) continue;
     if (!Number.isFinite(Date.parse(event.ts))) continue;
     events.push(event);
   }
@@ -175,4 +182,59 @@ function dayState(spans, start, end) {
   }
   if (unknown) return "unknown";
   return operational >= end - start ? "operational" : "nodata";
+}
+
+
+/**
+ * Uptime and coverage over the same window the bars cover.
+ *
+ * Derived from the log rather than from Sentry's check counts, so the percentage
+ * and the strip beneath it cannot disagree — a green number over a red cell would
+ * discredit both. It also means one methodology across every component, whether a
+ * 60-second HTTP probe or a daily cron backs it.
+ *
+ * Truncated rather than rounded, so a window containing confirmed downtime can
+ * never present as a flat 100%.
+ *
+ * `unknown` spans are excluded from the denominator rather than counted either
+ * way: a state we could not read is no basis for a claim, the same as a coverage
+ * gap. That makes them visible in `coverage` instead of silently averaged away.
+ *
+ * Uniform method is not uniform precision. A transition's onset is only as sharp
+ * as its monitor's cadence, so a daily cron's figure is inherently coarser than an
+ * HTTP detector's. That is a property of the measurement, not the arithmetic.
+ */
+export function uptimeSummary(spans, { asOf, days }) {
+  const ceiling = asOf.getTime();
+  const windowStart = ceiling - days * DAY_MS;
+  const summary = new Map();
+
+  for (const [component, list] of spans) {
+    if (!list.length) continue;
+    const from = Math.max(windowStart, list[0].start);
+    const elapsed = ceiling - from;
+    if (elapsed <= 0) continue;
+
+    let monitored = 0;
+    let down = 0;
+    for (const span of list) {
+      if (span.state === "unknown") continue;
+      const overlap = Math.min(span.end, ceiling) - Math.max(span.start, from);
+      if (overlap <= 0) continue;
+      monitored += overlap;
+      if (span.state === "down") down += overlap;
+    }
+    if (monitored <= 0) continue;
+
+    summary.set(component, {
+      uptime: truncate((100 * (monitored - down)) / monitored),
+      coverage: truncate((100 * monitored) / elapsed),
+    });
+  }
+  return summary;
+}
+
+// Floor to three decimals. Flooring is what stops 99.9999 from presenting as 100.
+function truncate(percent) {
+  return Math.floor(percent * 1000) / 1000;
 }

@@ -89,17 +89,13 @@
       "id": "dynamical-org",
       "name": "dynamical.org",
       "group": "endpoint",
-      "status": "operational",
-      "uptime": 99.982,
-      "uptime_since": "2026-04-25T19:55:00Z"
+      "status": "operational"
     },
     {
       "id": "stac-catalog",
       "name": "STAC catalog",
       "group": "endpoint",
-      "status": "operational",
-      "uptime": 100.0,
-      "uptime_since": "2026-07-24T08:30:00Z"
+      "status": "operational"
     },
     {
       "id": "data-product-reads",

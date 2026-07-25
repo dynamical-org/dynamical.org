@@ -3,6 +3,7 @@ import {
   dailyBars,
   effectiveAsOf,
   parseEvents,
+  uptimeSummary,
 } from "./status-log.mjs";
 
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
@@ -97,48 +98,7 @@ function statusMark(status) {
   return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[status];
 }
 
-// The measured window the publisher actually observed, rendered from
-// uptime_since rather than a fixed "90 days". Both detectors were recreated
-// during the Sentry migration, so the real window is hours today and grows on
-// its own; hardcoding a period asserted coverage the data did not have.
-//
-// `asOf` must be the feed's generated_at, not the viewer's clock. The percentage
-// was computed over uptime_since → generated_at, so measuring the label against
-// `now` would let it keep growing after the data stopped — a stale feed would
-// claim "3 days" for a 19-hour measurement, which is the same defect this
-// function exists to remove, just smaller. It also makes the label immune to
-// viewer clock skew, which otherwise makes the line vanish on a slow clock.
-//
-// uptime_since must carry a UTC offset. Date.parse treats an offset-less
-// date-time as *local*, so a naive value — exactly what Python's
-// datetime.isoformat() produces without tzinfo — would silently shift the window
-// by the viewer's offset. The publisher's _utc_iso refuses naive timestamps, but
-// the two repos deploy independently, so this end verifies rather than trusts.
-export function formatUptimeWindow(since, asOf) {
-  if (typeof since !== "string" || !/(?:Z|[+-]\d{2}:?\d{2})$/.test(since)) {
-    return null;
-  }
-  const seconds = (asOf.getTime() - Date.parse(since)) / 1000;
-  if (!Number.isFinite(seconds) || seconds <= 0) return null;
-  const days = Math.floor(seconds / 86400);
-  if (days >= 1) return `${days} day${days === 1 ? "" : "s"}`;
-  const hours = Math.floor(seconds / 3600);
-  if (hours >= 1) return `${hours} hour${hours === 1 ? "" : "s"}`;
-  const minutes = Math.max(1, Math.floor(seconds / 60));
-  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-}
-
-// uptime is not validated in validateStatusData at all; the load-bearing guard
-// is the Number.isFinite check at the call site in renderGroup, without which a
-// string value would throw here. Trims trailing zeros, and never lets rounding
-// promote an imperfect figure to a flat "100%".
-export function formatUptime(uptime) {
-  const rounded = uptime.toFixed(3);
-  const capped = rounded === "100.000" && uptime < 100 ? "99.999" : rounded;
-  return capped.replace(/\.?0+$/, "");
-}
-
-function renderGroup(list, entries, asOf, bars) {
+function renderGroup(list, entries, bars, uptime) {
   list.replaceChildren();
   for (const entry of entries) {
     const item = document.createElement("li");
@@ -158,15 +118,22 @@ function renderGroup(list, entries, asOf, bars) {
     header.append(name, state);
     item.append(header);
 
-    if (Number.isFinite(entry.uptime)) {
-      const measured = formatUptimeWindow(entry.uptime_since, asOf);
-      if (measured) {
-        const detail = document.createElement("p");
-        detail.textContent = `${formatUptime(entry.uptime)}% uptime over the last ${measured}`;
-        item.append(detail);
-      }
-    }
     const cells = bars?.get(entry.id);
+    const measured = uptime?.get(entry.id);
+    // The figure and the strip describe the same window by construction: the day
+    // count comes from the cells the strip renders, not from a separate field
+    // that could drift out of step with them.
+    if (cells?.length && measured) {
+      const days = cells.length;
+      const detail = document.createElement("p");
+      detail.textContent =
+        `${measured.uptime}% uptime over the last ${days} ` +
+        `${days === 1 ? "day" : "days"}` +
+        // Only when it is not the whole window: a percentage over monitored time
+        // otherwise shrinks its own denominator without saying so.
+        (measured.coverage < 100 ? `, ${measured.coverage}% monitored` : "");
+      item.append(detail);
+    }
     if (cells?.length) item.append(barStrip(cells));
     list.append(item);
   }
@@ -239,7 +206,11 @@ async function loadBars(root) {
     const parsed = parseEvents(events);
     const asOf = effectiveAsOf(JSON.parse(meta).reconciled_at, parsed);
     if (!asOf) return null;
-    return dailyBars(componentSpans(parsed, { asOf }), { asOf, days: BAR_DAYS });
+    const spans = componentSpans(parsed, { asOf });
+    return {
+      cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
+      uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
+    };
   } catch (error) {
     console.warn("Status history unavailable; rendering without bars", error);
     return null;
@@ -296,7 +267,6 @@ function renderStatus(root, data, bars) {
   // page mirrors the sections the retiring uptime.dynamical.org carried, and
   // per-dataset health was never on it. Re-adding the section later is a page
   // change only, since the feed already carries them.
-  const asOfFeed = new Date(data.generated_at);
   for (const [selector, group] of [
     ["#status-endpoints", "endpoint"],
     ["#status-tools", "tool"],
@@ -304,8 +274,8 @@ function renderStatus(root, data, bars) {
     renderGroup(
       root.querySelector(selector),
       data.endpoints.filter((entry) => entry.group === group),
-      asOfFeed,
-      bars,
+      bars?.cells,
+      bars?.uptime,
     );
   }
 }

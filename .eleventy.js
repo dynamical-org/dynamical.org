@@ -131,13 +131,6 @@ module.exports = function (eleventyConfig) {
     );
     const shift = now.getTime() - Date.parse(fixture.generated_at);
     fixture.generated_at = now.toISOString();
-    for (const endpoint of fixture.endpoints) {
-      if (endpoint.uptime_since) {
-        endpoint.uptime_since = new Date(
-          Date.parse(endpoint.uptime_since) + shift,
-        ).toISOString();
-      }
-    }
     eleventyConfig.addTemplate(
       "status-fixture.njk",
       JSON.stringify(fixture, null, 2),
