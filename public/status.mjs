@@ -93,8 +93,24 @@ function statusMark(status) {
 // uptime_since rather than a fixed "90 days". Both detectors were recreated
 // during the Sentry migration, so the real window is hours today and grows on
 // its own; hardcoding a period asserted coverage the data did not have.
-export function formatUptimeWindow(since, now = new Date()) {
-  const seconds = (now.getTime() - Date.parse(since)) / 1000;
+//
+// `asOf` must be the feed's generated_at, not the viewer's clock. The percentage
+// was computed over uptime_since → generated_at, so measuring the label against
+// `now` would let it keep growing after the data stopped — a stale feed would
+// claim "3 days" for a 19-hour measurement, which is the same defect this
+// function exists to remove, just smaller. It also makes the label immune to
+// viewer clock skew, which otherwise makes the line vanish on a slow clock.
+//
+// uptime_since must carry a UTC offset. Date.parse treats an offset-less
+// date-time as *local*, so a naive value — exactly what Python's
+// datetime.isoformat() produces without tzinfo — would silently shift the window
+// by the viewer's offset. The publisher's _utc_iso refuses naive timestamps, but
+// the two repos deploy independently, so this end verifies rather than trusts.
+export function formatUptimeWindow(since, asOf) {
+  if (typeof since !== "string" || !/(?:Z|[+-]\d{2}:?\d{2})$/.test(since)) {
+    return null;
+  }
+  const seconds = (asOf.getTime() - Date.parse(since)) / 1000;
   if (!Number.isFinite(seconds) || seconds <= 0) return null;
   const days = Math.floor(seconds / 86400);
   if (days >= 1) return `${days} day${days === 1 ? "" : "s"}`;
@@ -114,7 +130,7 @@ export function formatUptime(uptime) {
   return capped.replace(/\.?0+$/, "");
 }
 
-function renderGroup(list, entries, kind) {
+function renderGroup(list, entries, kind, asOf) {
   list.replaceChildren();
   for (const entry of entries) {
     const item = document.createElement("li");
@@ -146,12 +162,10 @@ function renderGroup(list, entries, kind) {
       item.append(detail);
     }
     if (kind === "endpoint" && Number.isFinite(entry.uptime)) {
-      const window = entry.uptime_since
-        ? formatUptimeWindow(entry.uptime_since)
-        : null;
-      if (window) {
+      const measured = formatUptimeWindow(entry.uptime_since, asOf);
+      if (measured) {
         const detail = document.createElement("p");
-        detail.textContent = `${formatUptime(entry.uptime)}% uptime over the last ${window}`;
+        detail.textContent = `${formatUptime(entry.uptime)}% uptime over the last ${measured}`;
         item.append(detail);
       }
     }
@@ -205,7 +219,12 @@ function renderStatus(root, data) {
       : null,
   );
   groups.hidden = false;
-  renderGroup(root.querySelector("#status-platform"), data.endpoints, "endpoint");
+  renderGroup(
+    root.querySelector("#status-platform"),
+    data.endpoints,
+    "endpoint",
+    new Date(data.generated_at),
+  );
   renderGroup(root.querySelector("#status-datasets"), data.datasets, "dataset");
 }
 
