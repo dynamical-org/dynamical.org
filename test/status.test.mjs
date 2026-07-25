@@ -125,6 +125,12 @@ test("refuses a contentless document instead of reporting all clear", () => {
   );
 });
 
+test("does not require the deferred dataset section", () => {
+  assert.doesNotThrow(() =>
+    validateStatusData({ ...operationalData, datasets: [] }),
+  );
+});
+
 test("keeps rendering when a visible component has an unrecognized state", () => {
   // The publisher deploys from a separate repo; a fourth state must degrade one
   // row to Unknown, not black out the whole page.
@@ -160,6 +166,14 @@ test("rejects a mismatched event-log revision", () => {
   });
 
   assert.throws(() => buildHistory(events, meta), /event-log revision/i);
+  assert.throws(
+    () =>
+      buildHistory(
+        events,
+        JSON.stringify({ v: 1, reconciled_at: "2026-07-24T20:00:00Z" }),
+      ),
+    /event-log revision/i,
+  );
 });
 
 test("history must be close to the current snapshot", () => {
@@ -173,6 +187,13 @@ test("history must be close to the current snapshot", () => {
   assert.equal(
     isHistoryCurrent(
       new Date("2026-07-24T19:39:59.999Z"),
+      "2026-07-24T20:00:00Z",
+    ),
+    false,
+  );
+  assert.equal(
+    isHistoryCurrent(
+      new Date("2026-07-24T20:20:00.001Z"),
       "2026-07-24T20:00:00Z",
     ),
     false,

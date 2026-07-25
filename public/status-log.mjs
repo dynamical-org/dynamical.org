@@ -23,6 +23,10 @@ function kindRank(event) {
 }
 const DAY_MS = 86_400_000;
 
+function utcDayWindowStart(asOf, days) {
+  return (Math.floor(asOf.getTime() / DAY_MS) - days + 1) * DAY_MS;
+}
+
 // An unrecognized state renders as unknown and never as operational. The
 // publisher ships from a separate repo on its own deploy, so the day it adds a
 // state this build has never heard of, the failure has to be visible rather than
@@ -135,7 +139,7 @@ export function componentSpans(events, { asOf }) {
 export function dailyBars(spans, { asOf, days }) {
   const result = new Map();
   const lastDay = Math.floor(asOf.getTime() / DAY_MS);
-  const windowStart = lastDay - days + 1;
+  const windowStart = utcDayWindowStart(asOf, days) / DAY_MS;
 
   for (const [component, list] of spans) {
     if (!list.length) {
@@ -206,7 +210,7 @@ function dayState(spans, start, end) {
  */
 export function uptimeSummary(spans, { asOf, days }) {
   const ceiling = asOf.getTime();
-  const windowStart = ceiling - days * DAY_MS;
+  const windowStart = utcDayWindowStart(asOf, days);
   const summary = new Map();
 
   for (const [component, list] of spans) {

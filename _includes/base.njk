@@ -185,7 +185,7 @@
       {% set contentIcon = "🎙️" %}
       {% set contentUrl = latestPodcast.url %}
     {% endif %}
-    {% if latestContent %}
+    {% if latestContent and not hideLatestPopup %}
       <div id="latest-popup">
         <div class="popup-header">
           <span class="popup-type">{{ contentIcon }} {{ contentType }}</span>

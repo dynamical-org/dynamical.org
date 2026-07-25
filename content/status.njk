@@ -1,7 +1,7 @@
 ---
 layout: base.njk
 title: status
-description: Current health of dynamical.org datasets and public endpoints.
+description: Current health of dynamical.org public endpoints and tools.
 permalink: /status/
 # Unlisted for the first iteration: reachable by direct URL, but absent from the
 # nav, the footer, sitemap.xml, and llms.txt. Deliberately not disallowed in
@@ -9,6 +9,7 @@ permalink: /status/
 # very URL this is keeping quiet. noindex covers the crawler case.
 noindex: true
 sitemap: false
+hideLatestPopup: true
 ---
 
 <style>
@@ -121,7 +122,7 @@ sitemap: false
   data-log-url="{{ statusLogBase }}">
   <header>
     <h1 style="margin-top: 4rem; margin-bottom: 1rem;">System status</h1>
-    <p>Current health of the weather and climate data we publish and the endpoints that serve it.</p>
+    <p>Current health of dynamical.org public endpoints, tools, and resources.</p>
     <p id="status-as-of"><strong>As of —</strong></p>
   </header>
 
@@ -136,6 +137,7 @@ sitemap: false
   {# Left empty on purpose — status.mjs writes the text, so the live region
      announces a content change rather than merely becoming visible. #}
   <p id="status-stale" role="alert" hidden></p>
+  <p id="status-history" role="status" hidden></p>
 
   <div class="status-groups" id="status-groups" hidden style="margin-top: 4rem;">
     <section aria-labelledby="endpoints-heading">
