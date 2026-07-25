@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  formatUptime,
   isStatusDataStale,
   summarizeOverallStatus,
   validateStatusData,
@@ -28,7 +27,8 @@ const operationalData = {
       id: "dynamical-org",
       name: "dynamical.org",
       status: "operational",
-      uptime_90d: 99.9,
+      uptime: 99.9,
+      uptime_since: "2026-04-26T19:55:00Z",
     },
   ],
 };
@@ -36,21 +36,29 @@ const operationalData = {
 test("accepts the published feed shape", () => {
   // Returns a normalized copy, not the same reference, so compare by value.
   assert.deepEqual(validateStatusData(fixture), fixture);
-  assert.equal(fixture.datasets.length, 17);
+  // 14, matching the collections in stac.dynamical.org/catalog.json — the
+  // publisher deliberately excludes contrib datasets and source archivers.
+  assert.equal(fixture.datasets.length, 14);
+  // Five endpoints across the page's two sections, plus the 14 datasets the feed
+  // still carries even though the page does not render them yet.
+  assert.deepEqual(
+    fixture.endpoints.map((entry) => [entry.id, entry.group]),
+    [
+      ["dynamical-org", "endpoint"],
+      ["stac-catalog", "endpoint"],
+      ["data-product-reads", "endpoint"],
+      ["wxopticon", "tool"],
+      ["scorecard", "tool"],
+    ],
+  );
   assert.deepEqual(summarizeOverallStatus(fixture), {
     status: "down",
     incidents: [
       { name: "NOAA HRRR forecast, 48 hour", status: "degraded" },
-      { name: "NASA SMAP Level 3, 36 km, v9", status: "down" },
+      { name: "ECMWF IFS ENS forecast, 15 day, 0.25 degree", status: "down" },
+      { name: "Data product reads", status: "down" },
     ],
   });
-});
-
-test("never rounds an imperfect uptime up to 100%", () => {
-  assert.equal(formatUptime(100), "100");
-  assert.equal(formatUptime(99.9999), "99.999");
-  assert.equal(formatUptime(99.9), "99.9");
-  assert.equal(formatUptime(99.95), "99.95");
 });
 
 test("summarizes an operational feed", () => {

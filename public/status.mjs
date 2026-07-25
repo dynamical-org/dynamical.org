@@ -1,7 +1,16 @@
+import {
+  componentSpans,
+  dailyBars,
+  effectiveAsOf,
+  parseEvents,
+  uptimeSummary,
+} from "./status-log.mjs";
+
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
 const STALE_AFTER_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const BAR_DAYS = 90;
 
 function isStatusEntry(entry) {
   return (
@@ -89,17 +98,7 @@ function statusMark(status) {
   return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[status];
 }
 
-// uptime_90d is not validated in validateStatusData at all; the load-bearing
-// guard is the Number.isFinite check at the call site in renderGroup, without
-// which a string value would throw here. Trims trailing zeros, and never lets
-// rounding promote an imperfect figure to a flat "100%".
-export function formatUptime(uptime) {
-  const rounded = uptime.toFixed(3);
-  const capped = rounded === "100.000" && uptime < 100 ? "99.999" : rounded;
-  return capped.replace(/\.?0+$/, "");
-}
-
-function renderGroup(list, entries, kind) {
+function renderGroup(list, entries, bars, uptime) {
   list.replaceChildren();
   for (const entry of entries) {
     const item = document.createElement("li");
@@ -119,27 +118,106 @@ function renderGroup(list, entries, kind) {
     header.append(name, state);
     item.append(header);
 
-    if (
-      kind === "dataset" &&
-      Number.isFinite(Date.parse(entry.last_successful_update))
-    ) {
+    const cells = bars?.get(entry.id);
+    const measured = uptime?.get(entry.id);
+    // The figure and the strip describe the same window by construction: the day
+    // count comes from the cells the strip renders, not from a separate field
+    // that could drift out of step with them.
+    if (cells?.length && measured) {
+      const days = cells.length;
       const detail = document.createElement("p");
-      const time = document.createElement("time");
-      time.dateTime = entry.last_successful_update;
-      time.textContent = formatTimestamp(entry.last_successful_update);
-      detail.append("Last successful update ", time);
+      detail.textContent =
+        `${measured.uptime}% uptime over the last ${days} ` +
+        `${days === 1 ? "day" : "days"}` +
+        // Only when it is not the whole window: a percentage over monitored time
+        // otherwise shrinks its own denominator without saying so.
+        (measured.coverage < 100 ? `, ${measured.coverage}% monitored` : "");
       item.append(detail);
     }
-    if (kind === "endpoint" && Number.isFinite(entry.uptime_90d)) {
-      const detail = document.createElement("p");
-      detail.textContent = `${formatUptime(entry.uptime_90d)}% uptime over the last 90 days`;
-      item.append(detail);
-    }
+    if (cells?.length) item.append(barStrip(cells));
     list.append(item);
   }
 }
 
-function renderStatus(root, data) {
+// A flex row of one cell per UTC day. Labelled from cells.length rather than a
+// hardcoded 90 so the claim grows with the evidence: a strip captioned "90 days"
+// that is mostly empty reads as broken rather than as young.
+function barStrip(cells) {
+  const strip = document.createElement("div");
+  strip.className = "status-bars";
+  const down = cells.filter((cell) => cell.state === "down").length;
+  const uncovered = cells.filter((cell) => cell.state !== "operational").length - down;
+  const days = cells.length;
+  const plural = (n) => (n === 1 ? "day" : "days");
+  // role="img" is required, not decorative: ARIA forbids naming a role-less
+  // element, and a nameless generic is exactly what some screen readers drop —
+  // which would leave this strip announcing nothing, since every cell is
+  // aria-hidden and the per-cell title is pointer-only.
+  strip.setAttribute("role", "img");
+  // The label has to carry coverage as well as outages. A sighted reader sees the
+  // grey cells; describing only outages would tell a screen reader the record is
+  // clean while four days of it are missing.
+  const parts = [
+    down === 0
+      ? `No outages recorded in the last ${days} ${plural(days)}`
+      : `${down} of the last ${days} ${plural(days)} had an outage`,
+  ];
+  if (uncovered > 0) {
+    parts.push(`${uncovered} ${plural(uncovered)} not monitored`);
+  }
+  strip.setAttribute("aria-label", parts.join("; "));
+  for (const cell of cells) {
+    const day = document.createElement("span");
+    day.dataset.day = cell.state;
+    // The bars are decorative in aggregate; the aria-label above carries the
+    // meaning, so individual cells stay out of the accessibility tree.
+    day.setAttribute("aria-hidden", "true");
+    day.title = `${cell.date}: ${cell.state === "nodata" ? "not monitored" : cell.state}`;
+    strip.append(day);
+  }
+  const scale = document.createElement("p");
+  const first = document.createElement("span");
+  first.textContent = `${days} day${days === 1 ? "" : "s"} ago`;
+  const last = document.createElement("span");
+  last.textContent = "Today";
+  scale.append(first, last);
+  const wrapper = document.createDocumentFragment();
+  wrapper.append(strip, scale);
+  return wrapper;
+}
+
+// The log is optional. It ships from a separate repo and did not exist when this
+// page first deployed, so a missing or malformed log costs the bars and nothing
+// else — current status comes from the snapshot either way.
+async function loadBars(root) {
+  const base = root.dataset.logUrl;
+  if (!base) return null;
+  try {
+    const [events, meta] = await Promise.all(
+      [`${base}/events.jsonl`, `${base}/meta.json`].map(async (url) => {
+        const response = await fetch(url, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!response.ok) throw new Error(`${url}: ${response.status}`);
+        return response.text();
+      }),
+    );
+    const parsed = parseEvents(events);
+    const asOf = effectiveAsOf(JSON.parse(meta).reconciled_at, parsed);
+    if (!asOf) return null;
+    const spans = componentSpans(parsed, { asOf });
+    return {
+      cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
+      uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
+    };
+  } catch (error) {
+    console.warn("Status history unavailable; rendering without bars", error);
+    return null;
+  }
+}
+
+function renderStatus(root, data, bars) {
   const overall = summarizeOverallStatus(data);
   const overallPanel = root.querySelector("#status-overall");
   const heading = root.querySelector("#status-overall-heading");
@@ -185,8 +263,21 @@ function renderStatus(root, data) {
       : null,
   );
   groups.hidden = false;
-  renderGroup(root.querySelector("#status-platform"), data.endpoints, "endpoint");
-  renderGroup(root.querySelector("#status-datasets"), data.datasets, "dataset");
+  // Datasets are published in the feed but deliberately not rendered yet: this
+  // page mirrors the sections the retiring uptime.dynamical.org carried, and
+  // per-dataset health was never on it. Re-adding the section later is a page
+  // change only, since the feed already carries them.
+  for (const [selector, group] of [
+    ["#status-endpoints", "endpoint"],
+    ["#status-tools", "tool"],
+  ]) {
+    renderGroup(
+      root.querySelector(selector),
+      data.endpoints.filter((entry) => entry.group === group),
+      bars?.cells,
+      bars?.uptime,
+    );
+  }
 }
 
 function setStale(stale, message) {
@@ -214,6 +305,7 @@ function renderUnavailable(root) {
 }
 
 async function loadStatus(root) {
+  const bars = loadBars(root);
   try {
     const response = await fetch(root.dataset.statusUrl, {
       cache: "no-store",
@@ -225,7 +317,11 @@ async function loadStatus(root) {
     if (!response.ok) {
       throw new Error(`Status request failed: ${response.status}`);
     }
-    renderStatus(root, validateStatusData(await response.json()));
+    // Started before the snapshot is awaited, so a slow log costs only the bars.
+    // Awaiting it inside renderStatus's argument list made a hung log hold the
+    // whole page on "Checking current status…" for the full fetch deadline.
+    const data = validateStatusData(await response.json());
+    renderStatus(root, data, await bars);
   } catch (error) {
     console.error("Unable to load public status", error);
     renderUnavailable(root);

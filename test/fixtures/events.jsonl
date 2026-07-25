@@ -1,0 +1,14 @@
+{"ts":"2026-06-14T19:55:00Z","kind":"coverage","component":"dynamical-org","monitored":true,"state":"operational"}
+{"ts":"2026-06-14T19:55:00Z","kind":"coverage","component":"stac-catalog","monitored":true,"state":"operational"}
+{"ts":"2026-06-14T19:55:00Z","kind":"coverage","component":"wxopticon","monitored":true,"state":"operational"}
+{"ts":"2026-06-23T19:55:00Z","kind":"coverage","component":"scorecard","monitored":true,"state":"operational"}
+{"ts":"2026-06-28T15:55:00Z","kind":"transition","component":"dynamical-org","to":"down"}
+{"ts":"2026-06-28T17:55:00Z","kind":"transition","component":"dynamical-org","to":"operational"}
+{"ts":"2026-07-02T19:55:00Z","kind":"coverage","component":"data-product-reads","monitored":true,"state":"operational"}
+{"ts":"2026-07-12T10:55:00Z","kind":"transition","component":"wxopticon","to":"down"}
+{"ts":"2026-07-13T16:55:00Z","kind":"transition","component":"wxopticon","to":"operational"}
+{"ts":"2026-07-16T19:55:00Z","kind":"coverage","component":"scorecard","monitored":false}
+{"ts":"2026-07-19T19:55:00Z","kind":"coverage","component":"scorecard","monitored":true,"state":"operational"}
+{"ts":"2026-07-21T13:55:00Z","kind":"transition","component":"stac-catalog","to":"down"}
+{"ts":"2026-07-21T14:55:00Z","kind":"transition","component":"stac-catalog","to":"operational"}
+{"ts":"2026-07-24T14:55:00Z","kind":"transition","component":"data-product-reads","to":"down"}
