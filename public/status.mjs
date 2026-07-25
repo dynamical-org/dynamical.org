@@ -1,7 +1,15 @@
+import {
+  componentSpans,
+  dailyBars,
+  effectiveAsOf,
+  parseEvents,
+} from "./status-log.mjs";
+
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
 const STALE_AFTER_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const BAR_DAYS = 90;
 
 function isStatusEntry(entry) {
   return (
@@ -130,7 +138,7 @@ export function formatUptime(uptime) {
   return capped.replace(/\.?0+$/, "");
 }
 
-function renderGroup(list, entries, kind, asOf) {
+function renderGroup(list, entries, kind, asOf, bars) {
   list.replaceChildren();
   for (const entry of entries) {
     const item = document.createElement("li");
@@ -169,11 +177,75 @@ function renderGroup(list, entries, kind, asOf) {
         item.append(detail);
       }
     }
+    const cells = bars?.get(entry.id);
+    if (cells?.length) item.append(barStrip(cells));
     list.append(item);
   }
 }
 
-function renderStatus(root, data) {
+// A flex row of one cell per UTC day. Labelled from cells.length rather than a
+// hardcoded 90 so the claim grows with the evidence: a strip captioned "90 days"
+// that is mostly empty reads as broken rather than as young.
+function barStrip(cells) {
+  const strip = document.createElement("div");
+  strip.className = "status-bars";
+  const down = cells.filter((cell) => cell.state === "down").length;
+  const days = cells.length;
+  strip.setAttribute(
+    "aria-label",
+    down === 0
+      ? `No outages recorded in the last ${days} day${days === 1 ? "" : "s"}`
+      : `${down} of the last ${days} days had an outage`,
+  );
+  for (const cell of cells) {
+    const day = document.createElement("span");
+    day.dataset.day = cell.state;
+    // The bars are decorative in aggregate; the aria-label above carries the
+    // meaning, so individual cells stay out of the accessibility tree.
+    day.setAttribute("aria-hidden", "true");
+    day.title = `${cell.date}: ${cell.state === "nodata" ? "not monitored" : cell.state}`;
+    strip.append(day);
+  }
+  const scale = document.createElement("p");
+  scale.className = "status-bar-scale";
+  const first = document.createElement("span");
+  first.textContent = `${days} day${days === 1 ? "" : "s"} ago`;
+  const last = document.createElement("span");
+  last.textContent = "Today";
+  scale.append(first, last);
+  const wrapper = document.createDocumentFragment();
+  wrapper.append(strip, scale);
+  return wrapper;
+}
+
+// The log is optional. It ships from a separate repo and did not exist when this
+// page first deployed, so a missing or malformed log costs the bars and nothing
+// else — current status comes from the snapshot either way.
+async function loadBars(root) {
+  const base = root.dataset.logUrl;
+  if (!base) return null;
+  try {
+    const [events, meta] = await Promise.all(
+      [`${base}/events.jsonl`, `${base}/meta.json`].map(async (url) => {
+        const response = await fetch(url, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!response.ok) throw new Error(`${url}: ${response.status}`);
+        return response.text();
+      }),
+    );
+    const parsed = parseEvents(events);
+    const asOf = effectiveAsOf(JSON.parse(meta).reconciled_at, parsed);
+    if (!asOf) return null;
+    return dailyBars(componentSpans(parsed, { asOf }), { asOf, days: BAR_DAYS });
+  } catch (error) {
+    console.warn("Status history unavailable; rendering without bars", error);
+    return null;
+  }
+}
+
+function renderStatus(root, data, bars) {
   const overall = summarizeOverallStatus(data);
   const overallPanel = root.querySelector("#status-overall");
   const heading = root.querySelector("#status-overall-heading");
@@ -219,13 +291,23 @@ function renderStatus(root, data) {
       : null,
   );
   groups.hidden = false;
-  renderGroup(
-    root.querySelector("#status-platform"),
-    data.endpoints,
-    "endpoint",
-    new Date(data.generated_at),
-  );
-  renderGroup(root.querySelector("#status-datasets"), data.datasets, "dataset");
+  // Datasets are published in the feed but deliberately not rendered yet: this
+  // page mirrors the sections the retiring uptime.dynamical.org carried, and
+  // per-dataset health was never on it. Re-adding the section later is a page
+  // change only, since the feed already carries them.
+  const asOfFeed = new Date(data.generated_at);
+  for (const [selector, group] of [
+    ["#status-endpoints", "endpoint"],
+    ["#status-tools", "tool"],
+  ]) {
+    renderGroup(
+      root.querySelector(selector),
+      data.endpoints.filter((entry) => entry.group === group),
+      "endpoint",
+      asOfFeed,
+      bars,
+    );
+  }
 }
 
 function setStale(stale, message) {
@@ -264,7 +346,8 @@ async function loadStatus(root) {
     if (!response.ok) {
       throw new Error(`Status request failed: ${response.status}`);
     }
-    renderStatus(root, validateStatusData(await response.json()));
+    const data = validateStatusData(await response.json());
+    renderStatus(root, data, await loadBars(root));
   } catch (error) {
     console.error("Unable to load public status", error);
     renderUnavailable(root);
