@@ -255,6 +255,21 @@ test("uptime is derived from the log, so it cannot contradict the bars", () => {
   assert.equal(cells.filter((cell) => cell.state === "down").length, 1);
 });
 
+test("uptime excludes time before the first displayed UTC day", () => {
+  const spans = spansOf(
+    coverage("2026-01-01T00:00:00Z", C, true, "operational"),
+    transition("2026-04-26T18:00:00Z", C, "down"),
+    transition("2026-04-27T00:00:00Z", C, "operational"),
+  );
+
+  const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
+  const summary = uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C);
+
+  assert.equal(cells[0].date, "2026-04-27");
+  assert.equal(cells.filter((cell) => cell.state === "down").length, 0);
+  assert.equal(summary.uptime, 100);
+});
+
 test("confirmed downtime never presents as a flat 100%", () => {
   const spans = spansOf(
     coverage("2026-01-01T00:00:00Z", C, true, "operational"),
