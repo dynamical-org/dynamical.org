@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   formatUptime,
+  formatUptimeWindow,
   isStatusDataStale,
   summarizeOverallStatus,
   validateStatusData,
@@ -28,7 +29,8 @@ const operationalData = {
       id: "dynamical-org",
       name: "dynamical.org",
       status: "operational",
-      uptime_90d: 99.9,
+      uptime: 99.9,
+      uptime_since: "2026-04-26T19:55:00Z",
     },
   ],
 };
@@ -36,14 +38,31 @@ const operationalData = {
 test("accepts the published feed shape", () => {
   // Returns a normalized copy, not the same reference, so compare by value.
   assert.deepEqual(validateStatusData(fixture), fixture);
-  assert.equal(fixture.datasets.length, 17);
+  // 14, matching the collections in stac.dynamical.org/catalog.json — the
+  // publisher deliberately excludes contrib datasets and source archivers.
+  assert.equal(fixture.datasets.length, 14);
   assert.deepEqual(summarizeOverallStatus(fixture), {
     status: "down",
     incidents: [
       { name: "NOAA HRRR forecast, 48 hour", status: "degraded" },
-      { name: "NASA SMAP Level 3, 36 km, v9", status: "down" },
+      { name: "ECMWF IFS ENS forecast, 15 day, 0.25 degree", status: "down" },
     ],
   });
+});
+
+test("labels the uptime window from what was measured", () => {
+  // The publisher sends the window it actually observed, so the page must never
+  // assert "90 days" for a monitor that has only been running for hours.
+  const now = new Date("2026-07-25T00:00:00Z");
+
+  assert.equal(formatUptimeWindow("2026-04-26T00:00:00Z", now), "90 days");
+  assert.equal(formatUptimeWindow("2026-07-24T00:00:00Z", now), "1 day");
+  assert.equal(formatUptimeWindow("2026-07-24T12:36:00Z", now), "11 hours");
+  assert.equal(formatUptimeWindow("2026-07-24T23:00:00Z", now), "1 hour");
+  assert.equal(formatUptimeWindow("2026-07-24T23:58:00Z", now), "2 minutes");
+  // A window that has not elapsed, or is unparseable, has nothing to claim.
+  assert.equal(formatUptimeWindow("2026-07-25T00:00:00Z", now), null);
+  assert.equal(formatUptimeWindow("not-a-date", now), null);
 });
 
 test("never rounds an imperfect uptime up to 100%", () => {

@@ -89,10 +89,25 @@ function statusMark(status) {
   return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[status];
 }
 
-// uptime_90d is not validated in validateStatusData at all; the load-bearing
-// guard is the Number.isFinite check at the call site in renderGroup, without
-// which a string value would throw here. Trims trailing zeros, and never lets
-// rounding promote an imperfect figure to a flat "100%".
+// The measured window the publisher actually observed, rendered from
+// uptime_since rather than a fixed "90 days". Both detectors were recreated
+// during the Sentry migration, so the real window is hours today and grows on
+// its own; hardcoding a period asserted coverage the data did not have.
+export function formatUptimeWindow(since, now = new Date()) {
+  const seconds = (now.getTime() - Date.parse(since)) / 1000;
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  const days = Math.floor(seconds / 86400);
+  if (days >= 1) return `${days} day${days === 1 ? "" : "s"}`;
+  const hours = Math.floor(seconds / 3600);
+  if (hours >= 1) return `${hours} hour${hours === 1 ? "" : "s"}`;
+  const minutes = Math.max(1, Math.floor(seconds / 60));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+// uptime is not validated in validateStatusData at all; the load-bearing guard
+// is the Number.isFinite check at the call site in renderGroup, without which a
+// string value would throw here. Trims trailing zeros, and never lets rounding
+// promote an imperfect figure to a flat "100%".
 export function formatUptime(uptime) {
   const rounded = uptime.toFixed(3);
   const capped = rounded === "100.000" && uptime < 100 ? "99.999" : rounded;
@@ -130,10 +145,15 @@ function renderGroup(list, entries, kind) {
       detail.append("Last successful update ", time);
       item.append(detail);
     }
-    if (kind === "endpoint" && Number.isFinite(entry.uptime_90d)) {
-      const detail = document.createElement("p");
-      detail.textContent = `${formatUptime(entry.uptime_90d)}% uptime over the last 90 days`;
-      item.append(detail);
+    if (kind === "endpoint" && Number.isFinite(entry.uptime)) {
+      const window = entry.uptime_since
+        ? formatUptimeWindow(entry.uptime_since)
+        : null;
+      if (window) {
+        const detail = document.createElement("p");
+        detail.textContent = `${formatUptime(entry.uptime)}% uptime over the last ${window}`;
+        item.append(detail);
+      }
     }
     list.append(item);
   }

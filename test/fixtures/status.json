@@ -45,8 +45,7 @@
     {
       "id": "ecmwf-ifs-ens-forecast-15-day-0-25-degree",
       "name": "ECMWF IFS ENS forecast, 15 day, 0.25 degree",
-      "status": "operational",
-      "last_successful_update": "2026-07-24T14:20:00Z"
+      "status": "down"
     },
     {
       "id": "noaa-gefs-forecast-35-day",
@@ -79,27 +78,10 @@
       "last_successful_update": "2026-07-24T18:30:00Z"
     },
     {
-      "id": "nasa-smap-level3-36km-v9",
-      "name": "NASA SMAP Level 3, 36 km, v9",
-      "status": "down"
-    },
-    {
       "id": "noaa-gfs-forecast",
       "name": "NOAA GFS forecast",
       "status": "operational",
       "last_successful_update": "2026-07-24T18:00:00Z"
-    },
-    {
-      "id": "noaa-ndvi-cdr-analysis",
-      "name": "NOAA NDVI CDR analysis",
-      "status": "operational",
-      "last_successful_update": "2026-07-23T22:10:00Z"
-    },
-    {
-      "id": "u-arizona-swann-analysis",
-      "name": "University of Arizona SWANN analysis",
-      "status": "operational",
-      "last_successful_update": "2026-07-24T06:00:00Z"
     }
   ],
   "endpoints": [
@@ -107,13 +89,15 @@
       "id": "dynamical-org",
       "name": "dynamical.org",
       "status": "operational",
-      "uptime_90d": 99.982
+      "uptime": 99.982,
+      "uptime_since": "2026-04-25T19:55:00Z"
     },
     {
       "id": "stac-catalog",
       "name": "STAC catalog",
       "status": "operational",
-      "uptime_90d": 100.0
+      "uptime": 100.0,
+      "uptime_since": "2026-07-24T08:30:00Z"
     }
   ]
 }
