@@ -3,11 +3,8 @@ import test from "node:test";
 
 import {
   componentSpans,
-  currentState,
   dailyBars,
   effectiveAsOf,
-  formatDuration,
-  incidents,
   parseEvents,
 } from "../public/status-log.mjs";
 
@@ -98,7 +95,6 @@ test("an open span ends at the as-of, never at now", () => {
       start: Date.parse("2026-07-24T12:00:00Z"),
       end: AS_OF.getTime(),
       state: "operational",
-      closedBy: "asOf",
     },
   ]);
 });
@@ -120,8 +116,8 @@ test("a coverage exit closes the span and leaves a gap, not a state", () => {
   );
 
   assert.deepEqual(
-    spans.get(C).map((s) => [s.state, s.closedBy]),
-    [["operational", "coverage"]],
+    spans.get(C).map((span) => span.state),
+    ["operational"],
   );
 });
 
@@ -139,7 +135,6 @@ test("a transition while uncovered is ignored rather than inventing coverage", (
   );
 
   assert.equal(spans.get(C).length, 1);
-  assert.equal(spans.get(C)[0].closedBy, "coverage");
 });
 
 test("events after the as-of are clamped rather than extending the window", () => {
@@ -149,22 +144,6 @@ test("events after the as-of are clamped rather than extending the window", () =
   );
 
   assert.equal(spans.get(C).at(-1).end, AS_OF.getTime());
-});
-
-// --- current state --------------------------------------------------------
-
-test("current state excludes a component whose coverage ended", () => {
-  // Reporting its last known state would claim knowledge we stopped having.
-  const spans = spansOf(
-    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
-    coverage("2026-07-24T00:00:00Z", C, false),
-    coverage("2026-07-24T00:00:00Z", "stac-catalog", true, "down"),
-  );
-
-  const current = currentState(spans, { asOf: AS_OF });
-
-  assert.equal(current.has(C), false);
-  assert.equal(current.get("stac-catalog"), "down");
 });
 
 // --- bars -----------------------------------------------------------------
@@ -191,7 +170,7 @@ test("a day with any down interval renders down", () => {
   );
 
   const byDate = new Map(
-    dailyBars(spans, { asOf: AS_OF }).get(C).map((c) => [c.date, c.state]),
+    dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).map((c) => [c.date, c.state]),
   );
 
   assert.equal(byDate.get("2026-07-23"), "operational");
@@ -206,20 +185,34 @@ test("a partly uncovered day renders no data rather than operational", () => {
   );
 
   const byDate = new Map(
-    dailyBars(spans, { asOf: AS_OF }).get(C).map((c) => [c.date, c.state]),
+    dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).map((c) => [c.date, c.state]),
   );
 
   assert.equal(byDate.get("2026-07-24"), "nodata");
 });
 
-test("an unknown state does not count as operational coverage", () => {
+test("an unknown state outranks no data rather than hiding behind it", () => {
+  // A state this build cannot read is something we were told; a coverage gap is
+  // nobody watching. Rendering the former as the latter would let a state the
+  // publisher added hide behind "not monitored".
   const spans = spansOf(coverage("2026-07-24T00:00:00Z", C, true, "maintenance"));
 
   const byDate = new Map(
-    dailyBars(spans, { asOf: AS_OF }).get(C).map((c) => [c.date, c.state]),
+    dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).map((c) => [c.date, c.state]),
   );
 
-  assert.equal(byDate.get("2026-07-24"), "nodata");
+  assert.equal(byDate.get("2026-07-24"), "unknown");
+});
+
+test("the first day is clipped to first coverage, not judged against midnight", () => {
+  // Otherwise every strip opens on a permanent grey cell purely because
+  // monitoring began part-way through a day.
+  const spans = spansOf(coverage("2026-07-24T09:00:00Z", C, true, "operational"));
+
+  assert.deepEqual(dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C), [
+    { date: "2026-07-24", state: "operational" },
+    { date: "2026-07-25", state: "operational" },
+  ]);
 });
 
 test("today is judged against the as-of, not against midnight", () => {
@@ -227,7 +220,7 @@ test("today is judged against the as-of, not against midnight", () => {
   // the newest cell is permanently "no data".
   const spans = spansOf(coverage("2026-07-25T00:00:00Z", C, true, "operational"));
 
-  const cells = dailyBars(spans, { asOf: AS_OF }).get(C);
+  const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
 
   assert.deepEqual(cells, [{ date: "2026-07-25", state: "operational" }]);
 });
@@ -236,93 +229,4 @@ test("the window caps at the requested number of days", () => {
   const spans = spansOf(coverage("2026-01-01T00:00:00Z", C, true, "operational"));
 
   assert.equal(dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).length, 90);
-});
-
-// --- incidents ------------------------------------------------------------
-
-test("a resolved outage reports its measured duration", () => {
-  const spans = spansOf(
-    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
-    transition("2026-07-24T10:00:00Z", C, "down"),
-    transition("2026-07-24T12:30:00Z", C, "operational"),
-  );
-
-  assert.deepEqual(incidents(spans, { asOf: AS_OF }), [
-    {
-      component: C,
-      start: new Date("2026-07-24T10:00:00Z"),
-      end: new Date("2026-07-24T12:30:00Z"),
-      durationMs: 9_000_000,
-      ongoing: false,
-      truncated: false,
-    },
-  ]);
-});
-
-test("an outage still open at the as-of is ongoing, not resolved", () => {
-  const spans = spansOf(
-    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
-    transition("2026-07-25T09:00:00Z", C, "down"),
-  );
-
-  const [incident] = incidents(spans, { asOf: AS_OF });
-
-  assert.equal(incident.ongoing, true);
-  assert.equal(incident.end.toISOString(), AS_OF.toISOString());
-});
-
-test("an outage cut short by its monitor going away is truncated", () => {
-  // We know when we stopped watching, not when it recovered, so one real outage
-  // spanning a coverage gap honestly surfaces as two incidents.
-  const spans = spansOf(
-    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
-    transition("2026-07-24T00:00:00Z", C, "down"),
-    coverage("2026-07-24T06:00:00Z", C, false),
-    coverage("2026-07-24T18:00:00Z", C, true, "down"),
-    transition("2026-07-24T20:00:00Z", C, "operational"),
-  );
-
-  const found = incidents(spans, { asOf: AS_OF });
-
-  assert.equal(found.length, 2);
-  assert.deepEqual(
-    found.map((i) => [i.start.toISOString(), i.truncated]),
-    [
-      ["2026-07-24T18:00:00.000Z", false],
-      ["2026-07-24T00:00:00.000Z", true],
-    ],
-  );
-});
-
-test("incidents are newest first across components", () => {
-  const spans = spansOf(
-    coverage("2026-07-20T00:00:00Z", C, true, "operational"),
-    coverage("2026-07-20T00:00:00Z", "stac-catalog", true, "operational"),
-    transition("2026-07-21T00:00:00Z", C, "down"),
-    transition("2026-07-21T01:00:00Z", C, "operational"),
-    transition("2026-07-24T00:00:00Z", "stac-catalog", "down"),
-    transition("2026-07-24T01:00:00Z", "stac-catalog", "operational"),
-  );
-
-  assert.deepEqual(
-    incidents(spans, { asOf: AS_OF }).map((i) => i.component),
-    ["stac-catalog", C],
-  );
-});
-
-test("a healthy log has no incidents", () => {
-  const spans = spansOf(coverage("2026-07-20T00:00:00Z", C, true, "operational"));
-
-  assert.deepEqual(incidents(spans, { asOf: AS_OF }), []);
-});
-
-// --- formatting -----------------------------------------------------------
-
-test("durations read plainly at every scale", () => {
-  assert.equal(formatDuration(30_000), "1 min");
-  assert.equal(formatDuration(9 * 60_000), "9 min");
-  assert.equal(formatDuration(90 * 60_000), "1.5 hours");
-  assert.equal(formatDuration(60 * 60_000), "1 hour");
-  assert.equal(formatDuration(36 * 3_600_000), "1.5 days");
-  assert.equal(formatDuration(24 * 3_600_000), "1 day");
 });

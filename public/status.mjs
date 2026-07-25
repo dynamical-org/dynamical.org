@@ -138,7 +138,7 @@ export function formatUptime(uptime) {
   return capped.replace(/\.?0+$/, "");
 }
 
-function renderGroup(list, entries, kind, asOf, bars) {
+function renderGroup(list, entries, asOf, bars) {
   list.replaceChildren();
   for (const entry of entries) {
     const item = document.createElement("li");
@@ -158,18 +158,7 @@ function renderGroup(list, entries, kind, asOf, bars) {
     header.append(name, state);
     item.append(header);
 
-    if (
-      kind === "dataset" &&
-      Number.isFinite(Date.parse(entry.last_successful_update))
-    ) {
-      const detail = document.createElement("p");
-      const time = document.createElement("time");
-      time.dateTime = entry.last_successful_update;
-      time.textContent = formatTimestamp(entry.last_successful_update);
-      detail.append("Last successful update ", time);
-      item.append(detail);
-    }
-    if (kind === "endpoint" && Number.isFinite(entry.uptime)) {
+    if (Number.isFinite(entry.uptime)) {
       const measured = formatUptimeWindow(entry.uptime_since, asOf);
       if (measured) {
         const detail = document.createElement("p");
@@ -190,13 +179,26 @@ function barStrip(cells) {
   const strip = document.createElement("div");
   strip.className = "status-bars";
   const down = cells.filter((cell) => cell.state === "down").length;
+  const uncovered = cells.filter((cell) => cell.state !== "operational").length - down;
   const days = cells.length;
-  strip.setAttribute(
-    "aria-label",
+  const plural = (n) => (n === 1 ? "day" : "days");
+  // role="img" is required, not decorative: ARIA forbids naming a role-less
+  // element, and a nameless generic is exactly what some screen readers drop —
+  // which would leave this strip announcing nothing, since every cell is
+  // aria-hidden and the per-cell title is pointer-only.
+  strip.setAttribute("role", "img");
+  // The label has to carry coverage as well as outages. A sighted reader sees the
+  // grey cells; describing only outages would tell a screen reader the record is
+  // clean while four days of it are missing.
+  const parts = [
     down === 0
-      ? `No outages recorded in the last ${days} day${days === 1 ? "" : "s"}`
-      : `${down} of the last ${days} days had an outage`,
-  );
+      ? `No outages recorded in the last ${days} ${plural(days)}`
+      : `${down} of the last ${days} ${plural(days)} had an outage`,
+  ];
+  if (uncovered > 0) {
+    parts.push(`${uncovered} ${plural(uncovered)} not monitored`);
+  }
+  strip.setAttribute("aria-label", parts.join("; "));
   for (const cell of cells) {
     const day = document.createElement("span");
     day.dataset.day = cell.state;
@@ -207,7 +209,6 @@ function barStrip(cells) {
     strip.append(day);
   }
   const scale = document.createElement("p");
-  scale.className = "status-bar-scale";
   const first = document.createElement("span");
   first.textContent = `${days} day${days === 1 ? "" : "s"} ago`;
   const last = document.createElement("span");
@@ -303,7 +304,6 @@ function renderStatus(root, data, bars) {
     renderGroup(
       root.querySelector(selector),
       data.endpoints.filter((entry) => entry.group === group),
-      "endpoint",
       asOfFeed,
       bars,
     );
@@ -335,6 +335,7 @@ function renderUnavailable(root) {
 }
 
 async function loadStatus(root) {
+  const bars = loadBars(root);
   try {
     const response = await fetch(root.dataset.statusUrl, {
       cache: "no-store",
@@ -346,8 +347,11 @@ async function loadStatus(root) {
     if (!response.ok) {
       throw new Error(`Status request failed: ${response.status}`);
     }
+    // Started before the snapshot is awaited, so a slow log costs only the bars.
+    // Awaiting it inside renderStatus's argument list made a hung log hold the
+    // whole page on "Checking current status…" for the full fetch deadline.
     const data = validateStatusData(await response.json());
-    renderStatus(root, data, await loadBars(root));
+    renderStatus(root, data, await bars);
   } catch (error) {
     console.error("Unable to load public status", error);
     renderUnavailable(root);

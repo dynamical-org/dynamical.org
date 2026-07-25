@@ -51,8 +51,7 @@ export function parseEvents(text) {
   return events.sort(
     (a, b) =>
       Date.parse(a.ts) - Date.parse(b.ts) ||
-      kindRank(a) - kindRank(b) ||
-      a.component.localeCompare(b.component),
+      kindRank(a) - kindRank(b),
   );
 }
 
@@ -69,30 +68,31 @@ export function effectiveAsOf(reconciledAt, events) {
  * Per-component spans of observed state. Gaps between spans are periods nobody
  * was watching — deliberately absent rather than represented, since "no data"
  * is not a state a component can be in.
- *
- * `closedBy` records why a span ended, which is what lets an incident be
- * reported as resolved, truncated by a monitor going away, or still open.
  */
 export function componentSpans(events, { asOf }) {
   const ceiling = asOf.getTime();
   const spans = new Map();
   const open = new Map();
 
-  const close = (component, end, closedBy) => {
+  const close = (component, end) => {
     const current = open.get(component);
     if (!current) return;
     open.delete(component);
     if (end <= current.start) return; // Zero-width spans render as nothing.
-    spans.get(component).push({ ...current, end, closedBy });
+    spans.get(component).push({ ...current, end });
   };
 
   for (const event of events) {
+    // Unreachable from the page, since effectiveAsOf takes the max over every
+    // event. Kept anyway: "no interval extends past the as-of" is an invariant of
+    // this function, not a property of one caller's arithmetic, and a caller
+    // asking for an earlier as-of is the obvious next use.
     const at = Math.min(Date.parse(event.ts), ceiling);
     const { component } = event;
     if (!spans.has(component)) spans.set(component, []);
 
     if (event.kind === COVERAGE && event.monitored === false) {
-      close(component, at, "coverage");
+      close(component, at);
       continue;
     }
     const state =
@@ -104,25 +104,13 @@ export function componentSpans(events, { asOf }) {
     // A transition while uncovered violates a writer invariant, but the reader
     // stays tolerant — ignoring it is safer than inventing coverage for it.
     if (!current && event.kind === TRANSITION) continue;
-    close(component, at, "transition");
+    close(component, at);
     open.set(component, { start: at, state });
   }
 
-  for (const component of [...open.keys()]) close(component, ceiling, "asOf");
+  for (const component of [...open.keys()]) close(component, ceiling);
   for (const list of spans.values()) list.sort((a, b) => a.start - b.start);
   return spans;
-}
-
-// Current status is the last span, and only if it reaches the as-of: a component
-// whose coverage ended is excluded rather than reported at its last known state,
-// which would be claiming knowledge we stopped having.
-export function currentState(spans, { asOf }) {
-  const current = new Map();
-  for (const [component, list] of spans) {
-    const last = list.at(-1);
-    if (last && last.end >= asOf.getTime()) current.set(component, last.state);
-  }
-  return current;
 }
 
 /**
@@ -137,7 +125,7 @@ export function currentState(spans, { asOf }) {
  * Precedence is down > no data > operational. Hiding a witnessed outage behind
  * "no data" is the wrong direction for this artifact.
  */
-export function dailyBars(spans, { asOf, days = 90 }) {
+export function dailyBars(spans, { asOf, days }) {
   const result = new Map();
   const lastDay = Math.floor(asOf.getTime() / DAY_MS);
   const windowStart = lastDay - days + 1;
@@ -151,12 +139,16 @@ export function dailyBars(spans, { asOf, days = 90 }) {
     const cells = [];
     for (let day = firstDay; day <= lastDay; day += 1) {
       const start = day * DAY_MS;
-      // The final cell is a partial day, so it ends at the as-of rather than at
-      // midnight — otherwise the rest of today counts as unobserved.
+      // Both edges are partial days and both are clipped, symmetrically. The last
+      // ends at the as-of, or the rest of today counts as unobserved; the first
+      // begins at first coverage, or every strip opens on a permanent grey cell
+      // just because monitoring started mid-day. Interior days are unaffected,
+      // since their bounds already sit inside the covered span.
+      const from = Math.max(start, list[0].start);
       const end = Math.min(start + DAY_MS, asOf.getTime());
       cells.push({
         date: new Date(start).toISOString().slice(0, 10),
-        state: dayState(list, start, end),
+        state: dayState(list, from, end),
       });
     }
     result.set(component, cells);
@@ -164,51 +156,23 @@ export function dailyBars(spans, { asOf, days = 90 }) {
   return result;
 }
 
+// Precedence: down > unknown > no data > operational.
+//
+// "unknown" outranking "no data" matters. A state this build does not recognize
+// is something we were told and could not read, which is not the same as nobody
+// watching — and rendering it as a coverage gap would let a state the publisher
+// added hide behind "not monitored", the same direction the down-first rule
+// exists to prevent.
 function dayState(spans, start, end) {
   let operational = 0;
+  let unknown = false;
   for (const span of spans) {
     const overlap = Math.min(span.end, end) - Math.max(span.start, start);
     if (overlap <= 0) continue;
     if (span.state === "down") return "down";
-    if (span.state === "operational") operational += overlap;
+    if (span.state === "unknown") unknown = true;
+    else operational += overlap;
   }
+  if (unknown) return "unknown";
   return operational >= end - start ? "operational" : "nodata";
-}
-
-/**
- * Every `down` span, newest first.
- *
- * A span truncated by its monitor going away is reported as such rather than as
- * resolved: we know when we stopped watching, not when it recovered. One real
- * outage spanning a coverage gap therefore surfaces as two incidents, the first
- * truncated, which is honest about what was actually observed.
- */
-export function incidents(spans, { asOf }) {
-  const out = [];
-  for (const [component, list] of spans) {
-    for (const span of list) {
-      if (span.state !== "down") continue;
-      out.push({
-        component,
-        start: new Date(span.start),
-        end: new Date(span.end),
-        durationMs: span.end - span.start,
-        ongoing: span.closedBy === "asOf" && span.end >= asOf.getTime(),
-        truncated: span.closedBy === "coverage",
-      });
-    }
-  }
-  return out.sort((a, b) => b.start - a.start);
-}
-
-export function formatDuration(ms) {
-  const minutes = Math.max(1, Math.round(ms / 60_000));
-  if (minutes < 60) return `${minutes} min`;
-  const hours = minutes / 60;
-  if (hours < 24) {
-    const rounded = Math.round(hours * 10) / 10;
-    return `${rounded} ${rounded === 1 ? "hour" : "hours"}`;
-  }
-  const days = Math.round((hours / 24) * 10) / 10;
-  return `${days} ${days === 1 ? "day" : "days"}`;
 }
