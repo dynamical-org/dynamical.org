@@ -124,13 +124,16 @@ test("pipeline page links to webhooks and the integration guide", () => {
   assert.match(template, /Dashed segment: forecast horizon not yet published/);
 });
 
-test("uptime groups data-serving and website checks under Core", () => {
+test("uptime uses light section headings without subtitles or rules", () => {
   const template = readFileSync(
     new URL("../content/status.njk", import.meta.url),
     "utf8",
   );
   assert.match(template, />Core</);
-  assert.match(template, />Data-serving and website</);
+  assert.match(template, /--index-row-border: 0/);
   assert.doesNotMatch(template, />Endpoints</);
+  assert.doesNotMatch(template, /Data-serving and website/);
+  assert.doesNotMatch(template, /Built on top of the data/);
   assert.doesNotMatch(template, /The data-serving path/);
+  assert.doesNotMatch(template, /\.status-groups section > header/);
 });
