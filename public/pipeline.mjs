@@ -1,7 +1,14 @@
+import {
+  agencyHealth,
+  renderHealth,
+  systemHealth,
+} from "./status-health.mjs";
+import { setupTimeToggle } from "./status-time.mjs";
+
 const POLL_INTERVAL_MS = 15_000;
+const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
-const TIME_MODE_KEY = "wxopticon:time-mode";
 const DASHBOARD_VERSION = 1;
 
 function hasTimestamp(value) {
@@ -47,15 +54,12 @@ export function validateDashboard(data) {
 }
 
 export function agencySummary(advisories) {
-  const active = advisories ?? [];
-  if (active.length === 0) {
-    return { state: "nominal", label: "nominal" };
-  }
-  const agencies = [...new Set(active.map(({ agency }) => agency.toUpperCase()))];
-  return {
-    state: "advisory",
-    label: `${agencies.join(", ")} advisor${active.length === 1 ? "y" : "ies"}`,
-  };
+  const health = agencyHealth(advisories ?? []);
+  return { state: health.state, label: health.value };
+}
+
+export function displaySource(source) {
+  return source?.replace(/^https?:\/\//, "") ?? "—";
 }
 
 function productsOf(snapshot) {
@@ -131,15 +135,18 @@ function initLabel(timestamp, local) {
   return element("span", null, [element("strong", null, date), time]);
 }
 
-function formatTime(timestamp, local) {
-  return new Intl.DateTimeFormat(undefined, {
+function formatTime(timestamp, local, includeZone = true) {
+  const options = {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZone: local ? undefined : "UTC",
-    timeZoneName: "short",
-  }).format(new Date(timestamp));
+  };
+  if (includeZone) options.timeZoneName = "short";
+  return new Intl.DateTimeFormat(undefined, options).format(
+    new Date(timestamp),
+  );
 }
 
 export function clockTime(timestamp, timeZone = "UTC") {
@@ -153,11 +160,15 @@ export function clockTime(timestamp, timeZone = "UTC") {
 
 function timeNode(timestamp) {
   return element("span", null, [
-    element("span", { class: "pipeline-time-utc" }, formatTime(timestamp, false)),
+    element(
+      "span",
+      { class: "pipeline-time-utc" },
+      formatTime(timestamp, false, false),
+    ),
     element(
       "span",
       { class: "pipeline-time-local-only" },
-      formatTime(timestamp, true),
+      formatTime(timestamp, true, false),
     ),
   ]);
 }
@@ -290,7 +301,7 @@ function renderStructure(app, dashboard, rows) {
           element("div", null, [
             element("strong", null, product.row_label),
             element("div", { class: "pipeline-source-meta" }, [
-              element("div", null, product.source ?? "—"),
+              element("div", null, displaySource(product.source)),
               element("div", null, `${product.cadence_hours ?? "—"}h init cadence`),
               element("div", null, `${product.init_hours?.join("/") || "—"}z`),
               advisory,
@@ -497,10 +508,7 @@ function hydrateEta(row, product, now, local) {
 }
 
 function renderAdvisories(app, advisories, rows) {
-  const status = app.querySelector('[data-slot="agency-status"]');
-  const summary = agencySummary(advisories);
-  status.dataset.state = summary.state;
-  status.querySelector("strong").textContent = summary.label;
+  renderHealth(app, "agency-health", agencyHealth(advisories));
 
   for (const row of rows.values()) {
     const marker = row.querySelector('[data-slot="row-advisory"]');
@@ -543,6 +551,7 @@ function renderAdvisories(app, advisories, rows) {
 
 function renderSnapshot(app, snapshot, rows, now) {
   const local = document.body.classList.contains("pipeline-time-local");
+  app.querySelector('[data-slot="time-control"]').hidden = false;
   app
     .querySelector('[data-slot="generated-at"]')
     .replaceChildren(timeNode(snapshot.generated_at));
@@ -567,13 +576,14 @@ function start(app) {
   const rows = new Map();
   const ribbon = app.querySelector('[data-slot="ribbon"]');
   const banners = app.querySelector('[data-slot="banners"]');
-  const timeToggle = app.querySelector("#pipeline-time-toggle");
+  const timeToggle = app.querySelector("#status-time-toggle");
   const historyButton = app.querySelector("#pipeline-history-toggle");
   const historyPanel = app.querySelector("#pipeline-history-panel");
   const historyRange = app.querySelector("#pipeline-history-range");
   const scrubLabel = app.querySelector('[data-slot="scrub-label"]');
   const scrubError = app.querySelector('[data-slot="scrub-error"]');
   const returnLive = app.querySelector('[data-slot="return-live"]');
+  const statusUrl = app.querySelector(".status-health").dataset.statusUrl;
 
   let latest = null;
   let mode = "live";
@@ -590,10 +600,9 @@ function start(app) {
     renderSnapshot(app, snapshot, rows, now);
   }
 
-  function setTimeMode(local, persist) {
+  function setTimeMode(local) {
     document.body.classList.toggle("pipeline-time-local", local);
     timeToggle.value = local ? "local" : "utc";
-    if (persist) localStorage.setItem(TIME_MODE_KEY, local ? "local" : "utc");
     if (displayedSnapshot) {
       displaySnapshot(
         displayedSnapshot,
@@ -619,8 +628,6 @@ function start(app) {
       structureSignature = nextSignature;
     }
     banners.replaceChildren();
-    app.querySelector('[data-slot="window-days"]').textContent =
-      latest.window_days ?? "—";
     ribbon.hidden =
       Date.now() - Date.parse(latest.generated_at) <= STALE_AFTER_MS;
     displaySnapshot(latest, Date.now());
@@ -652,6 +659,18 @@ function start(app) {
       } else {
         showError(`Couldn't load pipeline status (${error.message}).`);
       }
+    }
+  }
+
+  async function loadSystemHealth() {
+    try {
+      renderHealth(
+        app,
+        "system-health",
+        systemHealth(await fetchJson(statusUrl, "no-cache")),
+      );
+    } catch {
+      renderHealth(app, "system-health", systemHealth(null));
     }
   }
 
@@ -739,9 +758,6 @@ function start(app) {
     }
   }
 
-  timeToggle.addEventListener("change", () =>
-    setTimeMode(timeToggle.value === "local", true),
-  );
   historyButton.addEventListener("click", () => {
     if (historyPanel.hidden) openHistory();
     else if (mode === "scrub") resumeLive(true);
@@ -792,8 +808,10 @@ function start(app) {
     }
   });
 
-  setTimeMode(localStorage.getItem(TIME_MODE_KEY) === "local", false);
+  setTimeMode(setupTimeToggle(timeToggle, setTimeMode));
+  loadSystemHealth();
   tick();
+  setInterval(loadSystemHealth, HEALTH_REFRESH_INTERVAL_MS);
   pollTimer = setInterval(tick, POLL_INTERVAL_MS);
   countdownTimer = setInterval(updateLiveCountdowns, 1000);
 }

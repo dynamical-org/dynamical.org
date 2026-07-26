@@ -118,7 +118,7 @@ module.exports = function (eleventyConfig) {
   // Gated on its own flag, not on STATUS_URL. STATUS_URL exists so the page can
   // be pointed at a real alternate feed (staging, a moved bucket), and gating on
   // it would mean any such build also published fabricated status data at a
-  // public URL. Only `npm run start:status` sets STATUS_FIXTURE.
+  // public URL. Only the local status preview scripts set STATUS_FIXTURE.
   //
   // Restamped with build time rather than copied: the committed fixtures pin their
   // timestamps so tests can assert on them, which would otherwise make the

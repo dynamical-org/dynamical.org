@@ -7,10 +7,16 @@ import {
   barTooltip,
   clockTime,
   detailRows,
+  displaySource,
   etaLineText,
   initParts,
   validateDashboard,
 } from "../public/pipeline.mjs";
+import {
+  agencyHealth,
+  systemHealth,
+} from "../public/status-health.mjs";
+import { localZoneLabel } from "../public/status-time.mjs";
 
 function dashboard() {
   return {
@@ -74,6 +80,39 @@ test("summarizes upstream agency advisories without changing pipeline state", ()
   );
 });
 
+test("summarizes shared system and agency health", () => {
+  assert.deepEqual(
+    systemHealth({
+      endpoints: [
+        { status: "operational" },
+        { status: "operational" },
+      ],
+    }),
+    { state: "operational", label: "all systems", value: "operational" },
+  );
+  assert.deepEqual(
+    systemHealth({
+      endpoints: [{ status: "operational" }, { status: "down" }],
+    }),
+    { state: "down", label: "systems", value: "disrupted" },
+  );
+  assert.deepEqual(systemHealth({ endpoints: [{ status: "new-state" }] }), {
+    state: "degraded",
+    label: "some systems",
+    value: "degraded",
+  });
+  assert.deepEqual(agencyHealth([]), {
+    state: "nominal",
+    label: "upstream forecast sources",
+    value: "nominal",
+  });
+  assert.deepEqual(agencyHealth([{ agency: "noaa" }]), {
+    state: "advisory",
+    label: "upstream forecast sources",
+    value: "NOAA advisory",
+  });
+});
+
 test("formats init labels in UTC and the selected local timezone", () => {
   const timestamp = "2026-07-26T00:00:00Z";
   assert.deepEqual(initParts(timestamp), { date: "07-26", time: "00z" });
@@ -81,6 +120,12 @@ test("formats init labels in UTC and the selected local timezone", () => {
     date: "07-25",
     time: "19 CDT",
   });
+});
+
+test("shortens displayed web sources without changing other schemes", () => {
+  assert.equal(displaySource("https://nomads.ncep.noaa.gov"), "nomads.ncep.noaa.gov");
+  assert.equal(displaySource("http://example.com/data"), "example.com/data");
+  assert.equal(displaySource("s3://noaa-gfs-bdp-pds"), "s3://noaa-gfs-bdp-pds");
 });
 
 test("preserves run and lead-group detail in bar tooltips", () => {
@@ -174,7 +219,7 @@ test("retains live horizon status, time, and duration in details", () => {
   );
 });
 
-test("status pages share the uptime, pipeline, and webhooks subnav", () => {
+test("status pages share the uptime, pipeline, and pipeline webhooks subnav", () => {
   const base = readFileSync(
     new URL("../_includes/base.njk", import.meta.url),
     "utf8",
@@ -192,31 +237,123 @@ test("status pages share the uptime, pipeline, and webhooks subnav", () => {
     "utf8",
   );
 
-  assert.match(status, /include "status-subnav\.njk"/);
+  assert.match(status, /from "status-subnav\.njk" import statusSubnav/);
+  assert.match(status, /call statusSubnav\(statusSection, statusFeed, pipelineAssetsBase\)/);
   assert.match(status, /statusSection: uptime/);
   assert.match(status, /href="\/status\/pipeline\/"/);
   assert.doesNotMatch(status, /noindex: true|sitemap: false/);
-  assert.match(pipeline, /include "status-subnav\.njk"/);
+  assert.match(pipeline, /from "status-subnav\.njk" import statusSubnav/);
+  assert.match(pipeline, /call statusSubnav\(statusSection, statusFeed, pipelineAssetsBase\)/);
   assert.doesNotMatch(pipeline, /noindex: true|sitemap: false/);
+  assert.match(subnav, /class="status-subnav-row"/);
+  assert.match(subnav, /class="status-subnav" role="navigation" aria-label="Status"/);
+  assert.doesNotMatch(subnav, /<nav class="status-subnav"/);
+  assert.match(subnav, /\{\{ caller\(\) \}\}/);
   assert.match(subnav, />uptime</);
   assert.match(subnav, /pipeline/);
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  assert.match(
+    subnav,
+    /href="https:\/\/status\.dynamical\.org\/webhooks" target="_blank" rel="noopener"/,
+  );
+  assert.match(subnav, />pipeline webhooks<\/a>/);
+  assert.match(subnav, /data-slot="system-health"/);
+  assert.match(subnav, /data-slot="agency-health"/);
+  assert.match(subnav, /upstream forecast sources/);
+  assert.doesNotMatch(subnav, /weather agencies/);
+  assert.match(subnav, /statusSection == "pipeline"/);
+  assert.match(subnav, /pipeline-history-toggle/);
+  assert.doesNotMatch(subnav, /pipeline-controls-actions/);
+  assert.match(status, /id="status-time-toggle"/);
+  assert.match(pipeline, /id="status-time-toggle"/);
   assert.equal((base.match(/href="\/status\/"/g) ?? []).length, 2);
 });
 
-test("pipeline page links to webhooks and the integration guide", () => {
+test("primary navigation styles the current section like the status subnav", () => {
+  const base = readFileSync(
+    new URL("../_includes/base.njk", import.meta.url),
+    "utf8",
+  );
+  const mainCss = readFileSync(
+    new URL("../public/main.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(base, /class="primary-nav"/);
+  for (const section of ["catalog", "research", "updates", "about", "podcast", "status"]) {
+    assert.match(base, new RegExp(`>${section}<`));
+  }
+  assert.equal((base.match(/aria-current="page"/g) ?? []).length, 6);
+  assert.match(
+    mainCss,
+    /\.primary-nav \[aria-current="page"\],[\s\S]*\.status-subnav \[aria-current="page"\][\s\S]*font-weight: 700;[\s\S]*text-decoration: none;/,
+  );
+});
+
+test("the shared time control shows only the browser's local zone", () => {
+  const label = localZoneLabel(new Date("2026-07-26T12:00:00Z"));
+  assert.ok(label.length > 0);
+  assert.doesNotMatch(label, /local time/i);
+});
+
+test("either local status preview serves both fixture feeds", () => {
+  const { scripts } = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  for (const name of ["start:status", "start:pipeline"]) {
+    assert.match(scripts[name], /STATUS_FIXTURE=1/);
+    assert.match(scripts[name], /PIPELINE_FIXTURE=1/);
+  }
+});
+
+test("pipeline page uses the shared subnav without a separate footer", () => {
   const template = readFileSync(
     new URL("../content/status-pipeline.njk", import.meta.url),
     "utf8",
   );
-
-  assert.match(template, /https:\/\/status\.dynamical\.org\/webhooks/);
-  assert.match(template, /\/research\/when-the-forecast-is-ready\//);
-  assert.match(
-    template,
-    /weather agencies[\s\S]*pipeline-time-toggle/,
+  const subnav = readFileSync(
+    new URL("../_includes/status-subnav.njk", import.meta.url),
+    "utf8",
   );
-  assert.match(template, /Dashed segment: forecast horizon not yet published/);
+  const pipelineCss = readFileSync(
+    new URL("../public/pipeline.css", import.meta.url),
+    "utf8",
+  );
+  const pipelineScript = readFileSync(
+    new URL("../public/pipeline.mjs", import.meta.url),
+    "utf8",
+  );
+  const mainCss = readFileSync(
+    new URL("../public/main.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  assert.match(template, /forecast hours still expected/);
+  assert.match(template, /no monitoring data/);
+  assert.doesNotMatch(template, /pipeline-footer|window-days/);
+  assert.doesNotMatch(pipelineScript, /window-days/);
+  assert.match(template, /style="margin-top: 4rem;"/);
+  assert.match(template, /status-page-updated[\s\S]*status-time-toggle/);
+  assert.doesNotMatch(template, /Local time|Coordinated Universal Time/);
+  assert.doesNotMatch(template, /Data product pipeline|Forecast-run arrival/);
+  assert.match(
+    pipelineCss,
+    /\.pipeline-bar-segment\.g-pending,[\s\S]*\.pipeline-bar-segment\.g-unobserved\s*{\s*border: 1px dotted var\(--pipeline-unobserved\)/,
+  );
+  assert.match(
+    pipelineCss,
+    /\.pipeline-bar\[data-status="unobserved"\] \.pipeline-bar-track\s*{\s*border: 1px dotted/,
+  );
+  assert.doesNotMatch(
+    mainCss,
+    /\.status-subnav\s*{[^}]*font-size:/s,
+  );
+  assert.match(
+    mainCss,
+    /:where\(\.content\) :is\(ul, ol\):not\(\[class\]\) > li \+ li/,
+  );
+  assert.doesNotMatch(mainCss, /\.content \.status-health li \+ li/);
 });
 
 test("uptime uses light section headings without subtitles or rules", () => {
@@ -224,8 +361,17 @@ test("uptime uses light section headings without subtitles or rules", () => {
     new URL("../content/status.njk", import.meta.url),
     "utf8",
   );
+  const script = readFileSync(
+    new URL("../public/status.mjs", import.meta.url),
+    "utf8",
+  );
   assert.match(template, />Core</);
   assert.match(template, /--index-row-border: 0/);
+  assert.doesNotMatch(template, /class="status-(?:overall|groups)"/);
+  assert.doesNotMatch(
+    script,
+    /All monitored public endpoints and tools are reporting normally\./,
+  );
   assert.doesNotMatch(template, />Endpoints</);
   assert.doesNotMatch(template, /Data-serving and website/);
   assert.doesNotMatch(template, /Built on top of the data/);

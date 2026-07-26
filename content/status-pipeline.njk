@@ -9,42 +9,38 @@ pageStylesheet: /pipeline.css
 ---
 
 <main class="content pipeline-page" id="pipeline-app"
-  data-assets-base="{{ pipelineAssetsBase }}">
-  <header class="status-page-heading">
-    <h1>dynamical.org status</h1>
-    <p class="pipeline-updated">Updated <span data-slot="generated-at">—</span></p>
-  </header>
-  {% include "status-subnav.njk" %}
-
-  <h2>Data product pipeline</h2>
-  <p>Forecast-run arrival timing from the upstream sources we use.</p>
+  data-assets-base="{{ pipelineAssetsBase }}" style="margin-top: 4rem;">
+  {% from "status-subnav.njk" import statusSubnav %}
+  {% call statusSubnav(statusSection, statusFeed, pipelineAssetsBase) %}
+    <p class="status-page-updated">
+      Updated <span data-slot="generated-at">—</span>
+      <label data-slot="time-control" hidden>
+        <span class="visually-hidden">Time zone</span>
+        <select class="status-time-toggle" id="status-time-toggle">
+          <option value="local">—</option>
+          <option value="utc">UTC</option>
+        </select>
+      </label>
+    </p>
+  {% endcall %}
 
   <div class="pipeline-ribbon" data-slot="ribbon" hidden>
     Pipeline data is more than 10 minutes old — it may be stalled.
   </div>
   <div data-slot="banners" aria-live="polite"></div>
 
-  <div class="pipeline-controls">
-    <div class="pipeline-controls-primary">
-      <span class="pipeline-agencies" data-slot="agency-status" role="status"
-        title="NOAA, ECMWF, and DWD dissemination advisories">
-        <span class="pipeline-agency-dot" aria-hidden="true"></span>
-        weather agencies <strong>checking…</strong>
-      </span>
-      <label>
-        <span class="visually-hidden">Time zone</span>
-        <select id="pipeline-time-toggle">
-          <option value="utc">Coordinated Universal Time (UTC)</option>
-          <option value="local">Local time</option>
-        </select>
-      </label>
-    </div>
-    <button type="button" id="pipeline-history-toggle" aria-expanded="false"
-      aria-controls="pipeline-history-panel">history</button>
+  <div class="pipeline-legend" aria-label="Pipeline bar legend">
+    <span>
+      <span class="pipeline-legend-mark pipeline-legend-mark--pending"
+        aria-hidden="true"></span>
+      forecast hours still expected
+    </span>
+    <span>
+      <span class="pipeline-legend-mark pipeline-legend-mark--unobserved"
+        aria-hidden="true"></span>
+      no monitoring data
+    </span>
   </div>
-  <p class="pipeline-legend">
-    Dashed segment: forecast horizon not yet published. Dashed whole bar: no probe visibility.
-  </p>
 
   <div id="pipeline-history-panel" hidden>
     <span data-slot="scrub-label" aria-hidden="true">—</span>
@@ -58,14 +54,6 @@ pageStylesheet: /pipeline.css
   <div data-slot="groups" aria-live="polite">
     <p data-slot="loading">Loading pipeline status…</p>
   </div>
-
-  <footer class="pipeline-footer">
-    <span><span data-slot="window-days">—</span>-day rolling window · polls every 15s</span>
-    <span>
-      <a href="https://status.dynamical.org/webhooks">webhooks</a> ·
-      <a href="/research/when-the-forecast-is-ready/">integration guide</a>
-    </span>
-  </footer>
 
   <noscript><p>Pipeline status requires JavaScript.</p></noscript>
 </main>

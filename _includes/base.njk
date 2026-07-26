@@ -107,15 +107,15 @@
     </script>{% endif %}
   </head>
   <body>
-    <nav aria-label="Primary">
+    <nav class="primary-nav" aria-label="Primary">
       <ul>
         <li><a href="/" class="nav-lockup"><picture><source srcset="https://assets.dynamical.org/identity/logo/lockup/lockup-white.svg" media="(prefers-color-scheme: dark)"><img src="https://assets.dynamical.org/identity/logo/lockup/lockup-black.svg" alt="dynamical.org" height="30"></picture></a></li>
-        <li><a href="/catalog">catalog</a></li>
-        <li><a href="/#research">research</a></li>
-        <li><a href="/updates">updates</a></li>
-        <li><a href="/about">about</a></li>
-        <li><a href="/podcast">podcast</a></li>
-        <li><a href="/status/">status</a></li>
+        <li><a href="/catalog"{% if page.url == "/catalog/" or "/catalog/" in page.url %} aria-current="page"{% endif %}>catalog</a></li>
+        <li><a href="/#research"{% if "/research/" in page.url %} aria-current="page"{% endif %}>research</a></li>
+        <li><a href="/updates"{% if page.url == "/updates/" or "/updates/" in page.url %} aria-current="page"{% endif %}>updates</a></li>
+        <li><a href="/about"{% if page.url == "/about/" %} aria-current="page"{% endif %}>about</a></li>
+        <li><a href="/podcast"{% if page.url == "/podcast/" or "/podcast/" in page.url %} aria-current="page"{% endif %}>podcast</a></li>
+        <li><a href="/status/"{% if page.url == "/status/" or "/status/" in page.url %} aria-current="page"{% endif %}>status</a></li>
       </ul>
     </nav>
     {{ content | safe }}
