@@ -219,7 +219,7 @@ test("retains live horizon status, time, and duration in details", () => {
   );
 });
 
-test("status pages share the uptime, pipeline, and webhooks subnav", () => {
+test("status pages share the uptime, pipeline, and pipeline webhooks subnav", () => {
   const base = readFileSync(
     new URL("../_includes/base.njk", import.meta.url),
     "utf8",
@@ -246,6 +246,7 @@ test("status pages share the uptime, pipeline, and webhooks subnav", () => {
   assert.match(subnav, />uptime</);
   assert.match(subnav, /pipeline/);
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  assert.match(subnav, />pipeline webhooks<\/a>/);
   assert.match(subnav, /data-slot="system-health"/);
   assert.match(subnav, /data-slot="agency-health"/);
   assert.match(subnav, /upstream forecast sources/);
