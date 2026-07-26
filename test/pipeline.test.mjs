@@ -246,6 +246,10 @@ test("status pages share the uptime, pipeline, and pipeline webhooks subnav", ()
   assert.match(subnav, />uptime</);
   assert.match(subnav, /pipeline/);
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  assert.match(
+    subnav,
+    /href="https:\/\/status\.dynamical\.org\/webhooks" target="_blank" rel="noopener"/,
+  );
   assert.match(subnav, />pipeline webhooks<\/a>/);
   assert.match(subnav, /data-slot="system-health"/);
   assert.match(subnav, /data-slot="agency-health"/);
