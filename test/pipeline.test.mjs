@@ -246,6 +246,8 @@ test("status pages share the uptime, pipeline, and pipeline webhooks subnav", ()
   assert.match(pipeline, /call statusSubnav\(statusSection, statusFeed, pipelineAssetsBase\)/);
   assert.doesNotMatch(pipeline, /noindex: true|sitemap: false/);
   assert.match(subnav, /class="status-subnav-row"/);
+  assert.match(subnav, /class="status-subnav" role="navigation" aria-label="Status"/);
+  assert.doesNotMatch(subnav, /<nav class="status-subnav"/);
   assert.match(subnav, /\{\{ caller\(\) \}\}/);
   assert.match(subnav, />uptime</);
   assert.match(subnav, /pipeline/);
