@@ -145,6 +145,19 @@ a:visited {
   color: var(--link-visited-color);
 }
 
+.status-subnav {
+  display: flex;
+  gap: 0.8rem;
+  margin: 0.6rem 0 3rem;
+  font-size: 1.2rem;
+}
+
+.status-subnav [aria-current="page"] {
+  color: var(--text-color);
+  font-weight: 700;
+  text-decoration: none;
+}
+
 /* Prevent visited-link styling from recoloring interactive SVG maps (e.g. scorecard). */
 #map-container svg a:link,
 #map-container svg a:visited,

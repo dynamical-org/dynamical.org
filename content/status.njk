@@ -30,7 +30,7 @@ statusIncidentFeedEnabled: true
     text-align: right;
   }
   #status-as-of.status-stale {
-    color: var(--pill-degraded-fg);
+    color: var(--pill-degraded-bg);
   }
   .status-overall {
     margin-top: 1rem;
@@ -167,6 +167,7 @@ statusIncidentFeedEnabled: true
     <h1>dynamical.org status</h1>
     <p id="status-as-of" role="status"><strong>As of —</strong></p>
   </header>
+  {% include "status-subnav.njk" %}
 
   <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading" aria-live="polite">
     <h2 id="status-overall-heading">Checking current status…</h2>
@@ -196,7 +197,7 @@ statusIncidentFeedEnabled: true
 
   <p style="margin-top: 4rem;">
     For per-model run timing and upstream source arrival history, see the
-    <a href="https://status.dynamical.org">detailed data arrival status</a>.
+    <a href="/status/pipeline/">data product pipeline</a>.
   </p>
 
   <section aria-labelledby="status-incident-heading" style="margin-top: 4rem;">

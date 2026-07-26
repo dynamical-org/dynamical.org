@@ -1,0 +1,72 @@
+---
+layout: base.njk
+title: data product pipeline status
+description: Per-model production status and upstream forecast arrival timing.
+permalink: /status/pipeline/
+noindex: true
+sitemap: false
+hideLatestPopup: true
+statusSection: pipeline
+pageStylesheet: /pipeline.css
+---
+
+<main class="content pipeline-page" id="pipeline-app"
+  data-assets-base="{{ pipelineAssetsBase }}">
+  <header class="status-page-heading">
+    <h1>dynamical.org status</h1>
+    <p class="pipeline-updated">Updated <span data-slot="generated-at">—</span></p>
+  </header>
+  {% include "status-subnav.njk" %}
+
+  <h2>Data product pipeline</h2>
+  <p>Forecast-run arrival timing from the upstream sources we use.</p>
+
+  <div class="pipeline-ribbon" data-slot="ribbon" hidden>
+    Pipeline data is more than 10 minutes old — it may be stalled.
+  </div>
+  <div data-slot="banners" aria-live="polite"></div>
+
+  <div class="pipeline-controls">
+    <div class="pipeline-controls-primary">
+      <span class="pipeline-agencies" data-slot="agency-status" role="status"
+        title="NOAA, ECMWF, and DWD dissemination advisories">
+        <span class="pipeline-agency-dot" aria-hidden="true"></span>
+        weather agencies <strong>checking…</strong>
+      </span>
+      <label>
+        <span class="visually-hidden">Time zone</span>
+        <select id="pipeline-time-toggle">
+          <option value="utc">Coordinated Universal Time (UTC)</option>
+          <option value="local">Local time</option>
+        </select>
+      </label>
+    </div>
+    <button type="button" id="pipeline-history-toggle" aria-expanded="false"
+      aria-controls="pipeline-history-panel">history</button>
+  </div>
+
+  <div id="pipeline-history-panel" hidden>
+    <span data-slot="scrub-label" aria-hidden="true">—</span>
+    <input type="range" id="pipeline-history-range" min="0" max="0" value="0"
+      step="1" aria-label="Pipeline history" aria-valuetext="live" disabled>
+    <p data-slot="scrub-error" hidden></p>
+    <button type="button" data-slot="return-live" hidden>return to live</button>
+  </div>
+
+  <div data-slot="advisories"></div>
+  <div data-slot="groups" aria-live="polite">
+    <p data-slot="loading">Loading pipeline status…</p>
+  </div>
+
+  <footer class="pipeline-footer">
+    <span><span data-slot="window-days">—</span>-day rolling window · polls every 15s</span>
+    <span>
+      <a href="https://status.dynamical.org/webhooks">webhooks</a> ·
+      <a href="/research/when-the-forecast-is-ready/">integration guide</a>
+    </span>
+  </footer>
+
+  <noscript><p>Pipeline status requires JavaScript.</p></noscript>
+</main>
+
+<script type="module" src="/pipeline.mjs"></script>

@@ -285,4 +285,8 @@ test("status page uses the requested heading and replaces stale as-of copy", () 
     STALE_MESSAGE,
     "Stale: status page experiencing delayed updates",
   );
+  assert.match(
+    template,
+    /#status-as-of\.status-stale\s*\{\s*color: var\(--pill-degraded-bg\)/,
+  );
 });

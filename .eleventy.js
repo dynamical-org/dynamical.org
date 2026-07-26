@@ -168,6 +168,60 @@ module.exports = function (eleventyConfig) {
     );
   }
 
+  if (process.env.PIPELINE_FIXTURE === "1") {
+    const source = JSON.parse(
+      fs.readFileSync("./test/fixtures/pipeline-dashboard.json", "utf8"),
+    );
+    const shiftFixture = (target) => {
+      const shift = target.getTime() - Date.parse(source.generated_at);
+      return JSON.parse(
+        JSON.stringify(source, (_key, value) => {
+          if (
+            typeof value === "string" &&
+            /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) &&
+            Number.isFinite(Date.parse(value))
+          ) {
+            return new Date(Date.parse(value) + shift).toISOString();
+          }
+          return value;
+        }),
+      );
+    };
+    const now = new Date();
+    const snapshotTime = new Date(now.getTime() - 30 * 60 * 1000);
+    const historyKey = (date) =>
+      date
+        .toISOString()
+        .replace(/\.\d{3}Z$/, "Z")
+        .replaceAll(":", "-");
+    const snapshotKey = historyKey(snapshotTime);
+
+    eleventyConfig.addTemplate(
+      "pipeline-dashboard-fixture.njk",
+      JSON.stringify(shiftFixture(now)),
+      {
+        permalink: "/pipeline-preview/dashboard.json",
+        eleventyExcludeFromCollections: true,
+      },
+    );
+    eleventyConfig.addTemplate(
+      "pipeline-history-index-fixture.njk",
+      JSON.stringify([historyKey(now), snapshotKey]),
+      {
+        permalink: "/pipeline-preview/history/index.json",
+        eleventyExcludeFromCollections: true,
+      },
+    );
+    eleventyConfig.addTemplate(
+      "pipeline-history-snapshot-fixture.njk",
+      JSON.stringify(shiftFixture(snapshotTime)),
+      {
+        permalink: `/pipeline-preview/history/${snapshotKey}.json`,
+        eleventyExcludeFromCollections: true,
+      },
+    );
+  }
+
   // The includes/layouts dir (`../_includes`) lives outside the `content` input
   // dir, so `--serve` doesn't watch it by default — edits to base.njk and other
   // layouts wouldn't trigger a rebuild. Watch it explicitly.
