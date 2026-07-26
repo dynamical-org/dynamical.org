@@ -2,6 +2,8 @@ function unavailable(label) {
   return { state: "unavailable", label, value: "unavailable" };
 }
 
+const UPSTREAM_LABEL = "upstream forecast sources";
+
 export function systemHealth(data) {
   if (!Array.isArray(data?.endpoints) || data.endpoints.length === 0) {
     return unavailable("systems");
@@ -17,16 +19,16 @@ export function systemHealth(data) {
 }
 
 export function agencyHealth(advisories) {
-  if (!Array.isArray(advisories)) return unavailable("weather agencies");
+  if (!Array.isArray(advisories)) return unavailable(UPSTREAM_LABEL);
   if (advisories.length === 0) {
-    return { state: "nominal", label: "weather agencies", value: "nominal" };
+    return { state: "nominal", label: UPSTREAM_LABEL, value: "nominal" };
   }
   const agencies = [
     ...new Set(advisories.map(({ agency }) => agency.toUpperCase())),
   ];
   return {
     state: "advisory",
-    label: "weather agencies",
+    label: UPSTREAM_LABEL,
     value: `${agencies.join(", ")} advisor${advisories.length === 1 ? "y" : "ies"}`,
   };
 }

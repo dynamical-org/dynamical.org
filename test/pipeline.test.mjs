@@ -103,12 +103,12 @@ test("summarizes shared system and agency health", () => {
   });
   assert.deepEqual(agencyHealth([]), {
     state: "nominal",
-    label: "weather agencies",
+    label: "upstream forecast sources",
     value: "nominal",
   });
   assert.deepEqual(agencyHealth([{ agency: "noaa" }]), {
     state: "advisory",
-    label: "weather agencies",
+    label: "upstream forecast sources",
     value: "NOAA advisory",
   });
 });
@@ -248,6 +248,8 @@ test("status pages share the uptime, pipeline, and webhooks subnav", () => {
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
   assert.match(subnav, /data-slot="system-health"/);
   assert.match(subnav, /data-slot="agency-health"/);
+  assert.match(subnav, /upstream forecast sources/);
+  assert.doesNotMatch(subnav, /weather agencies/);
   assert.match(subnav, /statusSection == "pipeline"/);
   assert.match(subnav, /pipeline-history-toggle/);
   assert.doesNotMatch(subnav, /pipeline-controls-actions/);
