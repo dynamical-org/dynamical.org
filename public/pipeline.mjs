@@ -99,17 +99,36 @@ function formatDuration(seconds) {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
-function initShort(timestamp) {
-  const date = new Date(timestamp);
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  const hour = String(date.getUTCHours()).padStart(2, "0");
-  return `${month}-${day} ${hour}z`;
+export function initParts(timestamp, timeZone = "UTC") {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+    timeZoneName: "short",
+  }).formatToParts(new Date(timestamp));
+  const part = (type) =>
+    parts.find((candidate) => candidate.type === type)?.value;
+  const hour = part("hour");
+  return {
+    date: `${part("month")}-${part("day")}`,
+    time: timeZone === "UTC" ? `${hour}z` : `${hour} ${part("timeZoneName")}`,
+  };
 }
 
-function initLabel(timestamp) {
-  const [date, hour] = initShort(timestamp).split(" ");
-  return element("span", null, [element("strong", null, date), hour]);
+function selectedTimeZone(local) {
+  return local ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+}
+
+function initShort(timestamp, local) {
+  const { date, time } = initParts(timestamp, selectedTimeZone(local));
+  return `${date} ${time}`;
+}
+
+function initLabel(timestamp, local) {
+  const { date, time } = initParts(timestamp, selectedTimeZone(local));
+  return element("span", null, [element("strong", null, date), time]);
 }
 
 function formatTime(timestamp, local) {
@@ -151,13 +170,13 @@ function groupSlices(groups) {
   });
 }
 
-function barTooltip(init) {
+function barTooltip(init, local) {
   if (init.status === "unobserved") {
-    return `${initShort(init.init_time)} · no probe visibility; not a publication failure`;
+    return `${initShort(init.init_time, local)} · no probe visibility; not a publication failure`;
   }
   const state = init.timing ? `${init.status} · ${init.timing}` : init.status;
   return [
-    initShort(init.init_time),
+    initShort(init.init_time, local),
     state,
     init.completion_pct == null
       ? null
@@ -168,7 +187,7 @@ function barTooltip(init) {
     .join(" · ");
 }
 
-function renderBar(init) {
+function renderBar(init, local) {
   const track = element("div", { class: "pipeline-bar-track" });
   if (init.lead_groups?.length) {
     let bottom = 0;
@@ -179,6 +198,10 @@ function renderBar(init) {
           class: `pipeline-bar-segment g-${group.status}`,
           "data-timing": group.timing,
           style: `--band-height:${group.height}%;--band-bottom:${bottom}%;--fill:${group.fill}%`,
+          title:
+            group.status === "pending"
+              ? "Forecast horizon not yet published"
+              : null,
         },
         element("div", { class: "pipeline-bar-segment-fill" }),
       );
@@ -199,11 +222,15 @@ function renderBar(init) {
       class: "pipeline-bar",
       "data-status": init.status,
       "data-timing": init.timing,
-      title: barTooltip(init),
+      title: barTooltip(init, local),
     },
     [
       track,
-      element("div", { class: "pipeline-bar-label" }, initLabel(init.init_time)),
+      element(
+        "div",
+        { class: "pipeline-bar-label" },
+        initLabel(init.init_time, local),
+      ),
     ],
   );
 }
@@ -340,11 +367,11 @@ function buildDetails(product) {
   ]);
 }
 
-function hydrateRow(row, product, now) {
+function hydrateRow(row, product, now, local) {
   row.querySelector('[data-slot="grid"]').replaceChildren(
-    ...product.recent_inits.slice(-10).map(renderBar),
+    ...product.recent_inits.slice(-10).map((init) => renderBar(init, local)),
   );
-  hydrateEta(row, product, now);
+  hydrateEta(row, product, now, local);
 
   const button = row.querySelector('[data-slot="details-button"]');
   const details = row.querySelector('[data-slot="details"]');
@@ -357,7 +384,7 @@ function hydrateRow(row, product, now) {
   }
 }
 
-function hydrateEta(row, product, now) {
+function hydrateEta(row, product, now, local) {
   const initSlot = row.querySelector('[data-slot="eta-init"]');
   const stateSlot = row.querySelector('[data-slot="eta-state"]');
   const lineSlot = row.querySelector('[data-slot="eta-line"]');
@@ -367,7 +394,7 @@ function hydrateEta(row, product, now) {
     stateSlot.hidden = true;
     lineSlot.hidden = true;
   } else {
-    initSlot.textContent = initShort(target.initTime);
+    initSlot.textContent = initShort(target.initTime, local);
     stateSlot.hidden = false;
     if (target.running) {
       const observed = (target.init?.completion_pct ?? 0) > 0;
@@ -438,12 +465,13 @@ function renderAdvisories(app, advisories, rows) {
 }
 
 function renderSnapshot(app, snapshot, rows, now) {
+  const local = document.body.classList.contains("pipeline-time-local");
   app
     .querySelector('[data-slot="generated-at"]')
     .replaceChildren(timeNode(snapshot.generated_at));
   for (const product of productsOf(snapshot)) {
     const row = rows.get(product.id);
-    if (row) hydrateRow(row, product, now);
+    if (row) hydrateRow(row, product, now, local);
   }
   renderAdvisories(app, snapshot.advisories ?? [], rows);
 }
@@ -476,12 +504,27 @@ function start(app) {
   let pollTimer = null;
   let countdownTimer = null;
   let structureSignature = null;
+  let displayedSnapshot = null;
+  let displayedAt = null;
+
+  function displaySnapshot(snapshot, now) {
+    displayedSnapshot = snapshot;
+    displayedAt = now;
+    renderSnapshot(app, snapshot, rows, now);
+  }
 
   function setTimeMode(local, persist) {
     document.body.classList.toggle("pipeline-time-local", local);
     timeToggle.value = local ? "local" : "utc";
     if (persist) localStorage.setItem(TIME_MODE_KEY, local ? "local" : "utc");
-    if (latest && mode === "live") renderSnapshot(app, latest, rows, Date.now());
+    if (displayedSnapshot) {
+      displaySnapshot(
+        displayedSnapshot,
+        mode === "live" ? Date.now() : displayedAt,
+      );
+    }
+    const selected = mode === "scrub" ? selectedTimestamp() : null;
+    if (selected) updateScrubLabel(selected);
   }
 
   function showError(message) {
@@ -503,7 +546,7 @@ function start(app) {
       latest.window_days ?? "—";
     ribbon.hidden =
       Date.now() - Date.parse(latest.generated_at) <= STALE_AFTER_MS;
-    renderSnapshot(app, latest, rows, Date.now());
+    displaySnapshot(latest, Date.now());
   }
 
   async function fetchJson(url, cache = "default") {
@@ -560,12 +603,7 @@ function start(app) {
         "no-cache",
       );
       if (mode !== "scrub") return;
-      renderSnapshot(
-        app,
-        snapshot,
-        rows,
-        Date.parse(snapshot.generated_at),
-      );
+      displaySnapshot(snapshot, Date.parse(snapshot.generated_at));
       scrubError.hidden = true;
     } catch (error) {
       scrubError.hidden = false;
@@ -611,9 +649,10 @@ function start(app) {
 
   function updateLiveCountdowns() {
     if (mode !== "live" || !latest) return;
+    const local = document.body.classList.contains("pipeline-time-local");
     for (const product of productsOf(latest)) {
       const row = rows.get(product.id);
-      if (row) hydrateEta(row, product, Date.now());
+      if (row) hydrateEta(row, product, Date.now(), local);
     }
   }
 

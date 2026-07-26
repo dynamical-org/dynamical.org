@@ -36,6 +36,12 @@
   margin: 3rem 0 2rem;
 }
 
+.pipeline-legend {
+  margin: -1.2rem 0 2rem;
+  color: var(--muted-text);
+  font-size: 1.1rem;
+}
+
 .pipeline-controls-primary {
   justify-content: flex-start;
 }

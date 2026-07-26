@@ -1,4 +1,6 @@
 <nav class="status-subnav" aria-label="Status">
+  <a href="/status/"{% if statusSection == "uptime" %} aria-current="page"{% endif %}>uptime</a>
+  <span aria-hidden="true">|</span>
   <a href="/status/pipeline/"{% if statusSection == "pipeline" %} aria-current="page"{% endif %}>pipeline</a>
   <span aria-hidden="true">|</span>
   <a href="https://status.dynamical.org/webhooks">webhooks</a>

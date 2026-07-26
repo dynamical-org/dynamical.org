@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   agencySummary,
+  initParts,
   validateDashboard,
 } from "../public/pipeline.mjs";
 
@@ -69,7 +70,16 @@ test("summarizes upstream agency advisories without changing pipeline state", ()
   );
 });
 
-test("status pages share the pipeline and webhooks subnav", () => {
+test("formats init labels in UTC and the selected local timezone", () => {
+  const timestamp = "2026-07-26T00:00:00Z";
+  assert.deepEqual(initParts(timestamp), { date: "07-26", time: "00z" });
+  assert.deepEqual(initParts(timestamp, "America/Chicago"), {
+    date: "07-25",
+    time: "19 CDT",
+  });
+});
+
+test("status pages share the uptime, pipeline, and webhooks subnav", () => {
   const base = readFileSync(
     new URL("../_includes/base.njk", import.meta.url),
     "utf8",
@@ -88,10 +98,12 @@ test("status pages share the pipeline and webhooks subnav", () => {
   );
 
   assert.match(status, /include "status-subnav\.njk"/);
+  assert.match(status, /statusSection: uptime/);
   assert.match(status, /href="\/status\/pipeline\/"/);
   assert.doesNotMatch(status, /noindex: true|sitemap: false/);
   assert.match(pipeline, /include "status-subnav\.njk"/);
   assert.doesNotMatch(pipeline, /noindex: true|sitemap: false/);
+  assert.match(subnav, />uptime</);
   assert.match(subnav, /pipeline/);
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
   assert.equal((base.match(/href="\/status\/"/g) ?? []).length, 2);
@@ -109,4 +121,16 @@ test("pipeline page links to webhooks and the integration guide", () => {
     template,
     /weather agencies[\s\S]*pipeline-time-toggle/,
   );
+  assert.match(template, /Dashed segment: forecast horizon not yet published/);
+});
+
+test("uptime groups data-serving and website checks under Core", () => {
+  const template = readFileSync(
+    new URL("../content/status.njk", import.meta.url),
+    "utf8",
+  );
+  assert.match(template, />Core</);
+  assert.match(template, />Data-serving and website</);
+  assert.doesNotMatch(template, />Endpoints</);
+  assert.doesNotMatch(template, /The data-serving path/);
 });
