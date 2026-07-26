@@ -120,22 +120,19 @@ statusSection: uptime
 
 <main class="content" data-status-page data-status-url="{{ statusFeed }}"
   data-log-url="{{ statusLogBase }}">
-  <header class="status-page-heading">
-    <h1>dynamical.org status</h1>
-    <div class="status-page-meta">
-      <p class="status-page-updated" id="status-as-of" role="status">
-        <span data-slot="status-updated">As of —</span>
-        <label data-slot="time-control" hidden>
-          <span class="visually-hidden">Time zone</span>
-          <select class="status-time-toggle" id="status-time-toggle">
-            <option value="local">—</option>
-            <option value="utc">UTC</option>
-          </select>
-        </label>
-      </p>
-    </div>
-  </header>
-  {% include "status-subnav.njk" %}
+  {% from "status-subnav.njk" import statusSubnav %}
+  {% call statusSubnav(statusSection, statusFeed, pipelineAssetsBase) %}
+    <p class="status-page-updated" id="status-as-of" role="status">
+      <span data-slot="status-updated">As of —</span>
+      <label data-slot="time-control" hidden>
+        <span class="visually-hidden">Time zone</span>
+        <select class="status-time-toggle" id="status-time-toggle">
+          <option value="local">—</option>
+          <option value="utc">UTC</option>
+        </select>
+      </label>
+    </p>
+  {% endcall %}
 
   <section id="status-overall" aria-label="Service status" aria-live="polite">
     <p id="status-summary">Loading the latest monitor results.</p>

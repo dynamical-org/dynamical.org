@@ -10,22 +10,19 @@ pageStylesheet: /pipeline.css
 
 <main class="content pipeline-page" id="pipeline-app"
   data-assets-base="{{ pipelineAssetsBase }}">
-  <header class="status-page-heading">
-    <h1>dynamical.org status</h1>
-    <div class="status-page-meta">
-      <p class="status-page-updated">
-        Updated <span data-slot="generated-at">—</span>
-        <label data-slot="time-control" hidden>
-          <span class="visually-hidden">Time zone</span>
-          <select class="status-time-toggle" id="status-time-toggle">
-            <option value="local">—</option>
-            <option value="utc">UTC</option>
-          </select>
-        </label>
-      </p>
-    </div>
-  </header>
-  {% include "status-subnav.njk" %}
+  {% from "status-subnav.njk" import statusSubnav %}
+  {% call statusSubnav(statusSection, statusFeed, pipelineAssetsBase) %}
+    <p class="status-page-updated">
+      Updated <span data-slot="generated-at">—</span>
+      <label data-slot="time-control" hidden>
+        <span class="visually-hidden">Time zone</span>
+        <select class="status-time-toggle" id="status-time-toggle">
+          <option value="local">—</option>
+          <option value="utc">UTC</option>
+        </select>
+      </label>
+    </p>
+  {% endcall %}
 
   <div class="pipeline-ribbon" data-slot="ribbon" hidden>
     Pipeline data is more than 10 minutes old — it may be stalled.

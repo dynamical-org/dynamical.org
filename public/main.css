@@ -145,37 +145,33 @@ a:visited {
   color: var(--link-visited-color);
 }
 
-.status-subnav {
+.status-subnav-row {
   display: flex;
-  gap: 0.8rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
   margin: 0.6rem 0 1.5rem;
 }
 
+.status-subnav {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.primary-nav [aria-current="page"],
 .status-subnav [aria-current="page"] {
   color: var(--text-color);
   font-weight: 700;
   text-decoration: none;
 }
 
-.status-page-heading {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.5rem 2rem;
-}
-
-.status-page-heading h1,
 .status-page-meta p {
   margin: 0;
 }
 
 .status-page-meta {
-  margin-left: auto !important;
+  margin-left: auto;
   text-align: right;
-}
-
-.status-page-updated {
-  font-size: 1.2rem;
 }
 
 .status-time-toggle {
@@ -236,6 +232,7 @@ a:visited {
 @media (max-width: 680px) {
   .status-page-meta {
     flex-basis: 100%;
+    margin-left: 0;
     text-align: left;
   }
 

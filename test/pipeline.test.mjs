@@ -237,12 +237,16 @@ test("status pages share the uptime, pipeline, and pipeline webhooks subnav", ()
     "utf8",
   );
 
-  assert.match(status, /include "status-subnav\.njk"/);
+  assert.match(status, /from "status-subnav\.njk" import statusSubnav/);
+  assert.match(status, /call statusSubnav\(statusSection, statusFeed, pipelineAssetsBase\)/);
   assert.match(status, /statusSection: uptime/);
   assert.match(status, /href="\/status\/pipeline\/"/);
   assert.doesNotMatch(status, /noindex: true|sitemap: false/);
-  assert.match(pipeline, /include "status-subnav\.njk"/);
+  assert.match(pipeline, /from "status-subnav\.njk" import statusSubnav/);
+  assert.match(pipeline, /call statusSubnav\(statusSection, statusFeed, pipelineAssetsBase\)/);
   assert.doesNotMatch(pipeline, /noindex: true|sitemap: false/);
+  assert.match(subnav, /class="status-subnav-row"/);
+  assert.match(subnav, /\{\{ caller\(\) \}\}/);
   assert.match(subnav, />uptime</);
   assert.match(subnav, /pipeline/);
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
@@ -261,6 +265,27 @@ test("status pages share the uptime, pipeline, and pipeline webhooks subnav", ()
   assert.match(status, /id="status-time-toggle"/);
   assert.match(pipeline, /id="status-time-toggle"/);
   assert.equal((base.match(/href="\/status\/"/g) ?? []).length, 2);
+});
+
+test("primary navigation styles the current section like the status subnav", () => {
+  const base = readFileSync(
+    new URL("../_includes/base.njk", import.meta.url),
+    "utf8",
+  );
+  const mainCss = readFileSync(
+    new URL("../public/main.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(base, /class="primary-nav"/);
+  for (const section of ["catalog", "research", "updates", "about", "podcast", "status"]) {
+    assert.match(base, new RegExp(`>${section}<`));
+  }
+  assert.equal((base.match(/aria-current="page"/g) ?? []).length, 6);
+  assert.match(
+    mainCss,
+    /\.primary-nav \[aria-current="page"\],[\s\S]*\.status-subnav \[aria-current="page"\][\s\S]*font-weight: 700;[\s\S]*text-decoration: none;/,
+  );
 });
 
 test("the shared time control shows only the browser's local zone", () => {
