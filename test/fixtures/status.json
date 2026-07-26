@@ -87,7 +87,7 @@
   "endpoints": [
     {
       "id": "dynamical-org",
-      "name": "dynamical.org",
+      "name": "dynamical.org website",
       "group": "endpoint",
       "status": "operational"
     },
@@ -111,7 +111,7 @@
     },
     {
       "id": "scorecard",
-      "name": "Scorecard",
+      "name": "scorecard",
       "group": "tool",
       "status": "operational"
     }

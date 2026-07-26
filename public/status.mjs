@@ -2,6 +2,7 @@ import {
   componentSpans,
   dailyBars,
   effectiveAsOf,
+  incidentLog,
   parseEvents,
   uptimeSummary,
 } from "./status-log.mjs";
@@ -12,6 +13,7 @@ const STALE_AFTER_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const BAR_DAYS = 90;
+export const STALE_MESSAGE = "Stale: status page experiencing delayed updates";
 
 function isStatusEntry(entry) {
   return (
@@ -98,6 +100,20 @@ function formatTimestamp(timestamp) {
   }).format(new Date(timestamp));
 }
 
+function formatDuration(start, end) {
+  const minutes = Math.floor((end - start) / 60_000);
+  if (minutes < 1) return "less than a minute";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours < 24) {
+    return `${hours}h${remainder ? ` ${remainder}m` : ""}`;
+  }
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return `${days}d${remainingHours ? ` ${remainingHours}h` : ""}`;
+}
+
 function statusMark(status) {
   return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[status];
 }
@@ -160,14 +176,22 @@ function barStrip(cells) {
   const strip = document.createElement("div");
   strip.className = "status-bars";
   const days = cells.length;
-  strip.setAttribute("role", "img");
+  strip.setAttribute("role", "group");
   strip.setAttribute("aria-label", barDescription(cells));
   for (const cell of cells) {
-    const day = document.createElement("span");
+    const incident = cell.incidentIds?.[0];
+    const day = document.createElement(incident ? "a" : "span");
     day.dataset.day = cell.state;
-    // The aggregate label carries the meaning; cells are decorative.
-    day.setAttribute("aria-hidden", "true");
     day.title = `${cell.date}: ${cell.state === "nodata" ? "not monitored" : cell.state}`;
+    if (incident) {
+      day.href = `#${incident}`;
+      day.setAttribute(
+        "aria-label",
+        `${cell.date}: outage; view incident details`,
+      );
+    } else {
+      day.setAttribute("aria-hidden", "true");
+    }
     strip.append(day);
   }
   const scale = document.createElement("p");
@@ -198,6 +222,7 @@ export function buildHistory(eventsText, metaText) {
   return {
     asOf,
     cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
+    incidents: incidentLog(events),
     uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
   };
 }
@@ -240,7 +265,6 @@ function renderStatus(root, data, loadedHistory) {
   const summary = root.querySelector("#status-summary");
   const incidents = root.querySelector("#status-incidents");
   const asOf = root.querySelector("#status-as-of");
-  const stale = root.querySelector("#status-stale");
   const historyNotice = root.querySelector("#status-history");
   const groups = root.querySelector("#status-groups");
 
@@ -263,19 +287,28 @@ function renderStatus(root, data, loadedHistory) {
     incidents.append(item);
   }
 
-  const generatedTime = document.createElement("time");
-  generatedTime.dateTime = data.generated_at;
-  generatedTime.textContent = formatTimestamp(data.generated_at);
-  const asOfLabel = document.createElement("strong");
-  asOfLabel.append("As of ", generatedTime);
-  asOf.replaceChildren(asOfLabel);
-
-  setStale(
-    stale,
-    isStatusDataStale(data.generated_at)
-      ? "The publisher has not refreshed this page in more than 20 minutes."
-      : null,
-  );
+  const stale = isStatusDataStale(data.generated_at);
+  asOf.classList.toggle("status-stale", stale);
+  if (stale) {
+    const icon = document.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "⚠";
+    const label = document.createElement("strong");
+    label.textContent = "Stale:";
+    asOf.replaceChildren(
+      icon,
+      " ",
+      label,
+      STALE_MESSAGE.slice("Stale:".length),
+    );
+  } else {
+    const generatedTime = document.createElement("time");
+    generatedTime.dateTime = data.generated_at;
+    generatedTime.textContent = formatTimestamp(data.generated_at);
+    const asOfLabel = document.createElement("strong");
+    asOfLabel.append("As of ", generatedTime);
+    asOf.replaceChildren(asOfLabel);
+  }
   const history =
     loadedHistory && isHistoryCurrent(loadedHistory.asOf, data.generated_at)
       ? loadedHistory
@@ -306,6 +339,7 @@ function renderStatus(root, data, loadedHistory) {
       emptyCells,
     );
   }
+  renderIncidentLog(root, history, data);
 }
 
 function setHistoryNotice(element, message) {
@@ -313,13 +347,56 @@ function setHistoryNotice(element, message) {
   element.textContent = message ?? "";
 }
 
-function setStale(stale, message) {
-  stale.replaceChildren();
-  stale.hidden = message === null;
-  if (message === null) return;
-  const label = document.createElement("strong");
-  label.textContent = "Status data is stale.";
-  stale.append(label, ` ${message}`);
+function renderIncidentLog(root, history, data) {
+  const list = root.querySelector("#status-incident-log");
+  const empty = root.querySelector("#status-incident-empty");
+  list.replaceChildren();
+  if (!history) {
+    empty.textContent = "Incident history is temporarily unavailable.";
+    empty.hidden = false;
+    return;
+  }
+
+  const names = new Map(data.endpoints.map(({ id, name }) => [id, name]));
+  const visible = history.incidents
+    .filter((incident) => names.has(incident.component))
+    .reverse();
+  empty.textContent = "No incidents recorded.";
+  empty.hidden = visible.length > 0;
+
+  for (const incident of visible) {
+    const item = document.createElement("li");
+    const header = document.createElement("header");
+    const name = document.createElement("h3");
+    const state = document.createElement("strong");
+    const timing = document.createElement("p");
+    const end = incident.end ?? history.asOf.getTime();
+
+    item.id = incident.id;
+    item.className = "status-incident";
+    name.textContent = names.get(incident.component);
+    state.textContent =
+      incident.ending === "resolved"
+        ? "Resolved"
+        : incident.ending === "observation-ended"
+          ? "Observation ended"
+          : "Ongoing";
+    timing.textContent =
+      incident.ending === "observation-ended"
+        ? `${formatTimestamp(incident.start)} – ${formatTimestamp(incident.end)} · ${formatDuration(incident.start, end)}. Recovery was not witnessed.`
+        : `${formatTimestamp(incident.start)} – ${
+            incident.end ? formatTimestamp(incident.end) : "ongoing"
+          } · ${formatDuration(incident.start, end)}.`;
+    header.append(name, state);
+    item.append(header, timing);
+    list.append(item);
+  }
+  if (typeof location !== "undefined" && location.hash) {
+    const target = document.getElementById(
+      decodeURIComponent(location.hash.slice(1)),
+    );
+    if (target) requestAnimationFrame(() => target.scrollIntoView());
+  }
 }
 
 function renderUnavailable(root) {
@@ -330,12 +407,14 @@ function renderUnavailable(root) {
   root.querySelector("#status-summary").textContent =
     "The status feed could not be loaded. Try again shortly.";
   root.querySelector("#status-incidents").hidden = true;
-  setStale(root.querySelector("#status-stale"), null);
   setHistoryNotice(root.querySelector("#status-history"), null);
   root.querySelector("#status-groups").hidden = true;
+  renderIncidentLog(root, null, { endpoints: [] });
   const asOfLabel = document.createElement("strong");
   asOfLabel.textContent = "As of —";
-  root.querySelector("#status-as-of").replaceChildren(asOfLabel);
+  const asOf = root.querySelector("#status-as-of");
+  asOf.classList.remove("status-stale");
+  asOf.replaceChildren(asOfLabel);
 }
 
 async function loadStatus(root) {

@@ -124,6 +124,60 @@ export function componentSpans(events, { asOf }) {
   return spans;
 }
 
+export function incidentId(component, start) {
+  return `incident-${component}-${Math.floor(start / 1000)}`;
+}
+
+export function incidentLog(events) {
+  const coverage = new Map();
+  const open = new Map();
+  const result = [];
+
+  const close = (component, end, ending) => {
+    const current = open.get(component);
+    open.delete(component);
+    if (!current || end <= current.start) return;
+    result.push({ ...current, end, ending });
+  };
+
+  for (const event of events) {
+    const at = Date.parse(event.ts);
+    const { component } = event;
+    const current = coverage.get(component) ?? {
+      monitored: false,
+      state: null,
+    };
+
+    if (event.kind === COVERAGE && event.monitored === false) {
+      if (current.monitored && current.state === "down") {
+        close(component, at, "observation-ended");
+      }
+      coverage.set(component, { monitored: false, state: null });
+      continue;
+    }
+    if (event.kind === TRANSITION && !current.monitored) continue;
+
+    const state =
+      event.kind === COVERAGE ? publicState(event.state) : publicState(event.to);
+    if (current.monitored && current.state === "down" && state !== "down") {
+      close(component, at, "resolved");
+    }
+    if ((!current.monitored || current.state !== "down") && state === "down") {
+      open.set(component, {
+        id: incidentId(component, at),
+        component,
+        start: at,
+      });
+    }
+    coverage.set(component, { monitored: true, state });
+  }
+
+  for (const current of open.values()) {
+    result.push({ ...current, end: null, ending: null });
+  }
+  return result.sort((a, b) => a.start - b.start);
+}
+
 /**
  * One cell per UTC day in the rolling window.
  *
@@ -140,9 +194,21 @@ export function dailyBars(spans, { asOf, days }) {
     for (let day = windowStart; day <= lastDay; day += 1) {
       const start = day * DAY_MS;
       const end = Math.min(start + DAY_MS, asOf.getTime());
+      const state = dayState(list, start, end);
+      const incidentIds =
+        state === "down"
+          ? list
+              .filter(
+                (span) =>
+                  span.state === "down" &&
+                  Math.min(span.end, end) - Math.max(span.start, start) > 0,
+              )
+              .map((span) => incidentId(component, span.start))
+          : [];
       cells.push({
         date: new Date(start).toISOString().slice(0, 10),
-        state: dayState(list, start, end),
+        state,
+        ...(incidentIds.length ? { incidentIds } : {}),
       });
     }
     result.set(component, cells);

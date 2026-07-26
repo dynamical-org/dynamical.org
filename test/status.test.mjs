@@ -7,6 +7,7 @@ import {
   buildHistory,
   isHistoryCurrent,
   isStatusDataStale,
+  STALE_MESSAGE,
   summarizeOverallStatus,
   uptimeDescription,
   validateStatusData,
@@ -29,7 +30,7 @@ const operationalData = {
   endpoints: [
     {
       id: "dynamical-org",
-      name: "dynamical.org",
+      name: "dynamical.org website",
       group: "endpoint",
       status: "operational",
       uptime: 99.9,
@@ -76,7 +77,7 @@ test("summarizes only the components this page renders", () => {
 
   assert.deepEqual(summarizeOverallStatus(data), {
     status: "down",
-    incidents: [{ name: "dynamical.org", status: "down" }],
+    incidents: [{ name: "dynamical.org website", status: "down" }],
   });
 });
 
@@ -218,5 +219,22 @@ test("uptime description states the fixed window without a coverage suffix", () 
   assert.equal(
     uptimeDescription({ uptime: 100, coverage: 1.5 }, 90),
     "100% uptime over the last 90 days",
+  );
+});
+
+test("status page uses the requested heading and replaces stale as-of copy", () => {
+  const template = readFileSync(
+    new URL("../content/status.njk", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(template, />dynamical\.org status</);
+  assert.doesNotMatch(
+    template,
+    /Current health of dynamical\.org public endpoints, tools, and resources\./,
+  );
+  assert.equal(
+    STALE_MESSAGE,
+    "Stale: status page experiencing delayed updates",
   );
 });

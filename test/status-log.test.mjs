@@ -5,6 +5,7 @@ import {
   componentSpans,
   dailyBars,
   effectiveAsOf,
+  incidentLog,
   parseEvents,
   uptimeSummary,
 } from "../public/status-log.mjs";
@@ -147,6 +148,44 @@ test("events after the as-of are clamped rather than extending the window", () =
   assert.equal(spans.get(C).at(-1).end, AS_OF.getTime());
 });
 
+test("incidents distinguish resolution from observation ending", () => {
+  const events = parseEvents(
+    jsonl(
+      coverage("2026-07-24T00:00:00Z", C, true, "operational"),
+      transition("2026-07-24T01:00:00Z", C, "down"),
+      transition("2026-07-24T02:00:00Z", C, "operational"),
+      transition("2026-07-24T03:00:00Z", C, "down"),
+      coverage("2026-07-24T04:00:00Z", C, false),
+      coverage("2026-07-24T05:00:00Z", C, true, "down"),
+    ),
+  );
+
+  assert.deepEqual(
+    incidentLog(events).map(({ start, end, ending }) => ({
+      start,
+      end,
+      ending,
+    })),
+    [
+      {
+        start: Date.parse("2026-07-24T01:00:00Z"),
+        end: Date.parse("2026-07-24T02:00:00Z"),
+        ending: "resolved",
+      },
+      {
+        start: Date.parse("2026-07-24T03:00:00Z"),
+        end: Date.parse("2026-07-24T04:00:00Z"),
+        ending: "observation-ended",
+      },
+      {
+        start: Date.parse("2026-07-24T05:00:00Z"),
+        end: null,
+        ending: null,
+      },
+    ],
+  );
+});
+
 // --- bars -----------------------------------------------------------------
 
 test("bars always cover the full rolling window", () => {
@@ -189,6 +228,12 @@ test("a day with any down interval renders down", () => {
 
   assert.equal(byDate.get("2026-07-23"), "operational");
   assert.equal(byDate.get("2026-07-24"), "down");
+  assert.deepEqual(
+    dailyBars(spans, { asOf: AS_OF, days: 90 })
+      .get(C)
+      .find((cell) => cell.date === "2026-07-24").incidentIds,
+    [`incident-${C}-${Date.parse("2026-07-24T10:00:00Z") / 1000}`],
+  );
 });
 
 test("a partly observed day is filled while coverage records the gap", () => {
