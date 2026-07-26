@@ -70,6 +70,10 @@ test("summarizes upstream agency advisories without changing pipeline state", ()
 });
 
 test("status pages share the pipeline and webhooks subnav", () => {
+  const base = readFileSync(
+    new URL("../_includes/base.njk", import.meta.url),
+    "utf8",
+  );
   const status = readFileSync(
     new URL("../content/status.njk", import.meta.url),
     "utf8",
@@ -85,9 +89,12 @@ test("status pages share the pipeline and webhooks subnav", () => {
 
   assert.match(status, /include "status-subnav\.njk"/);
   assert.match(status, /href="\/status\/pipeline\/"/);
+  assert.doesNotMatch(status, /noindex: true|sitemap: false/);
   assert.match(pipeline, /include "status-subnav\.njk"/);
+  assert.doesNotMatch(pipeline, /noindex: true|sitemap: false/);
   assert.match(subnav, /pipeline/);
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  assert.equal((base.match(/href="\/status\/"/g) ?? []).length, 2);
 });
 
 test("pipeline page links to webhooks and the integration guide", () => {
