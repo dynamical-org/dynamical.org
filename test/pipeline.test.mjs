@@ -16,7 +16,7 @@ import {
   agencyHealth,
   systemHealth,
 } from "../public/status-health.mjs";
-import { localTimeLabel } from "../public/status-time.mjs";
+import { localZoneLabel } from "../public/status-time.mjs";
 
 function dashboard() {
   return {
@@ -249,17 +249,17 @@ test("status pages share the uptime, pipeline, and webhooks subnav", () => {
   assert.match(subnav, /data-slot="system-health"/);
   assert.match(subnav, /data-slot="agency-health"/);
   assert.match(subnav, /statusSection == "pipeline"/);
-  assert.match(subnav, /pipeline-controls-actions[\s\S]*pipeline-history-toggle/);
+  assert.match(subnav, /pipeline-history-toggle/);
+  assert.doesNotMatch(subnav, /pipeline-controls-actions/);
   assert.match(status, /id="status-time-toggle"/);
   assert.match(pipeline, /id="status-time-toggle"/);
   assert.equal((base.match(/href="\/status\/"/g) ?? []).length, 2);
 });
 
-test("the shared time control names the browser's local zone", () => {
-  assert.match(
-    localTimeLabel(new Date("2026-07-26T12:00:00Z")),
-    /^Local time \(.+\)$/,
-  );
+test("the shared time control shows only the browser's local zone", () => {
+  const label = localZoneLabel(new Date("2026-07-26T12:00:00Z"));
+  assert.ok(label.length > 0);
+  assert.doesNotMatch(label, /local time/i);
 });
 
 test("either local status preview serves both fixture feeds", () => {
@@ -290,6 +290,8 @@ test("pipeline page links to webhooks and the integration guide", () => {
   assert.match(template, /\/research\/when-the-forecast-is-ready\//);
   assert.match(template, /forecast hours still expected/);
   assert.match(template, /no monitoring data/);
+  assert.match(template, /status-page-updated[\s\S]*status-time-toggle/);
+  assert.doesNotMatch(template, /Local time|Coordinated Universal Time/);
   assert.doesNotMatch(template, /Data product pipeline|Forecast-run arrival/);
   assert.match(
     pipelineCss,
@@ -299,14 +301,19 @@ test("pipeline page links to webhooks and the integration guide", () => {
     pipelineCss,
     /\.pipeline-bar\[data-status="unobserved"\] \.pipeline-bar-track\s*{\s*border: 1px dotted/,
   );
-  assert.match(
+  assert.doesNotMatch(
     pipelineCss,
-    /\.pipeline-footer\s*{[^}]*padding: 0;[^}]*border: 0;/s,
+    /\.pipeline-footer\s*{[^}]*(?:padding|border|margin-top):/s,
   );
   assert.doesNotMatch(
     mainCss,
     /\.status-subnav\s*{[^}]*font-size:/s,
   );
+  assert.match(
+    mainCss,
+    /:where\(\.content\) :is\(ul, ol\):not\(\[class\]\) > li \+ li/,
+  );
+  assert.doesNotMatch(mainCss, /\.content \.status-health li \+ li/);
 });
 
 test("uptime uses light section headings without subtitles or rules", () => {
@@ -320,7 +327,8 @@ test("uptime uses light section headings without subtitles or rules", () => {
   );
   assert.match(template, />Core</);
   assert.match(template, /--index-row-border: 0/);
-  assert.doesNotMatch(template, /\.status-overall\s*{[^}]*border-top:/s);
+  assert.doesNotMatch(template, /class="status-(?:overall|groups)"/);
+  assert.doesNotMatch(template, /style="margin-top:/);
   assert.doesNotMatch(
     script,
     /All monitored public endpoints and tools are reporting normally\./,

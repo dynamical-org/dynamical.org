@@ -135,15 +135,18 @@ function initLabel(timestamp, local) {
   return element("span", null, [element("strong", null, date), time]);
 }
 
-function formatTime(timestamp, local) {
-  return new Intl.DateTimeFormat(undefined, {
+function formatTime(timestamp, local, includeZone = true) {
+  const options = {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZone: local ? undefined : "UTC",
-    timeZoneName: "short",
-  }).format(new Date(timestamp));
+  };
+  if (includeZone) options.timeZoneName = "short";
+  return new Intl.DateTimeFormat(undefined, options).format(
+    new Date(timestamp),
+  );
 }
 
 export function clockTime(timestamp, timeZone = "UTC") {
@@ -157,11 +160,15 @@ export function clockTime(timestamp, timeZone = "UTC") {
 
 function timeNode(timestamp) {
   return element("span", null, [
-    element("span", { class: "pipeline-time-utc" }, formatTime(timestamp, false)),
+    element(
+      "span",
+      { class: "pipeline-time-utc" },
+      formatTime(timestamp, false, false),
+    ),
     element(
       "span",
       { class: "pipeline-time-local-only" },
-      formatTime(timestamp, true),
+      formatTime(timestamp, true, false),
     ),
   ]);
 }
@@ -544,6 +551,7 @@ function renderAdvisories(app, advisories, rows) {
 
 function renderSnapshot(app, snapshot, rows, now) {
   const local = document.body.classList.contains("pipeline-time-local");
+  app.querySelector('[data-slot="time-control"]').hidden = false;
   app
     .querySelector('[data-slot="generated-at"]')
     .replaceChildren(timeNode(snapshot.generated_at));

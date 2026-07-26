@@ -5,18 +5,11 @@
   --pipeline-unobserved: #a8a8ad;
 }
 
-.pipeline-controls-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1.2rem;
-}
-
 .pipeline-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem 1.6rem;
-  margin: -1.2rem 0 2rem;
+  margin: 0 0 2rem;
   color: var(--muted-text);
   font-size: 1.1rem;
 }
@@ -31,7 +24,6 @@
   display: inline-block;
   width: 2.4rem;
   height: 1rem;
-  box-sizing: border-box;
 }
 
 .pipeline-legend-mark--pending {
@@ -47,9 +39,7 @@
   border: 1px dotted var(--pipeline-unobserved);
 }
 
-.pipeline-controls-actions button,
-.pipeline-footer,
-.status-page-updated {
+.pipeline-footer {
   font-size: 1.2rem;
 }
 
@@ -319,9 +309,6 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1.2rem;
-  margin-top: 2rem;
-  padding: 0;
-  border: 0;
   color: var(--muted-text);
 }
 
@@ -341,11 +328,6 @@ body:not(.pipeline-time-local) .pipeline-time-local-only {
 }
 
 @media (max-width: 680px) {
-  .pipeline-updated {
-    flex-basis: 100%;
-    text-align: left;
-  }
-
   .pipeline-grid {
     gap: 0.3rem;
   }

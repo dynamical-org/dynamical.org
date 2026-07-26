@@ -95,16 +95,19 @@ function statusLabel(status) {
   }[status];
 }
 
-function formatTimestamp(timestamp, local) {
-  return new Intl.DateTimeFormat(undefined, {
+function formatTimestamp(timestamp, local, includeZone = true) {
+  const options = {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZone: local ? undefined : "UTC",
-    timeZoneName: "short",
-  }).format(new Date(timestamp));
+  };
+  if (includeZone) options.timeZoneName = "short";
+  return new Intl.DateTimeFormat(undefined, options).format(
+    new Date(timestamp),
+  );
 }
 
 function formatDuration(start, end) {
@@ -182,7 +185,6 @@ export function barDescription(cells) {
 function barStrip(cells) {
   const strip = document.createElement("div");
   strip.className = "status-bars";
-  const days = cells.length;
   strip.setAttribute("role", "group");
   strip.setAttribute("aria-label", barDescription(cells));
   for (const cell of cells) {
@@ -201,15 +203,7 @@ function barStrip(cells) {
     }
     strip.append(day);
   }
-  const scale = document.createElement("p");
-  const first = document.createElement("span");
-  first.textContent = `${days} day${days === 1 ? "" : "s"} ago`;
-  const last = document.createElement("span");
-  last.textContent = "Today";
-  scale.append(first, last);
-  const wrapper = document.createDocumentFragment();
-  wrapper.append(strip, scale);
-  return wrapper;
+  return strip;
 }
 
 export function buildHistory(eventsText, metaText) {
@@ -271,6 +265,8 @@ function renderStatus(root, data, loadedHistory, local) {
   const summary = root.querySelector("#status-summary");
   const incidents = root.querySelector("#status-incidents");
   const asOf = root.querySelector("#status-as-of");
+  const updated = asOf.querySelector('[data-slot="status-updated"]');
+  const timeControl = asOf.querySelector('[data-slot="time-control"]');
   const historyNotice = root.querySelector("#status-history");
   const groups = root.querySelector("#status-groups");
 
@@ -288,13 +284,14 @@ function renderStatus(root, data, loadedHistory, local) {
 
   const stale = isStatusDataStale(data.generated_at);
   asOf.classList.toggle("status-stale", stale);
+  timeControl.hidden = stale;
   if (stale) {
     const icon = document.createElement("span");
     icon.setAttribute("aria-hidden", "true");
     icon.textContent = "⚠";
     const label = document.createElement("strong");
     label.textContent = "Stale:";
-    asOf.replaceChildren(
+    updated.replaceChildren(
       icon,
       " ",
       label,
@@ -303,8 +300,12 @@ function renderStatus(root, data, loadedHistory, local) {
   } else {
     const generatedTime = document.createElement("time");
     generatedTime.dateTime = data.generated_at;
-    generatedTime.textContent = formatTimestamp(data.generated_at, local);
-    asOf.replaceChildren("As of ", generatedTime);
+    generatedTime.textContent = formatTimestamp(
+      data.generated_at,
+      local,
+      false,
+    );
+    updated.replaceChildren("As of ", generatedTime);
   }
   const history =
     loadedHistory && isHistoryCurrent(loadedHistory.asOf, data.generated_at)
@@ -407,7 +408,8 @@ function renderUnavailable(root) {
   renderIncidentLog(root, null, { endpoints: [] }, true);
   const asOf = root.querySelector("#status-as-of");
   asOf.classList.remove("status-stale");
-  asOf.textContent = "As of —";
+  asOf.querySelector('[data-slot="status-updated"]').textContent = "As of —";
+  asOf.querySelector('[data-slot="time-control"]').hidden = true;
   renderHealth(root, "system-health", systemHealth(null));
 }
 

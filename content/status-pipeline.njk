@@ -13,14 +13,16 @@ pageStylesheet: /pipeline.css
   <header class="status-page-heading">
     <h1>dynamical.org status</h1>
     <div class="status-page-meta">
-      <p class="status-page-updated">Updated <span data-slot="generated-at">—</span></p>
-      <label>
-        <span class="visually-hidden">Time zone</span>
-        <select id="status-time-toggle">
-          <option value="local">Local time</option>
-          <option value="utc">Coordinated Universal Time (UTC)</option>
-        </select>
-      </label>
+      <p class="status-page-updated">
+        Updated <span data-slot="generated-at">—</span>
+        <label data-slot="time-control" hidden>
+          <span class="visually-hidden">Time zone</span>
+          <select class="status-time-toggle" id="status-time-toggle">
+            <option value="local">—</option>
+            <option value="utc">UTC</option>
+          </select>
+        </label>
+      </p>
     </div>
   </header>
   {% include "status-subnav.njk" %}

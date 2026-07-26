@@ -162,7 +162,6 @@ a:visited {
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0.5rem 2rem;
-  margin-top: 4rem;
 }
 
 .status-page-heading h1,
@@ -179,8 +178,13 @@ a:visited {
   font-size: 1.2rem;
 }
 
-.status-page-meta label {
-  display: block;
+.status-time-toggle {
+  width: 4.2em;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
 }
 
 .status-controls {
@@ -285,15 +289,12 @@ p {
   margin-bottom: 1.2rem;
 }
 
-/* Give bullet/numbered lists in article content room to breathe. Without
-   this, multi-line list items (e.g. the SLA page) run together and are hard
-   to scan. Scoped to .content so nav/footer lists keep their own layout. */
-.content ul,
-.content ol {
+/* Classless lists are prose; classed lists own their component layout. */
+:where(.content) :is(ul, ol):not([class]) {
   margin-bottom: 1.2rem;
 }
 
-.content li + li {
+:where(.content) :is(ul, ol):not([class]) > li + li {
   margin-top: 0.6rem;
 }
 
@@ -689,11 +690,6 @@ article img,
 }
 .index-list > li {
   padding: var(--index-row-padding) 0;
-}
-/* Separator between rows only. Beats the generic `.content li + li` margin by
-   equal specificity + later source order. */
-.index-list > li + li {
-  margin-top: 0;
 }
 .index-list > li:not(:last-child) {
   border-bottom: var(--index-row-border);

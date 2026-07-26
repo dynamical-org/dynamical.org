@@ -12,9 +12,6 @@ statusSection: uptime
   #status-as-of.status-stale {
     color: var(--pill-degraded-bg);
   }
-  .status-overall {
-    margin-top: 1rem;
-  }
   .status-list {
     --index-row-padding: 1rem;
     --index-row-border: 0;
@@ -83,10 +80,6 @@ statusSection: uptime
     border-color: var(--pill-down-bg);
     background: var(--pill-down-bg);
   }
-  .status-bars + p {
-    display: flex;
-    justify-content: space-between;
-  }
   .status-incident-heading,
   .status-incident header {
     display: flex;
@@ -130,27 +123,28 @@ statusSection: uptime
   <header class="status-page-heading">
     <h1>dynamical.org status</h1>
     <div class="status-page-meta">
-      <p class="status-page-updated" id="status-as-of" role="status">As of —</p>
-      <label>
-        <span class="visually-hidden">Time zone</span>
-        <select id="status-time-toggle">
-          <option value="local">Local time</option>
-          <option value="utc">Coordinated Universal Time (UTC)</option>
-        </select>
-      </label>
+      <p class="status-page-updated" id="status-as-of" role="status">
+        <span data-slot="status-updated">As of —</span>
+        <label data-slot="time-control" hidden>
+          <span class="visually-hidden">Time zone</span>
+          <select class="status-time-toggle" id="status-time-toggle">
+            <option value="local">—</option>
+            <option value="utc">UTC</option>
+          </select>
+        </label>
+      </p>
     </div>
   </header>
   {% include "status-subnav.njk" %}
 
-  <section class="status-overall" id="status-overall" aria-label="Service status"
-    aria-live="polite">
+  <section id="status-overall" aria-label="Service status" aria-live="polite">
     <p id="status-summary">Loading the latest monitor results.</p>
     <ul id="status-incidents" hidden></ul>
   </section>
 
   <p id="status-history" role="status" hidden></p>
 
-  <div class="status-groups" id="status-groups" hidden style="margin-top: 4rem;">
+  <div id="status-groups" hidden>
     <section aria-labelledby="core-heading">
       <header>
         <h2 id="core-heading">Core</h2>
@@ -158,7 +152,7 @@ statusSection: uptime
       <ul class="index-list status-list" id="status-endpoints"></ul>
     </section>
 
-    <section aria-labelledby="tools-heading" style="margin-top: 4rem;">
+    <section aria-labelledby="tools-heading">
       <header>
         <h2 id="tools-heading">Tools &amp; resources</h2>
       </header>
@@ -166,12 +160,12 @@ statusSection: uptime
     </section>
   </div>
 
-  <p style="margin-top: 4rem;">
+  <p>
     For per-model run timing and upstream source arrival history, see the
     <a href="/status/pipeline/">data product pipeline</a>.
   </p>
 
-  <section aria-labelledby="status-incident-heading" style="margin-top: 4rem;">
+  <section aria-labelledby="status-incident-heading">
     <header class="status-incident-heading">
       <h2 id="status-incident-heading">Incident history</h2>
       <a href="{{ statusIncidentFeed }}">RSS</a>

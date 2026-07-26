@@ -1,17 +1,17 @@
 const TIME_MODE_KEY = "wxopticon:time-mode";
 
-export function localTimeLabel(now = new Date()) {
+export function localZoneLabel(now = new Date()) {
   const zone = new Intl.DateTimeFormat("en-US", {
     timeZoneName: "short",
   })
     .formatToParts(now)
     .find(({ type }) => type === "timeZoneName")?.value;
-  return zone ? `Local time (${zone})` : "Local time";
+  return zone ?? "LOC";
 }
 
 export function setupTimeToggle(toggle, onChange) {
   const localOption = toggle.querySelector('option[value="local"]');
-  localOption.textContent = localTimeLabel();
+  localOption.textContent = localZoneLabel();
   const local = localStorage.getItem(TIME_MODE_KEY) !== "utc";
   toggle.value = local ? "local" : "utc";
   toggle.addEventListener("change", () => {

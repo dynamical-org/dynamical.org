@@ -275,14 +275,22 @@ test("status page uses the requested heading and replaces stale as-of copy", () 
     new URL("../content/status.njk", import.meta.url),
     "utf8",
   );
+  const script = readFileSync(
+    new URL("../public/status.mjs", import.meta.url),
+    "utf8",
+  );
 
   assert.match(template, />dynamical\.org status</);
-  assert.match(template, /id="status-as-of"[^>]*>As of —</);
+  assert.match(template, /data-slot="status-updated">As of —</);
   assert.doesNotMatch(template, /id="status-as-of"[^>]*><strong>/);
+  assert.match(template, /status-page-updated[\s\S]*status-time-toggle/);
+  assert.doesNotMatch(template, /Local time|Coordinated Universal Time/);
   assert.match(
     template,
     /\.status-bars > \*\s*{[^}]*border: 1px dotted/s,
   );
+  assert.doesNotMatch(template, /\.status-bars \+ p/);
+  assert.doesNotMatch(script, /textContent = "Today"|day.*ago/);
   assert.doesNotMatch(
     template,
     /Current health of dynamical\.org public endpoints, tools, and resources\./,
