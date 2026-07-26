@@ -103,11 +103,9 @@ function statusMark(status) {
 }
 
 export function uptimeDescription(measured, days) {
-  return (
-    `${measured.uptime}% uptime over the last ${days} ` +
-    `${days === 1 ? "day" : "days"}` +
-    (measured.coverage < 100 ? `, ${measured.coverage}% monitored` : "")
-  );
+  return `${measured.uptime}% uptime over the last ${days} ${
+    days === 1 ? "day" : "days"
+  }`;
 }
 
 function renderGroup(list, entries, bars, uptime, emptyCells) {

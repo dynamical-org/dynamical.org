@@ -214,9 +214,9 @@ test("bar descriptions distinguish unknown state from missing coverage", () => {
   assert.doesNotMatch(barDescription([{ state: "unknown" }]), /not monitored/i);
 });
 
-test("uptime description states the fixed window and observed coverage", () => {
+test("uptime description states the fixed window without a coverage suffix", () => {
   assert.equal(
     uptimeDescription({ uptime: 100, coverage: 1.5 }, 90),
-    "100% uptime over the last 90 days, 1.5% monitored",
+    "100% uptime over the last 90 days",
   );
 });
