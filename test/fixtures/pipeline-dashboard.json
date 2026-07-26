@@ -1,0 +1,62 @@
+{
+  "v": 1,
+  "generated_at": "2026-07-25T18:00:00Z",
+  "window_days": 90,
+  "advisories": [
+    {
+      "incident_id": "noaa:fixture-delay",
+      "agency": "noaa",
+      "title": "Fixture: GFS dissemination delay",
+      "cause": "Local failure-mode preview",
+      "product_ids": ["external-noaa-gfs-aws"],
+      "url": "https://nomads.ncep.noaa.gov/status.php"
+    }
+  ],
+  "groups": [
+    {
+      "id": "noaa-gfs",
+      "label": "NOAA GFS forecast",
+      "products": [
+        {
+          "id": "external-noaa-gfs-aws",
+          "label": "NOAA GFS forecast",
+          "source": "s3://noaa-gfs-bdp-pds",
+          "source_label": "AWS",
+          "row_label": "AWS",
+          "cadence_hours": 6,
+          "init_hours": ["00", "06", "12", "18"],
+          "lead_groups": [
+            {"name": "f000", "label": "0h", "leads_in_group": 1, "center_pct": 0.25},
+            {"name": "f024", "label": "1d", "leads_in_group": 5, "center_pct": 1.5},
+            {"name": "f072", "label": "3d", "leads_in_group": 13, "center_pct": 4.5}
+          ],
+          "latency_stats": {
+            "p50_s": 3600,
+            "p95_s": 5400,
+            "p99_s": 6000,
+            "sample_init_count": 30
+          },
+          "lead_group_stats": [
+            {"name": "f000", "label": "0h", "leads_in_group": 1, "p50_s": 900, "p95_s": 1200, "p99_s": 1500},
+            {"name": "f024", "label": "1d", "leads_in_group": 5, "p50_s": 1800, "p95_s": 2400, "p99_s": 2700},
+            {"name": "f072", "label": "3d", "leads_in_group": 13, "p50_s": 3600, "p95_s": 5400, "p99_s": 6000}
+          ],
+          "recent_inits": [
+            {"init_time": "2026-07-23T06:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3420, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 800, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1700, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3420, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-23T12:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3510, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 810, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1750, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3510, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-23T18:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3480, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 790, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1720, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3480, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-24T00:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3550, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 820, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1780, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3550, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-24T06:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3610, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 830, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1810, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3610, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-24T12:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3500, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 800, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1760, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3500, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-24T18:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3690, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 840, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1830, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3690, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-25T00:00:00Z", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 5700, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 850, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1900, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 5700, "leads_available": 13, "leads_expected": 13}]},
+            {"init_time": "2026-07-25T06:00:00Z", "status": "failed", "completion_pct": 0.38, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 900, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 3000, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "failed", "completion_pct": 0.38, "leads_available": 5, "leads_expected": 13}]},
+            {"init_time": "2026-07-25T12:00:00Z", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 920, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 3100, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "leads_available": 5, "leads_expected": 13}]}
+          ],
+          "next_expected_init": "2026-07-25T18:00:00Z",
+          "next_expected_completion_at": "2026-07-25T19:30:00Z"
+        }
+      ]
+    }
+  ]
+}
