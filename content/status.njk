@@ -41,14 +41,9 @@ statusSection: uptime
   .status-down {
     border-top-color: var(--pill-down-bg);
   }
-  .status-groups section > header {
-    border-bottom: 1px solid var(--border-color);
-  }
-  .status-groups section > header p {
-    color: var(--muted-text);
-  }
   .status-list {
     --index-row-padding: 1rem;
+    --index-row-border: 0;
   }
   .status-list header {
     display: flex;
@@ -176,7 +171,6 @@ statusSection: uptime
     <section aria-labelledby="core-heading">
       <header>
         <h2 id="core-heading">Core</h2>
-        <p>Data-serving and website</p>
       </header>
       <ul class="index-list status-list" id="status-endpoints"></ul>
     </section>
@@ -184,7 +178,6 @@ statusSection: uptime
     <section aria-labelledby="tools-heading" style="margin-top: 4rem;">
       <header>
         <h2 id="tools-heading">Tools &amp; resources</h2>
-        <p>Built on top of the data</p>
       </header>
       <ul class="index-list status-list" id="status-tools"></ul>
     </section>
