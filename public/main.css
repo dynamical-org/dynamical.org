@@ -148,13 +148,101 @@ a:visited {
 .status-subnav {
   display: flex;
   gap: 0.8rem;
-  margin: 0.6rem 0 3rem;
+  margin: 0.6rem 0 1.5rem;
 }
 
 .status-subnav [aria-current="page"] {
   color: var(--text-color);
   font-weight: 700;
   text-decoration: none;
+}
+
+.status-page-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  margin-top: 4rem;
+}
+
+.status-page-heading h1,
+.status-page-meta p {
+  margin: 0;
+}
+
+.status-page-meta {
+  margin-left: auto !important;
+  text-align: right;
+}
+
+.status-page-updated {
+  font-size: 1.2rem;
+}
+
+.status-page-meta label {
+  display: block;
+}
+
+.status-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.status-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.status-health li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.status-health li > [aria-hidden] {
+  align-self: center;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: var(--border-muted-color);
+}
+
+.status-health [data-state="operational"] > [aria-hidden],
+.status-health [data-state="nominal"] > [aria-hidden] {
+  background: var(--pill-available-bg);
+}
+
+.status-health [data-state="degraded"] > [aria-hidden],
+.status-health [data-state="advisory"] > [aria-hidden] {
+  background: var(--pill-degraded-bg);
+}
+
+.status-health [data-state="down"] > [aria-hidden] {
+  background: var(--pill-down-bg);
+}
+
+@media (max-width: 680px) {
+  .status-page-meta {
+    flex-basis: 100%;
+    text-align: left;
+  }
+
+  .status-health {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .status-health li {
+    flex: 1 1 100%;
+  }
 }
 
 /* Prevent visited-link styling from recoloring interactive SVG maps (e.g. scorecard). */

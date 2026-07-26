@@ -7,10 +7,16 @@ import {
   barTooltip,
   clockTime,
   detailRows,
+  displaySource,
   etaLineText,
   initParts,
   validateDashboard,
 } from "../public/pipeline.mjs";
+import {
+  agencyHealth,
+  systemHealth,
+} from "../public/status-health.mjs";
+import { localTimeLabel } from "../public/status-time.mjs";
 
 function dashboard() {
   return {
@@ -74,6 +80,39 @@ test("summarizes upstream agency advisories without changing pipeline state", ()
   );
 });
 
+test("summarizes shared system and agency health", () => {
+  assert.deepEqual(
+    systemHealth({
+      endpoints: [
+        { status: "operational" },
+        { status: "operational" },
+      ],
+    }),
+    { state: "operational", label: "all systems", value: "operational" },
+  );
+  assert.deepEqual(
+    systemHealth({
+      endpoints: [{ status: "operational" }, { status: "down" }],
+    }),
+    { state: "down", label: "systems", value: "disrupted" },
+  );
+  assert.deepEqual(systemHealth({ endpoints: [{ status: "new-state" }] }), {
+    state: "degraded",
+    label: "some systems",
+    value: "degraded",
+  });
+  assert.deepEqual(agencyHealth([]), {
+    state: "nominal",
+    label: "weather agencies",
+    value: "nominal",
+  });
+  assert.deepEqual(agencyHealth([{ agency: "noaa" }]), {
+    state: "advisory",
+    label: "weather agencies",
+    value: "NOAA advisory",
+  });
+});
+
 test("formats init labels in UTC and the selected local timezone", () => {
   const timestamp = "2026-07-26T00:00:00Z";
   assert.deepEqual(initParts(timestamp), { date: "07-26", time: "00z" });
@@ -81,6 +120,12 @@ test("formats init labels in UTC and the selected local timezone", () => {
     date: "07-25",
     time: "19 CDT",
   });
+});
+
+test("shortens displayed web sources without changing other schemes", () => {
+  assert.equal(displaySource("https://nomads.ncep.noaa.gov"), "nomads.ncep.noaa.gov");
+  assert.equal(displaySource("http://example.com/data"), "example.com/data");
+  assert.equal(displaySource("s3://noaa-gfs-bdp-pds"), "s3://noaa-gfs-bdp-pds");
 });
 
 test("preserves run and lead-group detail in bar tooltips", () => {
@@ -201,7 +246,30 @@ test("status pages share the uptime, pipeline, and webhooks subnav", () => {
   assert.match(subnav, />uptime</);
   assert.match(subnav, /pipeline/);
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  assert.match(subnav, /data-slot="system-health"/);
+  assert.match(subnav, /data-slot="agency-health"/);
+  assert.match(subnav, /statusSection == "pipeline"/);
+  assert.match(subnav, /pipeline-controls-actions[\s\S]*pipeline-history-toggle/);
+  assert.match(status, /id="status-time-toggle"/);
+  assert.match(pipeline, /id="status-time-toggle"/);
   assert.equal((base.match(/href="\/status\/"/g) ?? []).length, 2);
+});
+
+test("the shared time control names the browser's local zone", () => {
+  assert.match(
+    localTimeLabel(new Date("2026-07-26T12:00:00Z")),
+    /^Local time \(.+\)$/,
+  );
+});
+
+test("either local status preview serves both fixture feeds", () => {
+  const { scripts } = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  for (const name of ["start:status", "start:pipeline"]) {
+    assert.match(scripts[name], /STATUS_FIXTURE=1/);
+    assert.match(scripts[name], /PIPELINE_FIXTURE=1/);
+  }
 });
 
 test("pipeline page links to webhooks and the integration guide", () => {
@@ -220,17 +288,16 @@ test("pipeline page links to webhooks and the integration guide", () => {
 
   assert.match(template, /https:\/\/status\.dynamical\.org\/webhooks/);
   assert.match(template, /\/research\/when-the-forecast-is-ready\//);
-  assert.match(template, /weather agencies[\s\S]*pipeline-controls-actions/);
-  assert.match(
-    template,
-    /pipeline-controls-actions[\s\S]*pipeline-time-toggle[\s\S]*pipeline-history-toggle/,
-  );
   assert.match(template, /forecast hours still expected/);
   assert.match(template, /no monitoring data/);
   assert.doesNotMatch(template, /Data product pipeline|Forecast-run arrival/);
   assert.match(
     pipelineCss,
-    /\.pipeline-bar-segment\.g-pending\s*{\s*border: 1px dotted var\(--pipeline-unobserved\)/,
+    /\.pipeline-bar-segment\.g-pending,[\s\S]*\.pipeline-bar-segment\.g-unobserved\s*{\s*border: 1px dotted var\(--pipeline-unobserved\)/,
+  );
+  assert.match(
+    pipelineCss,
+    /\.pipeline-bar\[data-status="unobserved"\] \.pipeline-bar-track\s*{\s*border: 1px dotted/,
   );
   assert.match(
     pipelineCss,
@@ -247,8 +314,17 @@ test("uptime uses light section headings without subtitles or rules", () => {
     new URL("../content/status.njk", import.meta.url),
     "utf8",
   );
+  const script = readFileSync(
+    new URL("../public/status.mjs", import.meta.url),
+    "utf8",
+  );
   assert.match(template, />Core</);
   assert.match(template, /--index-row-border: 0/);
+  assert.doesNotMatch(template, /\.status-overall\s*{[^}]*border-top:/s);
+  assert.doesNotMatch(
+    script,
+    /All monitored public endpoints and tools are reporting normally\./,
+  );
   assert.doesNotMatch(template, />Endpoints</);
   assert.doesNotMatch(template, /Data-serving and website/);
   assert.doesNotMatch(template, /Built on top of the data/);

@@ -5,3 +5,23 @@
   <span aria-hidden="true">|</span>
   <a href="https://status.dynamical.org/webhooks">webhooks</a>
 </nav>
+<div class="status-controls">
+  <ul class="status-health" aria-label="Current health" aria-live="polite"
+    data-status-url="{{ statusFeed }}"
+    data-pipeline-url="{{ pipelineAssetsBase }}/dashboard.json">
+    <li data-slot="system-health" data-state="unavailable">
+      <span aria-hidden="true"></span>
+      <span data-health-label>systems</span> <strong>checking…</strong>
+    </li>
+    <li data-slot="agency-health" data-state="unavailable">
+      <span aria-hidden="true"></span>
+      <span data-health-label>weather agencies</span> <strong>checking…</strong>
+    </li>
+  </ul>
+  {% if statusSection == "pipeline" %}
+    <div class="pipeline-controls-actions">
+      <button type="button" id="pipeline-history-toggle" aria-expanded="false"
+        aria-controls="pipeline-history-panel">history</button>
+    </div>
+  {% endif %}
+</div>

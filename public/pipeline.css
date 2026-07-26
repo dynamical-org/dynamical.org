@@ -5,35 +5,11 @@
   --pipeline-unobserved: #a8a8ad;
 }
 
-.pipeline-page .status-page-heading {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.5rem 2rem;
-  margin-top: 4rem;
-}
-
-.pipeline-page .status-page-heading h1,
-.pipeline-page .status-page-heading p {
-  margin: 0;
-}
-
-.pipeline-updated {
-  margin-left: auto !important;
-  text-align: right;
-}
-
-.pipeline-controls,
 .pipeline-controls-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 1.2rem;
-}
-
-.pipeline-controls {
-  justify-content: space-between;
-  margin: 0 0 2rem;
 }
 
 .pipeline-legend {
@@ -71,37 +47,9 @@
   border: 1px dotted var(--pipeline-unobserved);
 }
 
-.pipeline-agencies {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  white-space: nowrap;
-}
-
-.pipeline-agency-dot {
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 50%;
-  background: var(--pipeline-unobserved);
-}
-
-.pipeline-agencies[data-state="nominal"] .pipeline-agency-dot {
-  background: var(--pipeline-ok);
-}
-
-.pipeline-agencies[data-state="advisory"] {
-  color: var(--pill-degraded-fg);
-  background: var(--pill-degraded-bg);
-  padding: 0.2rem 0.5rem;
-}
-
-.pipeline-agencies[data-state="advisory"] .pipeline-agency-dot {
-  background: currentColor;
-}
-
-.pipeline-controls button,
+.pipeline-controls-actions button,
 .pipeline-footer,
-.pipeline-updated {
+.status-page-updated {
   font-size: 1.2rem;
 }
 
@@ -245,7 +193,8 @@
   height: var(--band-height, 0%);
 }
 
-.pipeline-bar-segment + .pipeline-bar-segment:not(:last-child) {
+.pipeline-bar-segment
+  + .pipeline-bar-segment:not(:last-child, .g-pending, .g-unobserved) {
   border-top: 1px solid var(--text-color);
 }
 
@@ -276,13 +225,13 @@
   background: var(--pipeline-failed);
 }
 
-.pipeline-bar-segment.g-pending {
+.pipeline-bar-segment.g-pending,
+.pipeline-bar-segment.g-unobserved {
   border: 1px dotted var(--pipeline-unobserved);
 }
 
 .pipeline-bar[data-status="unobserved"] .pipeline-bar-track {
-  border-style: dotted;
-  border-color: var(--pipeline-unobserved);
+  border: 1px dotted var(--pipeline-unobserved);
 }
 
 .pipeline-bar[data-status="unobserved"] .pipeline-bar-fill,

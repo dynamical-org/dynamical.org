@@ -12,7 +12,16 @@ pageStylesheet: /pipeline.css
   data-assets-base="{{ pipelineAssetsBase }}">
   <header class="status-page-heading">
     <h1>dynamical.org status</h1>
-    <p class="pipeline-updated">Updated <span data-slot="generated-at">—</span></p>
+    <div class="status-page-meta">
+      <p class="status-page-updated">Updated <span data-slot="generated-at">—</span></p>
+      <label>
+        <span class="visually-hidden">Time zone</span>
+        <select id="status-time-toggle">
+          <option value="local">Local time</option>
+          <option value="utc">Coordinated Universal Time (UTC)</option>
+        </select>
+      </label>
+    </div>
   </header>
   {% include "status-subnav.njk" %}
 
@@ -21,24 +30,6 @@ pageStylesheet: /pipeline.css
   </div>
   <div data-slot="banners" aria-live="polite"></div>
 
-  <div class="pipeline-controls">
-    <span class="pipeline-agencies" data-slot="agency-status" role="status"
-      title="NOAA, ECMWF, and DWD dissemination advisories">
-      <span class="pipeline-agency-dot" aria-hidden="true"></span>
-      weather agencies <strong>checking…</strong>
-    </span>
-    <div class="pipeline-controls-actions">
-      <label>
-        <span class="visually-hidden">Time zone</span>
-        <select id="pipeline-time-toggle">
-          <option value="utc">Coordinated Universal Time (UTC)</option>
-          <option value="local">Local time</option>
-        </select>
-      </label>
-      <button type="button" id="pipeline-history-toggle" aria-expanded="false"
-        aria-controls="pipeline-history-panel">history</button>
-    </div>
-  </div>
   <div class="pipeline-legend" aria-label="Pipeline bar legend">
     <span>
       <span class="pipeline-legend-mark pipeline-legend-mark--pending"

@@ -277,6 +277,12 @@ test("status page uses the requested heading and replaces stale as-of copy", () 
   );
 
   assert.match(template, />dynamical\.org status</);
+  assert.match(template, /id="status-as-of"[^>]*>As of —</);
+  assert.doesNotMatch(template, /id="status-as-of"[^>]*><strong>/);
+  assert.match(
+    template,
+    /\.status-bars > \*\s*{[^}]*border: 1px dotted/s,
+  );
   assert.doesNotMatch(
     template,
     /Current health of dynamical\.org public endpoints, tools, and resources\./,

@@ -6,6 +6,12 @@ import {
   parseEventLog,
   uptimeSummary,
 } from "./status-log.mjs";
+import {
+  agencyHealth,
+  renderHealth,
+  systemHealth,
+} from "./status-health.mjs";
+import { setupTimeToggle } from "./status-time.mjs";
 
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
 const PUBLIC_GROUPS = new Set(["endpoint", "tool"]);
@@ -89,13 +95,14 @@ function statusLabel(status) {
   }[status];
 }
 
-function formatTimestamp(timestamp) {
+function formatTimestamp(timestamp, local) {
   return new Intl.DateTimeFormat(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: local ? undefined : "UTC",
     timeZoneName: "short",
   }).format(new Date(timestamp));
 }
@@ -258,26 +265,18 @@ async function loadHistory(root) {
   }
 }
 
-function renderStatus(root, data, loadedHistory) {
+function renderStatus(root, data, loadedHistory, local) {
   const overall = summarizeOverallStatus(data);
   const overallPanel = root.querySelector("#status-overall");
-  const heading = root.querySelector("#status-overall-heading");
   const summary = root.querySelector("#status-summary");
   const incidents = root.querySelector("#status-incidents");
   const asOf = root.querySelector("#status-as-of");
   const historyNotice = root.querySelector("#status-history");
   const groups = root.querySelector("#status-groups");
 
-  overallPanel.className = `status-overall status-${overall.status}`;
-  heading.textContent = {
-    operational: "All systems operational",
-    degraded: "Some services are degraded",
-    down: "Service disruption",
-  }[overall.status];
-  summary.textContent =
-    overall.status === "operational"
-      ? "All monitored public endpoints and tools are reporting normally."
-      : "The affected components are listed below.";
+  renderHealth(root, "system-health", systemHealth(data));
+  overallPanel.hidden = overall.status === "operational";
+  summary.textContent = "The affected components are listed below.";
 
   incidents.replaceChildren();
   incidents.hidden = overall.incidents.length === 0;
@@ -304,10 +303,8 @@ function renderStatus(root, data, loadedHistory) {
   } else {
     const generatedTime = document.createElement("time");
     generatedTime.dateTime = data.generated_at;
-    generatedTime.textContent = formatTimestamp(data.generated_at);
-    const asOfLabel = document.createElement("strong");
-    asOfLabel.append("As of ", generatedTime);
-    asOf.replaceChildren(asOfLabel);
+    generatedTime.textContent = formatTimestamp(data.generated_at, local);
+    asOf.replaceChildren("As of ", generatedTime);
   }
   const history =
     loadedHistory && isHistoryCurrent(loadedHistory.asOf, data.generated_at)
@@ -339,7 +336,7 @@ function renderStatus(root, data, loadedHistory) {
       emptyCells,
     );
   }
-  renderIncidentLog(root, history, data);
+  renderIncidentLog(root, history, data, local);
 }
 
 function setHistoryNotice(element, message) {
@@ -347,7 +344,7 @@ function setHistoryNotice(element, message) {
   element.textContent = message ?? "";
 }
 
-function renderIncidentLog(root, history, data) {
+function renderIncidentLog(root, history, data, local) {
   const list = root.querySelector("#status-incident-log");
   const empty = root.querySelector("#status-incident-empty");
   list.replaceChildren();
@@ -383,9 +380,9 @@ function renderIncidentLog(root, history, data) {
           : "Ongoing";
     timing.textContent =
       incident.ending === "observation-ended"
-        ? `${formatTimestamp(incident.start)} – ${formatTimestamp(incident.end)} · ${formatDuration(incident.start, end)}. Recovery was not witnessed.`
-        : `${formatTimestamp(incident.start)} – ${
-            incident.end ? formatTimestamp(incident.end) : "ongoing"
+        ? `${formatTimestamp(incident.start, local)} – ${formatTimestamp(incident.end, local)} · ${formatDuration(incident.start, end)}. Recovery was not witnessed.`
+        : `${formatTimestamp(incident.start, local)} – ${
+            incident.end ? formatTimestamp(incident.end, local) : "ongoing"
           } · ${formatDuration(incident.start, end)}.`;
     header.append(name, state);
     item.append(header, timing);
@@ -401,23 +398,20 @@ function renderIncidentLog(root, history, data) {
 
 function renderUnavailable(root) {
   const overallPanel = root.querySelector("#status-overall");
-  overallPanel.className = "status-overall status-unavailable";
-  root.querySelector("#status-overall-heading").textContent =
-    "Status temporarily unavailable";
+  overallPanel.hidden = false;
   root.querySelector("#status-summary").textContent =
     "The status feed could not be loaded. Try again shortly.";
   root.querySelector("#status-incidents").hidden = true;
   setHistoryNotice(root.querySelector("#status-history"), null);
   root.querySelector("#status-groups").hidden = true;
-  renderIncidentLog(root, null, { endpoints: [] });
-  const asOfLabel = document.createElement("strong");
-  asOfLabel.textContent = "As of —";
+  renderIncidentLog(root, null, { endpoints: [] }, true);
   const asOf = root.querySelector("#status-as-of");
   asOf.classList.remove("status-stale");
-  asOf.replaceChildren(asOfLabel);
+  asOf.textContent = "As of —";
+  renderHealth(root, "system-health", systemHealth(null));
 }
 
-async function loadStatus(root) {
+async function loadStatus(root, render) {
   const history = loadHistory(root);
   try {
     const response = await fetch(root.dataset.statusUrl, {
@@ -429,17 +423,51 @@ async function loadStatus(root) {
       throw new Error(`Status request failed: ${response.status}`);
     }
     const data = validateStatusData(await response.json());
-    renderStatus(root, data, await history);
+    render(data, await history);
   } catch (error) {
     console.error("Unable to load public status", error);
-    renderUnavailable(root);
+    render(null, null);
+  }
+}
+
+async function loadAgencyHealth(root) {
+  const url = root.querySelector(".status-health").dataset.pipelineUrl;
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) throw new Error(`Agency request failed: ${response.status}`);
+    const data = await response.json();
+    renderHealth(root, "agency-health", agencyHealth(data.advisories));
+  } catch {
+    renderHealth(root, "agency-health", agencyHealth(null));
   }
 }
 
 if (typeof document !== "undefined") {
   const root = document.querySelector("[data-status-page]");
   if (root) {
-    loadStatus(root);
-    setInterval(() => loadStatus(root), REFRESH_INTERVAL_MS);
+    let data = null;
+    let history = null;
+    let local = true;
+    const render = (nextData, nextHistory) => {
+      data = nextData;
+      history = nextHistory;
+      if (data) renderStatus(root, data, history, local);
+      else renderUnavailable(root);
+    };
+    local = setupTimeToggle(
+      root.querySelector("#status-time-toggle"),
+      (nextLocal) => {
+        local = nextLocal;
+        if (data) renderStatus(root, data, history, local);
+      },
+    );
+    loadStatus(root, render);
+    loadAgencyHealth(root);
+    setInterval(() => loadStatus(root, render), REFRESH_INTERVAL_MS);
+    setInterval(() => loadAgencyHealth(root), REFRESH_INTERVAL_MS);
   }
 }

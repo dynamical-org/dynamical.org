@@ -9,37 +9,11 @@ statusSection: uptime
 ---
 
 <style>
-  .status-page-heading {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.5rem 2rem;
-    margin-top: 4rem;
-  }
-  .status-page-heading h1,
-  .status-page-heading p {
-    margin: 0;
-  }
-  #status-as-of {
-    margin-left: auto;
-    text-align: right;
-  }
   #status-as-of.status-stale {
     color: var(--pill-degraded-bg);
   }
   .status-overall {
     margin-top: 1rem;
-    padding-top: 1.6rem;
-    border-top: 0.6rem solid var(--muted-text);
-  }
-  .status-operational {
-    border-top-color: var(--pill-available-bg);
-  }
-  .status-degraded {
-    border-top-color: var(--pill-degraded-bg);
-  }
-  .status-down {
-    border-top-color: var(--pill-down-bg);
   }
   .status-list {
     --index-row-padding: 1rem;
@@ -89,20 +63,23 @@ statusSection: uptime
   }
   .status-bars > * {
     flex: 1 1 0;
-    border: 1px solid var(--pill-muted-border);
+    border: 1px dotted var(--pill-muted-border);
     background: transparent;
   }
   .status-bars > a {
     text-decoration: none;
   }
   .status-bars [data-day="unknown"] {
+    border-style: solid;
     border-color: var(--pill-down-bg);
   }
   .status-bars [data-day="operational"] {
+    border-style: solid;
     border-color: var(--pill-available-bg);
     background: var(--pill-available-bg);
   }
   .status-bars [data-day="down"] {
+    border-style: solid;
     border-color: var(--pill-down-bg);
     background: var(--pill-down-bg);
   }
@@ -140,9 +117,6 @@ statusSection: uptime
     color: var(--muted-text);
   }
   @media (max-width: 680px) {
-    #status-as-of {
-      flex-basis: 100%;
-    }
     .status-list header {
       flex-direction: column;
       align-items: start;
@@ -155,12 +129,21 @@ statusSection: uptime
   data-log-url="{{ statusLogBase }}">
   <header class="status-page-heading">
     <h1>dynamical.org status</h1>
-    <p id="status-as-of" role="status"><strong>As of —</strong></p>
+    <div class="status-page-meta">
+      <p class="status-page-updated" id="status-as-of" role="status">As of —</p>
+      <label>
+        <span class="visually-hidden">Time zone</span>
+        <select id="status-time-toggle">
+          <option value="local">Local time</option>
+          <option value="utc">Coordinated Universal Time (UTC)</option>
+        </select>
+      </label>
+    </div>
   </header>
   {% include "status-subnav.njk" %}
 
-  <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading" aria-live="polite">
-    <h2 id="status-overall-heading">Checking current status…</h2>
+  <section class="status-overall" id="status-overall" aria-label="Service status"
+    aria-live="polite">
     <p id="status-summary">Loading the latest monitor results.</p>
     <ul id="status-incidents" hidden></ul>
   </section>
