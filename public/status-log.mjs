@@ -35,8 +35,9 @@ function publicState(state) {
   return PUBLIC_STATES.has(state) ? state : "unknown";
 }
 
-export function parseEvents(text) {
+export function parseEventLog(text) {
   const events = [];
+  let recordCount = 0;
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
     let event;
@@ -45,8 +46,9 @@ export function parseEvents(text) {
     } catch {
       continue; // A truncated tail must not cost us the whole history.
     }
-    // Skip unknown kinds rather than failing: additive annotative kinds are
-    // meant to be safe for an old client, and a semantic addition bumps `v`.
+    recordCount += 1;
+    // Skip unknown kinds so additive records remain safe for an old client.
+    // A state-bearing semantic addition bumps `v`.
     if (event?.kind !== COVERAGE && event?.kind !== TRANSITION) continue;
     if (typeof event.component !== "string") continue;
     // A UTC offset is required. Date.parse treats an offset-less date-time as
@@ -59,11 +61,15 @@ export function parseEvents(text) {
     if (!Number.isFinite(Date.parse(event.ts))) continue;
     events.push(event);
   }
-  return events.sort(
+  events.sort(
     (a, b) =>
-      Date.parse(a.ts) - Date.parse(b.ts) ||
-      kindRank(a) - kindRank(b),
+      Date.parse(a.ts) - Date.parse(b.ts) || kindRank(a) - kindRank(b),
   );
+  return { events, recordCount };
+}
+
+export function parseEvents(text) {
+  return parseEventLog(text).events;
 }
 
 // The log cannot say when it was last checked, only when something changed, so

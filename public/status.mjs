@@ -3,7 +3,7 @@ import {
   dailyBars,
   effectiveAsOf,
   incidentLog,
-  parseEvents,
+  parseEventLog,
   uptimeSummary,
 } from "./status-log.mjs";
 
@@ -206,13 +206,13 @@ function barStrip(cells) {
 }
 
 export function buildHistory(eventsText, metaText) {
-  const events = parseEvents(eventsText);
+  const { events, recordCount } = parseEventLog(eventsText);
   const meta = JSON.parse(metaText);
   if (
     "events_count" in meta &&
     (!Number.isInteger(meta.events_count) ||
       meta.events_count < 0 ||
-      meta.events_count !== events.length)
+      meta.events_count !== recordCount)
   ) {
     throw new TypeError("Mismatched event-log revision");
   }

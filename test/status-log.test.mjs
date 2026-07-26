@@ -34,12 +34,10 @@ const spansOf = (...events) =>
 // --- parsing --------------------------------------------------------------
 
 test("skips unknown event kinds instead of failing", () => {
-  // Additive annotative kinds are meant to be safe for an old client; a semantic
-  // addition is supposed to bump `v` instead.
   const events = parseEvents(
     jsonl(
       coverage("2026-07-20T00:00:00Z", C, true, "operational"),
-      { ts: "2026-07-21T00:00:00Z", kind: "annotation", component: C, note: "hi" },
+      { ts: "2026-07-21T00:00:00Z", kind: "future-metadata", component: C },
       transition("2026-07-22T00:00:00Z", C, "down"),
     ),
   );

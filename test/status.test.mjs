@@ -170,6 +170,54 @@ test("rejects a mismatched event-log revision", () => {
   assert.throws(() => buildHistory(events, meta), /event-log revision/i);
 });
 
+test("revision count includes additive records old clients skip", () => {
+  const events = [
+    {
+      ts: "2026-07-24T19:00:00Z",
+      kind: "coverage",
+      component: "dynamical-org",
+      monitored: true,
+      state: "operational",
+    },
+    {
+      ts: "2026-07-24T19:30:00Z",
+      kind: "future-metadata",
+      component: "dynamical-org",
+    },
+  ]
+    .map(JSON.stringify)
+    .join("\n");
+  const meta = JSON.stringify({
+    v: 1,
+    reconciled_at: "2026-07-24T20:00:00Z",
+    events_count: 2,
+  });
+
+  const history = buildHistory(events, meta);
+
+  assert.equal(history.incidents.length, 0);
+  assert.equal(history.uptime.has("dynamical-org"), true);
+  assert.equal(history.asOf.toISOString(), "2026-07-24T20:00:00.000Z");
+});
+
+test("revision metadata rejects a truncated record", () => {
+  const events =
+    `${JSON.stringify({
+      ts: "2026-07-24T19:00:00Z",
+      kind: "coverage",
+      component: "dynamical-org",
+      monitored: true,
+      state: "operational",
+    })}\n` + '{"ts":"2026-07-24T19:30:00Z","kind":"transi';
+  const meta = JSON.stringify({
+    v: 1,
+    reconciled_at: "2026-07-24T20:00:00Z",
+    events_count: 2,
+  });
+
+  assert.throws(() => buildHistory(events, meta), /event-log revision/i);
+});
+
 test("accepts legacy history metadata during publisher rollout", () => {
   const events = `${JSON.stringify({
     ts: "2026-07-24T19:00:00Z",
