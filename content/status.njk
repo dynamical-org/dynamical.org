@@ -118,7 +118,7 @@ statusSection: uptime
   }
 </style>
 
-<main class="content" data-status-page data-status-url="{{ statusFeed }}"
+<main class="content" style="margin-top: 4rem;" data-status-page data-status-url="{{ statusFeed }}"
   data-log-url="{{ statusLogBase }}">
   {% from "status-subnav.njk" import statusSubnav %}
   {% call statusSubnav(statusSection, statusFeed, pipelineAssetsBase) %}

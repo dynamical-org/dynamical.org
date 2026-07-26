@@ -282,6 +282,7 @@ test("status page passes its timestamp into the shared subnav row", () => {
 
   assert.doesNotMatch(template, />dynamical\.org status</);
   assert.match(template, /call statusSubnav\(statusSection, statusFeed, pipelineAssetsBase\)/);
+  assert.match(template, /style="margin-top: 4rem;"/);
   assert.match(template, /data-slot="status-updated">As of —</);
   assert.doesNotMatch(template, /id="status-as-of"[^>]*><strong>/);
   assert.match(template, /status-page-updated[\s\S]*status-time-toggle/);

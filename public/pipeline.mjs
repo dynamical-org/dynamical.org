@@ -628,8 +628,6 @@ function start(app) {
       structureSignature = nextSignature;
     }
     banners.replaceChildren();
-    app.querySelector('[data-slot="window-days"]').textContent =
-      latest.window_days ?? "—";
     ribbon.hidden =
       Date.now() - Date.parse(latest.generated_at) <= STALE_AFTER_MS;
     displaySnapshot(latest, Date.now());

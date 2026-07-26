@@ -39,10 +39,6 @@
   border: 1px dotted var(--pipeline-unobserved);
 }
 
-.pipeline-footer {
-  font-size: 1.2rem;
-}
-
 .pipeline-ribbon:not([hidden]),
 .pipeline-banner {
   margin-bottom: 1.5rem;
@@ -79,7 +75,6 @@
 
 .pipeline-advisories {
   margin: 1.5rem 0;
-  font-size: 1.2rem;
 }
 
 .pipeline-advisories p {
@@ -302,14 +297,6 @@
 .pipeline-row-details th:first-child,
 .pipeline-row-details td:first-child {
   text-align: left;
-}
-
-.pipeline-footer {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1.2rem;
-  color: var(--muted-text);
 }
 
 .pipeline-time-local .pipeline-time-utc,

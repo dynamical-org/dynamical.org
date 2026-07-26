@@ -306,13 +306,21 @@ test("either local status preview serves both fixture feeds", () => {
   }
 });
 
-test("pipeline page links to webhooks and the integration guide", () => {
+test("pipeline page uses the shared subnav without a separate footer", () => {
   const template = readFileSync(
     new URL("../content/status-pipeline.njk", import.meta.url),
     "utf8",
   );
+  const subnav = readFileSync(
+    new URL("../_includes/status-subnav.njk", import.meta.url),
+    "utf8",
+  );
   const pipelineCss = readFileSync(
     new URL("../public/pipeline.css", import.meta.url),
+    "utf8",
+  );
+  const pipelineScript = readFileSync(
+    new URL("../public/pipeline.mjs", import.meta.url),
     "utf8",
   );
   const mainCss = readFileSync(
@@ -320,10 +328,12 @@ test("pipeline page links to webhooks and the integration guide", () => {
     "utf8",
   );
 
-  assert.match(template, /https:\/\/status\.dynamical\.org\/webhooks/);
-  assert.match(template, /\/research\/when-the-forecast-is-ready\//);
+  assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
   assert.match(template, /forecast hours still expected/);
   assert.match(template, /no monitoring data/);
+  assert.doesNotMatch(template, /pipeline-footer|window-days/);
+  assert.doesNotMatch(pipelineScript, /window-days/);
+  assert.match(template, /style="margin-top: 4rem;"/);
   assert.match(template, /status-page-updated[\s\S]*status-time-toggle/);
   assert.doesNotMatch(template, /Local time|Coordinated Universal Time/);
   assert.doesNotMatch(template, /Data product pipeline|Forecast-run arrival/);
@@ -334,10 +344,6 @@ test("pipeline page links to webhooks and the integration guide", () => {
   assert.match(
     pipelineCss,
     /\.pipeline-bar\[data-status="unobserved"\] \.pipeline-bar-track\s*{\s*border: 1px dotted/,
-  );
-  assert.doesNotMatch(
-    pipelineCss,
-    /\.pipeline-footer\s*{[^}]*(?:padding|border|margin-top):/s,
   );
   assert.doesNotMatch(
     mainCss,
@@ -362,7 +368,6 @@ test("uptime uses light section headings without subtitles or rules", () => {
   assert.match(template, />Core</);
   assert.match(template, /--index-row-border: 0/);
   assert.doesNotMatch(template, /class="status-(?:overall|groups)"/);
-  assert.doesNotMatch(template, /style="margin-top:/);
   assert.doesNotMatch(
     script,
     /All monitored public endpoints and tools are reporting normally\./,

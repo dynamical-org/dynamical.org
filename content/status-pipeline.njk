@@ -9,7 +9,7 @@ pageStylesheet: /pipeline.css
 ---
 
 <main class="content pipeline-page" id="pipeline-app"
-  data-assets-base="{{ pipelineAssetsBase }}">
+  data-assets-base="{{ pipelineAssetsBase }}" style="margin-top: 4rem;">
   {% from "status-subnav.njk" import statusSubnav %}
   {% call statusSubnav(statusSection, statusFeed, pipelineAssetsBase) %}
     <p class="status-page-updated">
@@ -53,14 +53,6 @@ pageStylesheet: /pipeline.css
   <div data-slot="advisories"></div>
   <div data-slot="groups" aria-live="polite">
     <p data-slot="loading">Loading pipeline status…</p>
-  </div>
-
-  <div class="pipeline-footer">
-    <span><span data-slot="window-days">—</span>-day rolling window · polls every 15s</span>
-    <span>
-      <a href="https://status.dynamical.org/webhooks">webhooks</a> ·
-      <a href="/research/when-the-forecast-is-ready/">integration guide</a>
-    </span>
   </div>
 
   <noscript><p>Pipeline status requires JavaScript.</p></noscript>
