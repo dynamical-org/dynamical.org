@@ -87,10 +87,8 @@ hideLatestPopup: true
   }
   .status-bars span {
     flex: 1 1 0;
-    /* A gap must read as "we stopped watching", not as the end of the strip, so
-       it carries the same border the muted pill uses to stay visible on white. */
     border: 1px solid var(--pill-muted-border);
-    background: var(--pill-muted-bg);
+    background: transparent;
   }
   .status-bars [data-day="unknown"] {
     border-color: var(--pill-down-bg);

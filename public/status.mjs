@@ -102,7 +102,15 @@ function statusMark(status) {
   return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[status];
 }
 
-function renderGroup(list, entries, bars, uptime) {
+export function uptimeDescription(measured, days) {
+  return (
+    `${measured.uptime}% uptime over the last ${days} ` +
+    `${days === 1 ? "day" : "days"}` +
+    (measured.coverage < 100 ? `, ${measured.coverage}% monitored` : "")
+  );
+}
+
+function renderGroup(list, entries, bars, uptime, emptyCells) {
   list.replaceChildren();
   for (const entry of entries) {
     const item = document.createElement("li");
@@ -122,16 +130,11 @@ function renderGroup(list, entries, bars, uptime) {
     header.append(name, state);
     item.append(header);
 
-    const cells = bars?.get(entry.id);
+    const cells = bars?.get(entry.id) ?? emptyCells;
     const measured = uptime?.get(entry.id);
     if (cells?.length && measured) {
-      const days = cells.length;
       const detail = document.createElement("p");
-      detail.textContent =
-        `${measured.uptime}% uptime over the last ${days} ` +
-        `${days === 1 ? "day" : "days"}` +
-        // State a reduced denominator only when coverage is incomplete.
-        (measured.coverage < 100 ? `, ${measured.coverage}% monitored` : "");
+      detail.textContent = uptimeDescription(measured, cells.length);
       item.append(detail);
     }
     if (cells?.length) item.append(barStrip(cells));
@@ -184,9 +187,10 @@ export function buildHistory(eventsText, metaText) {
   const events = parseEvents(eventsText);
   const meta = JSON.parse(metaText);
   if (
-    !Number.isInteger(meta.events_count) ||
-    meta.events_count < 0 ||
-    meta.events_count !== events.length
+    "events_count" in meta &&
+    (!Number.isInteger(meta.events_count) ||
+      meta.events_count < 0 ||
+      meta.events_count !== events.length)
   ) {
     throw new TypeError("Mismatched event-log revision");
   }
@@ -278,6 +282,10 @@ function renderStatus(root, data, loadedHistory) {
     loadedHistory && isHistoryCurrent(loadedHistory.asOf, data.generated_at)
       ? loadedHistory
       : null;
+  const emptyCells = dailyBars(new Map([["", []]]), {
+    asOf: history?.asOf ?? new Date(data.generated_at),
+    days: BAR_DAYS,
+  }).get("");
   setHistoryNotice(
     historyNotice,
     history
@@ -297,6 +305,7 @@ function renderStatus(root, data, loadedHistory) {
       data.endpoints.filter((entry) => entry.group === group),
       history?.cells,
       history?.uptime,
+      emptyCells,
     );
   }
 }

@@ -8,6 +8,7 @@ import {
   isHistoryCurrent,
   isStatusDataStale,
   summarizeOverallStatus,
+  uptimeDescription,
   validateStatusData,
 } from "../public/status.mjs";
 
@@ -166,14 +167,22 @@ test("rejects a mismatched event-log revision", () => {
   });
 
   assert.throws(() => buildHistory(events, meta), /event-log revision/i);
-  assert.throws(
-    () =>
-      buildHistory(
-        events,
-        JSON.stringify({ v: 1, reconciled_at: "2026-07-24T20:00:00Z" }),
-      ),
-    /event-log revision/i,
+});
+
+test("accepts legacy history metadata during publisher rollout", () => {
+  const events = `${JSON.stringify({
+    ts: "2026-07-24T19:00:00Z",
+    kind: "coverage",
+    component: "dynamical-org",
+    monitored: true,
+    state: "operational",
+  })}\n`;
+  const history = buildHistory(
+    events,
+    JSON.stringify({ v: 1, reconciled_at: "2026-07-24T20:00:00Z" }),
   );
+
+  assert.equal(history.asOf.toISOString(), "2026-07-24T20:00:00.000Z");
 });
 
 test("history must be close to the current snapshot", () => {
@@ -203,4 +212,11 @@ test("history must be close to the current snapshot", () => {
 test("bar descriptions distinguish unknown state from missing coverage", () => {
   assert.match(barDescription([{ state: "unknown" }]), /unknown state/i);
   assert.doesNotMatch(barDescription([{ state: "unknown" }]), /not monitored/i);
+});
+
+test("uptime description states the fixed window and observed coverage", () => {
+  assert.equal(
+    uptimeDescription({ uptime: 100, coverage: 1.5 }, 90),
+    "100% uptime over the last 90 days, 1.5% monitored",
+  );
 });
