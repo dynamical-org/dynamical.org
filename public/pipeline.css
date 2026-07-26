@@ -24,7 +24,7 @@
 }
 
 .pipeline-controls,
-.pipeline-controls-primary {
+.pipeline-controls-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -33,17 +33,42 @@
 
 .pipeline-controls {
   justify-content: space-between;
-  margin: 3rem 0 2rem;
+  margin: 0 0 2rem;
 }
 
 .pipeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.6rem;
   margin: -1.2rem 0 2rem;
   color: var(--muted-text);
   font-size: 1.1rem;
 }
 
-.pipeline-controls-primary {
-  justify-content: flex-start;
+.pipeline-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pipeline-legend-mark {
+  display: inline-block;
+  width: 2.4rem;
+  height: 1rem;
+  box-sizing: border-box;
+}
+
+.pipeline-legend-mark--pending {
+  border: 1px dotted var(--pipeline-unobserved);
+  background: linear-gradient(
+    to right,
+    var(--pipeline-ok) 0 50%,
+    transparent 50%
+  );
+}
+
+.pipeline-legend-mark--unobserved {
+  border: 1px dotted var(--pipeline-unobserved);
 }
 
 .pipeline-agencies {
@@ -251,8 +276,11 @@
   background: var(--pipeline-failed);
 }
 
-.pipeline-bar[data-status="unobserved"] .pipeline-bar-track,
 .pipeline-bar-segment.g-pending {
+  border: 1px dotted var(--pipeline-unobserved);
+}
+
+.pipeline-bar[data-status="unobserved"] .pipeline-bar-track {
   border-style: dotted;
   border-color: var(--pipeline-unobserved);
 }
@@ -343,8 +371,8 @@
   flex-wrap: wrap;
   gap: 1.2rem;
   margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-muted-color);
+  padding: 0;
+  border: 0;
   color: var(--muted-text);
 }
 

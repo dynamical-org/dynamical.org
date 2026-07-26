@@ -209,14 +209,37 @@ test("pipeline page links to webhooks and the integration guide", () => {
     new URL("../content/status-pipeline.njk", import.meta.url),
     "utf8",
   );
+  const pipelineCss = readFileSync(
+    new URL("../public/pipeline.css", import.meta.url),
+    "utf8",
+  );
+  const mainCss = readFileSync(
+    new URL("../public/main.css", import.meta.url),
+    "utf8",
+  );
 
   assert.match(template, /https:\/\/status\.dynamical\.org\/webhooks/);
   assert.match(template, /\/research\/when-the-forecast-is-ready\//);
+  assert.match(template, /weather agencies[\s\S]*pipeline-controls-actions/);
   assert.match(
     template,
-    /weather agencies[\s\S]*pipeline-time-toggle/,
+    /pipeline-controls-actions[\s\S]*pipeline-time-toggle[\s\S]*pipeline-history-toggle/,
   );
-  assert.match(template, /Dashed segment: forecast horizon not yet published/);
+  assert.match(template, /forecast hours still expected/);
+  assert.match(template, /no monitoring data/);
+  assert.doesNotMatch(template, /Data product pipeline|Forecast-run arrival/);
+  assert.match(
+    pipelineCss,
+    /\.pipeline-bar-segment\.g-pending\s*{\s*border: 1px dotted var\(--pipeline-unobserved\)/,
+  );
+  assert.match(
+    pipelineCss,
+    /\.pipeline-footer\s*{[^}]*padding: 0;[^}]*border: 0;/s,
+  );
+  assert.doesNotMatch(
+    mainCss,
+    /\.status-subnav\s*{[^}]*font-size:/s,
+  );
 });
 
 test("uptime uses light section headings without subtitles or rules", () => {
