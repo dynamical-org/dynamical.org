@@ -220,10 +220,6 @@ function renderBar(init, local) {
           "data-group": group.name,
           "data-timing": group.timing,
           style: `--band-height:${group.height}%;--band-bottom:${bottom}%;--fill:${group.fill}%`,
-          title:
-            group.status === "pending"
-              ? "Forecast horizon not yet published"
-              : null,
         },
         element("div", { class: "pipeline-bar-segment-fill" }),
       );
