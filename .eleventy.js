@@ -156,7 +156,11 @@ module.exports = function (eleventyConfig) {
     });
     eleventyConfig.addTemplate(
       "status-meta-fixture.njk",
-      JSON.stringify({ v: 1, reconciled_at: now.toISOString() }),
+      JSON.stringify({
+        v: 1,
+        reconciled_at: now.toISOString(),
+        events_count: events.split("\n").length,
+      }),
       {
         permalink: "/status-preview/meta.json",
         eleventyExcludeFromCollections: true,

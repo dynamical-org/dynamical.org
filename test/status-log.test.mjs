@@ -5,6 +5,7 @@ import {
   componentSpans,
   dailyBars,
   effectiveAsOf,
+  incidentLog,
   parseEvents,
   uptimeSummary,
 } from "../public/status-log.mjs";
@@ -33,12 +34,10 @@ const spansOf = (...events) =>
 // --- parsing --------------------------------------------------------------
 
 test("skips unknown event kinds instead of failing", () => {
-  // Additive annotative kinds are meant to be safe for an old client; a semantic
-  // addition is supposed to bump `v` instead.
   const events = parseEvents(
     jsonl(
       coverage("2026-07-20T00:00:00Z", C, true, "operational"),
-      { ts: "2026-07-21T00:00:00Z", kind: "annotation", component: C, note: "hi" },
+      { ts: "2026-07-21T00:00:00Z", kind: "future-metadata", component: C },
       transition("2026-07-22T00:00:00Z", C, "down"),
     ),
   );
@@ -147,18 +146,69 @@ test("events after the as-of are clamped rather than extending the window", () =
   assert.equal(spans.get(C).at(-1).end, AS_OF.getTime());
 });
 
+test("incidents distinguish resolution from observation ending", () => {
+  const events = parseEvents(
+    jsonl(
+      coverage("2026-07-24T00:00:00Z", C, true, "operational"),
+      transition("2026-07-24T01:00:00Z", C, "down"),
+      transition("2026-07-24T02:00:00Z", C, "operational"),
+      transition("2026-07-24T03:00:00Z", C, "down"),
+      coverage("2026-07-24T04:00:00Z", C, false),
+      coverage("2026-07-24T05:00:00Z", C, true, "down"),
+    ),
+  );
+
+  assert.deepEqual(
+    incidentLog(events).map(({ start, end, ending }) => ({
+      start,
+      end,
+      ending,
+    })),
+    [
+      {
+        start: Date.parse("2026-07-24T01:00:00Z"),
+        end: Date.parse("2026-07-24T02:00:00Z"),
+        ending: "resolved",
+      },
+      {
+        start: Date.parse("2026-07-24T03:00:00Z"),
+        end: Date.parse("2026-07-24T04:00:00Z"),
+        ending: "observation-ended",
+      },
+      {
+        start: Date.parse("2026-07-24T05:00:00Z"),
+        end: null,
+        ending: null,
+      },
+    ],
+  );
+});
+
 // --- bars -----------------------------------------------------------------
 
-test("bars start at first coverage, not at the window edge", () => {
-  // A 90-cell strip that is 80 cells empty reads as broken rather than as young.
+test("bars always cover the full rolling window", () => {
   const spans = spansOf(coverage("2026-07-23T00:00:00Z", C, true, "operational"));
 
   const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
 
-  assert.deepEqual(
-    cells.map((c) => c.date),
-    ["2026-07-23", "2026-07-24", "2026-07-25"],
-  );
+  assert.equal(cells.length, 90);
+  assert.equal(cells[0].date, "2026-04-27");
+  assert.equal(cells[0].state, "nodata");
+  assert.deepEqual(cells.slice(-3).map((cell) => cell.state), [
+    "operational",
+    "operational",
+    "operational",
+  ]);
+});
+
+test("an entirely unobserved component gets 90 blank bars", () => {
+  const cells = dailyBars(new Map([[C, []]]), {
+    asOf: AS_OF,
+    days: 90,
+  }).get(C);
+
+  assert.equal(cells.length, 90);
+  assert.ok(cells.every((cell) => cell.state === "nodata"));
 });
 
 test("a day with any down interval renders down", () => {
@@ -176,9 +226,15 @@ test("a day with any down interval renders down", () => {
 
   assert.equal(byDate.get("2026-07-23"), "operational");
   assert.equal(byDate.get("2026-07-24"), "down");
+  assert.deepEqual(
+    dailyBars(spans, { asOf: AS_OF, days: 90 })
+      .get(C)
+      .find((cell) => cell.date === "2026-07-24").incidentIds,
+    [`incident-${C}-${Date.parse("2026-07-24T10:00:00Z") / 1000}`],
+  );
 });
 
-test("a partly uncovered day renders no data rather than operational", () => {
+test("a partly observed day is filled while coverage records the gap", () => {
   const spans = spansOf(
     coverage("2026-07-23T00:00:00Z", C, true, "operational"),
     coverage("2026-07-24T06:00:00Z", C, false),
@@ -189,7 +245,7 @@ test("a partly uncovered day renders no data rather than operational", () => {
     dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).map((c) => [c.date, c.state]),
   );
 
-  assert.equal(byDate.get("2026-07-24"), "nodata");
+  assert.equal(byDate.get("2026-07-24"), "operational");
 });
 
 test("an unknown state outranks no data rather than hiding behind it", () => {
@@ -205,12 +261,12 @@ test("an unknown state outranks no data rather than hiding behind it", () => {
   assert.equal(byDate.get("2026-07-24"), "unknown");
 });
 
-test("the first day is clipped to first coverage, not judged against midnight", () => {
-  // Otherwise every strip opens on a permanent grey cell purely because
-  // monitoring began part-way through a day.
+test("partial first coverage day is filled from observed status", () => {
   const spans = spansOf(coverage("2026-07-24T09:00:00Z", C, true, "operational"));
+  const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
 
-  assert.deepEqual(dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C), [
+  assert.equal(cells.length, 90);
+  assert.deepEqual(cells.slice(-2), [
     { date: "2026-07-24", state: "operational" },
     { date: "2026-07-25", state: "operational" },
   ]);
@@ -223,7 +279,12 @@ test("today is judged against the as-of, not against midnight", () => {
 
   const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
 
-  assert.deepEqual(cells, [{ date: "2026-07-25", state: "operational" }]);
+  assert.equal(cells.length, 90);
+  assert.equal(cells.at(-2).state, "nodata");
+  assert.deepEqual(cells.at(-1), {
+    date: "2026-07-25",
+    state: "operational",
+  });
 });
 
 test("the window caps at the requested number of days", () => {
@@ -249,10 +310,25 @@ test("uptime is derived from the log, so it cannot contradict the bars", () => {
   }).get(C);
   const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
 
-  // One day down out of ten and a half observed.
+  // One day down out of ten and a half observed within the 90-day window.
   assert.ok(uptime > 90 && uptime < 91, `unexpected uptime ${uptime}`);
-  assert.equal(covered, 100);
+  assert.ok(covered > 11 && covered < 12, `unexpected coverage ${covered}`);
   assert.equal(cells.filter((cell) => cell.state === "down").length, 1);
+});
+
+test("uptime excludes time before the first displayed UTC day", () => {
+  const spans = spansOf(
+    coverage("2026-01-01T00:00:00Z", C, true, "operational"),
+    transition("2026-04-26T18:00:00Z", C, "down"),
+    transition("2026-04-27T00:00:00Z", C, "operational"),
+  );
+
+  const cells = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C);
+  const summary = uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C);
+
+  assert.equal(cells[0].date, "2026-04-27");
+  assert.equal(cells.filter((cell) => cell.state === "down").length, 0);
+  assert.equal(summary.uptime, 100);
 });
 
 test("confirmed downtime never presents as a flat 100%", () => {
@@ -279,7 +355,7 @@ test("a coverage gap lowers coverage rather than uptime", () => {
   }).get(C);
 
   assert.equal(uptime, 100);
-  assert.ok(covered > 50 && covered < 60, `unexpected coverage ${covered}`);
+  assert.ok(covered > 6 && covered < 7, `unexpected coverage ${covered}`);
 });
 
 test("an unknown state is excluded from the denominator, not counted either way", () => {

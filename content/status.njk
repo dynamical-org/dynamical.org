@@ -1,7 +1,7 @@
 ---
 layout: base.njk
 title: status
-description: Current health of dynamical.org datasets and public endpoints.
+description: Current health of dynamical.org public endpoints and tools.
 permalink: /status/
 # Unlisted for the first iteration: reachable by direct URL, but absent from the
 # nav, the footer, sitemap.xml, and llms.txt. Deliberately not disallowed in
@@ -9,12 +9,31 @@ permalink: /status/
 # very URL this is keeping quiet. noindex covers the crawler case.
 noindex: true
 sitemap: false
+hideLatestPopup: true
+statusIncidentFeedEnabled: true
 ---
 
 <style>
-  /* The one piece of at-a-glance signal on the page: a state-colored rule above
-     the summary. Neutral until the feed resolves. */
+  .status-page-heading {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    margin-top: 4rem;
+  }
+  .status-page-heading h1,
+  .status-page-heading p {
+    margin: 0;
+  }
+  #status-as-of {
+    margin-left: auto;
+    text-align: right;
+  }
+  #status-as-of.status-stale {
+    color: var(--pill-degraded-fg);
+  }
   .status-overall {
+    margin-top: 1rem;
     padding-top: 1.6rem;
     border-top: 0.6rem solid var(--muted-text);
   }
@@ -36,7 +55,6 @@ sitemap: false
   .status-list {
     --index-row-padding: 1rem;
   }
-  /* Name left, state right; the state must not shrink or wrap mid-label. */
   .status-list header {
     display: flex;
     gap: 1.2rem;
@@ -50,8 +68,6 @@ sitemap: false
     color: var(--muted-text);
     font-size: 1.2rem;
   }
-  /* One pill shape for every state, so severity is carried by color while the
-     text label stays the thing that actually conveys it. */
   .status-label {
     flex: 0 0 auto;
     padding: 0.1rem 0.5rem;
@@ -70,26 +86,24 @@ sitemap: false
     color: var(--pill-down-fg);
     background: var(--pill-down-bg);
   }
-  /* A state the publisher added that this page does not know yet. */
   .status-list [data-status="unknown"] .status-label {
     border: 1px solid var(--pill-muted-border);
     color: var(--pill-muted-fg);
     background: var(--pill-muted-bg);
   }
-  /* One cell per UTC day. A flex row is the whole layout; the states are the
-     same tokens the pills use, so a bar and its label cannot disagree. */
   .status-bars {
     display: flex;
     gap: 1px;
     margin-top: 0.6rem;
     height: 1.4rem;
   }
-  .status-bars span {
+  .status-bars > * {
     flex: 1 1 0;
-    /* A gap must read as "we stopped watching", not as the end of the strip, so
-       it carries the same border the muted pill uses to stay visible on white. */
     border: 1px solid var(--pill-muted-border);
-    background: var(--pill-muted-bg);
+    background: transparent;
+  }
+  .status-bars > a {
+    text-decoration: none;
   }
   .status-bars [data-day="unknown"] {
     border-color: var(--pill-down-bg);
@@ -106,9 +120,39 @@ sitemap: false
     display: flex;
     justify-content: space-between;
   }
+  .status-incident-heading,
+  .status-incident header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .status-incident-log {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .status-incident {
+    scroll-margin-top: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .status-incident:target {
+    background: var(--pill-muted-bg);
+    outline: 0.4rem solid var(--pill-muted-bg);
+  }
+  .status-incident h3,
+  .status-incident p {
+    margin: 0;
+  }
+  .status-incident p {
+    margin-top: 0.4rem;
+    color: var(--muted-text);
+  }
   @media (max-width: 680px) {
-    /* align-items keeps the state label shrink-wrapped; without it the column
-       cross-axis stretches the pill to the full row width. */
+    #status-as-of {
+      flex-basis: 100%;
+    }
     .status-list header {
       flex-direction: column;
       align-items: start;
@@ -119,23 +163,18 @@ sitemap: false
 
 <main class="content" data-status-page data-status-url="{{ statusFeed }}"
   data-log-url="{{ statusLogBase }}">
-  <header>
-    <h1 style="margin-top: 4rem; margin-bottom: 1rem;">System status</h1>
-    <p>Current health of the weather and climate data we publish and the endpoints that serve it.</p>
-    <p id="status-as-of"><strong>As of —</strong></p>
+  <header class="status-page-heading">
+    <h1>dynamical.org status</h1>
+    <p id="status-as-of" role="status"><strong>As of —</strong></p>
   </header>
 
-  {# aria-live belongs on the verdict, not the timestamp: the heading is what
-     changes from "Checking current status…" to the actual result. #}
   <section class="status-overall" id="status-overall" aria-labelledby="status-overall-heading" aria-live="polite">
     <h2 id="status-overall-heading">Checking current status…</h2>
     <p id="status-summary">Loading the latest monitor results.</p>
     <ul id="status-incidents" hidden></ul>
   </section>
 
-  {# Left empty on purpose — status.mjs writes the text, so the live region
-     announces a content change rather than merely becoming visible. #}
-  <p id="status-stale" role="alert" hidden></p>
+  <p id="status-history" role="status" hidden></p>
 
   <div class="status-groups" id="status-groups" hidden style="margin-top: 4rem;">
     <section aria-labelledby="endpoints-heading">
@@ -159,6 +198,15 @@ sitemap: false
     For per-model run timing and upstream source arrival history, see the
     <a href="https://status.dynamical.org">detailed data arrival status</a>.
   </p>
+
+  <section aria-labelledby="status-incident-heading" style="margin-top: 4rem;">
+    <header class="status-incident-heading">
+      <h2 id="status-incident-heading">Incident history</h2>
+      <a href="{{ statusIncidentFeed }}">RSS</a>
+    </header>
+    <p id="status-incident-empty">Loading incident history…</p>
+    <ol class="status-incident-log" id="status-incident-log"></ol>
+  </section>
 
   <noscript>
     <p>Status temporarily unavailable because JavaScript is disabled.</p>

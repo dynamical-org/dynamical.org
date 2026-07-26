@@ -3,8 +3,13 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  barDescription,
+  buildHistory,
+  isHistoryCurrent,
   isStatusDataStale,
+  STALE_MESSAGE,
   summarizeOverallStatus,
+  uptimeDescription,
   validateStatusData,
 } from "../public/status.mjs";
 
@@ -25,7 +30,8 @@ const operationalData = {
   endpoints: [
     {
       id: "dynamical-org",
-      name: "dynamical.org",
+      name: "dynamical.org website",
+      group: "endpoint",
       status: "operational",
       uptime: 99.9,
       uptime_since: "2026-04-26T19:55:00Z",
@@ -53,11 +59,7 @@ test("accepts the published feed shape", () => {
   );
   assert.deepEqual(summarizeOverallStatus(fixture), {
     status: "down",
-    incidents: [
-      { name: "NOAA HRRR forecast, 48 hour", status: "degraded" },
-      { name: "ECMWF IFS ENS forecast, 15 day, 0.25 degree", status: "down" },
-      { name: "Data product reads", status: "down" },
-    ],
+    incidents: [{ name: "Data product reads", status: "down" }],
   });
 });
 
@@ -68,17 +70,14 @@ test("summarizes an operational feed", () => {
   });
 });
 
-test("lists degraded and down components with the worst overall state", () => {
+test("summarizes only the components this page renders", () => {
   const data = structuredClone(operationalData);
   data.datasets[0].status = "degraded";
   data.endpoints[0].status = "down";
 
   assert.deepEqual(summarizeOverallStatus(data), {
     status: "down",
-    incidents: [
-      { name: "NOAA GFS forecast", status: "degraded" },
-      { name: "dynamical.org", status: "down" },
-    ],
+    incidents: [{ name: "dynamical.org website", status: "down" }],
   });
 });
 
@@ -105,6 +104,14 @@ test("rejects a malformed envelope", () => {
     () => validateStatusData({ ...operationalData, datasets: [{ id: 1 }] }),
     /invalid status entry/i,
   );
+  assert.throws(
+    () =>
+      validateStatusData({
+        ...operationalData,
+        generated_at: "2026-07-24T19:55:00",
+      }),
+    /invalid status document/i,
+  );
 });
 
 test("refuses a contentless document instead of reporting all clear", () => {
@@ -120,21 +127,162 @@ test("refuses a contentless document instead of reporting all clear", () => {
   );
 });
 
-test("keeps rendering when the publisher adds an unrecognized state", () => {
+test("does not require the deferred dataset section", () => {
+  assert.doesNotThrow(() =>
+    validateStatusData({ ...operationalData, datasets: [] }),
+  );
+});
+
+test("keeps rendering when a visible component has an unrecognized state", () => {
   // The publisher deploys from a separate repo; a fourth state must degrade one
   // row to Unknown, not black out the whole page.
   const data = structuredClone(operationalData);
-  data.datasets.push({
-    id: "nasa-smap-level3-36km-v9",
-    name: "NASA SMAP Level 3, 36 km, v9",
+  data.endpoints.push({
+    id: "future-tool",
+    name: "Future tool",
+    group: "tool",
     status: "maintenance",
   });
 
   const validated = validateStatusData(data);
 
-  assert.equal(validated.datasets[1].status, "unknown");
+  assert.equal(validated.endpoints[1].status, "unknown");
   assert.deepEqual(summarizeOverallStatus(validated), {
     status: "degraded",
-    incidents: [{ name: "NASA SMAP Level 3, 36 km, v9", status: "unknown" }],
+    incidents: [{ name: "Future tool", status: "unknown" }],
   });
+});
+
+test("rejects a mismatched event-log revision", () => {
+  const events = `${JSON.stringify({
+    ts: "2026-07-24T19:00:00Z",
+    kind: "coverage",
+    component: "dynamical-org",
+    monitored: true,
+    state: "operational",
+  })}\n`;
+  const meta = JSON.stringify({
+    v: 1,
+    reconciled_at: "2026-07-24T20:00:00Z",
+    events_count: 2,
+  });
+
+  assert.throws(() => buildHistory(events, meta), /event-log revision/i);
+});
+
+test("revision count includes additive records old clients skip", () => {
+  const events = [
+    {
+      ts: "2026-07-24T19:00:00Z",
+      kind: "coverage",
+      component: "dynamical-org",
+      monitored: true,
+      state: "operational",
+    },
+    {
+      ts: "2026-07-24T19:30:00Z",
+      kind: "future-metadata",
+      component: "dynamical-org",
+    },
+  ]
+    .map(JSON.stringify)
+    .join("\n");
+  const meta = JSON.stringify({
+    v: 1,
+    reconciled_at: "2026-07-24T20:00:00Z",
+    events_count: 2,
+  });
+
+  const history = buildHistory(events, meta);
+
+  assert.equal(history.incidents.length, 0);
+  assert.equal(history.uptime.has("dynamical-org"), true);
+  assert.equal(history.asOf.toISOString(), "2026-07-24T20:00:00.000Z");
+});
+
+test("revision metadata rejects a truncated record", () => {
+  const events =
+    `${JSON.stringify({
+      ts: "2026-07-24T19:00:00Z",
+      kind: "coverage",
+      component: "dynamical-org",
+      monitored: true,
+      state: "operational",
+    })}\n` + '{"ts":"2026-07-24T19:30:00Z","kind":"transi';
+  const meta = JSON.stringify({
+    v: 1,
+    reconciled_at: "2026-07-24T20:00:00Z",
+    events_count: 2,
+  });
+
+  assert.throws(() => buildHistory(events, meta), /event-log revision/i);
+});
+
+test("accepts legacy history metadata during publisher rollout", () => {
+  const events = `${JSON.stringify({
+    ts: "2026-07-24T19:00:00Z",
+    kind: "coverage",
+    component: "dynamical-org",
+    monitored: true,
+    state: "operational",
+  })}\n`;
+  const history = buildHistory(
+    events,
+    JSON.stringify({ v: 1, reconciled_at: "2026-07-24T20:00:00Z" }),
+  );
+
+  assert.equal(history.asOf.toISOString(), "2026-07-24T20:00:00.000Z");
+});
+
+test("history must be close to the current snapshot", () => {
+  assert.equal(
+    isHistoryCurrent(
+      new Date("2026-07-24T19:40:00Z"),
+      "2026-07-24T20:00:00Z",
+    ),
+    true,
+  );
+  assert.equal(
+    isHistoryCurrent(
+      new Date("2026-07-24T19:39:59.999Z"),
+      "2026-07-24T20:00:00Z",
+    ),
+    false,
+  );
+  assert.equal(
+    isHistoryCurrent(
+      new Date("2026-07-24T20:20:00.001Z"),
+      "2026-07-24T20:00:00Z",
+    ),
+    false,
+  );
+});
+
+test("bar descriptions distinguish unknown state from missing coverage", () => {
+  assert.match(barDescription([{ state: "unknown" }]), /unknown state/i);
+  assert.doesNotMatch(barDescription([{ state: "unknown" }]), /not monitored/i);
+});
+
+test("uptime description states the fixed window without a coverage suffix", () => {
+  assert.equal(
+    uptimeDescription({ uptime: 100, coverage: 1.5 }, 90),
+    "100% uptime over the last 90 days",
+  );
+});
+
+test("status page uses the requested heading and replaces stale as-of copy", () => {
+  const template = readFileSync(
+    new URL("../content/status.njk", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(template, />dynamical\.org status</);
+  assert.doesNotMatch(
+    template,
+    /Current health of dynamical\.org public endpoints, tools, and resources\./,
+  );
+  assert.equal(
+    STALE_MESSAGE,
+    "Stale: status page experiencing delayed updates",
+  );
 });

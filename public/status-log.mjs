@@ -23,6 +23,10 @@ function kindRank(event) {
 }
 const DAY_MS = 86_400_000;
 
+function utcDayWindowStart(asOf, days) {
+  return (Math.floor(asOf.getTime() / DAY_MS) - days + 1) * DAY_MS;
+}
+
 // An unrecognized state renders as unknown and never as operational. The
 // publisher ships from a separate repo on its own deploy, so the day it adds a
 // state this build has never heard of, the failure has to be visible rather than
@@ -31,8 +35,9 @@ function publicState(state) {
   return PUBLIC_STATES.has(state) ? state : "unknown";
 }
 
-export function parseEvents(text) {
+export function parseEventLog(text) {
   const events = [];
+  let recordCount = 0;
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
     let event;
@@ -41,8 +46,9 @@ export function parseEvents(text) {
     } catch {
       continue; // A truncated tail must not cost us the whole history.
     }
-    // Skip unknown kinds rather than failing: additive annotative kinds are
-    // meant to be safe for an old client, and a semantic addition bumps `v`.
+    recordCount += 1;
+    // Skip unknown kinds so additive records remain safe for an old client.
+    // A state-bearing semantic addition bumps `v`.
     if (event?.kind !== COVERAGE && event?.kind !== TRANSITION) continue;
     if (typeof event.component !== "string") continue;
     // A UTC offset is required. Date.parse treats an offset-less date-time as
@@ -55,11 +61,15 @@ export function parseEvents(text) {
     if (!Number.isFinite(Date.parse(event.ts))) continue;
     events.push(event);
   }
-  return events.sort(
+  events.sort(
     (a, b) =>
-      Date.parse(a.ts) - Date.parse(b.ts) ||
-      kindRank(a) - kindRank(b),
+      Date.parse(a.ts) - Date.parse(b.ts) || kindRank(a) - kindRank(b),
   );
+  return { events, recordCount };
+}
+
+export function parseEvents(text) {
+  return parseEventLog(text).events;
 }
 
 // The log cannot say when it was last checked, only when something changed, so
@@ -120,42 +130,91 @@ export function componentSpans(events, { asOf }) {
   return spans;
 }
 
+export function incidentId(component, start) {
+  return `incident-${component}-${Math.floor(start / 1000)}`;
+}
+
+export function incidentLog(events) {
+  const coverage = new Map();
+  const open = new Map();
+  const result = [];
+
+  const close = (component, end, ending) => {
+    const current = open.get(component);
+    open.delete(component);
+    if (!current || end <= current.start) return;
+    result.push({ ...current, end, ending });
+  };
+
+  for (const event of events) {
+    const at = Date.parse(event.ts);
+    const { component } = event;
+    const current = coverage.get(component) ?? {
+      monitored: false,
+      state: null,
+    };
+
+    if (event.kind === COVERAGE && event.monitored === false) {
+      if (current.monitored && current.state === "down") {
+        close(component, at, "observation-ended");
+      }
+      coverage.set(component, { monitored: false, state: null });
+      continue;
+    }
+    if (event.kind === TRANSITION && !current.monitored) continue;
+
+    const state =
+      event.kind === COVERAGE ? publicState(event.state) : publicState(event.to);
+    if (current.monitored && current.state === "down" && state !== "down") {
+      close(component, at, "resolved");
+    }
+    if ((!current.monitored || current.state !== "down") && state === "down") {
+      open.set(component, {
+        id: incidentId(component, at),
+        component,
+        start: at,
+      });
+    }
+    coverage.set(component, { monitored: true, state });
+  }
+
+  for (const current of open.values()) {
+    result.push({ ...current, end: null, ending: null });
+  }
+  return result.sort((a, b) => a.start - b.start);
+}
+
 /**
- * One cell per UTC day, from the first day the log has coverage for through the
- * as-of, capped at `days`.
+ * One cell per UTC day in the rolling window.
  *
- * Starts at first coverage rather than at `asOf - days` on purpose: a 90-cell
- * strip that is 80 cells empty reads as broken rather than as young. The caller
- * labels the strip from `cells.length`, so the claim grows with the evidence
- * instead of being asserted up front.
- *
- * Precedence is down > no data > operational. Hiding a witnessed outage behind
- * "no data" is the wrong direction for this artifact.
+ * Precedence is down > unknown > operational > no data. Any observation fills
+ * the day; the separate coverage percentage carries partial-day completeness.
  */
 export function dailyBars(spans, { asOf, days }) {
   const result = new Map();
   const lastDay = Math.floor(asOf.getTime() / DAY_MS);
-  const windowStart = lastDay - days + 1;
+  const windowStart = utcDayWindowStart(asOf, days) / DAY_MS;
 
   for (const [component, list] of spans) {
-    if (!list.length) {
-      result.set(component, []);
-      continue;
-    }
-    const firstDay = Math.max(windowStart, Math.floor(list[0].start / DAY_MS));
     const cells = [];
-    for (let day = firstDay; day <= lastDay; day += 1) {
+    for (let day = windowStart; day <= lastDay; day += 1) {
       const start = day * DAY_MS;
-      // Both edges are partial days and both are clipped, symmetrically. The last
-      // ends at the as-of, or the rest of today counts as unobserved; the first
-      // begins at first coverage, or every strip opens on a permanent grey cell
-      // just because monitoring started mid-day. Interior days are unaffected,
-      // since their bounds already sit inside the covered span.
-      const from = Math.max(start, list[0].start);
       const end = Math.min(start + DAY_MS, asOf.getTime());
+      const state = dayState(list, start, end);
+      const incidentIds =
+        state === "down"
+          ? list
+              .filter(
+                (span) =>
+                  span.state === "down" &&
+                  Math.min(span.end, end) - Math.max(span.start, start) > 0,
+              )
+              .map((span) => incidentId(component, span.start))
+          : [];
       cells.push({
         date: new Date(start).toISOString().slice(0, 10),
-        state: dayState(list, from, end),
+        state,
+        ...(incidentIds.length ? { incidentIds } : {}),
       });
     }
     result.set(component, cells);
@@ -163,7 +222,7 @@ export function dailyBars(spans, { asOf, days }) {
   return result;
 }
 
-// Precedence: down > unknown > no data > operational.
+// Precedence: down > unknown > operational > no data.
 //
 // "unknown" outranking "no data" matters. A state this build does not recognize
 // is something we were told and could not read, which is not the same as nobody
@@ -181,7 +240,7 @@ function dayState(spans, start, end) {
     else operational += overlap;
   }
   if (unknown) return "unknown";
-  return operational >= end - start ? "operational" : "nodata";
+  return operational > 0 ? "operational" : "nodata";
 }
 
 
@@ -206,12 +265,12 @@ function dayState(spans, start, end) {
  */
 export function uptimeSummary(spans, { asOf, days }) {
   const ceiling = asOf.getTime();
-  const windowStart = ceiling - days * DAY_MS;
+  const windowStart = utcDayWindowStart(asOf, days);
   const summary = new Map();
 
   for (const [component, list] of spans) {
     if (!list.length) continue;
-    const from = Math.max(windowStart, list[0].start);
+    const from = windowStart;
     const elapsed = ceiling - from;
     if (elapsed <= 0) continue;
 
