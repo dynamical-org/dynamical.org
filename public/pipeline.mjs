@@ -142,6 +142,15 @@ function formatTime(timestamp, local) {
   }).format(new Date(timestamp));
 }
 
+export function clockTime(timestamp, timeZone = "UTC") {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  }).format(new Date(timestamp));
+}
+
 function timeNode(timestamp) {
   return element("span", null, [
     element("span", { class: "pipeline-time-utc" }, formatTime(timestamp, false)),
@@ -170,12 +179,12 @@ function groupSlices(groups) {
   });
 }
 
-function barTooltip(init, local) {
+export function barTooltip(init, local) {
   if (init.status === "unobserved") {
     return `${initShort(init.init_time, local)} · no probe visibility; not a publication failure`;
   }
   const state = init.timing ? `${init.status} · ${init.timing}` : init.status;
-  return [
+  const run = [
     initShort(init.init_time, local),
     state,
     init.completion_pct == null
@@ -185,6 +194,18 @@ function barTooltip(init, local) {
   ]
     .filter(Boolean)
     .join(" · ");
+  if (!init.lead_groups?.length) return run;
+  const groups = init.lead_groups.map((group) => {
+    const groupState = group.timing
+      ? `${group.status} · ${group.timing}`
+      : group.status;
+    const progress =
+      group.status === "in_flight" && group.completion_pct != null
+        ? ` ${Math.round(group.completion_pct * 100)}%`
+        : "";
+    return `${group.name} ${groupState}${progress}`;
+  });
+  return `${run}\n${groups.join(" · ")}`;
 }
 
 function renderBar(init, local) {
@@ -196,12 +217,9 @@ function renderBar(init, local) {
         "div",
         {
           class: `pipeline-bar-segment g-${group.status}`,
+          "data-group": group.name,
           "data-timing": group.timing,
           style: `--band-height:${group.height}%;--band-bottom:${bottom}%;--fill:${group.fill}%`,
-          title:
-            group.status === "pending"
-              ? "Forecast horizon not yet published"
-              : null,
         },
         element("div", { class: "pipeline-bar-segment-fill" }),
       );
@@ -220,6 +238,7 @@ function renderBar(init, local) {
     "div",
     {
       class: "pipeline-bar",
+      "data-init-time": init.init_time,
       "data-status": init.status,
       "data-timing": init.timing,
       title: barTooltip(init, local),
@@ -336,33 +355,93 @@ function etaTarget(product) {
   };
 }
 
-function buildDetails(product) {
+function statusLabel(status) {
+  if (status === "in_flight") return "processing";
+  if (status === "unobserved") return "pending";
+  return status.replaceAll("_", " ");
+}
+
+export function etaLineText(target, now, local) {
+  const seconds = Math.floor((Date.parse(target) - now) / 1000);
+  const time = clockTime(target, selectedTimeZone(local));
+  return seconds <= 0
+    ? "ETA any moment"
+    : `ETA ${time} (in ${formatDuration(seconds)})`;
+}
+
+export function detailRows(product, now, local) {
   const running = product.recent_inits.findLast(
     (init) => init.status === "in_flight",
   );
   const groups = running?.lead_groups ?? [];
+  const initMs = running ? Date.parse(running.init_time) : 0;
+  return {
+    header: running ? initShort(running.init_time, local) : "waiting for next init",
+    rows: product.lead_group_stats.map((stats, index) => {
+      const live = groups[index];
+      let time = "—";
+      let duration = "—";
+      if (live?.status === "complete" && live.latency_s != null) {
+        time = clockTime(
+          initMs + live.latency_s * 1000,
+          selectedTimeZone(local),
+        );
+        duration = formatLatency(live.latency_s);
+      } else if (live?.status === "complete") {
+        time = "done";
+      } else if (running && stats.p95_s != null) {
+        const target = initMs + stats.p95_s * 1000;
+        if (target > now) {
+          time = `ETA ${clockTime(target, selectedTimeZone(local))}`;
+        }
+        const elapsed = Math.floor((now - initMs) / 1000);
+        if (elapsed > 0) duration = formatDuration(elapsed);
+      }
+      return {
+        label: stats.label,
+        status: statusLabel(live?.status ?? "pending"),
+        time,
+        duration,
+        p50: formatLatency(stats.p50_s),
+        p95: formatLatency(stats.p95_s),
+        p99: formatLatency(stats.p99_s),
+      };
+    }),
+  };
+}
+
+function buildDetails(product, now, local) {
+  const details = detailRows(product, now, local);
+  const groupHead = element("tr", null, [
+    element("th"),
+    element("th", { colspan: "3" }, details.header),
+    element("th", { colspan: "3" }, "time after init"),
+  ]);
   const head = element("tr", null, [
     element("th", null, "horizon"),
     element("th", null, "status"),
+    element("th", null, "time"),
+    element("th", null, "duration"),
     element("th", null, "p50"),
     element("th", null, "p95"),
     element("th", null, "p99"),
   ]);
   const body = element("tbody");
-  for (const [index, stats] of product.lead_group_stats.entries()) {
-    const live = groups[index];
+  for (const row of details.rows) {
     body.append(
       element("tr", null, [
-        element("td", null, stats.label),
-        element("td", null, live?.status?.replaceAll("_", " ") ?? "pending"),
-        element("td", null, formatLatency(stats.p50_s)),
-        element("td", null, formatLatency(stats.p95_s)),
-        element("td", null, formatLatency(stats.p99_s)),
+        element("td", null, row.label),
+        element("td", null, row.status),
+        element("td", null, row.time),
+        element("td", null, row.duration),
+        element("td", null, row.p50),
+        element("td", null, row.p95),
+        element("td", null, row.p99),
       ]),
     );
   }
   return element("table", null, [
-    element("thead", null, head),
+    element("thead", null, [groupHead, head]),
     body,
   ]);
 }
@@ -377,7 +456,7 @@ function hydrateRow(row, product, now, local) {
   const details = row.querySelector('[data-slot="details"]');
   if (product.lead_group_stats?.length) {
     button.hidden = false;
-    details.replaceChildren(buildDetails(product));
+    details.replaceChildren(buildDetails(product, now, local));
   } else {
     button.hidden = true;
     details.hidden = true;
@@ -412,9 +491,7 @@ function hydrateEta(row, product, now, local) {
     }
     lineSlot.hidden = !target.target;
     if (target.target) {
-      const seconds = Math.floor((Date.parse(target.target) - now) / 1000);
-      lineSlot.textContent =
-        seconds <= 0 ? "ETA any moment" : `ETA in ${formatDuration(seconds)}`;
+      lineSlot.textContent = etaLineText(target.target, now, local);
     }
   }
 }
@@ -650,9 +727,15 @@ function start(app) {
   function updateLiveCountdowns() {
     if (mode !== "live" || !latest) return;
     const local = document.body.classList.contains("pipeline-time-local");
+    const now = Date.now();
     for (const product of productsOf(latest)) {
       const row = rows.get(product.id);
-      if (row) hydrateEta(row, product, Date.now(), local);
+      if (!row) continue;
+      hydrateEta(row, product, now, local);
+      const details = row.querySelector('[data-slot="details"]');
+      if (!details.hidden) {
+        details.replaceChildren(buildDetails(product, now, local));
+      }
     }
   }
 

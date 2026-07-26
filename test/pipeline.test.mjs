@@ -4,6 +4,10 @@ import test from "node:test";
 
 import {
   agencySummary,
+  barTooltip,
+  clockTime,
+  detailRows,
+  etaLineText,
   initParts,
   validateDashboard,
 } from "../public/pipeline.mjs";
@@ -77,6 +81,97 @@ test("formats init labels in UTC and the selected local timezone", () => {
     date: "07-25",
     time: "19 CDT",
   });
+});
+
+test("preserves run and lead-group detail in bar tooltips", () => {
+  assert.equal(
+    barTooltip(
+      {
+        init_time: "2026-07-26T00:00:00Z",
+        status: "in_flight",
+        timing: "on_time",
+        completion_pct: 0.5,
+        latency_s: 3600,
+        lead_groups: [
+          {
+            name: "1d",
+            status: "complete",
+            timing: "on_time",
+            completion_pct: 1,
+          },
+          {
+            name: "3d",
+            status: "in_flight",
+            timing: "delayed",
+            completion_pct: 0.25,
+          },
+        ],
+      },
+      false,
+    ),
+    "07-26 00z · in_flight · on_time · 50% · latency 1h\n" +
+      "1d complete · on_time · 3d in_flight · delayed 25%",
+  );
+});
+
+test("shows exact and relative ETA in the selected timezone", () => {
+  assert.equal(
+    etaLineText(
+      "2026-07-26T14:45:00Z",
+      Date.parse("2026-07-26T13:00:00Z"),
+      false,
+    ),
+    "ETA 14:45 (in 1h 45m)",
+  );
+  assert.equal(
+    clockTime("2026-07-26T14:45:00Z", "America/Chicago"),
+    "09:45",
+  );
+});
+
+test("retains live horizon status, time, and duration in details", () => {
+  const product = {
+    recent_inits: [
+      {
+        init_time: "2026-07-26T12:00:00Z",
+        status: "in_flight",
+        lead_groups: [
+          { status: "complete", latency_s: 1800 },
+          { status: "in_flight" },
+        ],
+      },
+    ],
+    lead_group_stats: [
+      { label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 },
+      { label: "3d", p50_s: 2400, p95_s: 3600, p99_s: 4800 },
+    ],
+  };
+  assert.deepEqual(
+    detailRows(product, Date.parse("2026-07-26T12:30:00Z"), false),
+    {
+      header: "07-26 12z",
+      rows: [
+        {
+          label: "1d",
+          status: "complete",
+          time: "12:30",
+          duration: "30m",
+          p50: "20m",
+          p95: "30m",
+          p99: "40m",
+        },
+        {
+          label: "3d",
+          status: "processing",
+          time: "ETA 13:00",
+          duration: "30m 0s",
+          p50: "40m",
+          p95: "1h",
+          p99: "1h 20m",
+        },
+      ],
+    },
+  );
 });
 
 test("status pages share the uptime, pipeline, and webhooks subnav", () => {
