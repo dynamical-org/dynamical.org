@@ -40,7 +40,7 @@ sources and dynamical.org's own catalog stores, and it answers two operational q
   distribution of arrivals for that product, so "late" means late relative to
   how this feed usually behaves.
 
-You can see all of this on the [pipeline status page](https://status.dynamical.org/pipeline).
+You can see all of this on the [pipeline status page](/status/pipeline/).
 
 The second component is a system that enables consumers to create subscriptions
 (via webhooks, Slack notifications, etc) to meaningful events (e.g. "notify me
@@ -294,7 +294,7 @@ served with `Cache-Control: max-age=5, stale-while-revalidate=10`, so feel free 
 
 ## Where to go from here
 
-- Watch the pipeline live: [status.dynamical.org/pipeline](https://status.dynamical.org/pipeline)
+- Watch the pipeline live: [dynamical.org/status/pipeline](/status/pipeline/)
 - Poll the feed: [assets.dynamical.org/wxopticon/feed.json](https://assets.dynamical.org/wxopticon/feed.json)
 - Manage webhook subscriptions: [status.dynamical.org/webhooks](https://status.dynamical.org/webhooks)
 
