@@ -5,6 +5,11 @@ pagination:
   size: 1
   alias: state
 permalink: /scorecard/us-state/{{ state.abbr | slug }}/
+socialCardSlug: scorecard
+eleventyComputed:
+  title: '{{ state.name }} forecast scorecard'
+  socialTitle: '{{ state.name }} weather forecast scorecard'
+  description: 'Compare weather forecast accuracy against station observations across {{ state.name }}.'
 ---
 
 <div class="content">

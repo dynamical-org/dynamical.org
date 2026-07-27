@@ -5,6 +5,11 @@ pagination:
   size: 1
   alias: station
 permalink: /scorecard/station/{{ station.id }}/
+socialCardSlug: scorecard
+eleventyComputed:
+  title: '{{ station.name }} forecast scorecard'
+  socialTitle: '{{ station.name }} weather forecast scorecard'
+  description: 'Compare weather forecast accuracy at {{ station.name }} ({{ station.id }}) in {{ station.state_name }}.'
 ---
 
 <style>
