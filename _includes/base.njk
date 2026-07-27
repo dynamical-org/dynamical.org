@@ -124,6 +124,20 @@
         });
       }
     </script>{% endif %}
+    <script>
+      // Custom events go through this rather than calling posthog directly. Defined
+      // unconditionally — outside the posthog block above and independent of whether a key
+      // is configured — so page scripts can instrument freely without every call site
+      // repeating a guard, and so nothing breaks off production where posthog is undefined.
+      // Analytics must never take down a page.
+      window.track = function (event, properties) {
+        try {
+          if (typeof posthog !== 'undefined') posthog.capture(event, properties);
+        } catch (e) {
+          /* swallow: instrumentation is never worth an exception */
+        }
+      };
+    </script>
   </head>
   <body>
     <nav class="primary-nav" aria-label="Primary">
@@ -169,7 +183,7 @@
             action="https://buttondown.email/api/emails/embed-subscribe/dynamical"
             method="post"
             target="popupwindow"
-            onsubmit="window.open('https://buttondown.email/dynamical', 'popupwindow')"
+            onsubmit="window.open('https://buttondown.email/dynamical', 'popupwindow'); track('newsletter_subscribed', { placement: 'footer' })"
             class="footer-subscribe"
           >
             <label class="visually-hidden" for="footer-email">Email</label>

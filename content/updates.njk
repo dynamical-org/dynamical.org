@@ -12,7 +12,7 @@ redirect_from: [/follow, /follow.html]
     action="https://buttondown.email/api/emails/embed-subscribe/dynamical"
     method="post"
     target="popupwindow"
-    onsubmit="window.open('https://buttondown.email/dynamical', 'popupwindow')"
+    onsubmit="window.open('https://buttondown.email/dynamical', 'popupwindow'); track('newsletter_subscribed', { placement: 'updates' })"
     class="embeddable-buttondown-form"
   >
     <label for="email">Email</label>

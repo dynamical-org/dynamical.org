@@ -370,9 +370,32 @@ ORDER BY station, valid`
     }
   }
 
+  // Which of the canned queries this is, or 'custom' once the user has edited it.
+  // The query text itself is deliberately never reported — it is free-form user
+  // input, so it is both unbounded cardinality and not ours to collect.
+  function querySource(query) {
+    for (const [key, example] of Object.entries(EXAMPLE_QUERIES)) {
+      if (query === example.query.trim()) return { source: 'example', example: key };
+    }
+    return { source: 'custom' };
+  }
+
+  // DuckDB prefixes its messages ("Parser Error: ...", "Binder Error: ...", so on),
+  // which buckets failures usefully without putting raw messages in a property.
+  function errorKind(message) {
+    const match = /^([A-Za-z ]*Error)\b/.exec(message);
+    return match ? match[1] : 'other';
+  }
+
   async function runCustomQuery() {
     const query = document.getElementById('sqlQuery').value.trim();
     if (!query) { updateStatus('Enter a query'); return; }
+
+    // Reported once from `finally` so the no-results early return, the error path,
+    // and the success path are all counted. How often this tool fails, and on what,
+    // is invisible today.
+    const started = performance.now();
+    const run = { ok: false, row_count: 0, ...querySource(query) };
 
     try {
       const btn = document.getElementById('runQueryBtn');
@@ -388,6 +411,8 @@ ORDER BY station, valid`
 
       const result = await conn.query(query);
       const rows = result.toArray();
+      run.ok = true;
+      run.row_count = rows.length;
 
       if (rows.length === 0) {
         updateStatus('No results');
@@ -566,9 +591,15 @@ ORDER BY station, valid`
       updateStatus(data.length.toLocaleString() + ' records');
     } catch (error) {
       let errorMsg = error.message || String(error);
+      // Rendering runs after the query resolves, so a failure here can arrive with
+      // run.ok already true. `ok` tracks whether the user got results, not whether
+      // DuckDB returned.
+      run.ok = false;
+      run.error_kind = errorKind(errorMsg);
       if (errorMsg.includes('WebAssembly') || errorMsg.includes('[object')) {
         const urlMatches = query.match(/https?:\/\/[^\s'")]+/g);
         if (urlMatches) {
+          run.error_kind = 'file_access';
           console.group('Diagnosing URLs...');
           for (const url of urlMatches) {
             try {
@@ -586,6 +617,7 @@ ORDER BY station, valid`
       const btn = document.getElementById('runQueryBtn');
       btn.disabled = false;
       btn.textContent = 'Run Query';
+      track('query_run', { ...run, duration_ms: Math.round(performance.now() - started) });
     }
   }
 
