@@ -84,16 +84,35 @@
       ]
     }
     </script>
-    {% if metadata.sentryPublicKey %}<!-- Sentry browser error monitoring (Loader Script): errors only, no tracing or replay -->
+    {% if metadata.sentryPublicKey %}<!-- Sentry browser error monitoring (Loader Script) -->
     <script>
-      // Defining sentryOnLoad defers init to us, so the loader only reports on the production host;
-      // keeps local dev and *.pages.dev previews out of the dashboard.
-      window.sentryOnLoad = function () {
-        if (location.hostname !== 'dynamical.org') return;
-        Sentry.init({ environment: 'production' });
-      };
-    </script>
-    <script src="https://js.sentry-cdn.com/{{ metadata.sentryPublicKey }}.min.js" crossorigin="anonymous" async></script>{% endif %}
+      // Gate the loader injection, not `sentryOnLoad`. After running that handler the loader
+      // does `isInitialized() || Sentry.init()`, so returning early from it without calling
+      // init makes the loader initialize itself with the dashboard's default config — the
+      // opposite of suppressing. Not injecting the script at all is what keeps local dev and
+      // *.pages.dev previews out of the dashboard.
+      if (location.hostname === 'dynamical.org') {
+        window.sentryOnLoad = function () {
+          Sentry.init({
+            environment: 'production',
+            // Errors only — PostHog covers product analytics, and session replay of real
+            // visitors is more than /privacy/ discloses. Performance and Replay are also
+            // off for this DSN in the dashboard, which is what keeps the loader on the
+            // errors-only bundle; these zeros are what stops a dashboard change from
+            // quietly turning them back on, since the loader merges our options over its
+            // own defaults and adds each integration whenever the matching rate is truthy.
+            tracesSampleRate: 0,
+            replaysSessionSampleRate: 0,
+            replaysOnErrorSampleRate: 0,
+          });
+        };
+        const sentryLoader = document.createElement('script');
+        sentryLoader.src = 'https://js.sentry-cdn.com/{{ metadata.sentryPublicKey }}.min.js';
+        sentryLoader.crossOrigin = 'anonymous';
+        sentryLoader.async = true;
+        document.head.appendChild(sentryLoader);
+      }
+    </script>{% endif %}
     {% if metadata.posthogKey %}<!-- PostHog analytics: pageviews and interactions; anonymous visitors get no person profile -->
     <script>
       if (location.hostname === 'dynamical.org') {
