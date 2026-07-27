@@ -72,6 +72,69 @@ function decodeEntities(str) {
     .replace(/&gt;/g, ">");
 }
 
+async function statusCardSnapshots() {
+  const {
+    createPipelineCardModel,
+    createStatusCardModel,
+    loadPipelineCardModel,
+    loadStatusCardModel,
+    statusHistoryFromArtifacts,
+  } = await import("./lib/status-og-card.mjs");
+
+  const status =
+    process.env.STATUS_FIXTURE === "1"
+      ? (() => {
+          const data = JSON.parse(
+            fs.readFileSync("./test/fixtures/status.json", "utf8"),
+          );
+          const events = fs.readFileSync(
+            "./test/fixtures/events.jsonl",
+            "utf8",
+          );
+          const eventCount = events
+            .split("\n")
+            .filter((line) => line.trim()).length;
+          const history = statusHistoryFromArtifacts(
+            events,
+            JSON.stringify({
+              v: 1,
+              reconciled_at: data.generated_at,
+              events_count: eventCount,
+            }),
+          );
+          return createStatusCardModel(data, history, {
+            now: new Date(Date.parse(data.generated_at) + 5 * 60 * 1000),
+          });
+        })()
+      : loadStatusCardModel({
+          statusUrl: require("./_data/statusFeed.js"),
+          logBase: require("./_data/statusLogBase.js"),
+        });
+
+  const pipeline =
+    process.env.PIPELINE_FIXTURE === "1"
+      ? (() => {
+          const data = JSON.parse(
+            fs.readFileSync(
+              "./test/fixtures/pipeline-dashboard.json",
+              "utf8",
+            ),
+          );
+          return createPipelineCardModel(data, {
+            now: new Date(Date.parse(data.generated_at) + 5 * 60 * 1000),
+          });
+        })()
+      : loadPipelineCardModel({
+          assetsBase: require("./_data/pipelineAssetsBase.js"),
+        });
+
+  const [statusModel, pipelineModel] = await Promise.all([status, pipeline]);
+  return new Map([
+    ["status", statusModel],
+    ["status-pipeline", pipelineModel],
+  ]);
+}
+
 function mergeClasses(existingClasses, extraClasses) {
   const existing = String(existingClasses || "")
     .split(/\s+/)
@@ -359,6 +422,7 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
     const { renderCard } = require("./lib/og-card.js");
     const metadata = require("./_data/metadata.js");
+    const snapshots = await statusCardSnapshots();
 
     const metaTag = (html, prop) => {
       const m = html.match(
@@ -404,7 +468,12 @@ module.exports = function (eleventyConfig) {
         subtitle = subtitle.slice(title.length).replace(/^[\s–—:.,-]+/, "");
       }
       const url = metaTag(result.content, "og:url");
-      const png = await renderCard({ title, subtitle, label: ogLabel(url) });
+      const png = await renderCard({
+        title,
+        subtitle,
+        label: ogLabel(url),
+        snapshot: snapshots.get(slug),
+      });
       const outPath = path.join(outputDir, "assets", "og", `${slug}.png`);
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       fs.writeFileSync(outPath, png);
