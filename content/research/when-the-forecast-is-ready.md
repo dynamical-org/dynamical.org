@@ -8,14 +8,15 @@ featured: 4
 summary: >-
   Forecast files don't arrive all at once — they trickle in over minutes or
   hours, on a cadence set by whoever produces the model. To stop guessing, we
-  built wxopticon: a tool that watches upstream weather sources and answers two
-  operational questions — when to expect a given dataset, and whether a run is
-  on time relative to how that feed actually behaves.
+  built wxopticon: a tool that watches upstream weather sources and answers three
+  operational questions — when to expect a given dataset, whether a completed
+  run was on time, and whether an in-flight run is trending on time relative to
+  how that feed actually behaves.
 ---
 
 Forecast production is a factory assembly line, a fulfillment center, and a delivery route all in one. Lewis Fry Richardson's Weather Forecasting Factory was not too far off.
 
-{% figure "/assets/notes/conlin-1.jpg" %}“Weather Forecasting Factory” by Stephen Conlin, 1986. Based on the description in Weather Prediction by Numerical Process, by L.F. Richardson, Cambridge University Press, 1922, and on advice from Prof. John Byrne, Trinity College Dublin. Image: ink and water colour, c. 50 x 38.5 cm. © Stephen Conlin 1986. All Rights Reserved ´. (Courtesy: Hendrik Hoffmann, School of Mathematics & Statistics, University College Dublin. <a href="https://www.emetsoc.org/resources/rff/">Source</a>){% endfigure %}
+{% figure "/assets/notes/conlin-1.jpg" %}“Weather Forecasting Factory” by Stephen Conlin, 1986. Based on the description in Weather Prediction by Numerical Process, by L.F. Richardson, Cambridge University Press, 1922, and on advice from Prof. John Byrne, Trinity College Dublin. Image: ink and water colour, c. 50 x 38.5 cm. © Stephen Conlin 1986. All Rights Reserved. (Courtesy: Hendrik Hoffmann, School of Mathematics & Statistics, University College Dublin. <a href="https://www.emetsoc.org/resources/rff/">Source</a>){% endfigure %}
 
 Every dataset in the dynamical.org catalog (so far) is downstream of a model run that
 someone else produces on their own cadence. And the initialization is just the beginning (literally and philosophically). Then the files start landing, one by one, eventually
@@ -24,23 +25,23 @@ pipeline depends on that data, you have two bad options: pretend you can divine 
 
 And to add to that, we had questions like:
 
-- How often is GEFS full lead time completed "late"?
+- How often does the full GEFS run complete "late"?
 - What does "late" even mean? What is the spread of the min to the max latencies from init?
 - What does the rollout of a forecast look like, file by file, minute by minute?
 - How do different delivery routes (read: file destinations) impact latency?
 
-These questions and many more we sought to understand deeply so that the dynamical.org catalog was resilient, low-latency, and designed with minute details about the upstream sources in mind. The prompt for actually sitting down and answering them was a [question Will Hobbs](https://www.linkedin.com/in/will-hobbs-93215023/) [posted on LinkedIn](https://www.linkedin.com/posts/will-hobbs-93215023_question-for-people-that-work-with-nwpaiwp-ugcPost-7449580009725267970-3FJU/) about NOAA model file availability.
+We sought to answer these questions and many more so that the dynamical.org catalog would be resilient, low-latency, and designed around the minute details of its upstream sources. The prompt for actually sitting down and answering them was a [question Will Hobbs](https://www.linkedin.com/in/will-hobbs-93215023/) [posted on LinkedIn](https://www.linkedin.com/posts/will-hobbs-93215023_question-for-people-that-work-with-nwpaiwp-ugcPost-7449580009725267970-3FJU/) about NOAA model file availability.
 
-So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh never mind). It watches upstream weather sources and dynamical.org's own catalog stores, and it answers three operational questions:
+So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir — no, not THAT Palantir. Oh never mind). It watches upstream weather sources and dynamical.org's own catalog stores, and it answers three operational questions:
 
 - **When can I expect lead-group X dataset Y?**
-- **Was this run on-time?**
-- **Is this in-flight run trending on-time?**
+- **Was this run on time?**
+- **Is this in-flight run trending on time?**
 
 You can see all of this on the [pipeline status page](/status/pipeline/).
 
 The second component is a system that enables consumers to create subscriptions
-(via webhooks, Slack notifications, etc) to meaningful events (e.g. "notify me
+(via webhooks, Slack notifications, etc.) to meaningful events (e.g., "notify me
 when IFS ENS progress:f024 is complete" or "warn me when GEFS on AWS looks like it might arrive late").
 
 ## How it works, briefly
@@ -54,7 +55,7 @@ A lean detection scan runs every two minutes: it replays the log to find the run
 still expected, probes their upstream locations, appends any new state
 transitions, and fans each new milestone out to subscribers. A separate
 summarize pass runs every five minutes to refresh the status feed and seed
-"delayed" signals. For products with a notification stream (e.g. AWS SNS), a
+"delayed" signals. For products with a notification stream (e.g., AWS SNS), a
 continuous listener catches arrivals within seconds instead of waiting for the
 next scan.
 
@@ -68,16 +69,16 @@ last year, wxopticon recorded roughly **1.9 million file arrivals across
 moment it's *complete* can be many hours apart, and the shape of that arrival looks
 different for every model.
 
-{% figure "/assets/notes/arrival-staircase.png", "Scatter plots for four models, each point a forecast file positioned by its forecast hour (vertical) against hours after init time (horizontal). GFS traces a long diagonal, HRRR a tight one, GEFS two slopes with a plateau, AIFS a near-vertical band." %}Every file found over the last year, by forecast hour and time since init; the dark line is the per-lead median. GFS trickles its 16 days out over two hours, HRRR climbs through 48 in one, GEFS sprints to day 16 then delivers the 35-day tail a day later, AIFS drops everything at once. (Some rewritten timestamps clipped.){% endfigure %}
+{% figure "/assets/notes/arrival-staircase.png", "Scatter plots for four models, each point a forecast file positioned by its forecast hour (vertical) against hours after init time (horizontal). GFS traces a long diagonal, HRRR a tight one, GEFS two slopes with a plateau, AIFS a near-vertical band." %}Every file found over the last year, by forecast hour and time since init; the dark line is the per-lead median. GFS trickles out its 16 days of forecasts over two hours; HRRR climbs through its 48 hours in one; GEFS sprints to day 16, then delivers the 35-day tail a day later; AIFS drops everything at once. (Some rewritten timestamps clipped.){% endfigure %}
 
 This is why "ready" is a series of milestones; a short-range
 consumer can start using GEFS the instant the early lead groups land, long before the full run completes.
 
-**The feeds are punctualish!** Measured from init time to the last file of the run, the median completion runs about 1h47m for HRRR, 3h37m for DWD's ICON-EU, 5h15m for AIFS, 5h22m for GFS, and a full ~26h for GEFS's 35-day run.
+**The feeds are punctualish!** Measured from init time to the last file of the run, the median completion time is about 1h47m for HRRR, 3h37m for DWD's ICON-EU, 5h15m for AIFS, 5h22m for GFS, and a full ~26h for GEFS's 35-day run.
 
 {% figure "/assets/notes/time-to-complete.png", "A dumbbell chart ranking thirteen feeds by time from init to a complete run, from HRRR near two hours to GEFS 35-day near 26 hours, each showing median, 95th and 99th percentile." %}Init to complete run: median (filled) through the 95th to the 99th percentile (open). The striking part is how narrow most of these ranges are.{% endfigure %}
 
-GFS completes within a 13-minute band from its median to its 99th percentile, run after run. Regularity is exactly what makes a learned next-run expectation meaningful. A "late" signal is useful because on-time is so consistent.
+GFS completes within a 13-minute band from its median to its 99th percentile, run after run. Regularity is exactly what makes a learned next-run expectation meaningful. A "late" signal is useful because on-time performance is so consistent.
 
 ## What "ready" actually means
 
@@ -87,7 +88,7 @@ hours become available:
 
 | kind         | fires when                                                        |
 |--------------|-------------------------------------------------------------------|
-| `progress`   | every lead ≤ an intermediate lead-group horizon is available (e.g. `progress:f240`) |
+| `progress`   | every lead ≤ an intermediate lead-group horizon is available (e.g., `progress:f240`) |
 | `complete`   | the full run is available — you don't need to know group names    |
 | `in_flight`  | a still-running run is behind its learned schedule                |
 | `advisory`   | the upstream agency opens or resolves a dissemination advisory    |
@@ -98,7 +99,7 @@ together, which made it hard to say whether `delayed` meant "still running" or
 
 - **`status`** is lifecycle: `pending`, `in_flight`, `complete`, `failed`, or
   `unobserved`.
-- **`timing`** is the judgement: `on_time` or `delayed`, when there is enough
+- **`timing`** is the judgment: `on_time` or `delayed`, when there is enough
   history to make one.
 
 I went back and forth on the correct threshold for "delayed." Our first pass
@@ -124,12 +125,12 @@ The challenge was to come up with something formulaic that behaved sensibly acro
 `spreadf = p95 + max(p95 - p50, 15 minutes)`
 
 Each product gets its own spreadf from a trailing 90-day window. Each lead
-group gets one too. Which is cool -- if GFS is still working toward
+group gets one too. This is useful: if GFS is still working toward
 day 10 after its day-10 group would normally be ready, wxopticon can mark the
 run `in_flight` and `delayed` before the full 16-day run reaches its later
 deadline. The event names the lead group that triggered the warning.
 
-{% figure "/assets/notes/delay-threshold-comparison.png", "A scatter plot of 443 GFS-on-NOMADS runs, each point one run's completion latency against its date. Almost every run sits in a flat band near 313 minutes; four sit above it, one as high as 441. Two horizontal lines cross the plot: a solid spreadf line at 331 minutes with four points above it, and a dashed p50frac line at 347 minutes with one point above it. A density curve along the right edge shows how tightly the band is packed." %}The floor earning its keep on our tightest feed: GFS on NOMADS puts 3 minutes between median and p95. Unfloored, dispersion would sit at 319 and flag 10 ordinary runs. `spreadf` lifts it to 331 (solid) and catches the four real stragglers; `p50frac` at 347 (dashed) sees only the worst.{% endfigure %}
+{% figure "/assets/notes/delay-threshold-comparison.png", "A scatter plot of 443 GFS-on-NOMADS runs, each point one run's completion latency against its date. Almost every run sits in a flat band near 313 minutes; four sit above it, one as high as 441. Two horizontal lines cross the plot: a solid spreadf line at 331 minutes with four points above it, and a dashed p50frac line at 347 minutes with one point above it. A density curve along the right edge shows how tightly the band is packed." %}The floor earns its keep on our tightest feed: GFS on NOMADS puts 3 minutes between median and p95. Unfloored, dispersion would sit at 319 and flag 10 ordinary runs. `spreadf` lifts it to 331 (solid) and catches the four real stragglers; `p50frac` at 347 (dashed) sees only the worst.{% endfigure %}
 
 The spreadf approach now drives the dashboard, in-flight warnings, and the
 completed run's timing.
@@ -152,15 +153,15 @@ a lead group might be a useful warning depending on one's sensitivity to delays.
 
 ## How do delays correlate with agency advisories?
 
-From time to time, ECMWF and NOAA, for example, issue dissemination advisories: memorable ones include the dramatic power outage impacting the Bologna data center, or the crazy summer where NOMADS FTP took early retirement (too soon?).
+From time to time, ECMWF and NOAA, for example, issue dissemination advisories: memorable ones include the dramatic power outage impacting the Bologna data center, or the crazy summer when NOMADS FTP took early retirement (too soon?).
 
-We are now ingesting these in real-time and surface delays on our [status](/status/) and [pipeline](/status/pipeline/) pages. We have backfilled an archive back through early 2022.
+We now ingest these in real time and surface delays on our [status](/status/) and [pipeline](/status/pipeline/) pages. We have backfilled the archive through early 2022.
 
-Using these, we asked yet another question: **Can lead groups delays detect official advisories early?**
+Using these, we asked yet another question: **Can lead-group delays detect official advisories early?**
 
 {% figure "/assets/notes/advisory-overlay.png", "Lead-group arrivals for ECMWF's 15-day ensemble on AWS, with five vertical grey bands marking ECMWF dissemination advisories. Most arrivals sit in a flat band just under 480 minutes. Red delayed markers appear in clusters, some sitting on advisory bands and some far from any of them, with the worst reaching 870 minutes." %}Five ECMWF advisories (grey) over the 15-day ensemble. Some land on runs we flagged, some on ordinary stretches, and several of our delays have no advisory at all. Even where they coincide it isn't detection — the bands sit at init time, and our alarms fired 96 and 196 minutes *after* ECMWF posted.{% endfigure %}
 
-Not conclusively in the archive we
+Not conclusively, based on the archive we
 have. We found 24 product/run matches with an opening agency advisory. Four
 also experienced a lead-group delay, and those delays *followed* the agency
 post by roughly 2, 11, 96, and 196 minutes. That is too small a sample for a
@@ -169,7 +170,7 @@ was an earlier advisory detector in this period.
 
 ## Subscriptions and feeds
 
-If you can expose an inbound HTTP endpoint, webhooks are a good way to be notified of specific dissemination events or delay conditions. wxopticon POSTs you a signed JSON body the moment a run crosses
+If you can expose an inbound HTTP endpoint, webhooks are a good way to be notified of specific dissemination events or delay conditions. wxopticon POSTs a signed JSON body to your endpoint the moment a run crosses
 a boundary you've subscribed to:
 
 ```json
@@ -197,7 +198,7 @@ against the just-arrived dataset and shapes the payload or filters out deliverie
 
 {% figure "/assets/notes/wxopticon-slack.png", "A Slack channel showing a wxopticon boundary notification delivered through an incoming webhook, with the run's product, init time, and the milestone it crossed." %}wxopticon also supports Slack-style incoming webhooks, so boundaries can land straight in a channel.{% endfigure %}
 
-For those of you who hear the soft footfall of the IT team plodding imperceptibly, but threateningly, in the distance -- coming closer, ever closer at the mention of *webhooks*, wxopticon publishes the same
+For those of you who hear the soft footfall of the IT team plodding imperceptibly, but threateningly, in the distance — coming closer, ever closer at the mention of *webhooks*, wxopticon publishes the same
 events as a single JSON file you fetch on your own schedule, with no subscription or auth:
 
 **<https://assets.dynamical.org/wxopticon/feed.json>**
@@ -243,6 +244,6 @@ served with `Cache-Control: max-age=5, stale-while-revalidate=10`, so feel free 
 
 We will continue to tune how "delayed" is determined. And as wxopticon now also ingests,
 archives, and cross-references official source advisories (an ECMWF
-dissemination delay, for example) we will continue to explore patterns.
+dissemination delay, for example), we will continue to explore patterns.
 
-wxopticon is a living, but experimental piece of our infrastructure. If there's a source you'd like us to watch, or a boundary you wish you could subscribe to, [let us know](mailto:feedback@dynamical.org).
+wxopticon is a living but experimental piece of our infrastructure. If there's a source you'd like us to watch, or a boundary you wish you could subscribe to, [let us know](mailto:feedback@dynamical.org).
