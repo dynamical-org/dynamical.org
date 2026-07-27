@@ -43,62 +43,6 @@ The second component is a system that enables consumers to create subscriptions
 (via webhooks, Slack notifications, etc) to meaningful events (e.g. "notify me
 when IFS ENS progress:f024 is complete" or "warn me when GEFS on AWS looks like it might arrive late").
 
-## What "ready" actually means
-
-wxopticon models each run's progress as a sequence of **readiness boundaries**.
-Rather than a single "done" flag, a run crosses named milestones as its lead
-hours become available:
-
-| kind         | fires when                                                        |
-|--------------|-------------------------------------------------------------------|
-| `progress`   | every lead ≤ an intermediate lead-group horizon is available (e.g. `progress:f240`) |
-| `complete`   | the full run is available — you don't need to know group names    |
-| `in_flight`  | a still-running run is behind its learned schedule                |
-| `advisory`   | the upstream agency opens or resolves a dissemination advisory    |
-
-That table describes events, not run states. We initially mixed those concepts
-together, which made it hard to say whether `delayed` meant "still running" or
-"finished, but late." The current model has two orthogonal axes:
-
-- **`status`** is lifecycle: `pending`, `in_flight`, `complete`, `failed`, or
-  `unobserved`.
-- **`timing`** is the judgement: `on_time` or `delayed`, when there is enough
-  history to make one.
-
-## Landing on spreadf
-
-I went back and forth on the correct threshold for "delayed." Our first pass
-split the question in two: an in-flight run was delayed at p95 plus one minute,
-while a completed run was judged against p99. Raw p95 was obviously too harsh:
-by definition, it would flag roughly one ordinary run in twenty. But adding one
-minute still hugged very consistent feeds too tightly, and p99 was a volatile
-tail statistic answering a different question.
-
-We replayed a year of arrivals and compared several buffers above p95:
-
-- a fixed 30 minutes, which ignores whether a product normally takes two hours
-  or twenty-six;
-- ten percent of p50, which scales with typical latency but not with the
-  distribution's actual width;
-- `p95 + (p95 - p50)`, which adapts to dispersion but collapses back toward p95
-  on a very tight feed.
-
-{% figure "/assets/notes/delay-threshold-comparison.png", "A scatter plot of 443 GFS-on-NOMADS runs, each point one run's completion latency against its date. Almost every run sits in a flat band near 313 minutes; four sit above it, one as high as 441. Two horizontal lines cross the plot: a solid spreadf line at 331 minutes with four points above it, and a dashed p50frac line at 347 minutes with one point above it. A density curve along the right edge shows how tightly the band is packed." %}Two of the candidates on GFS's NOMADS feed, the tightest distribution we watch: only 3 minutes separate its median from its 95th percentile. That narrowness is what breaks the unfloored dispersion buffer — it would land at 319 minutes and flag 10 perfectly ordinary runs. The 15-minute floor lifts `spreadf` to 331 (solid), which catches the four genuine stragglers; `p50frac` at 347 (dashed) is so loose it sees only the worst one.{% endfigure %}
-
-The version that behaved sensibly across both tight and wide distributions was
-the dispersion buffer with a floor:
-
-`spreadf = p95 + max(p95 - p50, 15 minutes)`
-
-Each product gets its own spreadf from a trailing 90-day window. Each lead
-group gets one too. That last part is important: if GFS is still working toward
-day 10 after its day-10 group would normally be ready, wxopticon can mark the
-run `in_flight` and `delayed` before the full 16-day run reaches its later
-deadline. The event names the lead group that triggered the warning.
-
-The spreadf approach now drives the dashboard, in-flight warnings, and the
-completed run's timing.
-
 ## How it works, briefly
 
 wxopticon is a set of stateless functions over a single append-only event log in
@@ -135,22 +79,60 @@ consumer can start using GEFS the instant the early lead groups land, long befor
 
 GFS completes within a 13-minute band from its median to its 99th percentile, run after run. Regularity is exactly what makes a learned next-run expectation meaningful. A "late" signal is useful because on-time is so consistent.
 
-**When a run is slow, it's the rare exception.** The clearest case is ECMWF's
-AIFS-ENS: its median run finishes in 5h57m, but its slowest one percent of runs
-stretch toward twelve and a half hours. The value isn't the common run, which
-is boringly regular; it's catching the handful each year that stall.
+## What "ready" actually means
 
-{% figure "/assets/notes/lead-group-arrival.png", "A scatter plot of ECMWF AIFS-ENS arrivals over about two months, colored by lead group from f000 to f360. Nearly every point sits in a dense band just under 400 minutes, crossed by six closely spaced threshold lines between 422 and 448 minutes. Three narrow vertical stacks of red markers rise well above the band, reaching roughly 480, 560, and 870 minutes." %}AIFS-ENS arrivals by lead group, each with its own `spreadf` line. Because AIFS drops its whole 15-day run in one burst, the six groups arrive together and their thresholds sit within 26 minutes of each other — so when this feed stalls, every horizon goes late at once, which is why the exceptions show up as vertical stacks rather than stragglers.{% endfigure %}
+wxopticon models each run's progress as a sequence of **readiness boundaries**.
+Rather than a single "done" flag, a run crosses named milestones as its lead
+hours become available:
 
-But a threshold-selection plot is not the same thing as what a user would have
-heard in real time. The line in that plot is computed over the whole year;
-production recomputes a rolling baseline every five minutes, and an apparent
-crossing only becomes an `in_flight` event if a summarize tick sees the run
-still unfinished. We replayed those actual rules.
+| kind         | fires when                                                        |
+|--------------|-------------------------------------------------------------------|
+| `progress`   | every lead ≤ an intermediate lead-group horizon is available (e.g. `progress:f240`) |
+| `complete`   | the full run is available — you don't need to know group names    |
+| `in_flight`  | a still-running run is behind its learned schedule                |
+| `advisory`   | the upstream agency opens or resolves a dissemination advisory    |
 
-Across the 8,604 judgeable product-runs, **102 finished delayed: 1.19%**. The
-rate varied by product, from zero in the sample for NOAA's HRRR NOMADS feed to
-3.92% for ECMWF AIFS-ENS. GFS on AWS and GFS on NOMADS are two delivery artifacts of the same forecast and are counted separately because a user can depend on either one.
+That table describes events, not run states. We initially mixed those concepts
+together, which made it hard to say whether `delayed` meant "still running" or
+"finished, but late." The current model has two orthogonal axes:
+
+- **`status`** is lifecycle: `pending`, `in_flight`, `complete`, `failed`, or
+  `unobserved`.
+- **`timing`** is the judgement: `on_time` or `delayed`, when there is enough
+  history to make one.
+
+I went back and forth on the correct threshold for "delayed." Our first pass
+split the question in two: an in-flight run was delayed at p95 plus one minute,
+while a completed run was judged against p99. Raw p95 was obviously too harsh:
+by definition, it would flag roughly one ordinary run in twenty. But adding one
+minute still hugged very consistent feeds too tightly, and p99 was a volatile
+tail statistic answering a different question.
+
+We replayed a year of arrivals and compared several buffers above p95:
+
+- a fixed 30 minutes, which ignores whether a product normally takes two hours
+  or twenty-six;
+- ten percent of p50, which scales with typical latency but not with the
+  distribution's actual width;
+- `p95 + (p95 - p50)`, which adapts to dispersion but collapses back toward p95
+  on a very tight feed.
+
+{% figure "/assets/notes/threshold-candidates-scale.png", "Two dot-plot panels sharing a list of thirteen upstream feeds, ordered fastest first. The left panel plots each candidate's buffer over p95 in minutes on a log scale; the fixed-30-minute markers form a perfectly straight vertical line while the others fan out. The right panel plots the same buffers as a percentage of each feed's median; there the ten-percent-of-p50 markers form the straight vertical line and the fixed-30-minute markers fan from 28 percent down to 2 percent." %}The same four buffers in the two units that matter — and each blind candidate gives itself away as a straight vertical line. A flat 30 minutes (left) can't see that HRRR finishes in under two hours and GEFS's 35-day run takes twenty-six; as a share of the median it swings from 28% to 2%. Ten percent of p50 (right) is flat in the other direction: it tracks typical latency and never widens for a feed whose arrivals are genuinely dispersed. Only the dispersion buffers bend in both panels.{% endfigure %}
+
+The challenge was to come up with something formulaic that behaved sensibly across tight and wide distributions. What worked best was something not on our original list: a dispersion buffer with a floor:
+
+`spreadf = p95 + max(p95 - p50, 15 minutes)`
+
+Each product gets its own spreadf from a trailing 90-day window. Each lead
+group gets one too. Which is cool -- if GFS is still working toward
+day 10 after its day-10 group would normally be ready, wxopticon can mark the
+run `in_flight` and `delayed` before the full 16-day run reaches its later
+deadline. The event names the lead group that triggered the warning.
+
+{% figure "/assets/notes/delay-threshold-comparison.png", "A scatter plot of 443 GFS-on-NOMADS runs, each point one run's completion latency against its date. Almost every run sits in a flat band near 313 minutes; four sit above it, one as high as 441. Two horizontal lines cross the plot: a solid spreadf line at 331 minutes with four points above it, and a dashed p50frac line at 347 minutes with one point above it. A density curve along the right edge shows how tightly the band is packed." %}The floor earning its keep on GFS's NOMADS feed, the tightest distribution we watch: only 3 minutes separate its median from its 95th percentile. Without the floor the dispersion buffer would land at 319 minutes and flag 10 perfectly ordinary runs; `spreadf` lifts it to 331 (solid) and catches the four genuine stragglers. `p50frac` at 347 (dashed) is so loose it sees only the worst one.{% endfigure %}
+
+The spreadf approach now drives the dashboard, in-flight warnings, and the
+completed run's timing.
 
 ## Can a delayed lead-group predict a delayed run?
 
@@ -185,7 +167,7 @@ post by roughly 2, 11, 96, and 196 minutes. That is too small a sample for a
 broad conclusion, but it is enough to reject the claim that lead-group spreadf
 was an earlier advisory detector in this period.
 
-## Subscribing: signed webhooks
+## Subscriptions and feeds
 
 If you can expose an inbound HTTP endpoint, webhooks are a good way to be notified of specific dissemination events or delay conditions. wxopticon POSTs you a signed JSON body the moment a run crosses
 a boundary you've subscribed to:
