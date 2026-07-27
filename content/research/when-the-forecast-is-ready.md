@@ -150,15 +150,11 @@ still unfinished. We replayed those actual rules.
 
 Across the 8,604 judgeable product-runs, **102 finished delayed: 1.19%**. The
 rate varied by product, from zero in the sample for NOAA's HRRR NOMADS feed to
-3.92% for ECMWF AIFS-ENS. A reasonable expectation is therefore "about one
-percent of product-runs," not a universal promise that every feed will produce
-the same rate.
+3.92% for ECMWF AIFS-ENS. GFS on AWS and GFS on NOMADS are two delivery artifacts of the same forecast and are counted separately because a user can depend on either one.
 
-These are concrete product-runs, not unique model cycles. GFS on AWS and GFS
-on NOMADS are two delivery artifacts of the same forecast and are counted
-separately because a user can depend on either one.
+## Can a delayed lead-group predict a delayed run?
 
-Lead groups produced **46 observable early warnings**, or about 0.5% of runs:
+We also wanted to explore the question: can delayed lead groups foretell the full run being delayed? Using the spreadf methodology, lead groups produced **46 observable early warnings**, or about 0.5% of runs:
 
 - 20 (43.5%) persisted to a completed full-run delay;
 - 26 (56.5%) recovered and completed on time;
@@ -166,47 +162,32 @@ Lead groups produced **46 observable early warnings**, or about 0.5% of runs:
 - for the warnings that persisted, the median lead over the full-run deadline
   was 57 minutes.
 
-That is the contract I would want as a user: an `in_flight` event triggered by
-a lead group is a useful warning, not a final verdict. Subscribe to
-`complete_delayed` if you only want confirmed late completions. The payload is
-still a normal `complete` event with `timing: delayed`;
-`complete_delayed` is a subscription filter, not another event kind.
+{% figure "/assets/notes/lead-group-stagger.png", "A scatter plot of GEFS 16-day arrivals on AWS over a year, colored by lead group. Six horizontal bands sit at increasing latencies, from f000 near 240 minutes up to f384 near 380, each with its own threshold line from 250 to 481 minutes. Red markers scattered above the bands mark delayed arrivals, some reaching past 1,000 minutes." %}The same view for GEFS's 16-day run, where the horizons are genuinely staggered: day 0 lands around four hours after init, day 16 around six and a half. That gap is what makes an early warning possible at all — a run stuck at its day-0 threshold of 250 minutes is in trouble roughly four hours before the full run's 481-minute deadline. Note also that every group but the last takes the 15-minute floor: their arrivals are so tightly packed that dispersion alone would leave no margin.{% endfigure %}
 
-There is one subtle methodological consequence of using a live rolling
-baseline. Once a run completes, its latency joins the sample used to judge it.
-Of 111 completions that landed beyond the threshold calculated without that
-just-completed run, nine moved back inside spreadf when their completion joined
-the baseline. We report that movement explicitly in the
-[analysis](https://github.com/dynamical-org/wxopticon/tree/main/analysis/outcomes)
-rather than pretending the threshold is a fixed line.
+An `in_flight` event triggered by
+a lead group might be a useful warning depending on one's sensitivity to delays. Or one could subscribe to
+`complete_delayed` if they only wanted confirmed late completions.
 
-**Did the lead groups detect official advisories early?** Not in the archive we
+## How do delays correlate with agency advisories?
+
+From time to time, ECMWF and NOAA, for example, issue dissemination advisories: memorable ones include the dramatic power outage impacting the Bologna data center, or the crazy summer where NOMADS FTP took early retirement (too soon?).
+
+We are now ingesting these in real-time and surface delays on our [status](/status) and [pipeline](/status/pipeline) pages. We have backfilled an archive back through 2020.
+
+Using these, we asked yet another question: **Can lead groups delays detect official advisories early?**
+
+{% figure "/assets/notes/advisory-overlay.png", "The GFS-on-AWS lead-group arrival plot with two vertical grey bands marking upstream NOAA advisories, one in August 2025 and one in April 2026. Both bands line up with vertical clusters of red delayed-arrival markers rising above the normal bands." %}Two NOAA advisories (grey) drawn over a year of GFS-on-AWS lead-group arrivals. Both land on days we also flagged delays, which is the trap: at this scale the overlay looks like detection. It isn't. The bands are positioned by run initialization time, and only comparing the actual wall-clock timestamps shows our alarms fired 2 and 11 minutes *after* NOAA posted.{% endfigure %}
+
+Not conclusively in the archive we
 have. We found 24 product/run matches with an opening agency advisory. Four
-also produced a lead-group warning, and those warnings followed the agency
+also experienced a lead-group delay, and those delays *followed* the agency
 post by roughly 2, 11, 96, and 196 minutes. That is too small a sample for a
 broad conclusion, but it is enough to reject the claim that lead-group spreadf
 was an earlier advisory detector in this period.
 
-The two signals still complement each other. `in_flight` is our statistical
-inference from arrivals; `advisory` is the agency's authoritative statement
-that a dissemination problem exists. Plenty of anomalous runs have no public
-notice, while an advisory can explain why a statistical warning fired.
-
-One last thing the log settles: **how far the cloud copy lags.** Every NOAA model
-is disseminated through both NOAA's NOMADS server and a range of cloud providers (S3, GCS, Azure, and others, via NOAA's
-Open Data Dissemination program), and a consumer might read whichever it sees first (we, for example, blend our reads across sources in an attempt to optimize and roll with NOMADS rate limits).
-
-For GFS, NOMADS is always first. Across roughly 75,000 files carrying the same
-forecast hour, the S3 copy trailed NOMADS by a median of about a minute and a half
-and never once led it — the cost of the extra ingest hop into the cloud. So the
-earliest a run is actually obtainable is its NOMADS timestamp, and that's the
-baseline wxopticon measures arrival against.
-
 ## Subscribing: signed webhooks
 
-If you can expose an inbound HTTP endpoint, webhooks are the lowish-latency path:
-seconds after arrival for NODD push products, at most one cycle for
-everything else. wxopticon POSTs you a signed JSON body the moment a run crosses
+If you can expose an inbound HTTP endpoint, webhooks are a good way to be notified of specific dissemination events or delay conditions. wxopticon POSTs you a signed JSON body the moment a run crosses
 a boundary you've subscribed to:
 
 ```json
@@ -226,15 +207,7 @@ a boundary you've subscribed to:
 }
 ```
 
-Every event carries a human-readable `product_label` (with the AWS/NOMADS source
-badge baked in). `progress` and `complete` name the readiness horizon they
-crossed. An `in_flight` warning carries the run deadline, elapsed time, and
-completion percentage; when a lead group triggered it, the payload also names
-that group and its earlier deadline. So a payload reads on its own without a
-lookup table.
-
-Every delivery is signed (`X-Wxopticon-Signature`), retried with backoff on
-failure, and stable per boundary. Subscriptions are managed at
+Subscriptions are managed at
 [status.dynamical.org/webhooks](https://status.dynamical.org/webhooks); access
 is currently allowlisted, so [get in touch](mailto:feedback@dynamical.org) if
 you'd like to try it. You can even attach a small sandboxed Python function that runs
@@ -242,9 +215,7 @@ against the just-arrived dataset and shapes the payload or filters out deliverie
 
 {% figure "/assets/notes/wxopticon-slack.png", "A Slack channel showing a wxopticon boundary notification delivered through an incoming webhook, with the run's product, init time, and the milestone it crossed." %}wxopticon also supports Slack-style incoming webhooks, so boundaries can land straight in a channel.{% endfigure %}
 
-## Prefer polling? The status feed
-
-Not every consumer can accept inbound requests. For those of you who hear the soft footfall of the IT team plodding imperceptibly, but threateningly, in the distance -- coming closer, ever closer at the mention of *webhooks*, wxopticon publishes the same
+For those of you who hear the soft footfall of the IT team plodding imperceptibly, but threateningly, in the distance -- coming closer, ever closer at the mention of *webhooks*, wxopticon publishes the same
 events as a single JSON file you fetch on your own schedule, with no subscription or auth:
 
 **<https://assets.dynamical.org/wxopticon/feed.json>**
@@ -288,11 +259,8 @@ served with `Cache-Control: max-age=5, stale-while-revalidate=10`, so feel free 
 - Poll the feed: [assets.dynamical.org/wxopticon/feed.json](https://assets.dynamical.org/wxopticon/feed.json)
 - Manage webhook subscriptions: [status.dynamical.org/webhooks](https://status.dynamical.org/webhooks)
 
-We continue to tune how "delayed" is determined. wxopticon now also ingests,
+We will continue to tune how "delayed" is determined. And as wxopticon now also ingests,
 archives, and cross-references official source advisories (an ECMWF
-dissemination delay, for example) with our observations. Those records taught
-us another useful lesson: an advisory overlay drawn against run initialization
-times is good incident context, but detection-order claims require comparing
-the actual wall-clock alarm and post timestamps.
+dissemination delay, for example) we will continue to explore patterns.
 
 wxopticon is a living, but experimental piece of our infrastructure. If there's a source you'd like us to watch, or a boundary you wish you could subscribe to, [let us know](mailto:feedback@dynamical.org).
