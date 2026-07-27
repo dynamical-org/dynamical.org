@@ -31,7 +31,7 @@ And to add to that, we had questions like:
 
 These questions and many more we sought to understand deeply so that the dynamical.org catalog was resilient, low-latency, and designed with minute details about the upstream sources in mind. The prompt for actually sitting down and answering them was a [question Will Hobbs](https://www.linkedin.com/in/will-hobbs-93215023/) [posted on LinkedIn](https://www.linkedin.com/posts/will-hobbs-93215023_question-for-people-that-work-with-nwpaiwp-ugcPost-7449580009725267970-3FJU/) about NOAA model file availability.
 
-So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh never mind). It watches upstream weather sources and dynamical.org's own catalog stores, and it answers two operational questions:
+So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh never mind). It watches upstream weather sources and dynamical.org's own catalog stores, and it answers three operational questions:
 
 - **When can I expect lead-group X dataset Y?**
 - **Was this run on-time?**
@@ -176,7 +176,7 @@ We are now ingesting these in real-time and surface delays on our [status](/stat
 
 Using these, we asked yet another question: **Can lead groups delays detect official advisories early?**
 
-{% figure "/assets/notes/advisory-overlay.png", "The GFS-on-AWS lead-group arrival plot with two vertical grey bands marking upstream NOAA advisories, one in August 2025 and one in April 2026. Both bands line up with vertical clusters of red delayed-arrival markers rising above the normal bands." %}Two NOAA advisories (grey) drawn over a year of GFS-on-AWS lead-group arrivals. Both land on days we also flagged delays, which is the trap: at this scale the overlay looks like detection. It isn't. The bands are positioned by run initialization time, and only comparing the actual wall-clock timestamps shows our alarms fired 2 and 11 minutes *after* NOAA posted.{% endfigure %}
+{% figure "/assets/notes/advisory-overlay.png", "Lead-group arrivals for ECMWF's 15-day ensemble on AWS, with five vertical grey bands marking ECMWF dissemination advisories. Most arrivals sit in a flat band just under 480 minutes. Red delayed markers appear in clusters, some sitting on advisory bands and some far from any of them, with the worst reaching 870 minutes." %}Five ECMWF advisories (grey) over the 15-day ensemble's lead-group arrivals. Some land on runs we also flagged; others sit over entirely ordinary stretches, and several of our delays have no advisory at all. Where the two do coincide, the overlay is still not evidence of detection — it's drawn against run initialization time, and the wall clock says our alarms fired 96 and 196 minutes *after* ECMWF posted. Note too that all six horizons here take the 15-minute floor and sit within 21 minutes of each other: this feed arrives as one burst, so a lead group buys almost no early warning.{% endfigure %}
 
 Not conclusively in the archive we
 have. We found 24 product/run matches with an opening agency advisory. Four
