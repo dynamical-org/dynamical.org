@@ -106,7 +106,7 @@
             replaysOnErrorSampleRate: 0,
           });
         };
-        var sentryLoader = document.createElement('script');
+        const sentryLoader = document.createElement('script');
         sentryLoader.src = 'https://js.sentry-cdn.com/{{ metadata.sentryPublicKey }}.min.js';
         sentryLoader.crossOrigin = 'anonymous';
         sentryLoader.async = true;
