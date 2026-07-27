@@ -417,7 +417,9 @@ eleventyComputed:
         // client versus assembling pystac + icechunk by hand. Tells us where the
         // documentation and library effort is actually being spent.
         track("snippet_variant_selected", {
-          dataset: "{{ entry.id }}",
+          // `dump` emits a JSON string literal, so an id containing a quote or an
+          // ampersand can't break out of the script or arrive HTML-escaped.
+          dataset: {{ entry.id | dump | safe }},
           variant: button.textContent.trim(),
         });
       });
