@@ -15,11 +15,12 @@
     {% endif %}<link rel="canonical" href="https://dynamical.org{{ page.url }}"/>
     {% set isPodcast = tags and ("podcast" in tags) %}
     {% set isArticle = tags and (("podcast" in tags) or ("updates" in tags) or ("research" in tags)) %}
-    {# Titled pages get a unique social card; pages without a title (e.g. the many
-       auto-generated scorecard pages) share one default brand card. #}
-    {% set ogCardSlug = (page.url | ogSlug) if (socialTitle or title) else "default" %}
-    {% set isGeneratedOgImage = not socialImage and not isPodcast %}
-    {% set ogImage = socialImage or ("https://dynamical.org/assets/weathering/weathering_logo_figs.png" if isPodcast else ("https://dynamical.org/assets/og/" + ogCardSlug + ".png")) %}
+    {# Titled pages get a unique social card unless `socialCardSlug` deliberately
+       shares one; titleless pages use the default brand card. #}
+    {% set ogCardSlug = socialCardSlug or ((page.url | ogSlug) if (socialTitle or title) else "default") %}
+    {% set isGeneratedOgImage = not socialImage %}
+    {% set ogImage = socialImage or ("https://dynamical.org/assets/og/" + ogCardSlug + ".png") %}
+    {% set cardArtwork = socialCardImage or ("https://dynamical.org/assets/weathering/weathering_logo_figs.png" if (isPodcast or page.url == "/podcast/") else "") %}
     {% set ogTitle = socialTitle or (("weathering podcast - episode " + episode_number + ": " + title) if isPodcast else (title or metadata.title)) %}
     {% set ogDescription = description or metadata.description %}
     {% set ogImageAlt = socialImageAlt or ogTitle %}
@@ -30,6 +31,8 @@
     <meta property="og:site_name" content="dynamical.org"/>
     <meta property="og:image" content="{{ ogImage }}"/>
     <meta property="og:image:alt" content="{{ ogImageAlt }}"/>
+    {% if isGeneratedOgImage and cardArtwork %}<meta name="dynamical:card-artwork" content="{{ cardArtwork }}"/>
+    {% endif %}
     {% if isGeneratedOgImage %}<meta property="og:image:type" content="image/png"/>
     <meta property="og:image:width" content="1200"/>
     <meta property="og:image:height" content="630"/>

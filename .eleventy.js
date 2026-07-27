@@ -14,6 +14,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const pluginImages = require("./eleventy.config.images.js");
+const { cardContext } = require("./lib/og-card-context.js");
 const markdownToc = require("./lib/markdown-toc.js");
 const markdownItFootnote = require("markdown-it-footnote");
 
@@ -46,21 +47,6 @@ function ogSlug(url) {
   return trimmed.replace(/\//g, "-").replace(/[^a-z0-9-]/gi, "-");
 }
 
-// Short context label shown in the top-right corner of generated social cards.
-// Keep this tied to the public information architecture so pages get useful
-// context without every content file needing another frontmatter field.
-function ogLabel(url) {
-  const pathname = new URL(url || "https://dynamical.org/").pathname;
-  if (/^\/updates\//.test(pathname)) return "dispatch";
-  if (/^\/research\//.test(pathname)) return "research";
-  if (/^\/catalog\/[^/]+\/validation\//.test(pathname)) return "validation";
-  if (/^\/catalog\//.test(pathname)) return "data catalog";
-  if (/^\/scorecard\//.test(pathname)) return "forecast evaluation";
-  if (/^\/meetings\//.test(pathname)) return "steering committee";
-  if (pathname === "/about/") return "about";
-  return "weather + climate";
-}
-
 // Reverse the HTML-attribute escaping Nunjucks applies to og:title /
 // og:description so the rendered card shows literal characters (& " ' < >).
 function decodeEntities(str) {
@@ -72,67 +58,35 @@ function decodeEntities(str) {
     .replace(/&gt;/g, ">");
 }
 
-async function statusCardSnapshots() {
-  const {
-    createPipelineCardModel,
-    createStatusCardModel,
-    loadPipelineCardModel,
-    loadStatusCardModel,
-    statusHistoryFromArtifacts,
-  } = await import("./lib/status-og-card.mjs");
+function cardArtworkDataUri(src) {
+  if (!src) return "";
+  let pathname;
+  try {
+    const parsed = new URL(src, "https://dynamical.org");
+    if (parsed.hostname !== "dynamical.org") return "";
+    pathname = parsed.pathname;
+  } catch {
+    return "";
+  }
 
-  const status =
-    process.env.STATUS_FIXTURE === "1"
-      ? (() => {
-          const data = JSON.parse(
-            fs.readFileSync("./test/fixtures/status.json", "utf8"),
-          );
-          const events = fs.readFileSync(
-            "./test/fixtures/events.jsonl",
-            "utf8",
-          );
-          const eventCount = events
-            .split("\n")
-            .filter((line) => line.trim()).length;
-          const history = statusHistoryFromArtifacts(
-            events,
-            JSON.stringify({
-              v: 1,
-              reconciled_at: data.generated_at,
-              events_count: eventCount,
-            }),
-          );
-          return createStatusCardModel(data, history, {
-            now: new Date(Date.parse(data.generated_at) + 5 * 60 * 1000),
-          });
-        })()
-      : loadStatusCardModel({
-          statusUrl: require("./_data/statusFeed.js"),
-          logBase: require("./_data/statusLogBase.js"),
-        });
+  const publicRoot = path.resolve(__dirname, "public");
+  const artworkPath = path.resolve(publicRoot, `.${pathname}`);
+  if (
+    !artworkPath.startsWith(`${publicRoot}${path.sep}`) ||
+    !fs.existsSync(artworkPath)
+  ) {
+    return "";
+  }
 
-  const pipeline =
-    process.env.PIPELINE_FIXTURE === "1"
-      ? (() => {
-          const data = JSON.parse(
-            fs.readFileSync(
-              "./test/fixtures/pipeline-dashboard.json",
-              "utf8",
-            ),
-          );
-          return createPipelineCardModel(data, {
-            now: new Date(Date.parse(data.generated_at) + 5 * 60 * 1000),
-          });
-        })()
-      : loadPipelineCardModel({
-          assetsBase: require("./_data/pipelineAssetsBase.js"),
-        });
-
-  const [statusModel, pipelineModel] = await Promise.all([status, pipeline]);
-  return new Map([
-    ["status", statusModel],
-    ["status-pipeline", pipelineModel],
-  ]);
+  const mimeTypes = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+  };
+  const mime = mimeTypes[path.extname(artworkPath).toLowerCase()];
+  if (!mime) return "";
+  return `data:${mime};base64,${fs.readFileSync(artworkPath).toString("base64")}`;
 }
 
 function mergeClasses(existingClasses, extraClasses) {
@@ -422,7 +376,19 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
     const { renderCard } = require("./lib/og-card.js");
     const metadata = require("./_data/metadata.js");
-    const snapshots = await statusCardSnapshots();
+    const sharedCards = {
+      default: {
+        title: metadata.title,
+        subtitle: metadata.description,
+        url: metadata.url,
+      },
+      scorecard: {
+        title: "Weather forecast scorecard",
+        subtitle:
+          "Compare forecast accuracy against weather-station observations with transparent metrics.",
+        url: "https://dynamical.org/scorecard/",
+      },
+    };
 
     const metaTag = (html, prop) => {
       const m = html.match(
@@ -430,17 +396,27 @@ module.exports = function (eleventyConfig) {
       );
       return m ? decodeEntities(m[1]) : "";
     };
+    const metaName = (html, name) => {
+      const m = html.match(
+        new RegExp(`<meta name="${name}" content="([^"]*)"`)
+      );
+      return m ? decodeEntities(m[1]) : "";
+    };
     // og:title is "dynamical.org" sitewide unless a page sets socialTitle, so
     // the card headline comes from the page's own <title> ("dynamical.org - X"),
     // with an explicit socialTitle (surfaced via og:title) winning when present.
+    const cleanCardTitle = (value) =>
+      String(value || "")
+        .replace(/\s+[—-]\s+dynamical\.org$/i, "")
+        .trim();
     const cardTitle = (html) => {
       const ogTitle = metaTag(html, "og:title");
-      if (ogTitle && ogTitle !== metadata.title) return ogTitle;
+      if (ogTitle && ogTitle !== metadata.title) return cleanCardTitle(ogTitle);
       const m = html.match(/<title>([^<]*)<\/title>/);
       let pageTitle = m ? decodeEntities(m[1]).trim() : "";
       pageTitle = pageTitle.replace(/^dynamical\.org\s*-?\s*/, "").trim();
       if (pageTitle.toLowerCase() === "home") pageTitle = "";
-      return pageTitle || metadata.title;
+      return cleanCardTitle(pageTitle || metadata.title);
     };
 
     const outputDir = (dir && dir.output) || "docs";
@@ -454,12 +430,12 @@ module.exports = function (eleventyConfig) {
       if (seen.has(slug)) continue;
       seen.add(slug);
 
-      // The shared default card is brand-only and must be deterministic, so it
-      // ignores whichever titleless page happens to be processed first.
-      const isDefault = slug === "default";
-      const title = isDefault ? metadata.title : cardTitle(result.content);
-      let subtitle = isDefault
-        ? metadata.description
+      // Shared cards must be deterministic, so they ignore whichever page that
+      // references the image happens to be processed first.
+      const shared = sharedCards[slug];
+      const title = shared ? shared.title : cardTitle(result.content);
+      let subtitle = shared
+        ? shared.subtitle
         : metaTag(result.content, "og:description");
       // When the description leads with the headline (e.g. socialTitle is the
       // first clause of the description), drop the duplicate so the card reads
@@ -467,12 +443,22 @@ module.exports = function (eleventyConfig) {
       if (subtitle.toLowerCase().startsWith(title.toLowerCase())) {
         subtitle = subtitle.slice(title.length).replace(/^[\s–—:.,-]+/, "");
       }
-      const url = metaTag(result.content, "og:url");
+      if (subtitle.length > 165) {
+        subtitle = `${subtitle
+          .slice(0, 164)
+          .replace(/\s+\S*$/, "")
+          .replace(/[.,;:!?-]+$/, "")}…`;
+      }
+      const url = shared ? shared.url : metaTag(result.content, "og:url");
+      const artwork = cardArtworkDataUri(
+        metaName(result.content, "dynamical:card-artwork")
+      );
       const png = await renderCard({
         title,
         subtitle,
-        label: ogLabel(url),
-        snapshot: snapshots.get(slug),
+        url,
+        context: cardContext(url),
+        artwork,
       });
       const outPath = path.join(outputDir, "assets", "og", `${slug}.png`);
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
