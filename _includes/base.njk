@@ -84,16 +84,25 @@
       ]
     }
     </script>
-    {% if metadata.sentryPublicKey %}<!-- Sentry browser error monitoring (Loader Script): errors only, no tracing or replay -->
+    {% if metadata.sentryPublicKey %}<!-- Sentry browser error monitoring (Loader Script) -->
     <script>
-      // Defining sentryOnLoad defers init to us, so the loader only reports on the production host;
-      // keeps local dev and *.pages.dev previews out of the dashboard.
-      window.sentryOnLoad = function () {
-        if (location.hostname !== 'dynamical.org') return;
-        Sentry.init({ environment: 'production' });
-      };
-    </script>
-    <script src="https://js.sentry-cdn.com/{{ metadata.sentryPublicKey }}.min.js" crossorigin="anonymous" async></script>{% endif %}
+      // Gate the loader injection, not `sentryOnLoad`. After running that handler the loader
+      // does `isInitialized() || Sentry.init()`, so returning early from it without calling
+      // init makes the loader initialize itself with the dashboard's default config — the
+      // opposite of suppressing. The loader is also eager, not lazy, so it ran on every page
+      // load. Not injecting the script at all is what keeps local dev and *.pages.dev
+      // previews out of the dashboard.
+      if (location.hostname === 'dynamical.org') {
+        window.sentryOnLoad = function () {
+          Sentry.init({ environment: 'production' });
+        };
+        var sentryLoader = document.createElement('script');
+        sentryLoader.src = 'https://js.sentry-cdn.com/{{ metadata.sentryPublicKey }}.min.js';
+        sentryLoader.crossOrigin = 'anonymous';
+        sentryLoader.async = true;
+        document.head.appendChild(sentryLoader);
+      }
+    </script>{% endif %}
     {% if metadata.posthogKey %}<!-- PostHog analytics: pageviews and interactions; anonymous visitors get no person profile -->
     <script>
       if (location.hostname === 'dynamical.org') {
