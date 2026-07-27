@@ -86,6 +86,13 @@ test("artwork is composed into generated cards and scorecard details share one i
     new URL("../content/catalog-pages.njk", import.meta.url),
     "utf8",
   );
+  const imageBaseUrl = readFileSync(
+    new URL("../_data/socialImageBaseUrl.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(base, /socialImageBaseUrl \+ "\/assets\/og\/"/);
+  assert.match(imageBaseUrl, /process\.env\.CF_PAGES_URL/);
+  assert.match(imageBaseUrl, /https:\/\/dynamical\.org/);
   assert.match(base, /dynamical:card-artwork/);
   assert.match(catalog, /socialCardImage: '\{\{ entry\.thumbnail \}\}'/);
   assert.doesNotMatch(catalog, /socialImage: '\{\{ entry\.thumbnail \}\}'/);

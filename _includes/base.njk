@@ -19,7 +19,7 @@
        shares one; titleless pages use the default brand card. #}
     {% set ogCardSlug = socialCardSlug or ((page.url | ogSlug) if (socialTitle or title) else "default") %}
     {% set isGeneratedOgImage = not socialImage %}
-    {% set ogImage = socialImage or ("https://dynamical.org/assets/og/" + ogCardSlug + ".png") %}
+    {% set ogImage = socialImage or (socialImageBaseUrl + "/assets/og/" + ogCardSlug + ".png") %}
     {% set cardArtwork = socialCardImage or ("https://dynamical.org/assets/weathering/weathering_logo_figs.png" if (isPodcast or page.url == "/podcast/") else "") %}
     {% set ogTitle = socialTitle or (("weathering podcast - episode " + episode_number + ": " + title) if isPodcast else (title or metadata.title)) %}
     {% set ogDescription = description or metadata.description %}
