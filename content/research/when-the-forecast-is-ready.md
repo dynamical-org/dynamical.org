@@ -118,9 +118,7 @@ next scan.
 
 Because every arrival is in the log, we can replay the whole dang thing. Over the
 last year, wxopticon recorded roughly **1.9 million file arrivals across
-9,150 completed product-runs** of thirteen upstream feeds. After excluding
-periods before comparable monitoring or infrastructure baselines, 8,604 of
-those runs were judgeable by the current delay method.
+9,150 completed product-runs** of thirteen upstream feeds.
 
 **A run arrives over time.** The moment a run *starts* and the
 moment it's *complete* can be many hours apart, and the shape of that arrival looks
@@ -141,6 +139,8 @@ GFS completes within a 13-minute band from its median to its 99th percentile, ru
 AIFS-ENS: its median run finishes in 5h57m, but its slowest one percent of runs
 stretch toward twelve and a half hours. The value isn't the common run, which
 is boringly regular; it's catching the handful each year that stall.
+
+{% figure "/assets/notes/lead-group-arrival.png", "A scatter plot of ECMWF AIFS-ENS arrivals over about two months, colored by lead group from f000 to f360. Nearly every point sits in a dense band just under 400 minutes, crossed by six closely spaced threshold lines between 422 and 448 minutes. Three narrow vertical stacks of red markers rise well above the band, reaching roughly 480, 560, and 870 minutes." %}AIFS-ENS arrivals by lead group, each with its own `spreadf` line. Because AIFS drops its whole 15-day run in one burst, the six groups arrive together and their thresholds sit within 26 minutes of each other — so when this feed stalls, every horizon goes late at once, which is why the exceptions show up as vertical stacks rather than stragglers.{% endfigure %}
 
 But a threshold-selection plot is not the same thing as what a user would have
 heard in real time. The line in that plot is computed over the whole year;
