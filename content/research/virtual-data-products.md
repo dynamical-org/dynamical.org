@@ -73,7 +73,7 @@ Enough talk. Let us show you the numbers.
 
 We define latency as _the time between the moment a file first becomes available at the source and the moment that data is first available in our Zarrs_ — specifically, from a file's "modified" or "created" timestamp at the source to the timestamp of the first Icechunk snapshot containing the same data.
 
-These statistics are calculated on a relatively short history of our first virtual Zarr, [NOAA HRRR forecast, 48 hour, virtual](https://dynamical.org/catalog/noaa-hrrr-forecast-48-hour-virtual/). As we build up a longer track record, we'll add them to our [data product pipeline status](https://status.dynamical.org/pipeline) page, where you can audit the [details](https://dynamical.org/research/when-the-forecast-is-ready/) and see them covered under tight latency thresholds in our [SLA](https://dynamical.org/sla/).
+These statistics are calculated on a relatively short history of our first virtual Zarr, [NOAA HRRR forecast, 48 hour, virtual](https://dynamical.org/catalog/noaa-hrrr-forecast-48-hour-virtual/). As we build up a longer track record, we'll add them to our [data product pipeline status](https://dynamical.org/status/pipeline/) page, where you can audit the [details](https://dynamical.org/research/when-the-forecast-is-ready/) and see them covered under tight latency thresholds in our [SLA](https://dynamical.org/sla/).
 
 #### Latency (seconds)
 
