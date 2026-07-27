@@ -20,7 +20,7 @@ Forecast production is a factory assembly line, a fulfillment center, and a deli
 Every dataset in the dynamical.org catalog (so far) is downstream of a model run that
 someone else produces on their own cadence. And the initialization is just the beginning (literally and philosophically). Then the files start landing, one by one, eventually
 trickling in over tens of minutes (or even hours) rather than appearing all at once. If your
-pipeline depends on that data, you have two bad options: pretend you can divine a cron schedule that will "always work," or poll blindly.
+pipeline depends on that data, you have two bad options: pretend you can divine a cron schedule that will "always work," or poll wildly.
 
 And to add to that, we had questions like:
 
@@ -29,23 +29,19 @@ And to add to that, we had questions like:
 - What does the rollout of a forecast look like, file by file, minute by minute?
 - How do different delivery routes (read: file destinations) impact latency?
 
-These questions and many more we sought to understand deeply so that the dynamical.org catalog was resilient, low-latency, and designed with minute details about the upstream sources in mind. The prompt for actually sitting down and answering them was a [question Will Hobbs](https://www.linkedin.com/in/will-hobbs-93215023/) [posted on LinkedIn](https://www.linkedin.com/posts/will-hobbs-93215023_question-for-people-that-work-with-nwpaiwp-ugcPost-7449580009725267970-3FJU/) about NOAA model file availability. We needed something more definitive than trial-and-error guesses about the delay between model initialization and usable forecast files.
+These questions and many more we sought to understand deeply so that the dynamical.org catalog was resilient, low-latency, and designed with minute details about the upstream sources in mind. The prompt for actually sitting down and answering them was a [question Will Hobbs](https://www.linkedin.com/in/will-hobbs-93215023/) [posted on LinkedIn](https://www.linkedin.com/posts/will-hobbs-93215023_question-for-people-that-work-with-nwpaiwp-ugcPost-7449580009725267970-3FJU/) about NOAA model file availability.
 
-So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh never mind). It watches upstream weather
-sources and dynamical.org's own catalog stores, and it answers two operational questions:
+So, we built a tool called **wxopticon** to remove that guesswork (I pronounce it "waxopticon", and I say it in a slightly mischievous voice and picture Saruman reaching for the Palantir -- no not THAT Palantir. Oh never mind). It watches upstream weather sources and dynamical.org's own catalog stores, and it answers two operational questions:
 
-- **When can I expect lead-group X dataset Y?** — a next-run countdown learned from observed
-  arrival history.
-- **Is this run on time?** — per-init lifecycle and timing measured against the
-  distribution of arrivals for that product, so "late" means late relative to
-  how this feed usually behaves.
+- **When can I expect lead-group X dataset Y?**
+- **Was this run on-time?**
+- **Is this in-flight run trending on-time?**
 
 You can see all of this on the [pipeline status page](/status/pipeline/).
 
 The second component is a system that enables consumers to create subscriptions
 (via webhooks, Slack notifications, etc) to meaningful events (e.g. "notify me
-when IFS ENS progress:f024 is complete" or "warn me when GEFS on AWS is still
-in flight behind schedule").
+when IFS ENS progress:f024 is complete" or "warn me when GEFS on AWS looks like it might arrive late").
 
 ## What "ready" actually means
 
@@ -69,12 +65,6 @@ together, which made it hard to say whether `delayed` meant "still running" or
 - **`timing`** is the judgement: `on_time` or `delayed`, when there is enough
   history to make one.
 
-So a run can be `in_flight` and `delayed`, then finish `complete` and
-`on_time`. That is not a contradiction. An intermediate lead group was behind
-its own schedule, but the full run recovered before crossing the full-run
-threshold. Conversely, a `complete` run can carry `timing: delayed`: the data
-is ready, but later than its feed's learned norm.
-
 ## Landing on spreadf
 
 I went back and forth on the correct threshold for "delayed." Our first pass
@@ -93,6 +83,8 @@ We replayed a year of arrivals and compared several buffers above p95:
 - `p95 + (p95 - p50)`, which adapts to dispersion but collapses back toward p95
   on a very tight feed.
 
+{% figure "/assets/notes/delay-threshold-candidates.png", "Five stacked scatter plots of GFS on AWS over a year, each point one run's completion latency against time. The top panel shows raw latencies clustered near 330 minutes with a handful of outliers reaching 800. The four panels below apply each candidate threshold, drawn as a horizontal line, and mark the runs above it: p95 + (p95 − p50) at 338 minutes flags 14 runs, p95 + max(p95 − p50, 15m) at 345 flags 7, p95 + 0.1 × p50 at 362 flags 4, and p95 + 30m at 360 flags 4." %}Each candidate threshold applied to a year of GFS-on-AWS completions. GFS is the hard case: its runs are so tightly clustered that `p95 − p50` is only 8 minutes, so the unfloored dispersion buffer lands at 338 minutes and flags 14 ordinary runs. The 15-minute floor pushes it to 345 and leaves 7 — the genuine outliers, without the near-misses riding the edge of the band.{% endfigure %}
+
 The version that behaved sensibly across both tight and wide distributions was
 the dispersion buffer with a floor:
 
@@ -104,10 +96,8 @@ day 10 after its day-10 group would normally be ready, wxopticon can mark the
 run `in_flight` and `delayed` before the full 16-day run reaches its later
 deadline. The event names the lead group that triggered the warning.
 
-The same spreadf rule now drives the dashboard, in-flight warnings, and the
-completed run's timing. It is an anomaly detector, not an SLA. A dynamical.org
-[SLA](/sla) is a fixed commitment; spreadf describes whether an upstream feed
-is behaving unusually relative to itself.
+The spreadf approach now drives the dashboard, in-flight warnings, and the
+completed run's timing.
 
 ## How it works, briefly
 
@@ -126,14 +116,14 @@ next scan.
 
 ## What a year of arrivals actually looks like
 
-Because every arrival is in the log, we can replay a whole year of it. Over the
-last 365 days wxopticon recorded roughly **1.9 million file arrivals across
+Because every arrival is in the log, we can replay the whole dang thing. Over the
+last year, wxopticon recorded roughly **1.9 million file arrivals across
 9,150 completed product-runs** of thirteen upstream feeds. After excluding
 periods before comparable monitoring or infrastructure baselines, 8,604 of
 those runs were judgeable by the current delay method.
 
 **A run arrives over time.** The moment a run *starts* and the
-moment it's *complete* can be hours apart, and the shape of that arrival looks
+moment it's *complete* can be many hours apart, and the shape of that arrival looks
 different for every model.
 
 {% figure "/assets/notes/arrival-staircase.png", "Scatter plots for four models, each point a forecast file positioned by its forecast hour (vertical) against hours after init time (horizontal). GFS traces a long diagonal, HRRR a tight one, GEFS two slopes with a plateau, AIFS a near-vertical band." %}Every file found over the last year, by forecast hour and how long after init time it landed; the dark line is the per-lead median. GFS trickles its 16-day run in over about two hours; HRRR's 48 hours land in a tight climb between roughly 50 and 110 minutes; GEFS races out to day 16, pauses, then delivers its 35-day tail in a burst almost a day later; AIFS drops its entire 15-day run in a single ~1-hour window. (A few files with rewritten upstream timestamps are clipped from view.){% endfigure %}
