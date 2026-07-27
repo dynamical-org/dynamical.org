@@ -1,5 +1,5 @@
 // Projects — metadata records for the work dynamical ships. Every project has
-// its own page already (e.g. /catalog, /scorecard, status.dynamical.org), so
+// its own page already (e.g. /catalog, /scorecard, /status/pipeline/), so
 // these files generate NO page of their own: they're frontmatter-only records
 // that the homepage and area pages read via collections.projects.
 //
