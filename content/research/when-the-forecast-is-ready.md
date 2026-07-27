@@ -172,7 +172,7 @@ a lead group might be a useful warning depending on one's sensitivity to delays.
 
 From time to time, ECMWF and NOAA, for example, issue dissemination advisories: memorable ones include the dramatic power outage impacting the Bologna data center, or the crazy summer where NOMADS FTP took early retirement (too soon?).
 
-We are now ingesting these in real-time and surface delays on our [status](/status) and [pipeline](/status/pipeline) pages. We have backfilled an archive back through 2020.
+We are now ingesting these in real-time and surface delays on our [status](/status/) and [pipeline](/status/pipeline/) pages. We have backfilled an archive back through early 2022.
 
 Using these, we asked yet another question: **Can lead groups delays detect official advisories early?**
 
