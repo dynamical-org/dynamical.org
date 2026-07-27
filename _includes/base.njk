@@ -89,12 +89,22 @@
       // Gate the loader injection, not `sentryOnLoad`. After running that handler the loader
       // does `isInitialized() || Sentry.init()`, so returning early from it without calling
       // init makes the loader initialize itself with the dashboard's default config — the
-      // opposite of suppressing. The loader is also eager, not lazy, so it ran on every page
-      // load. Not injecting the script at all is what keeps local dev and *.pages.dev
-      // previews out of the dashboard.
+      // opposite of suppressing. Not injecting the script at all is what keeps local dev and
+      // *.pages.dev previews out of the dashboard.
       if (location.hostname === 'dynamical.org') {
         window.sentryOnLoad = function () {
-          Sentry.init({ environment: 'production' });
+          Sentry.init({
+            environment: 'production',
+            // Errors only — PostHog covers product analytics, and session replay of real
+            // visitors is more than /privacy/ discloses. Performance and Replay are also
+            // off for this DSN in the dashboard, which is what keeps the loader on the
+            // errors-only bundle; these zeros are what stops a dashboard change from
+            // quietly turning them back on, since the loader merges our options over its
+            // own defaults and adds each integration whenever the matching rate is truthy.
+            tracesSampleRate: 0,
+            replaysSessionSampleRate: 0,
+            replaysOnErrorSampleRate: 0,
+          });
         };
         var sentryLoader = document.createElement('script');
         sentryLoader.src = 'https://js.sentry-cdn.com/{{ metadata.sentryPublicKey }}.min.js';

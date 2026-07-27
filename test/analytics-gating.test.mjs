@@ -71,6 +71,21 @@ test("sentry loader is injected on production and initializes itself", () => {
   assert.equal(initCalls[0].environment, "production");
 });
 
+test("sentry init keeps tracing and session replay off", () => {
+  // Errors only. The loader merges these over its dashboard-supplied defaults and adds the
+  // BrowserTracing and Replay integrations whenever the matching rate is truthy, so the
+  // zeros have to be explicit — omitting them re-enables whatever the dashboard says, which
+  // for this DSN previously meant 100% trace sampling and 10% session replay.
+  const { sandbox } = run(inlineScript("sentryLoader"), "dynamical.org");
+  const initCalls = [];
+  sandbox.Sentry = { init: (opts) => initCalls.push(opts) };
+  sandbox.sentryOnLoad();
+
+  for (const option of ["tracesSampleRate", "replaysSessionSampleRate", "replaysOnErrorSampleRate"]) {
+    assert.equal(initCalls[0][option], 0, `${option} must be an explicit 0`);
+  }
+});
+
 test("posthog is not loaded off production", () => {
   const source = inlineScript("posthog.init");
   for (const hostname of OFF_PRODUCTION) {
