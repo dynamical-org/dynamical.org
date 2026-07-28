@@ -29,19 +29,21 @@ async function expectPlot(page, id) {
   await expect
     .poll(
       async () => {
-        if ((await box.locator("svg").count()) > 0) {
+        // One `evaluate` reading the container directly, rather than a
+        // `locator("p").textContent()`: that auto-waits for a <p> to exist with
+        // no timeout of its own, so an empty container — a chart whose module
+        // never loaded, the case this ceiling exists for — hangs the very first
+        // poll and burns the whole timeout instead of reporting in seconds.
+        const seen = await box.evaluate((el) => ({
+          plot: Boolean(el.querySelector("svg")),
+          status: el.querySelector("p")?.textContent?.trim() || null,
+        }));
+        if (seen.plot) {
           state = "rendered a plot";
           return true;
         }
-        const status = (
-          await box
-            .locator("p")
-            .first()
-            .textContent()
-            .catch(() => null)
-        )?.trim();
-        state = status || "an empty container";
-        return Boolean(status) && status !== LOADING_TEXT;
+        state = seen.status || "an empty container";
+        return Boolean(seen.status) && seen.status !== LOADING_TEXT;
       },
       {
         message: `#${id} never settled into a plot or a message`,
@@ -56,6 +58,15 @@ async function expectPlot(page, id) {
     .toBe(true);
 
   expect(state, `#${id} should have rendered a plot`).toBe("rendered a plot");
+}
+
+// `page.goto` resolves for a 404 as readily as for a 200, so a page that stops
+// being generated — a station leaving the ASOS network, a state slug changing —
+// would otherwise surface as an unexplained chart timeout on a 404 body rather
+// than as the missing page it is.
+async function gotoOk(page, path) {
+  const response = await page.goto(path);
+  expect(response?.status(), `${path} did not return 200`).toBe(200);
 }
 
 // A page that draws its charts but logs an exception is still broken — that is
@@ -99,7 +110,7 @@ const PAGES = [
 for (const { name, path, charts } of PAGES) {
   test(`${name} renders every chart`, async ({ page }) => {
     const errors = collectPageErrors(page);
-    await page.goto(path);
+    await gotoOk(page, path);
 
     for (const id of charts) await expectPlot(page, id);
 
@@ -109,7 +120,7 @@ for (const { name, path, charts } of PAGES) {
 
 // A query that returns no rows is the failure mode that hid the 2026-07-19 units
 // change for nine days: nothing throws, so Sentry's global handlers see nothing
-// and the page just shows an empty-state box. `reportUnknownWindow` is what turns
+// and the page just shows an empty-state box. `windowIsPublished` is what turns
 // that into an alert, and it is only useful if it fires on real drift and stays
 // silent otherwise — an alert that cries wolf on every offline station would be
 // muted within a week. Both directions are checked here against live data.
@@ -123,13 +134,22 @@ test("an unpublished window is reported and says so, an empty station is not", a
         window.__sentryEvents.push({ message: error.message, hint }),
     };
   });
-  await page.goto("/scorecard/station/YKM/");
+  await gotoOk(page, "/scorecard/station/YKM/");
   // Let the page finish its own charts first: the module and DuckDB are then warm
   // and the probe below is the only thing left to explain a captured event.
   await expectPlot(page, "temperature_2m-score");
 
   const result = await page.evaluate(async () => {
-    const { renderMetric } = await import("/scorecard.js");
+    // Import the exact specifier the page used, cache-busting query string and
+    // all. A bare "/scorecard.js" is a different module key, so it would get a
+    // second module instance with its own cold `_dbReady` — booting a second
+    // DuckDB-WASM worker and leaving the page's warm one untouched, which is the
+    // opposite of what the comment above is relying on.
+    const spec = performance
+      .getEntriesByType("resource")
+      .map((e) => e.name)
+      .find((n) => n.includes("/scorecard.js"));
+    const { renderMetric } = await import(spec ?? "/scorecard.js");
     const box = document.getElementById("temperature_2m-score");
     const events = () => window.__sentryEvents.map((e) => e.message);
     const shown = () => box.querySelector("p")?.textContent ?? "";
@@ -188,7 +208,7 @@ test("station charts re-render for every window and metric option", async ({
   page,
 }) => {
   const errors = collectPageErrors(page);
-  await page.goto("/scorecard/station/YKM/");
+  await gotoOk(page, "/scorecard/station/YKM/");
   await expectPlot(page, "temperature_2m-score");
 
   const optionValues = (selector) =>

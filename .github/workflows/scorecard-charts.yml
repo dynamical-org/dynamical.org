@@ -19,6 +19,9 @@ on:
     paths:
       - public/scorecard.js
       - content/scorecard*.njk
+      # The station and state pages the specs navigate to are generated from
+      # this data, so a change here can 404 the paths they hardcode.
+      - _data/scorecard/**
       - test/e2e/**
       - playwright.config.mjs
       - .github/workflows/scorecard-charts.yml

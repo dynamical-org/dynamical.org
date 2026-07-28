@@ -1,9 +1,12 @@
 name: Test
 
 # The offline suite: no browser, no network, milliseconds. Safe to gate merges on,
-# and the only check that runs on the weekly grouped Dependabot PR — a major
-# version buried in a fifty-package bump is exactly how the scorecard units
-# regression reached production.
+# so it runs on every PR including the weekly grouped Dependabot bump, where it is
+# the only check a fifty-package diff gets.
+#
+# It does not cover the July 2026 scorecard units regression: that came from the
+# publishing side changing a parquet column's precision, which no offline test can
+# see. Only the scorecard-charts workflow catches that class, and it is scheduled.
 on:
   push:
     branches: [main]

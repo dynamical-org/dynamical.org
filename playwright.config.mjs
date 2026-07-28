@@ -14,6 +14,9 @@ export default defineConfig({
   // re-download the same parquet, which is slower than running in sequence.
   workers: 1,
   retries: 1,
+  // A stray `test.only` would otherwise let the scheduled canary report green
+  // while skipping every spec that makes it worth running.
+  forbidOnly: !!process.env.CI,
   // The HTML report is what the CI job uploads on failure, so build it there too.
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
