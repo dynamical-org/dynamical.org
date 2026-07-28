@@ -58,6 +58,21 @@ function showStatus(container, height, message) {
   container.replaceChildren(p);
 }
 
+// Chart failures happen inside try/catch, and Sentry's global handlers only see
+// uncaught exceptions and unhandled rejections — a caught error that reaches
+// `console.error` is invisible in the dashboard. Every failure here needs an
+// explicit capture or nobody finds out.
+//
+// The layout injects Sentry only on the production host and the loader buffers
+// calls made before the SDK arrives, so this is a no-op in dev and on previews.
+function captureError(error, context) {
+  console.error(error);
+  window.Sentry?.captureException?.(error, {
+    tags: { feature: "scorecard" },
+    extra: context,
+  });
+}
+
 let _dbReady = null;
 
 function initDB() {
@@ -113,6 +128,49 @@ async function getPlot() {
 
 // ── Metric bar chart ────────────────────────────────────────────────────────
 
+// An empty result is ordinary: a station that was offline for the whole lookback
+// has no rows for it. What is not ordinary is the requested window being absent
+// from the file altogether, because the WHERE clause reaches it by dividing a
+// duration column by a fixed constant (see WINDOW_PER_DAY). When the publishing
+// side changes that column's precision every query still succeeds and every
+// chart quietly empties — which is exactly what shipped on 2026-07-19 and went
+// unnoticed for nine days.
+//
+// So the probe asks which windows the file actually holds rather than re-running
+// the query without its station filter. Testing for the window value globally is
+// what keeps it quiet: a stale station legitimately has rows for the long windows
+// and none for the short ones, and re-querying per station would report that as
+// drift on every visit.
+let _windowDaysInFile = null;
+const _reportedWindows = new Set();
+
+async function reportUnknownWindow(context) {
+  if (_reportedWindows.has(context.windowDays)) return;
+  try {
+    _windowDaysInFile ??= query(
+      `SELECT DISTINCT "window" / ${WINDOW_PER_DAY} AS days FROM '${STATS_URL}'`
+    );
+    const available = (await _windowDaysInFile).map((row) => row.days);
+    if (available.includes(context.windowDays)) return;
+
+    // Re-check after the await. Every chart on the page probes concurrently and
+    // they all pass the check above before any of them resolves, so claiming the
+    // window here is what keeps one drifted file to one report.
+    if (_reportedWindows.has(context.windowDays)) return;
+    _reportedWindows.add(context.windowDays);
+    captureError(
+      new Error(
+        `scorecard: statistics.parquet holds no ${context.windowDays}-day window`
+      ),
+      { ...context, windowDaysInFile: available.join(", ") }
+    );
+  } catch (e) {
+    // Diagnostics must not become the visible failure: the chart has already
+    // shown its own message by the time this runs.
+    captureError(e, { ...context, probe: "window inventory" });
+  }
+}
+
 export async function renderMetric(
   container,
   { variable, metric, stationIds, windowDays }
@@ -150,6 +208,14 @@ export async function renderMetric(
         METRIC_HEIGHT,
         `No ${cfg.label} data for the last ${windowDays} days.`
       );
+      await reportUnknownWindow({
+        variable,
+        metric: resolvedMetric,
+        windowDays,
+        // A count, not the ids: a state page passes fifty of them and Sentry
+        // already records the URL that names the page.
+        stations: stationIds?.length ?? "all",
+      });
       return;
     }
 
@@ -199,7 +265,13 @@ export async function renderMetric(
 
     container.replaceChildren(chart);
   } catch (e) {
-    console.error("renderMetric failed:", e);
+    captureError(e, {
+      chart: "metric",
+      variable,
+      metric: resolvedMetric,
+      windowDays,
+      stations: stationIds?.length ?? "all",
+    });
     showStatus(
       container,
       METRIC_HEIGHT,
@@ -277,7 +349,7 @@ export async function renderObs(
 
     container.replaceChildren(chart);
   } catch (e) {
-    console.error("renderObs failed:", e);
+    captureError(e, { chart: "observations", variable, station, windowDays });
     showStatus(
       container,
       OBS_HEIGHT,

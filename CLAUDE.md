@@ -13,7 +13,15 @@ npm install        # Install dependencies
 npm start          # Dev server on port 8081 with live reload
 npm run build      # Build static site to docs/
 npm run clean      # Remove docs/ and .cache/
+npm test           # Offline unit tests (test/*.test.mjs), milliseconds
+npm run test:e2e   # Browser specs (test/e2e/) — starts its own dev server
 ```
+
+`npm run test:e2e` needs a browser once: `npx playwright install chromium`. The specs
+render the scorecard charts for real, so they hit CDNs and the published parquet
+files and take about a minute; they are the only check that catches the data those
+charts read drifting out from under them. Keep them out of `npm test`, which stays
+offline and instant.
 
 ## Architecture
 
