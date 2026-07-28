@@ -6,6 +6,7 @@
   "scripts": {
     "build": "STAC_CACHE_DURATION=0s npx @11ty/eleventy",
     "test": "node --test test/*.test.mjs",
+    "test:e2e": "playwright test",
     "start": "npx @11ty/eleventy --serve --port=8081",
     "start:pipeline": "PIPELINE_FIXTURE=1 PIPELINE_ASSETS_BASE=/pipeline-preview STATUS_FIXTURE=1 STATUS_URL=/status-preview/status.json STATUS_LOG_URL=/status-preview npx @11ty/eleventy --serve --port=8081",
     "start:status": "PIPELINE_FIXTURE=1 PIPELINE_ASSETS_BASE=/pipeline-preview STATUS_FIXTURE=1 STATUS_URL=/status-preview/status.json STATUS_LOG_URL=/status-preview npx @11ty/eleventy --serve --port=8081",
@@ -37,5 +38,8 @@
     "satori": "^0.29.0",
     "sharp": "^0.35.1",
     "topojson-client": "^3.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.0"
   }
 }

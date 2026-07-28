@@ -1,0 +1,59 @@
+name: Scorecard charts
+
+# Renders the scorecard charts in a real browser against the published parquet
+# files. Nothing in the Eleventy build reads those files, so this is the only
+# check that notices when the data they depend on changes shape — the failure
+# mode that emptied every metric chart for nine days in July 2026.
+#
+# Scheduled rather than run on every PR: it depends on third-party CDNs and on
+# data this repo does not own, and neither should be able to block an unrelated
+# merge. A failing scheduled run emails whoever last touched the cron, which is
+# the notification this is here for. It does run on PRs that touch the scorecard
+# itself, where a regression is the likeliest explanation for a red result.
+on:
+  schedule:
+    # 08:00 UTC, after the pipeline's daily publish (~06:20 UTC).
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - public/scorecard.js
+      - content/scorecard*.njk
+      # The station and state pages the specs navigate to are generated from
+      # this data, so a change here can 404 the paths they hardcode.
+      - _data/scorecard/**
+      - test/e2e/**
+      - playwright.config.mjs
+      - .github/workflows/scorecard-charts.yml
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    # DuckDB-WASM scans tens of MB per chart over the network, and the suite
+    # walks every window and metric option.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          # No `cache: npm`: package-lock.json is gitignored, so there is no
+          # lockfile to key a cache on or to `npm ci` from.
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      # Playwright starts the Eleventy dev server itself (see webServer in
+      # playwright.config.mjs), so there is no separate build step.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          # The HTML report explains which chart failed and what its container
+          # said instead; the traces alongside it show the page as it stood.
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

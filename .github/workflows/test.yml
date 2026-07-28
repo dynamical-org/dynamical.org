@@ -1,0 +1,30 @@
+name: Test
+
+# The offline suite: no browser, no network, milliseconds. Safe to gate merges on,
+# so it runs on every PR including the weekly grouped Dependabot bump, where it is
+# the only check a fifty-package diff gets.
+#
+# It does not cover the July 2026 scorecard units regression: that came from the
+# publishing side changing a parquet column's precision, which no offline test can
+# see. Only the scorecard-charts workflow catches that class, and it is scheduled.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          # No `cache: npm`: package-lock.json is gitignored in this repo, so
+          # there is no lockfile to key a cache on or to `npm ci` from.
+      - run: npm install
+      - run: npm test
