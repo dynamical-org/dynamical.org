@@ -164,10 +164,12 @@ test("an unpublished window is reported and says so, an empty station is not", a
     "a station with no rows must not report drift",
   ).toEqual([]);
 
-  // The two cases must not read alike: one is our bug, the other is an honest
-  // gap in the data, and the visible text is all a reader gets.
-  expect(result.unknownWindow.message).toMatch(/unavailable/i);
-  expect(result.unknownWindow.message).toMatch(/999-day window/);
+  // The two cases must not read alike. One is our bug and the other is an honest
+  // gap in the data; the visible text is all a reader gets, and which window went
+  // missing is detail for the Sentry event above rather than for the page.
+  expect(result.unknownWindow.message).toBe(
+    "There was an error loading this plot.",
+  );
   expect(result.emptyStation.message).toBe(
     "No RMSE data for the last 180 days.",
   );

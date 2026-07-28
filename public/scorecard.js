@@ -224,7 +224,7 @@ export async function renderMetric(
         METRIC_HEIGHT,
         published
           ? `No ${cfg.label} data for the last ${windowDays} days.`
-          : `${cfg.label} is unavailable — the published data has no ${windowDays}-day window. That's a problem on our end, and it has been reported.`
+          : "There was an error loading this plot."
       );
       return;
     }
