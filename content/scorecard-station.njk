@@ -142,8 +142,7 @@ eleventyComputed:
       .append("svg")
       .attr("viewBox", [0, 0, width, height])
       .attr("width", "100%")
-      .attr("height", "auto")
-      .attr("style", "max-width: 100%;");
+      .attr("style", "max-width: 100%; height: auto;");
     d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us => {
       const state = topojson
         .feature(us, us.objects.states)

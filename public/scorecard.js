@@ -17,6 +17,11 @@ const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };
 const METRIC_HEIGHT = 360;
 const OBS_HEIGHT = 300;
 
+// Durations in statistics.parquet are integers, but the columns don't share a
+// precision: lead_time is nanoseconds and "window" is microseconds.
+const LEAD_TIME_PER_DAY = 86_400_000_000_000;
+const WINDOW_PER_DAY = 86_400_000_000;
+
 // Per-metric display configuration.
 export const METRIC_CONFIG = {
   RMSE:          { label: "RMSE",                    unitType: "standard", refValue: 0 },
@@ -43,21 +48,14 @@ export const DEFAULT_METRIC = {
   precipitation_surface: "MAE",
 };
 
-function showLoading(container, height) {
-  container.replaceChildren();
-  Object.assign(container.style, {
-    height: `${height}px`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "var(--muted-text-2, #999)",
-    backgroundColor: "var(--popup-bg, #fafafa)",
-  });
-  container.textContent = "Loading\u2026";
-}
-
-function clearLoading(container) {
-  container.style.cssText = "";
+// Loading, empty, and error states all render as a message sized to the chart's
+// own footprint (styled by `.scorecard-chart p` in main.css) so a chart that
+// never arrives leaves a labelled gap instead of a single line of text.
+function showStatus(container, height, message) {
+  container.style.setProperty("--chart-height", `${height}px`);
+  const p = document.createElement("p");
+  p.textContent = message;
+  container.replaceChildren(p);
 }
 
 let _dbReady = null;
@@ -122,7 +120,7 @@ export async function renderMetric(
   const resolvedMetric = metric || DEFAULT_METRIC[variable] || "RMSE";
   const cfg = METRIC_CONFIG[resolvedMetric] || METRIC_CONFIG.RMSE;
 
-  showLoading(container, METRIC_HEIGHT);
+  showStatus(container, METRIC_HEIGHT, "Loading…");
   try {
     const Plot = await getPlot();
 
@@ -134,21 +132,24 @@ export async function renderMetric(
 
     const data = await query(`
       SELECT
-        CAST(lead_time / 86400000000000 AS INTEGER) AS lead_time_days,
+        CAST(lead_time / ${LEAD_TIME_PER_DAY} AS INTEGER) AS lead_time_days,
         model,
         AVG(value) AS value
       FROM '${STATS_URL}'
       WHERE variable = '${variable}'
         AND metric = '${resolvedMetric}'
-        AND "window" / 86400000000000 = ${windowDays}
+        AND "window" / ${WINDOW_PER_DAY} = ${windowDays}
         ${stationFilter}
       GROUP BY lead_time_days, model
       ORDER BY lead_time_days, model
     `);
 
     if (data.length === 0) {
-      clearLoading(container);
-      container.textContent = "No data available";
+      showStatus(
+        container,
+        METRIC_HEIGHT,
+        `No ${cfg.label} data for the last ${windowDays} days.`
+      );
       return;
     }
 
@@ -196,12 +197,14 @@ export async function renderMetric(
       ],
     });
 
-    clearLoading(container);
     container.replaceChildren(chart);
   } catch (e) {
     console.error("renderMetric failed:", e);
-    clearLoading(container);
-    container.textContent = "Failed to load chart";
+    showStatus(
+      container,
+      METRIC_HEIGHT,
+      `Error loading the ${cfg.label} plot. Try reloading the page.`
+    );
   }
 }
 
@@ -211,7 +214,9 @@ export async function renderObs(
   container,
   { station, variable, windowDays }
 ) {
-  showLoading(container, OBS_HEIGHT);
+  const varLabel = VAR_LABELS[variable] || variable;
+
+  showStatus(container, OBS_HEIGHT, "Loading…");
   try {
     const Plot = await getPlot();
     const now = new Date();
@@ -222,19 +227,20 @@ export async function renderObs(
       urls.push(`'${ASOS_BASE}/year=${y}/data.parquet'`);
     }
     const col = variable === "temperature_2m" ? "tmpc" : "p01m";
-    const q = `
+    const data = await query(`
       SELECT valid AS t, station, ${col} AS value
       FROM read_parquet([${urls.join(", ")}])
       WHERE station = '${station}'
         AND valid >= '${startDate.toISOString()}'
       ORDER BY valid
-    `;
-    console.log(q);
-    const data = await query(q);
+    `);
 
     if (data.length === 0) {
-      clearLoading(container);
-      container.textContent = "No observation data available";
+      showStatus(
+        container,
+        OBS_HEIGHT,
+        `No ${varLabel.toLowerCase()} observations for the last ${windowDays} days.`
+      );
       return;
     }
 
@@ -269,11 +275,13 @@ export async function renderObs(
       marks,
     });
 
-    clearLoading(container);
     container.replaceChildren(chart);
   } catch (e) {
     console.error("renderObs failed:", e);
-    clearLoading(container);
-    container.textContent = "Failed to load observation data";
+    showStatus(
+      container,
+      OBS_HEIGHT,
+      `Error loading the ${varLabel.toLowerCase()} observation plot. Try reloading the page.`
+    );
   }
 }

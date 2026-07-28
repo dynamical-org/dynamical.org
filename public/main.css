@@ -953,6 +953,23 @@ a.work-item:hover h3 { text-decoration: underline; }
   margin: 0;
 }
 
+/* Loading, empty, and error states replace the plot with a box of the same
+   footprint (JS sets --chart-height to the height it would have drawn), so a
+   failed chart is as visible as the chart it stands in for. */
+.scorecard-chart p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--chart-height);
+  margin: 0;
+  padding: 0 1em;
+  border: 1px dotted var(--border-muted-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--muted-text);
+  text-align: center;
+}
+
 .responsive-flex {
   display: flex;
   flex-wrap: wrap;
