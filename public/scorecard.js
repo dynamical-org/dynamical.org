@@ -17,10 +17,20 @@ const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };
 const METRIC_HEIGHT = 360;
 const OBS_HEIGHT = 300;
 
-// Durations in statistics.parquet are integers, but the columns don't share a
-// precision: lead_time is nanoseconds and "window" is microseconds.
-const LEAD_TIME_PER_DAY = 86_400_000_000_000;
-const WINDOW_PER_DAY = 86_400_000_000;
+// DuckDB exposes parquet durations as their encoded integers. The writer now
+// pins both durations to nanoseconds; accept the prior microsecond window
+// encoding as well so publishing the new file and deploying this query can
+// happen in either order.
+const MICROSECONDS_PER_DAY = 86_400_000_000n;
+const NANOSECONDS_PER_DAY = 86_400_000_000_000n;
+
+export function encodedWindowValues(windowDays) {
+  const window = BigInt(windowDays);
+  return [
+    window * MICROSECONDS_PER_DAY,
+    window * NANOSECONDS_PER_DAY,
+  ];
+}
 
 // Per-metric display configuration.
 export const METRIC_CONFIG = {
@@ -159,7 +169,11 @@ async function windowIsPublished(windowDays, context) {
     let inventory = _windowDaysInFile;
     if (!inventory) {
       inventory = query(
-        `SELECT DISTINCT "window" / ${WINDOW_PER_DAY} AS days FROM '${STATS_URL}'`
+        `SELECT DISTINCT CASE
+          WHEN "window" > ${365n * MICROSECONDS_PER_DAY}
+            THEN "window" / ${NANOSECONDS_PER_DAY}
+          ELSE "window" / ${MICROSECONDS_PER_DAY}
+        END AS days FROM '${STATS_URL}'`
       );
       inventory.catch(() => {
         if (_windowDaysInFile === inventory) _windowDaysInFile = null;
@@ -207,6 +221,7 @@ export async function renderMetric(
   showStatus(container, METRIC_HEIGHT, "Loading…");
   try {
     const Plot = await getPlot();
+    const encodedWindows = encodedWindowValues(windowDays).join(",");
 
     let stationFilter = "";
     if (stationIds && stationIds.length > 0) {
@@ -216,13 +231,13 @@ export async function renderMetric(
 
     const data = await query(`
       SELECT
-        CAST(lead_time / ${LEAD_TIME_PER_DAY} AS INTEGER) AS lead_time_days,
+        CAST(lead_time / ${NANOSECONDS_PER_DAY} AS INTEGER) AS lead_time_days,
         model,
         AVG(value) AS value
       FROM '${STATS_URL}'
       WHERE variable = '${variable}'
         AND metric = '${resolvedMetric}'
-        AND "window" / ${WINDOW_PER_DAY} = ${windowDays}
+        AND "window" IN (${encodedWindows})
         ${stationFilter}
       GROUP BY lead_time_days, model
       ORDER BY lead_time_days, model

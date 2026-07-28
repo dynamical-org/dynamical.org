@@ -16,7 +16,12 @@ const SCORECARD_JS = new URL("../public/scorecard.js", import.meta.url);
 // function declarations — the CDN imports live inside the render functions — so
 // evaluating it as a data URL is side-effect free and gives us the real exports
 // instead of a copy of them.
-const { METRIC_CONFIG, VARIABLE_METRICS, DEFAULT_METRIC } = await import(
+const {
+  METRIC_CONFIG,
+  VARIABLE_METRICS,
+  DEFAULT_METRIC,
+  encodedWindowValues,
+} = await import(
   `data:text/javascript,${encodeURIComponent(readFileSync(SCORECARD_JS, "utf8"))}`
 );
 
@@ -41,6 +46,13 @@ test("every variable's default metric is one it offers", () => {
         "no dropdown option would be preselected",
     );
   }
+});
+
+test("window filters accept both published duration encodings", () => {
+  assert.deepEqual(encodedWindowValues(180), [
+    15_552_000_000_000n,
+    15_552_000_000_000_000n,
+  ]);
 });
 
 // Each scorecard template hardcodes its own lookback options. The e2e specs walk
