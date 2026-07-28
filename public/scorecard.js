@@ -141,33 +141,37 @@ async function getPlot() {
 // what keeps it quiet: a stale station legitimately has rows for the long windows
 // and none for the short ones, and re-querying per station would report that as
 // drift on every visit.
+// The inventory is memoized, so asking on every empty result costs one query per
+// page rather than one per chart.
 let _windowDaysInFile = null;
 const _reportedWindows = new Set();
 
-async function reportUnknownWindow(context) {
-  if (_reportedWindows.has(context.windowDays)) return;
+async function windowIsPublished(context) {
   try {
     _windowDaysInFile ??= query(
       `SELECT DISTINCT "window" / ${WINDOW_PER_DAY} AS days FROM '${STATS_URL}'`
     );
     const available = (await _windowDaysInFile).map((row) => row.days);
-    if (available.includes(context.windowDays)) return;
+    if (available.includes(context.windowDays)) return true;
 
-    // Re-check after the await. Every chart on the page probes concurrently and
-    // they all pass the check above before any of them resolves, so claiming the
-    // window here is what keeps one drifted file to one report.
-    if (_reportedWindows.has(context.windowDays)) return;
-    _reportedWindows.add(context.windowDays);
-    captureError(
-      new Error(
-        `scorecard: statistics.parquet holds no ${context.windowDays}-day window`
-      ),
-      { ...context, windowDaysInFile: available.join(", ") }
-    );
+    // Claim the window after the await, not before it. Every chart on the page
+    // probes concurrently and they all reach this point before any one of them
+    // resolves, so checking here is what keeps one drifted file to one report.
+    if (!_reportedWindows.has(context.windowDays)) {
+      _reportedWindows.add(context.windowDays);
+      captureError(
+        new Error(
+          `scorecard: statistics.parquet holds no ${context.windowDays}-day window`
+        ),
+        { ...context, windowDaysInFile: available.join(", ") }
+      );
+    }
+    return false;
   } catch (e) {
-    // Diagnostics must not become the visible failure: the chart has already
-    // shown its own message by the time this runs.
+    // The probe is diagnostics. When it cannot answer, claim nothing about our
+    // own data and leave the ordinary empty-result message in place.
     captureError(e, { ...context, probe: "window inventory" });
+    return true;
   }
 }
 
@@ -203,12 +207,11 @@ export async function renderMetric(
     `);
 
     if (data.length === 0) {
-      showStatus(
-        container,
-        METRIC_HEIGHT,
-        `No ${cfg.label} data for the last ${windowDays} days.`
-      );
-      await reportUnknownWindow({
+      // Ask before showing anything: a window the file does not hold is our bug,
+      // not an empty dataset, and saying "no data" for it tells the reader the
+      // opposite of what happened. The container is still showing "Loading…"
+      // here, so the answer arrives without a flicker.
+      const published = await windowIsPublished({
         variable,
         metric: resolvedMetric,
         windowDays,
@@ -216,6 +219,13 @@ export async function renderMetric(
         // already records the URL that names the page.
         stations: stationIds?.length ?? "all",
       });
+      showStatus(
+        container,
+        METRIC_HEIGHT,
+        published
+          ? `No ${cfg.label} data for the last ${windowDays} days.`
+          : `${cfg.label} is unavailable — the published data has no ${windowDays}-day window. That's a problem on our end, and it has been reported.`
+      );
       return;
     }
 

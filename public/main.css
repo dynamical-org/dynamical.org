@@ -962,7 +962,11 @@ a.work-item:hover h3 { text-decoration: underline; }
   justify-content: center;
   height: var(--chart-height);
   margin: 0;
-  padding: 0 1em;
+  /* The box has to fill the chart's footprint, so the measure is held in by
+     padding rather than a width — a longer message (a window the published data
+     doesn't have) then wraps as a block instead of running edge to edge. */
+  padding: 0 clamp(1em, 8%, 5em);
+  text-wrap: balance;
   border: 1px dotted var(--border-muted-color);
   border-radius: var(--radius-sm);
   background: var(--surface-muted);

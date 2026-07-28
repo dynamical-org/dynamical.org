@@ -1,0 +1,27 @@
+name: Test
+
+# The offline suite: no browser, no network, milliseconds. Safe to gate merges on,
+# and the only check that runs on the weekly grouped Dependabot PR — a major
+# version buried in a fifty-package bump is exactly how the scorecard units
+# regression reached production.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          # No `cache: npm`: package-lock.json is gitignored in this repo, so
+          # there is no lockfile to key a cache on or to `npm ci` from.
+      - run: npm install
+      - run: npm test

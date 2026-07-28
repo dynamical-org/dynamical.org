@@ -113,7 +113,7 @@ for (const { name, path, charts } of PAGES) {
 // that into an alert, and it is only useful if it fires on real drift and stays
 // silent otherwise — an alert that cries wolf on every offline station would be
 // muted within a week. Both directions are checked here against live data.
-test("an unpublished window is reported, an empty station is not", async ({
+test("an unpublished window is reported and says so, an empty station is not", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -128,10 +128,11 @@ test("an unpublished window is reported, an empty station is not", async ({
   // and the probe below is the only thing left to explain a captured event.
   await expectPlot(page, "temperature_2m-score");
 
-  const captured = await page.evaluate(async () => {
+  const result = await page.evaluate(async () => {
     const { renderMetric } = await import("/scorecard.js");
     const box = document.getElementById("temperature_2m-score");
-    const seen = () => window.__sentryEvents.map((e) => e.message);
+    const events = () => window.__sentryEvents.map((e) => e.message);
+    const shown = () => box.querySelector("p")?.textContent ?? "";
 
     // A window the pipeline does not publish stands in for a units change: the
     // query succeeds, matches nothing, and the day value is nowhere in the file.
@@ -141,7 +142,7 @@ test("an unpublished window is reported, an empty station is not", async ({
       stationIds: ["YKM"],
       windowDays: 999,
     });
-    const afterUnknownWindow = seen();
+    const unknownWindow = { events: events(), message: shown() };
 
     // A station id that matches no rows at a window the file does hold is
     // ordinary absence, not drift.
@@ -152,16 +153,24 @@ test("an unpublished window is reported, an empty station is not", async ({
       stationIds: ["NOSUCHSTATION"],
       windowDays: 180,
     });
-    return { afterUnknownWindow, afterEmptyStation: seen() };
+    return { unknownWindow, emptyStation: { events: events(), message: shown() } };
   });
 
-  expect(captured.afterUnknownWindow.join("\n")).toMatch(
+  expect(result.unknownWindow.events.join("\n")).toMatch(
     /holds no 999-day window/,
   );
   expect(
-    captured.afterEmptyStation,
+    result.emptyStation.events,
     "a station with no rows must not report drift",
   ).toEqual([]);
+
+  // The two cases must not read alike: one is our bug, the other is an honest
+  // gap in the data, and the visible text is all a reader gets.
+  expect(result.unknownWindow.message).toMatch(/unavailable/i);
+  expect(result.unknownWindow.message).toMatch(/999-day window/);
+  expect(result.emptyStation.message).toBe(
+    "No RMSE data for the last 180 days.",
+  );
 });
 
 // The default view only proves one lookback window and one metric work. Both are

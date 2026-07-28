@@ -14,7 +14,8 @@ export default defineConfig({
   // re-download the same parquet, which is slower than running in sequence.
   workers: 1,
   retries: 1,
-  reporter: process.env.CI ? "list" : [["list"], ["html", { open: "never" }]],
+  // The HTML report is what the CI job uploads on failure, so build it there too.
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:8081",
     navigationTimeout: 60_000,
@@ -24,6 +25,8 @@ export default defineConfig({
     command: "npm start",
     url: "http://localhost:8081/scorecard/",
     reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
+    // A cold build fetches every STAC collection and processes images; on a CI
+    // runner with no .cache that takes considerably longer than locally.
+    timeout: 300_000,
   },
 });
