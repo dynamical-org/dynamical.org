@@ -342,9 +342,10 @@ test("a degraded cell links to no incident", () => {
   assert.equal(cell.incidentIds, undefined);
 });
 
-test("degraded opens no incident and resolves a down one", () => {
-  // Delay is not an outage: the incident list stays a record of downtime, and a
-  // component that goes from down to merely late has stopped being down.
+test("delays are first-class history entries beside outages", () => {
+  // A delay is not an outage, but it is a story the history should tell. An
+  // outage that decays to degraded is over — the lingering delay is its own
+  // entry, so the record says both what broke and what lingered.
   const events = parseEvents(
     jsonl(
       coverage("2026-07-24T00:00:00Z", C, true, "operational"),
@@ -355,15 +356,101 @@ test("degraded opens no incident and resolves a down one", () => {
   );
 
   assert.deepEqual(
-    incidentLog(events).map(({ start, end, ending }) => ({ start, end, ending })),
+    incidentLog(events).map(({ kind, id, start, end, ending }) => ({
+      kind,
+      id,
+      start,
+      end,
+      ending,
+    })),
     [
       {
+        kind: "delay",
+        id: `delay-${C}-${Date.parse("2026-07-24T01:00:00Z") / 1000}`,
+        start: Date.parse("2026-07-24T01:00:00Z"),
+        end: Date.parse("2026-07-24T02:00:00Z"),
+        ending: "resolved",
+      },
+      {
+        kind: "outage",
+        id: `incident-${C}-${Date.parse("2026-07-24T02:00:00Z") / 1000}`,
         start: Date.parse("2026-07-24T02:00:00Z"),
         end: Date.parse("2026-07-24T03:00:00Z"),
         ending: "resolved",
       },
+      {
+        kind: "delay",
+        id: `delay-${C}-${Date.parse("2026-07-24T03:00:00Z") / 1000}`,
+        start: Date.parse("2026-07-24T03:00:00Z"),
+        end: null,
+        ending: null,
+      },
     ],
   );
+});
+
+test("a delay ends as observation-ended when coverage stops", () => {
+  const events = parseEvents(
+    jsonl(
+      coverage("2026-07-24T00:00:00Z", C, true, "operational"),
+      transition("2026-07-24T01:00:00Z", C, "degraded"),
+      coverage("2026-07-24T02:00:00Z", C, false),
+    ),
+  );
+
+  assert.deepEqual(
+    incidentLog(events).map(({ kind, ending }) => ({ kind, ending })),
+    [{ kind: "delay", ending: "observation-ended" }],
+  );
+});
+
+test("a same-kind reassertion does not split a delay entry", () => {
+  const events = parseEvents(
+    jsonl(
+      coverage("2026-07-24T00:00:00Z", C, true, "degraded"),
+      coverage("2026-07-24T01:00:00Z", C, true, "degraded"),
+    ),
+  );
+
+  assert.equal(incidentLog(events).length, 1);
+});
+
+test("degraded days link their delay entries the way down days link incidents", () => {
+  const spans = spansOf(
+    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
+    transition("2026-07-24T10:00:00Z", C, "degraded"),
+    transition("2026-07-24T10:10:00Z", C, "operational"),
+  );
+
+  const cell = dailyBars(spans, { asOf: AS_OF, days: 90 })
+    .get(C)
+    .find((candidate) => candidate.date === "2026-07-24");
+
+  assert.equal(cell.state, "degraded");
+  assert.deepEqual(cell.delayIds, [
+    `delay-${C}-${Date.parse("2026-07-24T10:00:00Z") / 1000}`,
+  ]);
+  assert.equal("incidentIds" in cell, false);
+});
+
+test("a down day links only its outages, not the day's delays", () => {
+  // The worse story is the one the click should tell.
+  const spans = spansOf(
+    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
+    transition("2026-07-24T08:00:00Z", C, "degraded"),
+    transition("2026-07-24T09:00:00Z", C, "down"),
+    transition("2026-07-24T10:00:00Z", C, "operational"),
+  );
+
+  const cell = dailyBars(spans, { asOf: AS_OF, days: 90 })
+    .get(C)
+    .find((candidate) => candidate.date === "2026-07-24");
+
+  assert.equal(cell.state, "down");
+  assert.deepEqual(cell.incidentIds, [
+    `incident-${C}-${Date.parse("2026-07-24T09:00:00Z") / 1000}`,
+  ]);
+  assert.equal("delayIds" in cell, false);
 });
 
 test("a witnessed delay never rounds itself invisible", () => {

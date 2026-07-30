@@ -5,8 +5,10 @@ import test from "node:test";
 import {
   barDescription,
   buildHistory,
+  incidentDescription,
   isHistoryCurrent,
   isStatusDataStale,
+  overlappingEntries,
   STALE_MESSAGE,
   summarizeOverallStatus,
   uptimeDescription,
@@ -256,6 +258,86 @@ test("history must be close to the current snapshot", () => {
     ),
     false,
   );
+});
+
+test("incident descriptions say what the state did to the thing you use", () => {
+  const tenMinutes = {
+    component: "wxopticon-arrivals",
+    kind: "delay",
+    start: Date.parse("2026-07-29T17:10:00Z"),
+    end: Date.parse("2026-07-29T17:20:00Z"),
+  };
+  assert.equal(
+    incidentDescription(tenMinutes, "Arrivals dashboard"),
+    "The arrivals dashboard updated late for 10 minutes.",
+  );
+  assert.equal(
+    incidentDescription(
+      { ...tenMinutes, component: "data-product-reads", kind: "outage" },
+      "Data product reads",
+    ),
+    "Reads of dynamical.org data failed their canary checks for 10 minutes.",
+  );
+});
+
+test("incident descriptions fall back to generic phrasing for unknown ids", () => {
+  // The publisher deploys separately: a component this page has no impact
+  // language for still reads as a sentence, not a blank.
+  const entry = {
+    component: "future-tool",
+    kind: "outage",
+    start: Date.parse("2026-07-29T17:10:00Z"),
+    end: Date.parse("2026-07-29T17:12:00Z"),
+  };
+  assert.equal(
+    incidentDescription(entry, "Future tool"),
+    "Future tool was down for 2 minutes.",
+  );
+  assert.equal(
+    incidentDescription({ ...entry, kind: "delay", end: null }, "Future tool"),
+    "Future tool ran behind — ongoing.",
+  );
+  // Entries from a history built before kinds existed read as outages.
+  assert.equal(
+    incidentDescription({ ...entry, kind: undefined }, "Future tool"),
+    "Future tool was down for 2 minutes.",
+  );
+});
+
+test("overlap is claimed only for intervals that actually intersect", () => {
+  const asOf = Date.parse("2026-07-29T21:00:00Z");
+  const outage = {
+    component: "noaa",
+    kind: "outage",
+    start: Date.parse("2026-07-29T13:00:00Z"),
+    end: Date.parse("2026-07-29T16:00:00Z"),
+  };
+  const during = {
+    component: "arrivals",
+    kind: "delay",
+    start: Date.parse("2026-07-29T14:00:00Z"),
+    end: Date.parse("2026-07-29T14:10:00Z"),
+  };
+  const after = {
+    component: "arrivals",
+    kind: "delay",
+    start: Date.parse("2026-07-29T17:00:00Z"),
+    end: Date.parse("2026-07-29T17:10:00Z"),
+  };
+  const ongoing = {
+    component: "scorecard",
+    kind: "delay",
+    start: Date.parse("2026-07-29T15:00:00Z"),
+    end: null,
+  };
+  const entries = [outage, during, after, ongoing];
+
+  assert.deepEqual(overlappingEntries(outage, entries, asOf), [during, ongoing]);
+  assert.deepEqual(overlappingEntries(after, entries, asOf), [ongoing]);
+  // Same-component entries never count as their own context, and an entry that
+  // started later (the ongoing scorecard delay) is not context for one that
+  // had already ended.
+  assert.deepEqual(overlappingEntries(during, entries, asOf), [outage]);
 });
 
 test("bar descriptions distinguish unknown state from missing coverage", () => {

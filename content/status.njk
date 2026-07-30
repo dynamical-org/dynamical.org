@@ -115,6 +115,24 @@ statusSection: uptime
     margin-top: 0.4rem;
     color: var(--muted-text);
   }
+  /* The summary is the entry's headline sentence; only the timing line below
+     it is secondary. */
+  .status-incident .status-incident-summary {
+    color: inherit;
+  }
+  .status-incident header strong {
+    flex: 0 0 auto;
+    padding: 0.1rem 0.5rem;
+    font-size: 1.2rem;
+  }
+  .status-incident[data-kind="outage"] header strong {
+    color: var(--pill-down-fg);
+    background: var(--pill-down-bg);
+  }
+  .status-incident[data-kind="delay"] header strong {
+    color: var(--pill-degraded-fg);
+    background: var(--pill-degraded-bg);
+  }
   @media (max-width: 680px) {
     .status-list header {
       flex-direction: column;

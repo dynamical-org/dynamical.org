@@ -134,6 +134,19 @@ export function incidentId(component, start) {
   return `incident-${component}-${Math.floor(start / 1000)}`;
 }
 
+export function delayId(component, start) {
+  return `delay-${component}-${Math.floor(start / 1000)}`;
+}
+
+// Which history class a state opens: outages for down, delays for degraded.
+// Operational and unknown open nothing and close whatever is open — a state
+// we could not read cannot substantiate that trouble is continuing.
+function historyKind(state) {
+  if (state === "down") return "outage";
+  if (state === "degraded") return "delay";
+  return null;
+}
+
 export function incidentLog(events) {
   const coverage = new Map();
   const open = new Map();
@@ -155,7 +168,7 @@ export function incidentLog(events) {
     };
 
     if (event.kind === COVERAGE && event.monitored === false) {
-      if (current.monitored && current.state === "down") {
+      if (current.monitored && historyKind(current.state)) {
         close(component, at, "observation-ended");
       }
       coverage.set(component, { monitored: false, state: null });
@@ -165,12 +178,15 @@ export function incidentLog(events) {
 
     const state =
       event.kind === COVERAGE ? publicState(event.state) : publicState(event.to);
-    if (current.monitored && current.state === "down" && state !== "down") {
-      close(component, at, "resolved");
-    }
-    if ((!current.monitored || current.state !== "down") && state === "down") {
+    const kind = historyKind(state);
+    const openKind = current.monitored ? historyKind(current.state) : null;
+    // An outage that decays to degraded is over — the delay that follows is
+    // its own entry, so the record says both what broke and what lingered.
+    if (openKind && openKind !== kind) close(component, at, "resolved");
+    if (kind && openKind !== kind) {
       open.set(component, {
-        id: incidentId(component, at),
+        id: (kind === "outage" ? incidentId : delayId)(component, at),
+        kind,
         component,
         start: at,
       });
@@ -202,20 +218,30 @@ export function dailyBars(spans, { asOf, days }) {
       const start = day * DAY_MS;
       const end = Math.min(start + DAY_MS, asOf.getTime());
       const state = dayState(list, start, end);
+      // Anchor ids for the day's history entries: outage links on down days,
+      // delay links on degraded days. A down day links only its outages —
+      // the worse story is the one the click should tell.
+      const overlappingStarts = (spanState) =>
+        list
+          .filter(
+            (span) =>
+              span.state === spanState &&
+              Math.min(span.end, end) - Math.max(span.start, start) > 0,
+          )
+          .map((span) => span.start);
       const incidentIds =
         state === "down"
-          ? list
-              .filter(
-                (span) =>
-                  span.state === "down" &&
-                  Math.min(span.end, end) - Math.max(span.start, start) > 0,
-              )
-              .map((span) => incidentId(component, span.start))
+          ? overlappingStarts("down").map((s) => incidentId(component, s))
+          : [];
+      const delayIds =
+        state === "degraded"
+          ? overlappingStarts("degraded").map((s) => delayId(component, s))
           : [];
       cells.push({
         date: new Date(start).toISOString().slice(0, 10),
         state,
         ...(incidentIds.length ? { incidentIds } : {}),
+        ...(delayIds.length ? { delayIds } : {}),
       });
     }
     result.set(component, cells);

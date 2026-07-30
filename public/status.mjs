@@ -136,6 +136,58 @@ export function uptimeDescription(measured, days) {
   return measured.delayed > 0 ? `${window} (${measured.delayed}% degraded)` : window;
 }
 
+// What an entry means for a reader, keyed by component id. The impact language
+// is the page's job, not the log's: the log records states; this says what the
+// state did to the thing you use. A component the publisher adds before this
+// page learns it falls back to generic phrasing rather than rendering nothing.
+const IMPACT = {
+  "dynamical-org": { outage: "The website was unreachable" },
+  "stac-catalog": { outage: "The STAC catalog API was unreachable" },
+  "data-product-reads": {
+    outage: "Reads of dynamical.org data failed their canary checks",
+  },
+  "wxopticon-pipeline": {
+    outage: "Forecast arrival detection stopped",
+    delay: "Forecast arrival detection ran behind",
+  },
+  "wxopticon-webhooks": {
+    outage: "Webhook delivery stopped",
+    delay: "Webhook delivery ran behind",
+  },
+  "wxopticon-arrivals": {
+    outage: "The arrivals dashboard stopped updating",
+    delay: "The arrivals dashboard updated late",
+  },
+  scorecard: {
+    outage: "The scorecard stopped refreshing",
+    delay: "The scorecard refreshed late",
+  },
+};
+
+// Entries whose intervals overlap this one's, for the "coincided with" clause.
+// Correlation is the context a status page can derive honestly: it claims two
+// things happened together, never that one caused the other.
+export function overlappingEntries(entry, entries, asOf) {
+  const endOf = (candidate) => candidate.end ?? asOf;
+  return entries.filter(
+    (candidate) =>
+      candidate !== entry &&
+      candidate.component !== entry.component &&
+      candidate.start < endOf(entry) &&
+      entry.start < endOf(candidate),
+  );
+}
+
+export function incidentDescription(entry, name) {
+  const kind = entry.kind ?? "outage";
+  const impact =
+    IMPACT[entry.component]?.[kind] ??
+    (kind === "delay" ? `${name} ran behind` : `${name} was down`);
+  return entry.end
+    ? `${impact} for ${formatDuration(entry.start, entry.end)}.`
+    : `${impact} — ongoing.`;
+}
+
 function renderGroup(list, entries, bars, uptime, emptyCells) {
   list.replaceChildren();
   for (const entry of entries) {
@@ -192,15 +244,15 @@ function barStrip(cells) {
   strip.setAttribute("role", "group");
   strip.setAttribute("aria-label", barDescription(cells));
   for (const cell of cells) {
-    const incident = cell.incidentIds?.[0];
-    const day = document.createElement(incident ? "a" : "span");
+    const anchor = cell.incidentIds?.[0] ?? cell.delayIds?.[0];
+    const day = document.createElement(anchor ? "a" : "span");
     day.dataset.day = cell.state;
     day.title = `${cell.date}: ${cell.state === "nodata" ? "not monitored" : cell.state}`;
-    if (incident) {
-      day.href = `#${incident}`;
+    if (anchor) {
+      day.href = `#${anchor}`;
       day.setAttribute(
         "aria-label",
-        `${cell.date}: outage; view incident details`,
+        `${cell.date}: ${cell.incidentIds?.length ? "outage" : "delay"}; view details`,
       );
     } else {
       day.setAttribute("aria-hidden", "true");
@@ -363,7 +415,7 @@ function renderIncidentLog(root, history, data, local) {
   const visible = history.incidents
     .filter((incident) => names.has(incident.component))
     .reverse();
-  empty.textContent = "No incidents recorded.";
+  empty.textContent = "No incidents or delays recorded.";
   empty.hidden = visible.length > 0;
 
   for (const incident of visible) {
@@ -371,18 +423,43 @@ function renderIncidentLog(root, history, data, local) {
     const header = document.createElement("header");
     const name = document.createElement("h3");
     const state = document.createElement("strong");
+    const summary = document.createElement("p");
     const timing = document.createElement("p");
+    const kind = incident.kind ?? "outage";
     const end = incident.end ?? history.asOf.getTime();
 
     item.id = incident.id;
     item.className = "status-incident";
+    item.dataset.kind = kind;
     name.textContent = names.get(incident.component);
-    state.textContent =
+    state.textContent = `${kind} · ${
       incident.ending === "resolved"
-        ? "Resolved"
+        ? "resolved"
         : incident.ending === "observation-ended"
-          ? "Observation ended"
-          : "Ongoing";
+          ? "observation ended"
+          : "ongoing"
+    }`;
+    summary.className = "status-incident-summary";
+    summary.textContent = incidentDescription(
+      incident,
+      names.get(incident.component),
+    );
+    const overlapping = overlappingEntries(
+      incident,
+      visible,
+      history.asOf.getTime(),
+    );
+    if (overlapping.length) {
+      summary.append(" Coincided with ");
+      overlapping.forEach((other, index) => {
+        const link = document.createElement("a");
+        link.href = `#${other.id}`;
+        link.textContent = `the ${names.get(other.component)} ${other.kind ?? "outage"}`;
+        if (index > 0) summary.append(", ");
+        summary.append(link);
+      });
+      summary.append(".");
+    }
     timing.textContent =
       incident.ending === "observation-ended"
         ? `${formatTimestamp(incident.start, local)} – ${formatTimestamp(incident.end, local)} · ${formatDuration(incident.start, end)}. Recovery was not witnessed.`
@@ -390,7 +467,7 @@ function renderIncidentLog(root, history, data, local) {
             incident.end ? formatTimestamp(incident.end, local) : "ongoing"
           } · ${formatDuration(incident.start, end)}.`;
     header.append(name, state);
-    item.append(header, timing);
+    item.append(header, summary, timing);
     list.append(item);
   }
   if (typeof location !== "undefined" && location.hash) {
