@@ -129,9 +129,11 @@ function statusMark(status) {
 }
 
 export function uptimeDescription(measured, days) {
-  return `${measured.uptime}% uptime over the last ${days} ${
+  const window = `${measured.uptime}% uptime over the last ${days} ${
     days === 1 ? "day" : "days"
   }`;
+  // Delay is not downtime, but it must not hide behind a green 100% either.
+  return measured.delayed > 0 ? `${window} (${measured.delayed}% degraded)` : window;
 }
 
 function renderGroup(list, entries, bars, uptime, emptyCells) {
@@ -168,6 +170,7 @@ function renderGroup(list, entries, bars, uptime, emptyCells) {
 
 export function barDescription(cells) {
   const down = cells.filter((cell) => cell.state === "down").length;
+  const degraded = cells.filter((cell) => cell.state === "degraded").length;
   const unknown = cells.filter((cell) => cell.state === "unknown").length;
   const uncovered = cells.filter((cell) => cell.state === "nodata").length;
   const days = cells.length;
@@ -177,6 +180,7 @@ export function barDescription(cells) {
       ? `No outages recorded in the last ${days} ${plural(days)}`
       : `${down} of the last ${days} ${plural(days)} had an outage`,
   ];
+  if (degraded > 0) parts.push(`${degraded} ${plural(degraded)} degraded`);
   if (unknown > 0) parts.push(`${unknown} ${plural(unknown)} had an unknown state`);
   if (uncovered > 0) parts.push(`${uncovered} ${plural(uncovered)} not monitored`);
   return parts.join("; ");
