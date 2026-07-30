@@ -269,7 +269,7 @@ test("incident descriptions say what the state did to the thing you use", () => 
   };
   assert.equal(
     incidentDescription(tenMinutes, "Arrivals dashboard"),
-    "The arrivals dashboard updated late for 10 minutes.",
+    "The pipeline status page updated late for 10 minutes.",
   );
   assert.equal(
     incidentDescription(

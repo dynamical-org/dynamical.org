@@ -151,12 +151,12 @@ const IMPACT = {
     delay: "Forecast arrival detection ran behind",
   },
   "wxopticon-webhooks": {
-    outage: "Webhook delivery stopped",
-    delay: "Webhook delivery ran behind",
+    outage: "Pipeline webhook delivery stopped",
+    delay: "Pipeline webhook delivery ran behind",
   },
   "wxopticon-arrivals": {
-    outage: "The arrivals dashboard stopped updating",
-    delay: "The arrivals dashboard updated late",
+    outage: "The pipeline status page stopped updating",
+    delay: "The pipeline status page updated late",
   },
   scorecard: {
     outage: "The scorecard stopped refreshing",
