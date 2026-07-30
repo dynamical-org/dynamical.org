@@ -366,6 +366,28 @@ test("degraded opens no incident and resolves a down one", () => {
   );
 });
 
+test("a witnessed delay never rounds itself invisible", () => {
+  // 30 seconds of degraded time against months of coverage is below 0.001% —
+  // flooring would present it as a flat 0 and uptimeDescription would omit it,
+  // the mirror of the confirmed-downtime-never-shows-100% rule.
+  const spans = spansOf(
+    coverage("2026-04-27T00:00:00Z", C, true, "operational"),
+    transition("2026-07-20T00:00:00Z", C, "degraded"),
+    transition("2026-07-20T00:00:30Z", C, "operational"),
+  );
+
+  const measured = uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C);
+
+  assert.equal(measured.uptime, 100);
+  assert.equal(measured.delayed, 0.001);
+});
+
+test("a component with no degraded time reports exactly zero delayed", () => {
+  const spans = spansOf(coverage("2026-07-15T00:00:00Z", C, true, "operational"));
+
+  assert.equal(uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C).delayed, 0);
+});
+
 test("degraded time is monitored, leaves uptime alone, and shows as delayed", () => {
   const spans = spansOf(
     coverage("2026-07-15T00:00:00Z", C, true, "operational"),

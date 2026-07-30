@@ -267,8 +267,9 @@ function dayState(spans, start, end) {
  *
  * `degraded` spans count as monitored time that was *not* down — the component
  * was serving, late — so they leave `uptime` untouched. They surface as the
- * separate `delayed` percentage instead, so a chronically late component cannot
- * hide behind a green 100%.
+ * separate `delayed` percentage instead, ceiled rather than floored so even a
+ * sub-0.001% delay cannot round itself invisible: a chronically or briefly late
+ * component must not hide behind a green 100%.
  *
  * Uniform method is not uniform precision. A transition's onset is only as sharp
  * as its monitor's cadence, so a daily cron's figure is inherently coarser than an
@@ -301,7 +302,7 @@ export function uptimeSummary(spans, { asOf, days }) {
     summary.set(component, {
       uptime: truncate((100 * (monitored - down)) / monitored),
       coverage: truncate((100 * monitored) / elapsed),
-      delayed: truncate((100 * degraded) / monitored),
+      delayed: inflate((100 * degraded) / monitored),
     });
   }
   return summary;
@@ -310,4 +311,11 @@ export function uptimeSummary(spans, { asOf, days }) {
 // Floor to three decimals. Flooring is what stops 99.9999 from presenting as 100.
 function truncate(percent) {
   return Math.floor(percent * 1000) / 1000;
+}
+
+// Ceil to three decimals: the same rule pointed the other way. Degraded time is
+// reported against ourselves, so a witnessed delay must never floor to a flat
+// 0% — the mirror of confirmed downtime never presenting as 100% uptime.
+function inflate(percent) {
+  return Math.ceil(percent * 1000) / 1000;
 }
