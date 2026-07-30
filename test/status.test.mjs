@@ -270,6 +270,24 @@ test("uptime description states the fixed window without a coverage suffix", () 
   );
 });
 
+test("bar descriptions count degraded days apart from outages", () => {
+  const description = barDescription([{ state: "degraded" }, { state: "down" }]);
+  assert.match(description, /1 of the last 2 days had an outage/i);
+  assert.match(description, /1 day degraded/i);
+});
+
+test("uptime description surfaces degraded time without calling it downtime", () => {
+  assert.equal(
+    uptimeDescription({ uptime: 100, coverage: 50, delayed: 0.007 }, 90),
+    "100% uptime over the last 90 days (0.007% degraded)",
+  );
+  // A history object from before the delayed field existed must render as before.
+  assert.equal(
+    uptimeDescription({ uptime: 100, coverage: 50 }, 90),
+    "100% uptime over the last 90 days",
+  );
+});
+
 test("status page passes its timestamp into the shared subnav row", () => {
   const template = readFileSync(
     new URL("../content/status.njk", import.meta.url),

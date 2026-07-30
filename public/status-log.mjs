@@ -10,7 +10,7 @@
 
 const COVERAGE = "coverage";
 const TRANSITION = "transition";
-const PUBLIC_STATES = new Set(["operational", "down"]);
+const PUBLIC_STATES = new Set(["operational", "degraded", "down"]);
 // At equal ts the order is: coverage entry, then transitions, then coverage exit.
 // Entry first because a component must be observed before a state change of it
 // means anything; exit last because a change recorded at the instant coverage
@@ -187,8 +187,9 @@ export function incidentLog(events) {
 /**
  * One cell per UTC day in the rolling window.
  *
- * Precedence is down > unknown > operational > no data. Any observation fills
- * the day; the separate coverage percentage carries partial-day completeness.
+ * Precedence is down > degraded > unknown > operational > no data. Any
+ * observation fills the day; the separate coverage percentage carries
+ * partial-day completeness.
  */
 export function dailyBars(spans, { asOf, days }) {
   const result = new Map();
@@ -222,23 +223,28 @@ export function dailyBars(spans, { asOf, days }) {
   return result;
 }
 
-// Precedence: down > unknown > operational > no data.
+// Precedence: down > degraded > unknown > operational > no data.
 //
 // "unknown" outranking "no data" matters. A state this build does not recognize
 // is something we were told and could not read, which is not the same as nobody
 // watching — and rendering it as a coverage gap would let a state the publisher
 // added hide behind "not monitored", the same direction the down-first rule
-// exists to prevent.
+// exists to prevent. "degraded" outranks "unknown" because it is a state we
+// were told and could read; a day that was both degraded and unreadable shows
+// the stronger claim.
 function dayState(spans, start, end) {
   let operational = 0;
+  let degraded = false;
   let unknown = false;
   for (const span of spans) {
     const overlap = Math.min(span.end, end) - Math.max(span.start, start);
     if (overlap <= 0) continue;
     if (span.state === "down") return "down";
-    if (span.state === "unknown") unknown = true;
+    if (span.state === "degraded") degraded = true;
+    else if (span.state === "unknown") unknown = true;
     else operational += overlap;
   }
+  if (degraded) return "degraded";
   if (unknown) return "unknown";
   return operational > 0 ? "operational" : "nodata";
 }
@@ -259,6 +265,12 @@ function dayState(spans, start, end) {
  * way: a state we could not read is no basis for a claim, the same as a coverage
  * gap. That makes them visible in `coverage` instead of silently averaged away.
  *
+ * `degraded` spans count as monitored time that was *not* down — the component
+ * was serving, late — so they leave `uptime` untouched. They surface as the
+ * separate `delayed` percentage instead, ceiled rather than floored so even a
+ * sub-0.001% delay cannot round itself invisible: a chronically or briefly late
+ * component must not hide behind a green 100%.
+ *
  * Uniform method is not uniform precision. A transition's onset is only as sharp
  * as its monitor's cadence, so a daily cron's figure is inherently coarser than an
  * HTTP detector's. That is a property of the measurement, not the arithmetic.
@@ -276,18 +288,21 @@ export function uptimeSummary(spans, { asOf, days }) {
 
     let monitored = 0;
     let down = 0;
+    let degraded = 0;
     for (const span of list) {
       if (span.state === "unknown") continue;
       const overlap = Math.min(span.end, ceiling) - Math.max(span.start, from);
       if (overlap <= 0) continue;
       monitored += overlap;
       if (span.state === "down") down += overlap;
+      else if (span.state === "degraded") degraded += overlap;
     }
     if (monitored <= 0) continue;
 
     summary.set(component, {
       uptime: truncate((100 * (monitored - down)) / monitored),
       coverage: truncate((100 * monitored) / elapsed),
+      delayed: inflate((100 * degraded) / monitored),
     });
   }
   return summary;
@@ -296,4 +311,11 @@ export function uptimeSummary(spans, { asOf, days }) {
 // Floor to three decimals. Flooring is what stops 99.9999 from presenting as 100.
 function truncate(percent) {
   return Math.floor(percent * 1000) / 1000;
+}
+
+// Ceil to three decimals: the same rule pointed the other way. Degraded time is
+// reported against ourselves, so a witnessed delay must never floor to a flat
+// 0% — the mirror of confirmed downtime never presenting as 100% uptime.
+function inflate(percent) {
+  return Math.ceil(percent * 1000) / 1000;
 }

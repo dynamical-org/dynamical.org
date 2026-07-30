@@ -293,6 +293,123 @@ test("the window caps at the requested number of days", () => {
   assert.equal(dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).length, 90);
 });
 
+// --- degraded ---------------------------------------------------------------
+
+test("a degraded day outranks operational but never down", () => {
+  const spans = spansOf(
+    coverage("2026-07-22T00:00:00Z", C, true, "operational"),
+    transition("2026-07-23T10:00:00Z", C, "degraded"),
+    transition("2026-07-23T10:10:00Z", C, "operational"),
+    transition("2026-07-24T10:00:00Z", C, "degraded"),
+    transition("2026-07-24T11:00:00Z", C, "down"),
+    transition("2026-07-24T12:00:00Z", C, "operational"),
+  );
+
+  const byDate = new Map(
+    dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).map((c) => [c.date, c.state]),
+  );
+
+  assert.equal(byDate.get("2026-07-22"), "operational");
+  assert.equal(byDate.get("2026-07-23"), "degraded");
+  assert.equal(byDate.get("2026-07-24"), "down");
+});
+
+test("a degraded day outranks unknown: a state we could read beats one we could not", () => {
+  const spans = spansOf(
+    coverage("2026-07-24T00:00:00Z", C, true, "maintenance"),
+    transition("2026-07-24T12:00:00Z", C, "degraded"),
+  );
+
+  const byDate = new Map(
+    dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).map((c) => [c.date, c.state]),
+  );
+
+  assert.equal(byDate.get("2026-07-24"), "degraded");
+});
+
+test("a degraded cell links to no incident", () => {
+  const spans = spansOf(
+    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
+    transition("2026-07-24T10:00:00Z", C, "degraded"),
+    transition("2026-07-24T10:10:00Z", C, "operational"),
+  );
+
+  const cell = dailyBars(spans, { asOf: AS_OF, days: 90 })
+    .get(C)
+    .find((c) => c.date === "2026-07-24");
+
+  assert.equal(cell.state, "degraded");
+  assert.equal(cell.incidentIds, undefined);
+});
+
+test("degraded opens no incident and resolves a down one", () => {
+  // Delay is not an outage: the incident list stays a record of downtime, and a
+  // component that goes from down to merely late has stopped being down.
+  const events = parseEvents(
+    jsonl(
+      coverage("2026-07-24T00:00:00Z", C, true, "operational"),
+      transition("2026-07-24T01:00:00Z", C, "degraded"),
+      transition("2026-07-24T02:00:00Z", C, "down"),
+      transition("2026-07-24T03:00:00Z", C, "degraded"),
+    ),
+  );
+
+  assert.deepEqual(
+    incidentLog(events).map(({ start, end, ending }) => ({ start, end, ending })),
+    [
+      {
+        start: Date.parse("2026-07-24T02:00:00Z"),
+        end: Date.parse("2026-07-24T03:00:00Z"),
+        ending: "resolved",
+      },
+    ],
+  );
+});
+
+test("a witnessed delay never rounds itself invisible", () => {
+  // 30 seconds of degraded time against months of coverage is below 0.001% —
+  // flooring would present it as a flat 0 and uptimeDescription would omit it,
+  // the mirror of the confirmed-downtime-never-shows-100% rule.
+  const spans = spansOf(
+    coverage("2026-04-27T00:00:00Z", C, true, "operational"),
+    transition("2026-07-20T00:00:00Z", C, "degraded"),
+    transition("2026-07-20T00:00:30Z", C, "operational"),
+  );
+
+  const measured = uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C);
+
+  assert.equal(measured.uptime, 100);
+  assert.equal(measured.delayed, 0.001);
+});
+
+test("a component with no degraded time reports exactly zero delayed", () => {
+  const spans = spansOf(coverage("2026-07-15T00:00:00Z", C, true, "operational"));
+
+  assert.equal(uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C).delayed, 0);
+});
+
+test("degraded time is monitored, leaves uptime alone, and shows as delayed", () => {
+  const spans = spansOf(
+    coverage("2026-07-15T00:00:00Z", C, true, "operational"),
+    transition("2026-07-20T00:00:00Z", C, "degraded"),
+    transition("2026-07-21T00:00:00Z", C, "operational"),
+  );
+
+  const measured = uptimeSummary(spans, { asOf: AS_OF, days: 90 }).get(C);
+
+  assert.equal(measured.uptime, 100);
+  // One degraded day out of ten and a half monitored.
+  assert.ok(
+    measured.delayed > 9 && measured.delayed < 10,
+    `unexpected delayed ${measured.delayed}`,
+  );
+  // Degraded time stays in the denominator: it is not a coverage gap.
+  assert.ok(
+    measured.coverage > 11 && measured.coverage < 12,
+    `unexpected coverage ${measured.coverage}`,
+  );
+});
+
 // --- uptime -----------------------------------------------------------------
 
 test("uptime is derived from the log, so it cannot contradict the bars", () => {
