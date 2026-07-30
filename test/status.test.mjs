@@ -5,6 +5,8 @@ import test from "node:test";
 import {
   barDescription,
   buildHistory,
+  daySeam,
+  dayTitle,
   incidentDescription,
   isHistoryCurrent,
   isStatusDataStale,
@@ -338,6 +340,42 @@ test("overlap is claimed only for intervals that actually intersect", () => {
   // started later (the ongoing scorecard delay) is not context for one that
   // had already ended.
   assert.deepEqual(overlappingEntries(during, entries, asOf), [outage]);
+});
+
+test("week seams anchor at the right edge and the oldest two run wide", () => {
+  const seams = Array.from({ length: 90 }, (_, index) => daySeam(index, 90));
+  const seamIndices = seams
+    .map((seam, index) => (seam ? index : null))
+    .filter((index) => index !== null);
+
+  // Twelve seams for 90 days; the newest day always closes a full week.
+  assert.equal(seamIndices.length, 12);
+  assert.deepEqual(seamIndices.slice(-2), [75, 82]);
+  assert.equal(seams[89], null);
+  // The 780px fill needs two seams 1px wider; they sit oldest-first.
+  assert.equal(seams[5], "status-day-seam-wide");
+  assert.equal(seams[12], "status-day-seam-wide");
+  assert.equal(seams[19], "status-day-seam");
+});
+
+test("day tooltips name the affected windows, not just the worst state", () => {
+  assert.equal(
+    dayTitle({
+      date: "2026-07-29",
+      state: "down",
+      segments: ["operational", "operational", "operational", "down", "degraded", "operational"],
+    }),
+    "2026-07-29: down 12:00–16:00Z, degraded 16:00–20:00Z",
+  );
+  assert.equal(
+    dayTitle({ date: "2026-07-29", state: "nodata", segments: [] }),
+    "2026-07-29: not monitored",
+  );
+  // A healthy day (or a cell from a build without segments) keeps the old form.
+  assert.equal(
+    dayTitle({ date: "2026-07-29", state: "operational" }),
+    "2026-07-29: operational",
+  );
 });
 
 test("bar descriptions distinguish unknown state from missing coverage", () => {

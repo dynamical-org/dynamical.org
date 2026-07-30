@@ -53,37 +53,58 @@ statusSection: uptime
     color: var(--pill-muted-fg);
     background: var(--pill-muted-bg);
   }
+  /* Fixed-pixel day cells, not 1fr: at this scale fractional widths antialias
+     sub-day marks into mush. Each day is 6px wide — two 3px segment columns
+     touching, so contiguous time reads as one block — by 14px tall (three 4px
+     segment rows with 1px gaps). 2px separates days, and twelve right-anchored
+     week seams absorb the remainder so the strip fills the 780px content
+     column exactly: 90*6 + 77*2 + 10*7 + 2*8 = 780. Below 780px the strip
+     scrolls rather than re-fracturing. */
   .status-bars {
     display: flex;
-    gap: 1px;
     margin-top: 0.6rem;
-    height: 1.4rem;
+    overflow-x: auto;
   }
   .status-bars > * {
-    flex: 1 1 0;
+    flex: 0 0 6px;
+    height: 14px;
+    margin-right: 2px;
     border: 1px dotted var(--pill-muted-border);
     background: transparent;
+    box-sizing: border-box;
+  }
+  .status-bars > .status-day-seam {
+    margin-right: 7px;
+  }
+  .status-bars > .status-day-seam-wide {
+    margin-right: 8px;
+  }
+  .status-bars > :last-child {
+    margin-right: 0;
   }
   .status-bars > a {
     text-decoration: none;
+  }
+  /* Days with an observed state drop the border and subdivide into the 2x3
+     segment grid; segments paint individually, so a blip is a fleck rather
+     than a whole-day repaint. */
+  .status-bars [data-day]:not([data-day="nodata"]):not([data-day="unknown"]) {
+    border: 0;
+    display: grid;
+    grid-template: repeat(3, 1fr) / repeat(2, 1fr);
+    gap: 1px 0;
   }
   .status-bars [data-day="unknown"] {
     border-style: solid;
     border-color: var(--pill-down-bg);
   }
-  .status-bars [data-day="operational"] {
-    border-style: solid;
-    border-color: var(--pill-available-bg);
+  .status-bars [data-seg="operational"] {
     background: var(--pill-available-bg);
   }
-  .status-bars [data-day="degraded"] {
-    border-style: solid;
-    border-color: var(--pill-degraded-bg);
+  .status-bars [data-seg="degraded"] {
     background: var(--pill-degraded-bg);
   }
-  .status-bars [data-day="down"] {
-    border-style: solid;
-    border-color: var(--pill-down-bg);
+  .status-bars [data-seg="down"] {
     background: var(--pill-down-bg);
   }
   .status-incident-heading,

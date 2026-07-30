@@ -206,8 +206,12 @@ export function incidentLog(events) {
  * Precedence is down > degraded > unknown > operational > no data. Any
  * observation fills the day; the separate coverage percentage carries
  * partial-day completeness.
+ *
+ * With `parts`, each cell also carries `segments`: the day split into that
+ * many equal windows, each classified by the same precedence, so a short
+ * blip colors the segment it touched instead of repainting the whole day.
  */
-export function dailyBars(spans, { asOf, days }) {
+export function dailyBars(spans, { asOf, days, parts }) {
   const result = new Map();
   const lastDay = Math.floor(asOf.getTime() / DAY_MS);
   const windowStart = utcDayWindowStart(asOf, days) / DAY_MS;
@@ -237,12 +241,27 @@ export function dailyBars(spans, { asOf, days }) {
         state === "degraded"
           ? overlappingStarts("degraded").map((s) => delayId(component, s))
           : [];
-      cells.push({
+      const cell = {
         date: new Date(start).toISOString().slice(0, 10),
         state,
         ...(incidentIds.length ? { incidentIds } : {}),
         ...(delayIds.length ? { delayIds } : {}),
-      });
+      };
+      if (parts) {
+        // The same fold at sub-day resolution: each window classifies with the
+        // identical precedence, so a cell's segments can never disagree with
+        // its day state. Windows past the as-of have no overlap and read as
+        // "nodata", the same rule that keeps whole days from inventing green.
+        const segMs = DAY_MS / parts;
+        cell.segments = Array.from({ length: parts }, (_, p) =>
+          dayState(
+            list,
+            start + p * segMs,
+            Math.min(start + (p + 1) * segMs, end),
+          ),
+        );
+      }
+      cells.push(cell);
     }
     result.set(component, cells);
   }

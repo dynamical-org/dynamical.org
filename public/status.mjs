@@ -19,6 +19,14 @@ const STALE_AFTER_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const BAR_DAYS = 90;
+// Six 4-hour segments per day cell, laid out 2x3. Chosen with the strip's
+// pixel arithmetic (see .status-bars in status.njk): at 3px per segment every
+// mark stays on the CSS pixel grid at full 90-day density.
+const BAR_PARTS = 6;
+// Two of the twelve week seams run 1px wider to make the strip fill the
+// 780px column exactly; they sit oldest-first where the difference is least
+// conspicuous. Coupled to the arithmetic in status.njk.
+const WIDE_SEAMS = 2;
 export const STALE_MESSAGE = "Stale: status page experiencing delayed updates";
 
 function isStatusEntry(entry) {
@@ -238,16 +246,57 @@ export function barDescription(cells) {
   return parts.join("; ");
 }
 
+// Week seams, anchored at the right edge so today's group is always a full
+// seven regardless of the date. Returns the seam class for the gap after this
+// cell, or null for an ordinary day gap.
+export function daySeam(index, count, wideSeams = WIDE_SEAMS) {
+  const last = count - 1;
+  if (index >= last || (last - index) % 7 !== 0) return null;
+  const fromRight = (last - index) / 7;
+  const seams = Math.floor(last / 7);
+  return fromRight > seams - wideSeams
+    ? "status-day-seam-wide"
+    : "status-day-seam";
+}
+
+export function dayTitle(cell) {
+  const bad = (cell.segments ?? [])
+    .map((state, index) => [state, index])
+    .filter(([state]) => state === "down" || state === "degraded");
+  if (!bad.length) {
+    return `${cell.date}: ${cell.state === "nodata" ? "not monitored" : cell.state}`;
+  }
+  const hoursPer = 24 / cell.segments.length;
+  const clock = (part) => {
+    const hours = Math.floor(part * hoursPer);
+    const minutes = Math.round(((part * hoursPer) % 1) * 60);
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  };
+  const windows = bad
+    .map(([state, index]) => `${state} ${clock(index)}–${clock(index + 1)}Z`)
+    .join(", ");
+  return `${cell.date}: ${windows}`;
+}
+
 function barStrip(cells) {
   const strip = document.createElement("div");
   strip.className = "status-bars";
   strip.setAttribute("role", "group");
   strip.setAttribute("aria-label", barDescription(cells));
-  for (const cell of cells) {
+  cells.forEach((cell, index) => {
     const anchor = cell.incidentIds?.[0] ?? cell.delayIds?.[0];
     const day = document.createElement(anchor ? "a" : "span");
     day.dataset.day = cell.state;
-    day.title = `${cell.date}: ${cell.state === "nodata" ? "not monitored" : cell.state}`;
+    const seam = daySeam(index, cells.length);
+    if (seam) day.classList.add(seam);
+    day.title = dayTitle(cell);
+    for (const state of cell.segments ?? []) {
+      const segment = document.createElement("i");
+      if (state !== "nodata" && state !== "unknown") {
+        segment.dataset.seg = state;
+      }
+      day.append(segment);
+    }
     if (anchor) {
       day.href = `#${anchor}`;
       day.setAttribute(
@@ -258,7 +307,7 @@ function barStrip(cells) {
       day.setAttribute("aria-hidden", "true");
     }
     strip.append(day);
-  }
+  });
   return strip;
 }
 
@@ -278,7 +327,7 @@ export function buildHistory(eventsText, metaText) {
   const spans = componentSpans(events, { asOf });
   return {
     asOf,
-    cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
+    cells: dailyBars(spans, { asOf, days: BAR_DAYS, parts: BAR_PARTS }),
     incidents: incidentLog(events),
     uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
   };
@@ -370,6 +419,7 @@ function renderStatus(root, data, loadedHistory, local) {
   const emptyCells = dailyBars(new Map([["", []]]), {
     asOf: history?.asOf ?? new Date(data.generated_at),
     days: BAR_DAYS,
+    parts: BAR_PARTS,
   }).get("");
   setHistoryNotice(
     historyNotice,

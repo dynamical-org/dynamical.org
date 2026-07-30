@@ -293,6 +293,83 @@ test("the window caps at the requested number of days", () => {
   assert.equal(dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).length, 90);
 });
 
+// --- segments ---------------------------------------------------------------
+
+test("cells carry no segments unless parts is requested", () => {
+  const spans = spansOf(coverage("2026-07-24T00:00:00Z", C, true, "operational"));
+
+  const cell = dailyBars(spans, { asOf: AS_OF, days: 90 }).get(C).at(-1);
+
+  assert.equal("segments" in cell, false);
+});
+
+test("a blip colors only the segment it touched", () => {
+  const spans = spansOf(
+    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
+    transition("2026-07-24T17:10:00Z", C, "degraded"),
+    transition("2026-07-24T17:20:00Z", C, "operational"),
+  );
+
+  const cell = dailyBars(spans, { asOf: AS_OF, days: 90, parts: 6 })
+    .get(C)
+    .find((candidate) => candidate.date === "2026-07-24");
+
+  // 17:10Z falls in the fifth 4-hour window (16:00-20:00).
+  assert.deepEqual(cell.segments, [
+    "operational",
+    "operational",
+    "operational",
+    "operational",
+    "degraded",
+    "operational",
+  ]);
+  // The day-level state still reflects the worst segment.
+  assert.equal(cell.state, "degraded");
+});
+
+test("segments past the as-of read as nodata, not as invented green", () => {
+  const spans = spansOf(coverage("2026-07-25T00:00:00Z", C, true, "operational"));
+
+  const today = dailyBars(spans, { asOf: AS_OF, days: 90, parts: 6 })
+    .get(C)
+    .at(-1);
+
+  // The as-of is 12:00Z: the first three 4-hour windows are observed, the rest
+  // have not happened yet.
+  assert.deepEqual(today.segments, [
+    "operational",
+    "operational",
+    "operational",
+    "nodata",
+    "nodata",
+    "nodata",
+  ]);
+});
+
+test("segment states agree with the day state a downed cell reports", () => {
+  const spans = spansOf(
+    coverage("2026-07-23T00:00:00Z", C, true, "operational"),
+    transition("2026-07-24T13:17:00Z", C, "down"),
+    transition("2026-07-24T16:20:00Z", C, "operational"),
+  );
+
+  const cell = dailyBars(spans, { asOf: AS_OF, days: 90, parts: 6 })
+    .get(C)
+    .find((candidate) => candidate.date === "2026-07-24");
+
+  assert.equal(cell.state, "down");
+  // 13:17-16:20Z spans the 12:00-16:00 and 16:00-20:00 windows.
+  assert.deepEqual(cell.segments, [
+    "operational",
+    "operational",
+    "operational",
+    "down",
+    "down",
+    "operational",
+  ]);
+  assert.ok(cell.incidentIds?.length, "downed day still links its incident");
+});
+
 // --- degraded ---------------------------------------------------------------
 
 test("a degraded day outranks operational but never down", () => {
