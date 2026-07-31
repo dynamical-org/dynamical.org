@@ -103,9 +103,12 @@ statusSection: uptime
   .status-incident {
     scroll-margin-top: 1rem;
   }
-  .status-incident:target {
-    background: var(--pill-muted-bg);
-    outline: 0.4rem solid var(--pill-muted-bg);
+  /* Navigation highlight: the header's <mark> is dormant until this entry is
+     the :target, where the UA's native mark styling takes over — no invented
+     color, and it adapts to dark mode and forced-colors on its own. */
+  .status-incident:not(:target) mark {
+    background: transparent;
+    color: inherit;
   }
   /* The skeleton's link reset is for row-level anchors; the "coincided with"
      cross-references are inline copy and must still read as links. */

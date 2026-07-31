@@ -431,7 +431,12 @@ function renderIncidentLog(root, history, data, local) {
     item.id = incident.id;
     item.className = "status-incident";
     item.dataset.kind = kind;
-    name.textContent = names.get(incident.component);
+    // The name wears a <mark> that stays invisible until this entry is the
+    // :target — arriving from a day cell lights up the header rather than
+    // boxing the whole entry.
+    const highlight = document.createElement("mark");
+    highlight.textContent = names.get(incident.component);
+    name.append(highlight);
     state.textContent = `${kind} · ${
       incident.ending === "resolved"
         ? "resolved"
@@ -474,7 +479,11 @@ function renderIncidentLog(root, history, data, local) {
     const target = document.getElementById(
       decodeURIComponent(location.hash.slice(1)),
     );
-    if (target) requestAnimationFrame(() => target.scrollIntoView());
+    // Re-run the fragment navigation rather than scrollIntoView: the entry
+    // rendered after the page navigated, so :target never matched and the
+    // header's <mark> would stay dormant on a shared link. replace() scrolls
+    // and re-evaluates :target without adding a history entry.
+    if (target) requestAnimationFrame(() => location.replace(location.hash));
   }
 }
 
