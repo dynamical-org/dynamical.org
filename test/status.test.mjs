@@ -363,9 +363,9 @@ test("day tooltips name the affected windows, not just the worst state", () => {
     dayTitle({
       date: "2026-07-29",
       state: "down",
-      segments: ["operational", "operational", "operational", "down", "degraded", "operational"],
+      segments: ["operational", "down", "degraded", "operational"],
     }),
-    "2026-07-29: down 12:00–16:00Z, degraded 16:00–20:00Z",
+    "2026-07-29: down 06:00–12:00Z, degraded 12:00–18:00Z",
   );
   assert.equal(
     dayTitle({ date: "2026-07-29", state: "nodata", segments: [] }),

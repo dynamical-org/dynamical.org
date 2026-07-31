@@ -54,9 +54,9 @@ statusSection: uptime
     background: var(--pill-muted-bg);
   }
   /* Fixed-pixel day cells, not 1fr: at this scale fractional widths antialias
-     sub-day marks into mush. Each day is 6px wide — two 3px segment columns
-     touching, so contiguous time reads as one block — by 14px tall (three 4px
-     segment rows with 1px gaps). 2px separates days, and twelve right-anchored
+     sub-day marks into mush. Each day is 6px wide — two 3px block columns
+     touching, so contiguous time reads as one block — by 13px tall (two 6px
+     block rows with a 1px gap). 2px separates days, and twelve right-anchored
      week seams absorb the remainder so the strip fills the 780px content
      column exactly: 90*6 + 77*2 + 10*7 + 2*8 = 780. Below 780px the strip
      scrolls rather than re-fracturing. */
@@ -67,7 +67,7 @@ statusSection: uptime
   }
   .status-bars > * {
     flex: 0 0 6px;
-    height: 14px;
+    height: 13px;
     margin-right: 2px;
     border: 1px dotted var(--pill-muted-border);
     background: transparent;
@@ -85,13 +85,13 @@ statusSection: uptime
   .status-bars > a {
     text-decoration: none;
   }
-  /* Days with an observed state drop the border and subdivide into the 2x3
-     segment grid; segments paint individually, so a blip is a fleck rather
-     than a whole-day repaint. */
+  /* Days with an observed state drop the border and subdivide into the 2x2
+     block grid (midnight top-left, each row twelve hours); blocks paint
+     individually, so a blip is a fleck rather than a whole-day repaint. */
   .status-bars [data-day]:not([data-day="nodata"]):not([data-day="unknown"]) {
     border: 0;
     display: grid;
-    grid-template: repeat(3, 1fr) / repeat(2, 1fr);
+    grid-template: repeat(2, 1fr) / repeat(2, 1fr);
     gap: 1px 0;
   }
   .status-bars [data-day="unknown"] {

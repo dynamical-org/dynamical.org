@@ -19,10 +19,10 @@ const STALE_AFTER_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const BAR_DAYS = 90;
-// Six 4-hour segments per day cell, laid out 2x3. Chosen with the strip's
-// pixel arithmetic (see .status-bars in status.njk): at 3px per segment every
-// mark stays on the CSS pixel grid at full 90-day density.
-const BAR_PARTS = 6;
+// Four 6-hour blocks per day cell, laid out 2x2. Chosen with the strip's
+// pixel arithmetic (see .status-bars in status.njk): at 3px per block column
+// every mark stays on the CSS pixel grid at full 90-day density.
+const BAR_PARTS = 4;
 // Two of the twelve week seams run 1px wider to make the strip fill the
 // 780px column exactly; they sit oldest-first where the difference is least
 // conspicuous. Coupled to the arithmetic in status.njk.
