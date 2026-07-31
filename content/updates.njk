@@ -7,6 +7,37 @@ keywords: "weather data news, dataset releases, dynamical.org updates, changelog
 redirect_from: [/follow, /follow.html]
 ---
 
+<style>
+  /* Rides the shared .index-list skeleton; only density, separators, and the
+     title/meta treatment are this page's own. */
+  .update-index {
+    --index-row-padding: 3rem;
+    --index-row-border: 1px solid var(--popup-border);
+  }
+  .update-index time {
+    display: block;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--muted-text);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .update-index h2 {
+    margin: 0 0 0.9rem;
+    font-size: 2rem;
+    line-height: 1.25;
+  }
+  .update-index h2 a:hover {
+    color: var(--link-color);
+    text-decoration: underline;
+  }
+  .update-index p {
+    margin: 0;
+    color: var(--muted-text);
+    line-height: 1.6;
+  }
+</style>
+
 <div id="newsletter" class="content centered" style="margin-bottom: 4rem;">
   <form
     action="https://buttondown.email/api/emails/embed-subscribe/dynamical"

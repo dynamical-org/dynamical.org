@@ -704,34 +704,6 @@ article img,
   outline-offset: 2px;
 }
 
-/* /updates archive index */
-.update-index {
-  --index-row-padding: 3rem;
-  --index-row-border: 1px solid var(--popup-border);
-}
-.update-index time {
-  display: block;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-  color: var(--muted-text);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.update-index h2 {
-  margin: 0 0 0.9rem;
-  font-size: 2rem;
-  line-height: 1.25;
-}
-.update-index h2 a:hover {
-  color: var(--link-color);
-  text-decoration: underline;
-}
-.update-index p {
-  margin: 0;
-  color: var(--muted-text);
-  line-height: 1.6;
-}
-
 /* Low-tech figures (figure shortcode or inline <figure> HTML). */
 figure {
   margin: 2rem 0;
@@ -1031,11 +1003,6 @@ a.work-item:hover h3 { text-decoration: underline; }
     height: auto;
     line-height: 1.3;
     white-space: normal;
-  }
-
-  .site-footer__inner {
-    justify-content: center;
-    text-align: center;
   }
 }
 
