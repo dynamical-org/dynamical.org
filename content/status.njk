@@ -98,6 +98,15 @@ statusSection: uptime
     border-style: solid;
     border-color: var(--pill-down-bg);
   }
+  /* Conceptually every block wears a 1px frame; a filled block's frame matches
+     its fill, which is pixel-identical to no border — so only the unfilled
+     blocks (today's upcoming windows, or a mid-day coverage gap) need the rule.
+     The hollow boxes are what make a partially complete day read as "still
+     filling in" rather than oddly short-stacked. */
+  .status-bars [data-day]:not([data-day="nodata"]):not([data-day="unknown"]) i:not([data-seg]) {
+    border: 1px solid var(--pill-muted-border);
+    box-sizing: border-box;
+  }
   .status-bars [data-seg="operational"] {
     background: var(--pill-available-bg);
   }
