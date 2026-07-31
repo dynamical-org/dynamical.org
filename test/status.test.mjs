@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   barDescription,
+  blockTitle,
   buildHistory,
   daySeam,
   dayTitle,
@@ -356,6 +357,22 @@ test("week seams anchor at the right edge and the oldest two run wide", () => {
   assert.equal(seams[5], "status-day-seam-wide");
   assert.equal(seams[12], "status-day-seam-wide");
   assert.equal(seams[19], "status-day-seam");
+});
+
+test("block tooltips name the exact window a block represents", () => {
+  const cell = {
+    date: "2026-07-29",
+    state: "degraded",
+    segments: ["operational", "operational", "degraded", "degraded"],
+  };
+  // The date fragment follows the viewer's locale; the window and zone do not.
+  assert.match(blockTitle(cell, 2, false), /12:00\u201318:00 UTC \u00b7 degraded$/);
+  // The last block's range closes the day as 24:00, not a wrapped 00:00.
+  assert.match(blockTitle(cell, 3, false), /18:00\u201324:00 UTC \u00b7 degraded$/);
+  assert.match(
+    blockTitle({ ...cell, segments: ["nodata", "operational", "operational", "operational"] }, 0, false),
+    /00:00\u201306:00 UTC \u00b7 not monitored$/,
+  );
 });
 
 test("day tooltips name the affected windows, not just the worst state", () => {

@@ -196,7 +196,7 @@ export function incidentDescription(entry, name) {
     : `${impact} — ongoing.`;
 }
 
-function renderGroup(list, entries, bars, uptime, emptyCells) {
+function renderGroup(list, entries, bars, uptime, emptyCells, local) {
   list.replaceChildren();
   for (const entry of entries) {
     const item = document.createElement("li");
@@ -223,7 +223,7 @@ function renderGroup(list, entries, bars, uptime, emptyCells) {
       detail.textContent = uptimeDescription(measured, cells.length);
       item.append(detail);
     }
-    if (cells?.length) item.append(barStrip(cells));
+    if (cells?.length) item.append(barStrip(cells, local));
     list.append(item);
   }
 }
@@ -278,7 +278,40 @@ export function dayTitle(cell) {
   return `${cell.date}: ${windows}`;
 }
 
-function barStrip(cells) {
+// The window one block covers, in the viewer's chosen time zone — the same
+// UTC/local toggle the incident timestamps honor. h23 so the strip speaks the
+// pipeline page's clock, with a bare "24:00" for a range that closes the day.
+export function blockTitle(cell, index, local) {
+  const blockMs = 86_400_000 / cell.segments.length;
+  const startMs = Date.parse(`${cell.date}T00:00:00Z`) + index * blockMs;
+  const endMs = startMs + blockMs;
+  const zone = local ? undefined : "UTC";
+  const time = new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: zone,
+  });
+  const day = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: zone,
+  });
+  const zoneName = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    timeZoneName: "short",
+    timeZone: zone,
+  })
+    .formatToParts(startMs)
+    .find((part) => part.type === "timeZoneName")?.value;
+  const end = time.format(endMs) === "00:00" ? "24:00" : time.format(endMs);
+  const state = cell.segments[index];
+  const label =
+    state === "nodata" ? "not monitored" : state === "unknown" ? "unknown" : state;
+  return `${day.format(startMs)}, ${time.format(startMs)}–${end} ${zoneName} · ${label}`;
+}
+
+function barStrip(cells, local) {
   const strip = document.createElement("div");
   strip.className = "status-bars";
   strip.setAttribute("role", "group");
@@ -290,13 +323,14 @@ function barStrip(cells) {
     const seam = daySeam(index, cells.length);
     if (seam) day.classList.add(seam);
     day.title = dayTitle(cell);
-    for (const state of cell.segments ?? []) {
+    (cell.segments ?? []).forEach((state, block) => {
       const segment = document.createElement("i");
       if (state !== "nodata" && state !== "unknown") {
         segment.dataset.seg = state;
       }
+      segment.title = blockTitle(cell, block, local);
       day.append(segment);
-    }
+    });
     if (anchor) {
       day.href = `#${anchor}`;
       day.setAttribute(
@@ -441,6 +475,7 @@ function renderStatus(root, data, loadedHistory, local) {
       history?.cells,
       history?.uptime,
       emptyCells,
+      local,
     );
   }
   renderIncidentLog(root, history, data, local);
