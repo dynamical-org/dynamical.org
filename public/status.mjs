@@ -23,10 +23,6 @@ const BAR_DAYS = 90;
 // pixel arithmetic (see .status-bars in status.njk): at 3px per block column
 // every mark stays on the CSS pixel grid at full 90-day density.
 const BAR_PARTS = 4;
-// Two of the twelve week seams run 1px wider to make the strip fill the
-// 780px column exactly; they sit oldest-first where the difference is least
-// conspicuous. Coupled to the arithmetic in status.njk.
-const WIDE_SEAMS = 2;
 export const STALE_MESSAGE = "Stale: status page experiencing delayed updates";
 
 function isStatusEntry(entry) {
@@ -249,14 +245,10 @@ export function barDescription(cells) {
 // Week seams, anchored at the right edge so today's group is always a full
 // seven regardless of the date. Returns the seam class for the gap after this
 // cell, or null for an ordinary day gap.
-export function daySeam(index, count, wideSeams = WIDE_SEAMS) {
+export function daySeam(index, count) {
   const last = count - 1;
   if (index >= last || (last - index) % 7 !== 0) return null;
-  const fromRight = (last - index) / 7;
-  const seams = Math.floor(last / 7);
-  return fromRight > seams - wideSeams
-    ? "status-day-seam-wide"
-    : "status-day-seam";
+  return "status-day-seam";
 }
 
 export function dayTitle(cell) {

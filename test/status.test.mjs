@@ -353,10 +353,7 @@ test("week seams anchor at the right edge and the oldest two run wide", () => {
   assert.equal(seamIndices.length, 12);
   assert.deepEqual(seamIndices.slice(-2), [75, 82]);
   assert.equal(seams[89], null);
-  // The 780px fill needs two seams 1px wider; they sit oldest-first.
-  assert.equal(seams[5], "status-day-seam-wide");
-  assert.equal(seams[12], "status-day-seam-wide");
-  assert.equal(seams[19], "status-day-seam");
+  assert.equal(seams[5], "status-day-seam");
 });
 
 test("block tooltips name the exact window a block represents", () => {

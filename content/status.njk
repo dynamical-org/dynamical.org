@@ -54,16 +54,18 @@ statusSection: uptime
     background: var(--pill-muted-bg);
   }
   /* Fixed-pixel day cells, not 1fr: at this scale fractional widths antialias
-     sub-day marks into mush. Each day is 6px wide — two 3px block columns
-     touching, so contiguous time reads as one block — by 13px tall (two 6px
-     block rows with a 1px gap). 2px separates days, and twelve right-anchored
-     week seams absorb the remainder so the strip fills the 780px content
-     column exactly: 90*6 + 77*2 + 10*7 + 2*8 = 780. Below 780px the strip
-     scrolls rather than re-fracturing. */
+     sub-day marks into mush. Each day is a 6px-wide, 13px-tall 2x2 of blocks;
+     2px separates days and 6px separates the twelve right-anchored weeks:
+     90*6 + 77*2 + 12*6 = 766px under the 780px column. The strip anchors
+     right, so today sits flush at the column's right edge and the small
+     shortfall (and, on narrow screens, the oldest days) falls off the left. */
   .status-bars {
     display: flex;
     margin-top: 0.6rem;
-    overflow-x: auto;
+    /* Right-anchored: when the column is narrower than the strip, the oldest
+       days clip away first and today stays pinned at the right edge. */
+    justify-content: flex-end;
+    overflow-x: hidden;
   }
   .status-bars > * {
     flex: 0 0 6px;
@@ -74,10 +76,7 @@ statusSection: uptime
     box-sizing: border-box;
   }
   .status-bars > .status-day-seam {
-    margin-right: 7px;
-  }
-  .status-bars > .status-day-seam-wide {
-    margin-right: 8px;
+    margin-right: 6px;
   }
   .status-bars > :last-child {
     margin-right: 0;
@@ -87,25 +86,19 @@ statusSection: uptime
   }
   /* Days with an observed state drop the border and subdivide into the 2x2
      block grid (midnight top-left, each row twelve hours); blocks paint
-     individually, so a blip is a fleck rather than a whole-day repaint. */
+     individually, so a blip is a fleck rather than a whole-day repaint. The
+     hairline gap on both axes keeps the four blocks legible as separate
+     squares, which is also what lets a partial day's missing block read as
+     "still coming" without any extra framing. */
   .status-bars [data-day]:not([data-day="nodata"]):not([data-day="unknown"]) {
     border: 0;
     display: grid;
     grid-template: repeat(2, 1fr) / repeat(2, 1fr);
-    gap: 1px 0;
+    gap: 0.5px 0.5px;
   }
   .status-bars [data-day="unknown"] {
     border-style: solid;
     border-color: var(--pill-down-bg);
-  }
-  /* Conceptually every block wears a 1px frame; a filled block's frame matches
-     its fill, which is pixel-identical to no border — so only the unfilled
-     blocks (today's upcoming windows, or a mid-day coverage gap) need the rule.
-     The hollow boxes are what make a partially complete day read as "still
-     filling in" rather than oddly short-stacked. */
-  .status-bars [data-day]:not([data-day="nodata"]):not([data-day="unknown"]) i:not([data-seg]) {
-    border: 1px solid var(--pill-muted-border);
-    box-sizing: border-box;
   }
   .status-bars [data-seg="operational"] {
     background: var(--pill-available-bg);
