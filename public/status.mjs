@@ -306,8 +306,17 @@ export function blockTitle(cell, index, local) {
     .find((part) => part.type === "timeZoneName")?.value;
   const end = time.format(endMs) === "00:00" ? "24:00" : time.format(endMs);
   const state = cell.segments[index];
+  // An empty block is two different stories: history nobody observed, or a
+  // window that simply hasn't arrived — the UTC-aligned grid opens today's
+  // cell mid-evening for American viewers, so the distinction matters.
   const label =
-    state === "nodata" ? "not monitored" : state === "unknown" ? "unknown" : state;
+    state === "nodata"
+      ? startMs > Date.now()
+        ? "upcoming"
+        : "not monitored"
+      : state === "unknown"
+        ? "unknown"
+        : state;
   return `${day.format(startMs)}, ${time.format(startMs)}–${end} ${zoneName} · ${label}`;
 }
 

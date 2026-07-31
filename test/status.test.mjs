@@ -373,6 +373,12 @@ test("block tooltips name the exact window a block represents", () => {
     blockTitle({ ...cell, segments: ["nodata", "operational", "operational", "operational"] }, 0, false),
     /00:00\u201306:00 UTC \u00b7 not monitored$/,
   );
+  // A window that has not arrived yet is "upcoming", never "not monitored" —
+  // the UTC grid opens today's cell mid-evening for viewers west of it.
+  assert.match(
+    blockTitle({ ...cell, date: "2099-01-01", segments: ["nodata", "nodata", "nodata", "nodata"] }, 2, false),
+    /12:00\u201318:00 UTC \u00b7 upcoming$/,
+  );
 });
 
 test("day tooltips name the affected windows, not just the worst state", () => {
