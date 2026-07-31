@@ -93,19 +93,25 @@ statusSection: uptime
     justify-content: space-between;
     gap: 1rem;
   }
+  /* Rides the shared .index-list skeleton (reset, row padding, separators,
+     focus ring) like the component lists above; only density and the row
+     border are ours. */
   .status-incident-log {
-    margin: 0;
-    padding: 0;
-    list-style: none;
+    --index-row-padding: 1rem;
+    --index-row-border: 1px solid var(--border-color);
   }
   .status-incident {
     scroll-margin-top: 1rem;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--border-color);
   }
   .status-incident:target {
     background: var(--pill-muted-bg);
     outline: 0.4rem solid var(--pill-muted-bg);
+  }
+  /* The skeleton's link reset is for row-level anchors; the "coincided with"
+     cross-references are inline copy and must still read as links. */
+  .status-incident-summary a {
+    color: var(--link-color);
+    text-decoration: underline;
   }
   .status-incident h3,
   .status-incident p {
@@ -192,7 +198,7 @@ statusSection: uptime
       <a href="{{ statusIncidentFeed }}">RSS</a>
     </header>
     <p id="status-incident-empty">Loading incident history…</p>
-    <ol class="status-incident-log" id="status-incident-log"></ol>
+    <ol class="index-list status-incident-log" id="status-incident-log"></ol>
   </section>
 
   <noscript>
