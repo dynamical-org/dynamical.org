@@ -112,7 +112,7 @@ statusSection: uptime
   }
   /* The skeleton's link reset is for row-level anchors; the "coincided with"
      cross-references are inline copy and must still read as links. */
-  .status-incident-summary a {
+  .status-incident p a {
     color: var(--link-color);
     text-decoration: underline;
   }
@@ -124,9 +124,9 @@ statusSection: uptime
     margin-top: 0.4rem;
     color: var(--muted-text);
   }
-  /* The summary is the entry's headline sentence; only the timing line below
-     it is secondary. */
-  .status-incident .status-incident-summary {
+  /* The summary (the paragraph after the header) is the entry's headline
+     sentence; only the timing line below it is secondary. */
+  .status-incident header + p {
     color: inherit;
   }
   .status-incident header strong {

@@ -444,7 +444,6 @@ function renderIncidentLog(root, history, data, local) {
           ? "observation ended"
           : "ongoing"
     }`;
-    summary.className = "status-incident-summary";
     summary.textContent = incidentDescription(
       incident,
       names.get(incident.component),
