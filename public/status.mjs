@@ -316,10 +316,7 @@ async function loadHistory(root) {
 }
 
 function renderStatus(root, data, loadedHistory, local) {
-  const overall = summarizeOverallStatus(data);
   const overallPanel = root.querySelector("#status-overall");
-  const summary = root.querySelector("#status-summary");
-  const incidents = root.querySelector("#status-incidents");
   const asOf = root.querySelector("#status-as-of");
   const updated = asOf.querySelector('[data-slot="status-updated"]');
   const timeControl = asOf.querySelector('[data-slot="time-control"]');
@@ -327,16 +324,7 @@ function renderStatus(root, data, loadedHistory, local) {
   const groups = root.querySelector("#status-groups");
 
   renderHealth(root, "system-health", systemHealth(data));
-  overallPanel.hidden = overall.status === "operational";
-  summary.textContent = "The affected components are listed below.";
-
-  incidents.replaceChildren();
-  incidents.hidden = overall.incidents.length === 0;
-  for (const incident of overall.incidents) {
-    const item = document.createElement("li");
-    item.textContent = `${incident.name} — ${statusLabel(incident.status)}`;
-    incidents.append(item);
-  }
+  overallPanel.hidden = true;
 
   const stale = isStatusDataStale(data.generated_at);
   asOf.classList.toggle("status-stale", stale);
