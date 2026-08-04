@@ -95,9 +95,9 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
   {% macro meta(ds) %}
     {%- set vars = "all variables" if ds.optimization == "space" else (ds.variable_count | string) + " variables" -%}
     {%- if ds.forecast_domain -%}
-      {%- set fields = [ds.spatial_domain | replace("Continental United States", "CONUS"), vars, ds.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours, ds.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") | abbrevHours, ds.time_resolution | replace("Forecasts initialized ", "") | abbrevHours] -%}
+      {%- set fields = [ds.spatial_domain | replace("Continental United States", "CONUS"), vars, ds.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevDuration, ds.forecast_domain | replace("Forecast lead time ", "") | replace(" ahead", "") | abbrevDuration, ds.time_resolution | replace("Forecasts initialized ", "") | abbrevDuration] -%}
     {%- else -%}
-      {%- set fields = [ds.spatial_domain | replace("Continental United States", "CONUS"), vars, ds.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevHours, ds.time_domain | dateOnly, ds.time_resolution | hourlyStep] -%}
+      {%- set fields = [ds.spatial_domain | replace("Continental United States", "CONUS"), vars, ds.spatial_resolution | stripApprox | replace(" degrees", "°") | abbrevDuration, ds.time_domain | dateOnly, ds.time_resolution | abbrevDuration] -%}
     {%- endif -%}
     {%- for f in fields %}{% if not loop.first %} {% endif %}<span>{% if not loop.first %}· {% endif %}{{ f }}</span>{% endfor -%}
   {% endmacro %}
