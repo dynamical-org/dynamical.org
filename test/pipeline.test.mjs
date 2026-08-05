@@ -96,6 +96,21 @@ test("summarizes shared system and agency health", () => {
     }),
     { state: "down", label: "systems", value: "disrupted" },
   );
+  assert.deepEqual(
+    systemHealth({
+      endpoints: [
+        {
+          status: "down",
+          maintenance: { kind: "planned" },
+        },
+      ],
+    }),
+    {
+      state: "advisory",
+      label: "systems",
+      value: "planned outage",
+    },
+  );
   assert.deepEqual(systemHealth({ endpoints: [{ status: "new-state" }] }), {
     state: "degraded",
     label: "some systems",
@@ -216,6 +231,44 @@ test("retains live horizon status, time, and duration in details", () => {
         },
       ],
     },
+  );
+});
+
+test("shows the previous init details while waiting for the next init", () => {
+  const product = {
+    recent_inits: [
+      {
+        init_time: "2026-07-26T06:00:00Z",
+        status: "complete",
+        lead_groups: [
+          { status: "complete", latency_s: 1200 },
+          { status: "complete", latency_s: 2700 },
+        ],
+      },
+    ],
+    lead_group_stats: [
+      { label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 },
+      { label: "3d", p50_s: 2400, p95_s: 3600, p99_s: 4800 },
+    ],
+  };
+
+  const details = detailRows(
+    product,
+    Date.parse("2026-07-26T07:00:00Z"),
+    false,
+  );
+
+  assert.equal(details.header, "07-26 06z · previous init");
+  assert.deepEqual(
+    details.rows.map(({ status, time, duration }) => ({
+      status,
+      time,
+      duration,
+    })),
+    [
+      { status: "complete", time: "06:20", duration: "20m" },
+      { status: "complete", time: "06:45", duration: "45m" },
+    ],
   );
 });
 

@@ -384,10 +384,15 @@ export function detailRows(product, now, local) {
   const running = product.recent_inits.findLast(
     (init) => init.status === "in_flight",
   );
-  const groups = running?.lead_groups ?? [];
-  const initMs = running ? Date.parse(running.init_time) : 0;
+  const displayed = running ?? product.recent_inits.at(-1);
+  const groups = displayed?.lead_groups ?? [];
+  const initMs = displayed ? Date.parse(displayed.init_time) : 0;
   return {
-    header: running ? initShort(running.init_time, local) : "waiting for next init",
+    header: running
+      ? initShort(running.init_time, local)
+      : displayed
+        ? `${initShort(displayed.init_time, local)} · previous init`
+        : "waiting for next init",
     rows: product.lead_group_stats.map((stats, index) => {
       const live = groups[index];
       let time = "—";

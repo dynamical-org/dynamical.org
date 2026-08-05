@@ -35,6 +35,21 @@ function hasUtcOffset(timestamp) {
   );
 }
 
+function isIncidentGroup(group) {
+  return (
+    group &&
+    typeof group.id === "string" &&
+    ["outage", "planned"].includes(group.kind) &&
+    typeof group.summary === "string" &&
+    hasUtcOffset(group.started_at) &&
+    hasUtcOffset(group.ended_at) &&
+    Date.parse(group.ended_at) > Date.parse(group.started_at) &&
+    Array.isArray(group.components) &&
+    group.components.length > 0 &&
+    group.components.every((component) => typeof component === "string")
+  );
+}
+
 // Preserve the rest of the page when a separately deployed publisher adds a state.
 function normalizeEntry(entry) {
   return PUBLIC_STATUSES.has(entry.status)
@@ -60,6 +75,13 @@ export function validateStatusData(data) {
   }
   if (!data.endpoints.every((entry) => PUBLIC_GROUPS.has(entry.group))) {
     throw new TypeError("Invalid status entry group");
+  }
+  if (
+    data.incident_groups != null &&
+    (!Array.isArray(data.incident_groups) ||
+      !data.incident_groups.every(isIncidentGroup))
+  ) {
+    throw new TypeError("Invalid incident group");
   }
   return {
     ...data,
@@ -130,8 +152,11 @@ function formatDuration(start, end) {
   return `${days}d${remainingHours ? ` ${remainingHours}h` : ""}`;
 }
 
-function statusMark(status) {
-  return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[status];
+function statusMark(entry) {
+  if (entry.status === "down" && entry.maintenance?.kind === "planned") {
+    return "▲";
+  }
+  return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[entry.status];
 }
 
 export function uptimeDescription(measured, days) {
@@ -170,6 +195,87 @@ const IMPACT = {
   },
 };
 
+// Explicit publisher metadata, not time overlap alone, determines which events
+// share an incident.
+export function applyIncidentGroups(history, incidentGroups = []) {
+  if (!history || incidentGroups.length === 0) return history;
+
+  let ungrouped = [...history.incidents];
+  const grouped = [];
+  const aliases = new Map();
+  const plannedMembers = new Set();
+
+  for (const configured of incidentGroups) {
+    const windowStart = Date.parse(configured.started_at);
+    const windowEnd = Date.parse(configured.ended_at);
+    const components = new Set(configured.components);
+    const matches = ungrouped.filter(
+      (incident) =>
+        components.has(incident.component) &&
+        windowStart <= incident.start &&
+        incident.start < windowEnd,
+    );
+    if (matches.length === 0) continue;
+
+    const matched = new Set(matches);
+    ungrouped = ungrouped.filter((incident) => !matched.has(incident));
+    const id = `incident-group-${configured.id}`;
+    const memberIds = matches.map((incident) => incident.id);
+    for (const memberId of memberIds) {
+      aliases.set(memberId, id);
+      if (configured.kind === "planned") plannedMembers.add(memberId);
+    }
+    const allEnded = matches.every((incident) => incident.end != null);
+    grouped.push({
+      id,
+      kind: configured.kind,
+      summary: configured.summary,
+      components: configured.components.filter((component) =>
+        matches.some((incident) => incident.component === component),
+      ),
+      memberIds,
+      start: Math.min(...matches.map((incident) => incident.start)),
+      end: allEnded
+        ? Math.max(...matches.map((incident) => incident.end))
+        : null,
+      ending:
+        allEnded && matches.every((incident) => incident.ending === "resolved")
+          ? "resolved"
+          : allEnded
+            ? "observation-ended"
+            : null,
+    });
+  }
+
+  const cells = new Map(
+    [...history.cells.entries()].map(([component, componentCells]) => [
+      component,
+      componentCells.map((cell) => {
+        if (!cell.incidentIds?.length) return { ...cell };
+        const incidentIds = [
+          ...new Set(cell.incidentIds.map((id) => aliases.get(id) ?? id)),
+        ];
+        const displayState = cell.incidentIds.every((id) =>
+          plannedMembers.has(id),
+        )
+          ? "planned"
+          : cell.displayState;
+        return {
+          ...cell,
+          ...(displayState ? { displayState } : {}),
+          incidentIds,
+        };
+      }),
+    ]),
+  );
+
+  return {
+    ...history,
+    cells,
+    incidents: [...ungrouped, ...grouped].sort((a, b) => a.start - b.start),
+  };
+}
+
 // Entries whose intervals overlap this one's, for the "coincided with" clause.
 // Correlation is the context a status page can derive honestly: it claims two
 // things happened together, never that one caused the other.
@@ -206,10 +312,11 @@ function renderGroup(list, entries, bars, uptime, emptyCells) {
     const mark = document.createElement("span");
 
     item.dataset.status = entry.status;
+    if (entry.maintenance?.kind) item.dataset.kind = entry.maintenance.kind;
     name.textContent = entry.name;
     state.className = "status-label";
     mark.setAttribute("aria-hidden", "true");
-    mark.textContent = statusMark(entry.status);
+    mark.textContent = statusMark(entry);
     state.append(mark, ` ${statusLabel(entry)}`);
     header.append(name, state);
     item.append(header);
@@ -227,7 +334,12 @@ function renderGroup(list, entries, bars, uptime, emptyCells) {
 }
 
 export function barDescription(cells) {
-  const down = cells.filter((cell) => cell.state === "down").length;
+  const planned = cells.filter(
+    (cell) => cell.displayState === "planned",
+  ).length;
+  const down = cells.filter(
+    (cell) => cell.state === "down" && cell.displayState !== "planned",
+  ).length;
   const degraded = cells.filter((cell) => cell.state === "degraded").length;
   const unknown = cells.filter((cell) => cell.state === "unknown").length;
   const uncovered = cells.filter((cell) => cell.state === "nodata").length;
@@ -238,6 +350,9 @@ export function barDescription(cells) {
       ? `No outages recorded in the last ${days} ${plural(days)}`
       : `${down} of the last ${days} ${plural(days)} had an outage`,
   ];
+  if (planned > 0) {
+    parts.push(`${planned} ${plural(planned)} had a planned outage`);
+  }
   if (degraded > 0) parts.push(`${degraded} ${plural(degraded)} degraded`);
   if (unknown > 0) parts.push(`${unknown} ${plural(unknown)} had an unknown state`);
   if (uncovered > 0) parts.push(`${uncovered} ${plural(uncovered)} not monitored`);
@@ -251,14 +366,21 @@ function barStrip(cells) {
   strip.setAttribute("aria-label", barDescription(cells));
   for (const cell of cells) {
     const anchor = cell.incidentIds?.[0] ?? cell.delayIds?.[0];
+    const dayState = cell.displayState ?? cell.state;
+    const dayLabel =
+      dayState === "nodata"
+        ? "not monitored"
+        : dayState === "planned"
+          ? "planned outage"
+          : dayState;
     const day = document.createElement(anchor ? "a" : "span");
-    day.dataset.day = cell.state;
-    day.title = `${cell.date}: ${cell.state === "nodata" ? "not monitored" : cell.state}`;
+    day.dataset.day = dayState;
+    day.title = `${cell.date}: ${dayLabel}`;
     if (anchor) {
       day.href = `#${anchor}`;
       day.setAttribute(
         "aria-label",
-        `${cell.date}: ${cell.incidentIds?.length ? "outage" : "delay"}; view details`,
+        `${cell.date}: ${dayLabel}; view details`,
       );
     } else {
       day.setAttribute("aria-hidden", "true");
@@ -357,10 +479,14 @@ function renderStatus(root, data, loadedHistory, local) {
     );
     updated.replaceChildren("As of ", generatedTime);
   }
-  const history =
+  const currentHistory =
     loadedHistory && isHistoryCurrent(loadedHistory.asOf, data.generated_at)
       ? loadedHistory
       : null;
+  const history = applyIncidentGroups(
+    currentHistory,
+    data.incident_groups ?? [],
+  );
   const emptyCells = dailyBars(new Map([["", []]]), {
     asOf: history?.asOf ?? new Date(data.generated_at),
     days: BAR_DAYS,
@@ -395,6 +521,31 @@ function setHistoryNotice(element, message) {
   element.textContent = message ?? "";
 }
 
+function sentenceList(items) {
+  if (items.length < 2) return items.join("");
+  if (items.length === 2) return items.join(" and ");
+  return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
+}
+
+function incidentName(incident, names) {
+  return incident.summary ?? names.get(incident.component);
+}
+
+function groupedIncidentDescription(incident, names, end) {
+  const affected = sentenceList(
+    incident.components
+      .map((component) => names.get(component))
+      .filter(Boolean),
+  );
+  const impact =
+    incident.kind === "planned"
+      ? `Planned work affected ${affected}`
+      : `Related outages affected ${affected}`;
+  return incident.end
+    ? `${impact} for ${formatDuration(incident.start, incident.end)}.`
+    : `${impact} — ongoing for ${formatDuration(incident.start, end)}.`;
+}
+
 function renderIncidentLog(root, history, data, local) {
   const list = root.querySelector("#status-incident-log");
   const empty = root.querySelector("#status-incident-empty");
@@ -407,7 +558,11 @@ function renderIncidentLog(root, history, data, local) {
 
   const names = new Map(data.endpoints.map(({ id, name }) => [id, name]));
   const visible = history.incidents
-    .filter((incident) => names.has(incident.component))
+    .filter((incident) =>
+      incident.components
+        ? incident.components.some((component) => names.has(component))
+        : names.has(incident.component),
+    )
     .reverse();
   empty.textContent = "No incidents or delays recorded.";
   empty.hidden = visible.length > 0;
@@ -420,6 +575,7 @@ function renderIncidentLog(root, history, data, local) {
     const summary = document.createElement("p");
     const timing = document.createElement("p");
     const kind = incident.kind ?? "outage";
+    const label = kind === "planned" ? "planned outage" : kind;
     const end = incident.end ?? history.asOf.getTime();
 
     item.id = incident.id;
@@ -429,19 +585,18 @@ function renderIncidentLog(root, history, data, local) {
     // :target — arriving from a day cell lights up the header rather than
     // boxing the whole entry.
     const highlight = document.createElement("mark");
-    highlight.textContent = names.get(incident.component);
+    highlight.textContent = incidentName(incident, names);
     name.append(highlight);
-    state.textContent = `${kind} · ${
+    state.textContent = `${label} · ${
       incident.ending === "resolved"
         ? "resolved"
         : incident.ending === "observation-ended"
           ? "observation ended"
           : "ongoing"
     }`;
-    summary.textContent = incidentDescription(
-      incident,
-      names.get(incident.component),
-    );
+    summary.textContent = incident.components
+      ? groupedIncidentDescription(incident, names, end)
+      : incidentDescription(incident, names.get(incident.component));
     const overlapping = overlappingEntries(
       incident,
       visible,
@@ -452,7 +607,9 @@ function renderIncidentLog(root, history, data, local) {
       overlapping.forEach((other, index) => {
         const link = document.createElement("a");
         link.href = `#${other.id}`;
-        link.textContent = `the ${names.get(other.component)} ${other.kind ?? "outage"}`;
+        const otherKind =
+          other.kind === "planned" ? "planned outage" : other.kind ?? "outage";
+        link.textContent = `the ${incidentName(other, names)} ${otherKind}`;
         if (index > 0) summary.append(", ");
         summary.append(link);
       });
