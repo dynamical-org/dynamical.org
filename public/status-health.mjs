@@ -10,6 +10,14 @@ export function systemHealth(data) {
   }
   const statuses = new Set(data.endpoints.map(({ status }) => status));
   if (statuses.has("down")) {
+    const down = data.endpoints.filter(({ status }) => status === "down");
+    if (down.every(({ maintenance }) => maintenance?.kind === "planned")) {
+      return {
+        state: "advisory",
+        label: "systems",
+        value: "planned outage",
+      };
+    }
     return { state: "down", label: "systems", value: "disrupted" };
   }
   if ([...statuses].some((status) => status !== "operational")) {

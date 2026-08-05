@@ -48,6 +48,10 @@ statusSection: uptime
     color: var(--pill-down-fg);
     background: var(--pill-down-bg);
   }
+  .status-list [data-kind="planned"] .status-label {
+    color: var(--pill-degraded-fg);
+    background: var(--pill-degraded-bg);
+  }
   .status-list [data-status="unknown"] .status-label {
     border: 1px solid var(--pill-muted-border);
     color: var(--pill-muted-fg);
@@ -85,6 +89,11 @@ statusSection: uptime
     border-style: solid;
     border-color: var(--pill-down-bg);
     background: var(--pill-down-bg);
+  }
+  .status-bars [data-day="planned"] {
+    border-style: solid;
+    border-color: var(--pill-degraded-bg);
+    background: var(--pill-degraded-bg);
   }
   .status-incident-heading,
   .status-incident header {
@@ -137,6 +146,10 @@ statusSection: uptime
   .status-incident[data-kind="outage"] header strong {
     color: var(--pill-down-fg);
     background: var(--pill-down-bg);
+  }
+  .status-incident[data-kind="planned"] header strong {
+    color: var(--pill-degraded-fg);
+    background: var(--pill-degraded-bg);
   }
   .status-incident[data-kind="delay"] header strong {
     color: var(--pill-degraded-fg);

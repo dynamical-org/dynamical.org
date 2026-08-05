@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  applyIncidentGroups,
   barDescription,
   buildHistory,
   incidentDescription,
@@ -33,8 +34,8 @@ const operationalData = {
   endpoints: [
     {
       id: "dynamical-org",
-      name: "dynamical.org website",
-      group: "endpoint",
+      name: "status page",
+      group: "tool",
       status: "operational",
       uptime: 99.9,
       uptime_since: "2026-04-26T19:55:00Z",
@@ -48,16 +49,17 @@ test("accepts the published feed shape", () => {
   // 14, matching the collections in stac.dynamical.org/catalog.json — the
   // publisher deliberately excludes contrib datasets and source archivers.
   assert.equal(fixture.datasets.length, 14);
-  // Five endpoints across the page's two sections, plus the 14 datasets the feed
-  // still carries even though the page does not render them yet.
+  // Core resources followed by the reader-facing tools; datasets remain in the
+  // feed even though the page does not render them yet.
   assert.deepEqual(
     fixture.endpoints.map((entry) => [entry.id, entry.group]),
     [
-      ["dynamical-org", "endpoint"],
       ["stac-catalog", "endpoint"],
       ["data-product-reads", "endpoint"],
-      ["wxopticon", "tool"],
       ["scorecard", "tool"],
+      ["wxopticon-arrivals", "tool"],
+      ["wxopticon-webhooks", "tool"],
+      ["dynamical-org", "tool"],
     ],
   );
   assert.deepEqual(summarizeOverallStatus(fixture), {
@@ -80,7 +82,7 @@ test("summarizes only the components this page renders", () => {
 
   assert.deepEqual(summarizeOverallStatus(data), {
     status: "down",
-    incidents: [{ name: "dynamical.org website", status: "down" }],
+    incidents: [{ name: "status page", status: "down" }],
   });
 });
 
@@ -179,6 +181,122 @@ test("labels a planned down component without changing its health state", () => 
   );
 });
 
+test("groups explicitly related outages and remaps day links", () => {
+  const detection = {
+    id: "incident-wxopticon-pipeline-1785960026",
+    component: "wxopticon-pipeline",
+    kind: "outage",
+    start: Date.parse("2026-08-05T20:00:26Z"),
+    end: Date.parse("2026-08-05T21:20:15Z"),
+    ending: "resolved",
+  };
+  const arrivals = {
+    id: "incident-wxopticon-arrivals-1785960311",
+    component: "wxopticon-arrivals",
+    kind: "outage",
+    start: Date.parse("2026-08-05T20:05:11Z"),
+    end: Date.parse("2026-08-05T21:10:15Z"),
+    ending: "resolved",
+  };
+  const webhooks = {
+    id: "incident-wxopticon-webhooks-1785960311",
+    component: "wxopticon-webhooks",
+    kind: "outage",
+    start: Date.parse("2026-08-05T20:05:11Z"),
+    end: Date.parse("2026-08-05T21:40:11Z"),
+    ending: "resolved",
+  };
+  const history = {
+    asOf: new Date("2026-08-05T21:45:00Z"),
+    incidents: [detection, arrivals, webhooks],
+    cells: new Map([
+      [
+        "wxopticon-pipeline",
+        [{ date: "2026-08-05", state: "down", incidentIds: [detection.id] }],
+      ],
+      [
+        "wxopticon-arrivals",
+        [{ date: "2026-08-05", state: "down", incidentIds: [arrivals.id] }],
+      ],
+      [
+        "wxopticon-webhooks",
+        [{ date: "2026-08-05", state: "down", incidentIds: [webhooks.id] }],
+      ],
+    ]),
+  };
+  const incidentGroups = [
+    {
+      id: "hrrr-history-migration",
+      kind: "planned",
+      summary: "HRRR history migration",
+      started_at: "2026-08-05T19:58:53Z",
+      ended_at: "2026-08-05T21:40:11Z",
+      components: [
+        "wxopticon-pipeline",
+        "wxopticon-arrivals",
+        "wxopticon-webhooks",
+      ],
+    },
+  ];
+
+  const grouped = applyIncidentGroups(history, incidentGroups);
+
+  assert.deepEqual(grouped.incidents, [
+    {
+      id: "incident-group-hrrr-history-migration",
+      kind: "planned",
+      summary: "HRRR history migration",
+      components: incidentGroups[0].components,
+      memberIds: [detection.id, arrivals.id, webhooks.id],
+      start: detection.start,
+      end: webhooks.end,
+      ending: "resolved",
+    },
+  ]);
+  for (const cells of grouped.cells.values()) {
+    assert.deepEqual(cells[0], {
+      date: "2026-08-05",
+      state: "down",
+      displayState: "planned",
+      incidentIds: ["incident-group-hrrr-history-migration"],
+    });
+  }
+});
+
+test("explicit unplanned incident groups retain outage severity", () => {
+  const incident = {
+    id: "incident-api-1",
+    component: "api",
+    kind: "outage",
+    start: Date.parse("2026-08-05T20:00:00Z"),
+    end: Date.parse("2026-08-05T20:10:00Z"),
+    ending: "resolved",
+  };
+  const grouped = applyIncidentGroups(
+    {
+      incidents: [incident],
+      cells: new Map([
+        ["api", [{ date: "2026-08-05", state: "down", incidentIds: [incident.id] }]],
+      ]),
+    },
+    [
+      {
+        id: "api-deploy",
+        kind: "outage",
+        summary: "API deploy rollback",
+        started_at: "2026-08-05T19:59:00Z",
+        ended_at: "2026-08-05T20:10:00Z",
+        components: ["api"],
+      },
+    ],
+  );
+
+  assert.equal(grouped.incidents[0].kind, "outage");
+  assert.equal(grouped.cells.get("api")[0].displayState, undefined);
+  assert.deepEqual(grouped.cells.get("api")[0].incidentIds, [
+    "incident-group-api-deploy",
+  ]);
+});
 test("rejects a mismatched event-log revision", () => {
   const events = `${JSON.stringify({
     ts: "2026-07-24T19:00:00Z",
@@ -292,8 +410,8 @@ test("incident descriptions say what the state did to the thing you use", () => 
     end: Date.parse("2026-07-29T17:20:00Z"),
   };
   assert.equal(
-    incidentDescription(tenMinutes, "Arrivals dashboard"),
-    "The pipeline status page updated late for 10 minutes.",
+    incidentDescription(tenMinutes, "pipeline observability"),
+    "Pipeline observability updated late for 10 minutes.",
   );
   assert.equal(
     incidentDescription(
@@ -382,6 +500,15 @@ test("bar descriptions count degraded days apart from outages", () => {
   assert.match(description, /1 day degraded/i);
 });
 
+test("bar descriptions separate planned work from outages", () => {
+  const description = barDescription([
+    { state: "down", displayState: "planned" },
+    { state: "down" },
+  ]);
+  assert.match(description, /1 of the last 2 days had an outage/i);
+  assert.match(description, /1 day had a planned outage/i);
+});
+
 test("uptime description surfaces degraded time without calling it downtime", () => {
   assert.equal(
     uptimeDescription({ uptime: 100, coverage: 50, delayed: 0.007 }, 90),
@@ -416,6 +543,18 @@ test("status page passes its timestamp into the shared subnav row", () => {
     /\.status-bars > \*\s*{[^}]*border: 1px dotted/s,
   );
   assert.doesNotMatch(template, /\.status-bars \+ p/);
+  assert.match(
+    template,
+    /\.status-list \[data-kind="planned"\][^}]*var\(--pill-degraded-bg\)/s,
+  );
+  assert.match(
+    template,
+    /\.status-bars \[data-day="planned"\][^}]*var\(--pill-degraded-bg\)/s,
+  );
+  assert.match(
+    template,
+    /\.status-incident\[data-kind="planned"\][^}]*var\(--pill-degraded-bg\)/s,
+  );
   assert.doesNotMatch(script, /textContent = "Today"|day.*ago/);
   assert.doesNotMatch(
     template,
