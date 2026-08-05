@@ -2,6 +2,8 @@ const fetch = require("@11ty/eleventy-fetch");
 const fs = require("fs");
 const path = require("path");
 
+const { datasetFacts, modelFacts } = require("../lib/catalog-format.js");
+
 // On Cloudflare Pages, preview deployments (every branch except the production
 // `main` branch — i.e. PR previews) build against the staging STAC catalog so
 // catalog changes can be previewed before going live; production builds use
@@ -74,6 +76,10 @@ module.exports = async function () {
       };
     }
     modelGroups[entry.model_id].datasets.push(entry);
+  });
+
+  Object.values(modelGroups).forEach((model) => {
+    model.facts = modelFacts(model.datasets);
   });
 
   // Split live (non-deprecated) datasets into the two families the catalog
@@ -198,7 +204,7 @@ function reshapeStacCollection(collection) {
   // materialized ones carry a curated subset.
   const isVirtual = collection.id.includes("-virtual") || /-spatial(-dev)?$/.test(collection.id);
 
-  return {
+  const entry = {
     // Use the STAC Collection directly for everything it already exposes at
     // the top level: id, title, description, attribution, model_id,
     // model_name, description_summary/details/model, examples, license,
@@ -249,6 +255,11 @@ function reshapeStacCollection(collection) {
     variable_count:
       variables.length + variableGroups.reduce((n, g) => n + g.variables.length, 0),
   };
+
+  // Derived from the fields above, so it is attached after the literal.
+  entry.facts = datasetFacts(entry);
+
+  return entry;
 }
 
 // schema.org/Dataset for one catalog entry. Derived entirely from STAC fields

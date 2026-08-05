@@ -10,6 +10,7 @@ eleventyComputed:
   description: 'Cloud-optimized {{ model.name }} weather data from dynamical.org — free, analysis-ready Icechunk Zarr archives you can open directly with Xarray, no GRIB wrangling or bulk downloads.'
   keywords: '{{ model.name }}, {{ model.name }} data, {{ model.name }} zarr, {{ model.name }} forecast, {{ model.name }} download, cloud-optimized weather data, analysis-ready, Xarray, Icechunk'
   socialTitle: '{{ model.name }} — dynamical.org'
+  socialDescription: '{{ model.facts | join(" · ") }}'
 ---
 {% from "tag-icon.njk" import tagIcon %}
 <style>

@@ -14,8 +14,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const pluginImages = require("./eleventy.config.images.js");
-const { abbreviateDuration } = require("./lib/catalog-format.js");
-const { cardContext } = require("./lib/og-card-context.js");
+const { cardLabel } = require("./lib/og-card-label.js");
 const markdownToc = require("./lib/markdown-toc.js");
 const markdownItFootnote = require("markdown-it-footnote");
 
@@ -376,6 +375,7 @@ module.exports = function (eleventyConfig) {
   // og:image, so they're skipped here automatically.
   eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
     const { renderCard } = require("./lib/og-card.js");
+    const { renderCardIndex } = require("./lib/og-card-index.js");
     const metadata = require("./_data/metadata.js");
     const sharedCards = {
       default: {
@@ -422,6 +422,7 @@ module.exports = function (eleventyConfig) {
 
     const outputDir = (dir && dir.output) || "docs";
     const seen = new Set();
+    const cards = [];
     for (const result of results) {
       if (!result.outputPath || !result.outputPath.endsWith(".html")) continue;
       const image = metaTag(result.content, "og:image");
@@ -444,26 +445,38 @@ module.exports = function (eleventyConfig) {
       if (subtitle.toLowerCase().startsWith(title.toLowerCase())) {
         subtitle = subtitle.slice(title.length).replace(/^[\s–—:.,-]+/, "");
       }
-      if (subtitle.length > 165) {
-        subtitle = `${subtitle
-          .slice(0, 164)
-          .replace(/\s+\S*$/, "")
-          .replace(/[.,;:!?-]+$/, "")}…`;
+      // Two lines is the card's budget. Over it, prefer the opening sentence —
+      // a complete thought beats prose clipped mid-clause — and only fall back
+      // to a hard truncation when even that first sentence runs long.
+      if (subtitle.length > 130) {
+        const sentence = subtitle.match(/^.*?[.?!](?=\s|$)/);
+        subtitle =
+          sentence && sentence[0].length <= 130
+            ? sentence[0]
+            : `${subtitle
+                .slice(0, 129)
+                .replace(/\s+\S*$/, "")
+                .replace(/[.,;:!?-]+$/, "")}…`;
       }
       const url = shared ? shared.url : metaTag(result.content, "og:url");
       const artwork = cardArtworkDataUri(
         metaName(result.content, "dynamical:card-artwork")
       );
-      const png = await renderCard({
-        title,
-        subtitle,
-        url,
-        context: cardContext(url),
-        artwork,
-      });
+      const label = cardLabel(url);
+      const png = await renderCard({ title, subtitle, url, label, artwork });
       const outPath = path.join(outputDir, "assets", "og", `${slug}.png`);
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       fs.writeFileSync(outPath, png);
+      cards.push({ slug, title, subtitle, url, label, hasArtwork: Boolean(artwork) });
+    }
+
+    // A contact sheet at /dev/cards/ for reviewing every card at once. Written
+    // for local builds and Cloudflare previews (where it's reachable on the
+    // deploy URL) but never on production, so it can't be shared or indexed.
+    if (process.env.CF_PAGES_BRANCH !== "main") {
+      const indexPath = path.join(outputDir, "dev", "cards", "index.html");
+      fs.mkdirSync(path.dirname(indexPath), { recursive: true });
+      fs.writeFileSync(indexPath, renderCardIndex(cards));
     }
   });
 
@@ -587,21 +600,10 @@ module.exports = function (eleventyConfig) {
 
   // Strip the approximate-km parenthetical from a spatial resolution, e.g.
   // "0.25 degrees (~20km)" -> "0.25 degrees". Handles multiple occurrences
-  // (some resolutions list two, e.g. GEFS). Used on the catalog list.
+  // (some resolutions list two, e.g. GEFS). Used on the model pages.
   eleventyConfig.addFilter("stripApprox", (s) =>
     (s || "").replace(/\s*\(~[^)]*\)/g, "")
   );
-
-  // Drop the time-of-day from a datetime range, e.g.
-  // "2021-05-01 00:00:00 UTC to Present" -> "2021-05-01 UTC to Present".
-  // Used for the analysis record on the catalog list.
-  eleventyConfig.addFilter("dateOnly", (s) =>
-    (s || "").replace(/ \d{2}:\d{2}:\d{2}/g, "")
-  );
-
-  // Compact catalog durations while keeping their cadence explicit, e.g.
-  // "every hour" -> "every 1h", "1 hour" -> "1h", "30 minutes" -> "30m".
-  eleventyConfig.addFilter("abbrevDuration", abbreviateDuration);
 
   return {
     dir: {

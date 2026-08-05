@@ -53,6 +53,14 @@ Templates in `content/catalog-pages.njk` use Eleventy pagination to generate ind
 
 **Notebook Embedding**: `embedNotebookContent` filter fetches Jupyter notebooks and strips outputs for cleaner embedding.
 
+**Social Cards**: An `eleventy.after` hook renders a 1200×630 PNG per page into
+`assets/og/` (`lib/og-card.js`, section chip from `lib/og-card-label.js`). The card shows
+only what the page provides — chip, title, subtitle, thumbnail, URL — with the subtitle
+coming from `og:description`. Set `socialDescription` in front matter to give link previews
+a terser line than the SEO `description` (catalog and model pages pass their fact line).
+Review them all at **`/dev/cards/`**, a contact sheet written by the same hook on local and
+preview builds but never on `main`.
+
 ## Styling & markup conventions
 
 Write lean, semantic markup with as few classes and declarations as possible. The catalog list in `content/catalog.njk` is the reference example. Before adding a class or a rule, ask whether an existing element, selector, or inherited value already covers it.
