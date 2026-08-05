@@ -85,7 +85,6 @@ hideLatestPopup: true
         <li class="toc-h2"><a href="#ensembles">Ensembles</a></li>
         <li class="toc-h2"><a href="#clients">Clients</a></li>
         <li class="toc-h2"><a href="#bounds">Bounds and work units</a></li>
-        <li class="toc-h2"><a href="#headers">Headers and caching</a></li>
         <li class="toc-h2"><a href="#errors">Errors</a></li>
       </ul>
     </nav>
@@ -159,10 +158,9 @@ hideLatestPopup: true
     </li>
     <li>
       <strong>Browsers.</strong> All public routes allow credential-free cross-origin access from
-      any origin, and expose the headers a client needs to read: <code>ETag</code>,
-      <code>Retry-After</code>, <code>Server-Timing</code>, <code>X-Dynamical-Work-Units</code>, and
-      <code>X-Dynamical-Dataset-Cache</code>. Preflights are cacheable for a day, so a browser app
-      pays that round trip once rather than per request.
+      any origin, and expose their diagnostic response headers — including
+      <code>X-Dynamical-Work-Units</code> — to scripts, so a browser client can read everything a
+      command-line one can.
     </li>
   </ul>
 
@@ -402,7 +400,6 @@ http POST api.dynamical.org/v1/analyses \
       <tr><td>Variables per query</td><td>25</td></tr>
       <tr><td>Span per analysis query</td><td>31 days</td></tr>
       <tr><td>Response values per batch</td><td>100,000</td></tr>
-      <tr><td>Requests per minute, per client</td><td>1,200 (burst 120)</td></tr>
     </table>
   </div>
   <p>
@@ -411,43 +408,6 @@ http POST api.dynamical.org/v1/analyses \
     successful response reports what it actually used in <code>X-Dynamical-Work-Units</code> —
     measure a small version of your query, then scale.
   </p>
-  <p>
-    The rate limiter is an overload guard, applied to the point routes and forecast-run discovery.
-    Exceeding it returns <code>429</code> with a <code>Retry-After</code> header. Need more than
-    this? Write to <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a> rather than
-    working around it.
-  </p>
-
-  <h2 id="headers">Headers and caching</h2>
-  <div class="scroll">
-    <table class="data">
-      <tr><th>Header</th><th>Meaning</th></tr>
-      <tr><td><code>X-Dynamical-Work-Units</code></td><td>Response values counted against the work budget</td></tr>
-      <tr><td><code>X-Dynamical-Dataset-Cache</code></td><td><code>hit</code> or <code>miss</code> — whether the archive was already open on the serving container. A batch that did both reports <code>hit|miss</code></td></tr>
-      <tr><td><code>Server-Timing</code></td><td>Per-phase timing: <code>catalog</code>, <code>dataset_open</code>, <code>point_select</code>, <code>query_select</code>, <code>zarr_load</code>, <code>response_build</code>, <code>json_encode</code>, <code>handler</code></td></tr>
-      <tr><td><code>ETag</code></td><td>Strong validator over the response body</td></tr>
-    </table>
-  </div>
-  <div class="frame">{% frameHighlight "bash", "frameContent" %}
-server-timing: catalog;dur=0.016, dataset_open;dur=1255.050, point_select;dur=0.076,
-  query_select;dur=0.995, zarr_load;dur=668.879, response_build;dur=0.086,
-  json_encode;dur=0.027, handler;dur=1925.222, dataset_cache;desc="miss"
-x-dynamical-dataset-cache: miss
-x-dynamical-work-units: 4
-  {% endframeHighlight %}</div>
-  <p>
-    A cold <code>dataset_open</code> dominates a first request; the next request against the same
-    product on the same container is far faster. Cache lifetimes follow how mutable the answer is:
-  </p>
-  <div class="scroll">
-    <table class="data">
-      <tr><th>Response</th><th>Cache-Control</th></tr>
-      <tr><td>Data-product discovery</td><td><code>public, max-age=300, stale-while-revalidate=600</code></td></tr>
-      <tr><td>Forecast-run discovery</td><td><code>public, max-age=30, stale-while-revalidate=120</code></td></tr>
-      <tr><td>Point <code>POST</code> results</td><td><code>public, max-age=30, stale-while-revalidate=120</code></td></tr>
-      <tr><td><a href="#canonical-point">Canonical point</a></td><td><code>public, max-age=31536000, immutable</code></td></tr>
-    </table>
-  </div>
 
   <h2 id="errors">Errors</h2>
   <p>
