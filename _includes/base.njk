@@ -22,7 +22,10 @@
     {% set ogImage = socialImage or (socialImageBaseUrl + "/assets/og/" + ogCardSlug + ".png") %}
     {% set cardArtwork = socialCardImage or ("https://dynamical.org/assets/weathering/weathering_logo_figs.png" if (isPodcast or page.url == "/podcast/") else "") %}
     {% set ogTitle = socialTitle or (("weathering podcast - episode " + episode_number + ": " + title) if isPodcast else (title or metadata.title)) %}
-    {% set ogDescription = description or metadata.description %}
+    {# Link previews get `socialDescription` when a page has one — a terse fact
+       line reads better in an unfurl than a paragraph of prose. The SEO
+       <meta name="description"> above keeps the prose either way. #}
+    {% set ogDescription = socialDescription or description or metadata.description %}
     {% set ogImageAlt = socialImageAlt or ogTitle %}
     <meta property="og:type" content="{{ "article" if isArticle else "website" }}"/>
     <meta property="og:title" content="{{ ogTitle }}"/>
