@@ -9,6 +9,7 @@ import {
   isHistoryCurrent,
   isStatusDataStale,
   overlappingEntries,
+  statusLabel,
   STALE_MESSAGE,
   summarizeOverallStatus,
   uptimeDescription,
@@ -153,6 +154,29 @@ test("keeps rendering when a visible component has an unrecognized state", () =>
     status: "degraded",
     incidents: [{ name: "Future tool", status: "unknown" }],
   });
+});
+
+test("labels a planned down component without changing its health state", () => {
+  const entry = {
+    id: "wxopticon-pipeline",
+    name: "pipeline detection",
+    group: "tool",
+    status: "down",
+    maintenance: {
+      kind: "planned",
+      started_at: "2026-08-05T19:58:53Z",
+      summary: "HRRR history migration",
+    },
+  };
+
+  assert.equal(statusLabel(entry), "Planned outage");
+  assert.deepEqual(
+    summarizeOverallStatus({ ...operationalData, endpoints: [entry] }),
+    {
+      status: "down",
+      incidents: [{ name: "pipeline detection", status: "down" }],
+    },
+  );
 });
 
 test("rejects a mismatched event-log revision", () => {

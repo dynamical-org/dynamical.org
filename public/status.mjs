@@ -86,13 +86,19 @@ export function summarizeOverallStatus(data) {
   return { status, incidents };
 }
 
-function statusLabel(status) {
+export function statusLabel(entry) {
+  if (
+    entry.status === "down" &&
+    entry.maintenance?.kind === "planned"
+  ) {
+    return "Planned outage";
+  }
   return {
     operational: "Operational",
     degraded: "Degraded",
     down: "Down",
     unknown: "Unknown",
-  }[status];
+  }[entry.status];
 }
 
 function formatTimestamp(timestamp, local, includeZone = true) {
@@ -204,7 +210,7 @@ function renderGroup(list, entries, bars, uptime, emptyCells) {
     state.className = "status-label";
     mark.setAttribute("aria-hidden", "true");
     mark.textContent = statusMark(entry.status);
-    state.append(mark, ` ${statusLabel(entry.status)}`);
+    state.append(mark, ` ${statusLabel(entry)}`);
     header.append(name, state);
     item.append(header);
 
