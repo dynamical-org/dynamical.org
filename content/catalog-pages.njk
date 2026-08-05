@@ -238,6 +238,13 @@ eleventyComputed:
     {% if model %}&gt; <a href="/catalog/models/{{ model.id | slugify }}/">{{ model.name }}</a>{% endif %}
     &gt; {{ entry.title }}
   </div>
+  {% if legacyZarrMigration.affectedDatasetIds[entry.id] %}
+    <aside aria-label="Legacy Zarr migration" style="border-left: 4px solid var(--link-color); padding: 0.75rem 1rem; margin: 2rem 0;">
+      <strong>Legacy Zarr access ends {{ legacyZarrMigration.sunsetDisplay }}.</strong>
+      If you use a <code>data.dynamical.org</code> URL for this dataset,
+      <a href="{{ legacyZarrMigration.path }}">migrate to the catalog-driven Icechunk access pattern</a>.
+    </aside>
+  {% endif %}
   <div style="margin: 3rem 0;">
     {% include "catalog-entry-status.njk" %}
     <h1>{{ entry.title }}</h1>
