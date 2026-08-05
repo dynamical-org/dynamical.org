@@ -12,15 +12,19 @@ permalink: 'aws/dynamical-{{model.id}}.yaml'
   {%- endif -%}
 {%- endfor -%}
 {%- set bucket = "dynamical-" ~ model.id -%}
+{#- The registry renders Description as markdown, not HTML: 1176 of 1177 dataset
+    entries use markdown, and an AWS maintainer hand-converted our HTML back
+    (awslabs/open-data-registry@78a7166, "dynamical markdown fix"). Emit the
+    house style — blank-line separated blocks, `- [Title](url) - description`
+    rows — so regenerated YAML matches what's already upstream. -#}
 Name: {{model.name}} - dynamical.org Icechunk Zarr
 Description: |
-    {{ model.description | markdown | safe | trim }}
-    <p>These datasets have been translated to cloud-optimized Icechunk Zarr format by <a href="https://dynamical.org">dynamical.org</a>.</p>
-    <ul>
-    {%- for entry in entries %}
-      <li><a href="https://dynamical.org/catalog/{{ entry.id | slugify }}/">{{ entry.title }}</a> - {{ entry.description | safe }}</li>
-    {%- endfor %}
-    </ul>
+    {{ model.description | safe | trim }}
+
+    These datasets have been translated to cloud-optimized Icechunk Zarr format by [dynamical.org](https://dynamical.org).
+{% for entry in entries %}
+    - [{{ entry.title }}](https://dynamical.org/catalog/{{ entry.id | slugify }}/) - {{ entry.description | safe }}
+{%- endfor %}
 Documentation: https://dynamical.org/catalog/
 Contact: feedback@dynamical.org
 ManagedBy: "[dynamical.org](https://dynamical.org)"
