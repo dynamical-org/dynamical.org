@@ -86,12 +86,6 @@
   ],
   "endpoints": [
     {
-      "id": "dynamical-org",
-      "name": "dynamical.org website",
-      "group": "endpoint",
-      "status": "operational"
-    },
-    {
       "id": "stac-catalog",
       "name": "STAC catalog",
       "group": "endpoint",
@@ -104,16 +98,31 @@
       "status": "down"
     },
     {
-      "id": "wxopticon",
-      "name": "wxopticon",
-      "group": "tool",
-      "status": "operational"
-    },
-    {
       "id": "scorecard",
       "name": "scorecard",
       "group": "tool",
       "status": "operational"
+    },
+    {
+      "id": "wxopticon-arrivals",
+      "name": "pipeline observability",
+      "group": "tool",
+      "status": "operational"
+    },
+    {
+      "id": "wxopticon-webhooks",
+      "name": "pipeline webhooks",
+      "group": "tool",
+      "status": "operational"
+    },
+    {
+      "id": "dynamical-org",
+      "name": "status page",
+      "group": "tool",
+      "status": "operational"
     }
-  ]
+  ],
+  "component_aliases": {
+    "wxopticon-pipeline": "wxopticon-arrivals"
+  }
 }

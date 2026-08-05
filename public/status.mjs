@@ -50,6 +50,18 @@ function isIncidentGroup(group) {
   );
 }
 
+function isComponentAliases(aliases) {
+  return (
+    aliases &&
+    typeof aliases === "object" &&
+    !Array.isArray(aliases) &&
+    Object.entries(aliases).every(
+      ([alias, target]) =>
+        typeof alias === "string" && typeof target === "string",
+    )
+  );
+}
+
 // Preserve the rest of the page when a separately deployed publisher adds a state.
 function normalizeEntry(entry) {
   return PUBLIC_STATUSES.has(entry.status)
@@ -72,6 +84,12 @@ export function validateStatusData(data) {
   }
   if (![...data.datasets, ...data.endpoints].every(isStatusEntry)) {
     throw new TypeError("Invalid status entry");
+  }
+  if (
+    data.component_aliases != null &&
+    !isComponentAliases(data.component_aliases)
+  ) {
+    throw new TypeError("Invalid component aliases");
   }
   if (!data.endpoints.every((entry) => PUBLIC_GROUPS.has(entry.group))) {
     throw new TypeError("Invalid status entry group");
@@ -172,7 +190,7 @@ export function uptimeDescription(measured, days) {
 // state did to the thing you use. A component the publisher adds before this
 // page learns it falls back to generic phrasing rather than rendering nothing.
 const IMPACT = {
-  "dynamical-org": { outage: "The website was unreachable" },
+  "dynamical-org": { outage: "The status page was unreachable" },
   "stac-catalog": { outage: "The STAC catalog API was unreachable" },
   "data-product-reads": {
     outage: "Reads of dynamical.org data failed their canary checks",
@@ -186,8 +204,8 @@ const IMPACT = {
     delay: "Pipeline webhook delivery ran behind",
   },
   "wxopticon-arrivals": {
-    outage: "The pipeline status page stopped updating",
-    delay: "The pipeline status page updated late",
+    outage: "Pipeline observability stopped updating",
+    delay: "Pipeline observability updated late",
   },
   scorecard: {
     outage: "The scorecard stopped refreshing",
@@ -532,11 +550,13 @@ function incidentName(incident, names) {
 }
 
 function groupedIncidentDescription(incident, names, end) {
-  const affected = sentenceList(
-    incident.components
-      .map((component) => names.get(component))
-      .filter(Boolean),
-  );
+  const affected = sentenceList([
+    ...new Set(
+      incident.components
+        .map((component) => names.get(component))
+        .filter(Boolean),
+    ),
+  ]);
   const impact =
     incident.kind === "planned"
       ? `Planned work affected ${affected}`
@@ -557,6 +577,9 @@ function renderIncidentLog(root, history, data, local) {
   }
 
   const names = new Map(data.endpoints.map(({ id, name }) => [id, name]));
+  for (const [alias, target] of Object.entries(data.component_aliases ?? {})) {
+    if (names.has(target)) names.set(alias, names.get(target));
+  }
   const visible = history.incidents
     .filter((incident) =>
       incident.components

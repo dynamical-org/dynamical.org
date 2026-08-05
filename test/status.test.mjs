@@ -34,8 +34,8 @@ const operationalData = {
   endpoints: [
     {
       id: "dynamical-org",
-      name: "dynamical.org website",
-      group: "endpoint",
+      name: "status page",
+      group: "tool",
       status: "operational",
       uptime: 99.9,
       uptime_since: "2026-04-26T19:55:00Z",
@@ -49,16 +49,17 @@ test("accepts the published feed shape", () => {
   // 14, matching the collections in stac.dynamical.org/catalog.json — the
   // publisher deliberately excludes contrib datasets and source archivers.
   assert.equal(fixture.datasets.length, 14);
-  // Five endpoints across the page's two sections, plus the 14 datasets the feed
-  // still carries even though the page does not render them yet.
+  // Core resources followed by the reader-facing tools; datasets remain in the
+  // feed even though the page does not render them yet.
   assert.deepEqual(
     fixture.endpoints.map((entry) => [entry.id, entry.group]),
     [
-      ["dynamical-org", "endpoint"],
       ["stac-catalog", "endpoint"],
       ["data-product-reads", "endpoint"],
-      ["wxopticon", "tool"],
       ["scorecard", "tool"],
+      ["wxopticon-arrivals", "tool"],
+      ["wxopticon-webhooks", "tool"],
+      ["dynamical-org", "tool"],
     ],
   );
   assert.deepEqual(summarizeOverallStatus(fixture), {
@@ -81,7 +82,7 @@ test("summarizes only the components this page renders", () => {
 
   assert.deepEqual(summarizeOverallStatus(data), {
     status: "down",
-    incidents: [{ name: "dynamical.org website", status: "down" }],
+    incidents: [{ name: "status page", status: "down" }],
   });
 });
 
@@ -409,8 +410,8 @@ test("incident descriptions say what the state did to the thing you use", () => 
     end: Date.parse("2026-07-29T17:20:00Z"),
   };
   assert.equal(
-    incidentDescription(tenMinutes, "Arrivals dashboard"),
-    "The pipeline status page updated late for 10 minutes.",
+    incidentDescription(tenMinutes, "pipeline observability"),
+    "Pipeline observability updated late for 10 minutes.",
   );
   assert.equal(
     incidentDescription(
