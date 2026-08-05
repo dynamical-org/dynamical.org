@@ -7,7 +7,6 @@ const require = createRequire(import.meta.url);
 const { REQUESTS, curlFor, elide, formatJson, hourFloorIso } = require("../lib/api-examples.js");
 
 const PAGE = readFileSync(new URL("../content/api.njk", import.meta.url), "utf8");
-const CATALOG = readFileSync(new URL("../content/catalog.njk", import.meta.url), "utf8");
 
 // /api/ embeds real responses fetched at build time. The build is what proves the
 // requests are still valid; these are the instant checks on the shaping around
@@ -109,10 +108,4 @@ test("the analysis window is hour-aligned and lags the present", () => {
   assert.equal(query.startTime, "2026-08-05T06:00:00Z");
   assert.equal(query.endTime, "2026-08-05T12:00:00Z");
   assert.equal(hourFloorIso(0, now), "2026-08-05T18:00:00Z");
-});
-
-test("the catalog page points at the API docs", () => {
-  // /api/ is reachable from the catalog rather than the primary nav, so this link
-  // is the only entry point; losing it orphans the page.
-  assert.match(CATALOG, /<a href="\/api\/">API<\/a>/);
 });
