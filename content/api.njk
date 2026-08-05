@@ -1,0 +1,701 @@
+---
+layout: base.njk
+title: api
+description: Point access to dynamical.org open weather data — forecast and analysis time series, no credentials.
+socialImageAlt: Usage documentation for the dynamical.org weather data API.
+permalink: /api/
+hideLatestPopup: true
+---
+
+<style>
+  /* Page-scoped: the run-it controls and the endpoint reference. Chrome, code
+     frames, tables, and the TOC rail all come from main.css and markdown-toc. */
+  .api-page h2 {
+    margin-top: 4rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-muted-color);
+  }
+  .api-page h3 code {
+    font-size: 1.5rem;
+  }
+  /* table.data sets a 640px minimum, so wide reference tables scroll rather
+     than pushing the page sideways. */
+  .api-page .scroll {
+    overflow-x: auto;
+  }
+  .api-page .method {
+    padding: 0 0.6rem;
+    border: 1px solid var(--pill-muted-border);
+    border-radius: var(--radius-sm);
+    background: var(--pill-muted-bg);
+    color: var(--pill-muted-fg);
+    font-size: 1.2rem;
+  }
+  .api-page .try {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .api-page .try button {
+    padding: 0.2rem 1.2rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 1.3rem;
+    cursor: pointer;
+  }
+  .api-page .try button:hover:enabled {
+    background: var(--surface-muted);
+  }
+  .api-page .try button:disabled {
+    border-color: var(--border-muted-color);
+    color: var(--muted-text);
+    cursor: progress;
+  }
+  .api-page .try-status {
+    color: var(--muted-text);
+    font-size: 1.3rem;
+  }
+  .api-page .try-status.failed {
+    color: var(--pill-down-bg);
+  }
+  /* Carries .frame and .frameContent so a live response looks like the worked
+     examples above it; only the scroll box and the live-text color are new. */
+  .api-page .try-output {
+    max-height: 34rem;
+    margin: 2rem 0;
+    padding: 1rem 1.6rem;
+    overflow: auto;
+    color: #fafafa;
+  }
+  .api-page .try-output[hidden] {
+    display: none;
+  }
+</style>
+<noscript>
+  <style>
+    /* Nothing to run without JS; the worked examples still read fine. */
+    .api-page .try { display: none; }
+  </style>
+</noscript>
+
+<div class="content md-toc-content api-page" id="api-docs" data-api-base="{{ dataApiBase }}">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+    <h1>API</h1>
+    <div style="margin-left: auto; display: flex; gap: 1rem; align-items: center;">
+      <span><a href="https://api.dynamical.org/docs">OpenAPI</a> (<a href="https://api.dynamical.org/openapi.json">json</a>)</span>
+    </div>
+  </div>
+
+  <p>
+    Point access to the datasets in the <a href="/catalog">catalog</a>: forecast and analysis time
+    series read straight from the Zarr/Icechunk archives on AWS Open Data. No account, no key, no
+    credentials — including from a browser.
+  </p>
+  <p>
+    Base URL <code>https://api.dynamical.org</code>. Requests and responses are JSON in camelCase.
+    Every example below is a real request; press <strong>run it</strong> to send it from your browser
+    and read the live response.
+  </p>
+  <p class="dim">
+    This is a beta. The <code>/v1</code> shapes below are what the service returns today; breaking
+    changes will arrive as a new path prefix. Tell us what you need at
+    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
+  </p>
+
+  <div class="md-toc-rail">
+    <nav class="md-toc" aria-label="Sections">
+      <ul class="toc-tree">
+        <li class="toc-h2"><a href="#quickstart">Quickstart</a></li>
+        <li class="toc-h2"><a href="#conventions">Conventions</a></li>
+        <li class="toc-h2"><a href="#endpoints">Endpoints</a></li>
+        <li class="toc-h2"><a href="#ensembles">Ensembles</a></li>
+        <li class="toc-h2"><a href="#clients">Clients</a></li>
+        <li class="toc-h2"><a href="#bounds">Bounds and work units</a></li>
+        <li class="toc-h2"><a href="#headers">Headers and caching</a></li>
+        <li class="toc-h2"><a href="#errors">Errors</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <h2 id="quickstart">Quickstart</h2>
+  <p>
+    A point forecast is one request. Ask for the data product, a location, and the variables you
+    want; omit <code>initTime</code> and you get the most recent model run in the archive.
+  </p>
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">dynamical.org - API</div>
+      <div class="frameHeaderSubtitle">Point forecast</div>
+    </div>
+    {% frameHighlight "bash", "frameContent" %}
+curl -X POST 'https://api.dynamical.org/v1/forecasts' \
+  -H 'content-type: application/json' \
+  -d '{"queries":[{"dataProductId":"noaa-gfs-forecast",
+                   "location":{"latitude":41.88,"longitude":-87.63},
+                   "maxLeadTimeHours":6,
+                   "variables":["temperature_2m","precipitation_surface"]}]}'
+    {% endframeHighlight %}
+  </div>
+  <div class="try">
+    <button type="button" data-try="forecast">run it</button>
+    <span class="try-status"></span>
+  </div>
+  <pre class="frame frameContent try-output" hidden></pre>
+  <p>
+    The response pairs each variable's values with the axes they sit on. <code>validTimes</code> and
+    <code>leadTimeHours</code> are the value axis; <code>initTime</code> is the run the values came
+    from; <code>snapshotId</code> is the exact Icechunk snapshot that was read.
+  </p>
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">dynamical.org - API</div>
+      <div class="frameHeaderSubtitle">Response</div>
+    </div>
+    {% frameHighlight "json", "frameContent" %}
+{
+  "results": [
+    {
+      "dataProduct": {"id": "noaa-gfs-forecast", "version": "0.2.7"},
+      "point": {
+        "requested": {"latitude": 41.88, "longitude": -87.63},
+        "selected": {
+          "latitude": 42.0,
+          "longitude": -87.75,
+          "grid": {"latitudeIndex": 192, "longitudeIndex": 369}
+        },
+        "method": "nearest"
+      },
+      "forecasts": [
+        {
+          "initTime": "2026-08-05T12:00:00Z",
+          "validTimes": ["2026-08-05T12:00:00Z", "2026-08-05T13:00:00Z", "…"],
+          "leadTimeHours": [0.0, 1.0, "…"],
+          "links": {"canonical": "/v1/data/noaa-gfs-forecast/FHKS78ERQ44CTNM127G0/points/192,369?…"},
+          "data": {
+            "temperature_2m": [22.75, 24.375, "…"],
+            "precipitation_surface": [null, 8.678436279296875e-05, "…"]
+          }
+        }
+      ],
+      "variables": {
+        "temperature_2m": {"unit": "degree_Celsius"},
+        "precipitation_surface": {"unit": "kg m-2 s-1"}
+      },
+      "snapshotId": "FHKS78ERQ44CTNM127G0",
+      "links": {"catalog": "https://stac.dynamical.org/noaa-gfs-forecast/collection.json"}
+    }
+  ]
+}
+    {% endframeHighlight %}
+  </div>
+  <p>
+    From there: <a href="#list-data-products">list the data products</a> to see what is available,
+    <a href="#list-forecast-runs">list runs</a> to pin an exact initialization time, or ask for
+    <a href="#query-analyses">analysis</a> data to see what actually happened.
+  </p>
+
+  <h2 id="conventions">Conventions</h2>
+  <ul>
+    <li>
+      <strong>Naming.</strong> Request and response fields are camelCase. Requests identify a
+      product with <code>dataProductId</code>; a data-product resource calls its own identifier
+      <code>id</code>. Variable names are the underlying dataset's, unchanged
+      (<code>temperature_2m</code>).
+    </li>
+    <li>
+      <strong>Timestamps.</strong> ISO-8601, UTC, trailing <code>Z</code> on output. Timestamps you
+      send must carry a timezone offset; a naive timestamp is rejected rather than assumed to be
+      UTC.
+    </li>
+    <li>
+      <strong>Two time axes.</strong> A forecast response separates the run axis
+      (<code>initTime</code>) from the value axis (<code>validTimes</code>, with
+      <code>leadTimeHours</code> alongside). There is no synthesized issue time. Analysis responses
+      have one axis, <code>analysisTimes</code>.
+    </li>
+    <li>
+      <strong>Range boundaries.</strong> <code>initTimesAfter</code> and
+      <code>initTimesBefore</code> are both exclusive. Analysis <code>startTime</code> is inclusive
+      and <code>endTime</code> is exclusive. <code>maxLeadTimeHours</code> is an inclusive ceiling.
+    </li>
+    <li>
+      <strong>Latest run.</strong> Omitting <code>initTime</code>, or sending
+      <code>"initTime": "latest"</code>, selects the greatest initialization time present in the
+      opened snapshot. The response always reports the resolved timestamp — never the word
+      <code>latest</code>.
+    </li>
+    <li>
+      <strong>Nearest point.</strong> Locations snap to the nearest cell of the product's source
+      grid and the response reports both the <code>requested</code> and <code>selected</code>
+      coordinates plus the grid indices. A location outside the grid is an error, not a snap to a
+      distant edge cell.
+    </li>
+    <li>
+      <strong>Batching.</strong> <code>POST</code> routes take a <code>queries</code> array and
+      return a <code>results</code> array in the same order. Attach an optional
+      <code>queryId</code> to a query and it is echoed on that result, so a batch stays unambiguous.
+    </li>
+    <li>
+      <strong>No echoed filters.</strong> Results do not repeat your request. What was resolved
+      appears as data: the runs you got are listed in <code>forecasts[].initTime</code>.
+    </li>
+    <li>
+      <strong>Missing values.</strong> A gap in the archive is <code>null</code>, never
+      <code>NaN</code> — responses stay strict JSON.
+    </li>
+    <li>
+      <strong>Browsers.</strong> All public routes allow credential-free cross-origin access from
+      any origin, and expose the headers a client needs to read: <code>ETag</code>,
+      <code>Retry-After</code>, <code>Server-Timing</code>, <code>X-Dynamical-Work-Units</code>, and
+      <code>X-Dynamical-Dataset-Cache</code>. Preflights are cacheable for a day, so a browser app
+      pays that round trip once rather than per request.
+    </li>
+  </ul>
+
+  <h2 id="endpoints">Endpoints</h2>
+  <ul class="index-list">
+    <li>
+      <a href="#list-data-products"><code>GET /v1/data-products</code></a>
+      <div class="dim">Discover data products and capabilities</div>
+    </li>
+    <li>
+      <a href="#describe-data-product"><code>GET /v1/data-products/{dataProductId}</code></a>
+      <div class="dim">Variables, dimensions, extent, license</div>
+    </li>
+    <li>
+      <a href="#list-forecast-runs"><code>GET /v1/forecasts/runs</code></a>
+      <div class="dim">Initialization times present in the current snapshot</div>
+    </li>
+    <li>
+      <a href="#query-forecasts"><code>POST /v1/forecasts</code></a>
+      <div class="dim">Batch point forecast time series</div>
+    </li>
+    <li>
+      <a href="#query-analyses"><code>POST /v1/analyses</code></a>
+      <div class="dim">Batch point analysis time series</div>
+    </li>
+    <li>
+      <a href="#canonical-point"><code>GET /v1/data/{dataProductId}/{snapshotId}/points/{gridIndices}</code></a>
+      <div class="dim">Immutable, cacheable canonical point response</div>
+    </li>
+  </ul>
+
+  <h3 id="list-data-products"><span class="method">GET</span> <code>/v1/data-products</code></h3>
+  <p>
+    Every data product the API can serve. The MVP catalog is the forecast and analysis products;
+    <code>capabilities</code> says which point queries a product supports.
+  </p>
+  <div class="frame">{% frameHighlight "bash", "frameContent" %}
+curl 'https://api.dynamical.org/v1/data-products'
+  {% endframeHighlight %}</div>
+  <div class="try">
+    <button type="button" data-try="products">run it</button>
+    <span class="try-status"></span>
+  </div>
+  <pre class="frame frameContent try-output" hidden></pre>
+  <div class="frame">{% frameHighlight "json", "frameContent" %}
+{
+  "dataProducts": [
+    {
+      "id": "noaa-gfs-forecast",
+      "name": "NOAA GFS forecast",
+      "type": "forecast",
+      "modelId": "noaa-gfs",
+      "version": "0.2.7",
+      "variableCount": 25,
+      "capabilities": ["forecastTimeSeries"],
+      "links": {
+        "self": "/v1/data-products/noaa-gfs-forecast",
+        "catalog": "https://stac.dynamical.org/noaa-gfs-forecast/collection.json"
+      }
+    }
+  ]
+}
+  {% endframeHighlight %}</div>
+
+  <h3 id="describe-data-product"><span class="method">GET</span> <code>/v1/data-products/{dataProductId}</code></h3>
+  <p>
+    The summary above plus what you need to build a query: every variable with its unit and
+    dimensions, the dimension extents, the bounding box, and the license. An open-ended
+    <code>extent</code> upper bound (<code>null</code>) means the archive is still growing along
+    that dimension.
+  </p>
+  <div class="try">
+    <button type="button" data-try="product">run it</button>
+    <span class="try-status"></span>
+  </div>
+  <pre class="frame frameContent try-output" hidden></pre>
+  <div class="frame">{% frameHighlight "json", "frameContent" %}
+{
+  "id": "noaa-gfs-forecast",
+  "type": "forecast",
+  "version": "0.2.7",
+  "license": "CC-BY-4.0",
+  "boundingBox": [-180.0, -90.0, 179.75, 90.0],
+  "dimensions": {
+    "init_time": {"type": "temporal", "extent": ["2021-05-01T00:00:00Z", null],
+                  "unit": "seconds since 1970-01-01"},
+    "lead_time": {"type": "other", "extent": [0, 1382400], "unit": "seconds", "size": 209},
+    "latitude": {"type": "spatial", "extent": [-90.0, 90.0], "axis": "y",
+                 "unit": "degree_north", "size": 721},
+    "longitude": {"type": "spatial", "extent": [-180.0, 179.75], "axis": "x",
+                  "unit": "degree_east", "size": 1440}
+  },
+  "variables": {
+    "temperature_2m": {
+      "dimensions": ["init_time", "lead_time", "latitude", "longitude"],
+      "unit": "degree_Celsius",
+      "longName": "2 metre temperature",
+      "standardName": "air_temperature"
+    }
+  }
+}
+  {% endframeHighlight %}</div>
+
+  <h3 id="list-forecast-runs"><span class="method">GET</span> <code>/v1/forecasts/runs</code></h3>
+  <p>
+    The initialization times actually present in the current snapshot, newest first, with the
+    <code>snapshotId</code> they were read from. It reports what exists; it does not infer whether a
+    run is pending or complete.
+  </p>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Parameter</th><th>Type</th><th>Notes</th></tr>
+      <tr><td><code>dataProductId</code></td><td>string</td><td>Required; must be a forecast product</td></tr>
+      <tr><td><code>initTimesAfter</code></td><td>timestamp</td><td>Exclusive lower bound</td></tr>
+      <tr><td><code>initTimesBefore</code></td><td>timestamp</td><td>Exclusive upper bound</td></tr>
+      <tr><td><code>limit</code></td><td>integer</td><td>1&ndash;100, default 20</td></tr>
+    </table>
+  </div>
+  <div class="try">
+    <button type="button" data-try="runs">run it</button>
+    <span class="try-status"></span>
+  </div>
+  <pre class="frame frameContent try-output" hidden></pre>
+  <div class="frame">{% frameHighlight "json", "frameContent" %}
+{
+  "dataProductId": "noaa-gfs-forecast",
+  "snapshotId": "FHKS78ERQ44CTNM127G0",
+  "runs": [
+    {"initTime": "2026-08-05T12:00:00Z"},
+    {"initTime": "2026-08-05T06:00:00Z"},
+    {"initTime": "2026-08-05T00:00:00Z"}
+  ]
+}
+  {% endframeHighlight %}</div>
+
+  <h3 id="query-forecasts"><span class="method">POST</span> <code>/v1/forecasts</code></h3>
+  <p>
+    Point forecast time series, up to 10 queries per request. Each query selects one location, one
+    data product, and one or more runs.
+  </p>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+      <tr><td><code>dataProductId</code></td><td>string</td><td>Required; must be a forecast product</td></tr>
+      <tr><td><code>location</code></td><td>object</td><td>Required; <code>latitude</code> &minus;90..90, <code>longitude</code> &minus;180..180</td></tr>
+      <tr><td><code>variables</code></td><td>string[]</td><td>Required; 1&ndash;25 names from the data product</td></tr>
+      <tr><td><code>queryId</code></td><td>string</td><td>Echoed on the matching result; 1&ndash;128 characters</td></tr>
+      <tr><td><code>initTime</code></td><td>timestamp or <code>"latest"</code></td><td>Defaults to the latest run in the snapshot</td></tr>
+      <tr><td><code>initTimesAfter</code><br><code>initTimesBefore</code></td><td>timestamp</td><td>A run range, both exclusive, sent together; mutually exclusive with <code>initTime</code>; at most 10 runs resolve</td></tr>
+      <tr><td><code>validTimeStart</code><br><code>validTimeEnd</code></td><td>timestamp</td><td>Trim the value axis; sent together, start exclusive of end</td></tr>
+      <tr><td><code>maxLeadTimeHours</code></td><td>integer</td><td>Inclusive ceiling on <code>leadTimeHours</code>; omit for every lead time the product publishes</td></tr>
+    </table>
+  </div>
+  <p>Two runs of one product, trimmed to the first 6 hours, with per-query identifiers:</p>
+  <div class="frame">{% frameHighlight "bash", "frameContent" %}
+curl -X POST 'https://api.dynamical.org/v1/forecasts' \
+  -H 'content-type: application/json' \
+  -d '{"queries":[
+        {"queryId":"chicago-12z",
+         "dataProductId":"noaa-gfs-forecast",
+         "location":{"latitude":41.88,"longitude":-87.63},
+         "initTime":"2026-08-05T12:00:00Z",
+         "maxLeadTimeHours":6,
+         "variables":["temperature_2m"]},
+        {"queryId":"chicago-recent-runs",
+         "dataProductId":"noaa-gfs-forecast",
+         "location":{"latitude":41.88,"longitude":-87.63},
+         "initTimesAfter":"2026-08-04T00:00:00Z",
+         "initTimesBefore":"2026-08-05T18:00:00Z",
+         "maxLeadTimeHours":6,
+         "variables":["temperature_2m"]}]}'
+  {% endframeHighlight %}</div>
+  <p>
+    The second query returns one entry per resolved run in <code>forecasts</code> — that is how you
+    compare successive runs at a point. Each entry carries its own
+    <a href="#canonical-point">canonical link</a>.
+  </p>
+
+  <h3 id="query-analyses"><span class="method">POST</span> <code>/v1/analyses</code></h3>
+  <p>
+    Point analysis time series — the observed or reanalyzed record rather than a forecast. One time
+    axis, <code>analysisTimes</code>, over a window you choose.
+  </p>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+      <tr><td><code>dataProductId</code></td><td>string</td><td>Required; must be an analysis product</td></tr>
+      <tr><td><code>location</code></td><td>object</td><td>Required</td></tr>
+      <tr><td><code>variables</code></td><td>string[]</td><td>Required; 1&ndash;25 names</td></tr>
+      <tr><td><code>startTime</code></td><td>timestamp</td><td>Required; inclusive</td></tr>
+      <tr><td><code>endTime</code></td><td>timestamp</td><td>Required; exclusive, after <code>startTime</code>, at most 31 days later</td></tr>
+      <tr><td><code>queryId</code></td><td>string</td><td>Echoed on the matching result</td></tr>
+    </table>
+  </div>
+  <div class="frame">{% frameHighlight "bash", "frameContent" %}
+curl -X POST 'https://api.dynamical.org/v1/analyses' \
+  -H 'content-type: application/json' \
+  -d '{"queries":[{"dataProductId":"noaa-mrms-conus-analysis-hourly",
+                   "location":{"latitude":41.88,"longitude":-87.63},
+                   "startTime":"2026-08-04T00:00:00Z",
+                   "endTime":"2026-08-04T06:00:00Z",
+                   "variables":["precipitation_surface"]}]}'
+  {% endframeHighlight %}</div>
+  <div class="try">
+    <button type="button" data-try="analysis">run it</button>
+    <span class="try-status"></span>
+  </div>
+  <pre class="frame frameContent try-output" hidden></pre>
+  <p class="dim">
+    The window the button sends is computed at click time — a date fixed in this page would fall off
+    the end of the published record.
+  </p>
+
+  <h3 id="canonical-point"><span class="method">GET</span> <code>/v1/data/{dataProductId}/{snapshotId}/points/{gridIndices}</code></h3>
+  <p>
+    The immutable form of a point response. Every <code>POST</code> result hands you one of these
+    URLs on <code>links.canonical</code>: the resolved snapshot, the resolved grid indices, and the
+    exact query parameters that produced the values. Because the snapshot and the cell are pinned,
+    the body can never change — it is served
+    <code>Cache-Control: public, max-age=31536000, immutable</code> and is the right URL to hand a
+    CDN, a notebook, or a citation.
+  </p>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Parameter</th><th>Where</th><th>Notes</th></tr>
+      <tr><td><code>gridIndices</code></td><td>path</td><td>The two indices from <code>point.selected.grid</code>, comma-separated</td></tr>
+      <tr><td><code>variables</code></td><td>query</td><td>Required; comma-separated, up to 25</td></tr>
+      <tr><td><code>initTime</code></td><td>query</td><td>Required for forecast products</td></tr>
+      <tr><td><code>maxLeadTimeHours</code><br><code>validTimeStart</code><br><code>validTimeEnd</code></td><td>query</td><td>Forecast value-axis trimming</td></tr>
+      <tr><td><code>startTime</code><br><code>endTime</code></td><td>query</td><td>Analysis window</td></tr>
+    </table>
+  </div>
+  <p>
+    Snapshots roll forward as new data lands, so a canonical URL copied out of this page eventually
+    stops resolving. The button below does it properly: one <code>POST</code>, then a
+    <code>GET</code> of the canonical link that came back.
+  </p>
+  <div class="try">
+    <button type="button" data-try="canonical">run it</button>
+    <span class="try-status"></span>
+  </div>
+  <pre class="frame frameContent try-output" hidden></pre>
+
+  <h2 id="ensembles">Ensembles</h2>
+  <p>
+    Products with an <code>ensemble_member</code> dimension return every member of the source
+    archive, in order. The response replaces <code>data</code> with <code>ensembleMembers</code>;
+    each entry keeps the archive's own <code>member</code> identifier and a <code>data</code> object
+    with the same variable series a deterministic response would carry. Axes, units, and links are
+    unchanged, so member 0 is read exactly like a deterministic forecast.
+  </p>
+  <div class="try">
+    <button type="button" data-try="ensemble">run it</button>
+    <span class="try-status"></span>
+  </div>
+  <pre class="frame frameContent try-output" hidden></pre>
+  <div class="frame">{% frameHighlight "json", "frameContent" %}
+"forecasts": [
+  {
+    "initTime": "2026-08-05T00:00:00Z",
+    "validTimes": ["2026-08-05T00:00:00Z", "2026-08-05T03:00:00Z", "…"],
+    "leadTimeHours": [0.0, 3.0, "…"],
+    "ensembleMembers": [
+      {"member": 0, "data": {"temperature_2m": [27.25, 25.0, "…"]}},
+      {"member": 1, "data": {"temperature_2m": [27.125, 25.125, "…"]}}
+    ]
+  }
+]
+  {% endframeHighlight %}</div>
+  <p class="dim">
+    Members multiply the response: they count against the work budget below exactly as extra
+    variables or lead times do, so trim the value axis when asking a 31-member product for a long
+    horizon.
+  </p>
+
+  <h2 id="clients">Clients</h2>
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">dynamical.org - API</div>
+      <div class="frameHeaderSubtitle">Python</div>
+    </div>
+    {% frameHighlight "py", "frameContent" %}
+import httpx
+
+response = httpx.post(
+    "https://api.dynamical.org/v1/forecasts",
+    json={
+        "queries": [
+            {
+                "dataProductId": "noaa-gfs-forecast",
+                "location": {"latitude": 41.88, "longitude": -87.63},
+                "maxLeadTimeHours": 24,
+                "variables": ["temperature_2m"],
+            }
+        ]
+    },
+    timeout=60,
+)
+response.raise_for_status()
+forecast = response.json()["results"][0]["forecasts"][0]
+for valid_time, value in zip(forecast["validTimes"], forecast["data"]["temperature_2m"]):
+    print(valid_time, value)
+    {% endframeHighlight %}
+  </div>
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">dynamical.org - API</div>
+      <div class="frameHeaderSubtitle">JavaScript</div>
+    </div>
+    {% frameHighlight "js", "frameContent" %}
+const response = await fetch("https://api.dynamical.org/v1/forecasts", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    queries: [
+      {
+        dataProductId: "noaa-gfs-forecast",
+        location: { latitude: 41.88, longitude: -87.63 },
+        maxLeadTimeHours: 24,
+        variables: ["temperature_2m"],
+      },
+    ],
+  }),
+});
+const { results } = await response.json();
+const { validTimes, data } = results[0].forecasts[0];
+    {% endframeHighlight %}
+  </div>
+  <div class="frame">
+    <div class="frameHeader">
+      <div class="frameHeaderTitle">dynamical.org - API</div>
+      <div class="frameHeaderSubtitle">HTTPie</div>
+    </div>
+    {% frameHighlight "bash", "frameContent" %}
+http GET api.dynamical.org/v1/forecasts/runs dataProductId==noaa-gfs-forecast limit==1
+
+http POST api.dynamical.org/v1/analyses \
+  queries:='[{"dataProductId":"noaa-mrms-conus-analysis-hourly",
+              "location":{"latitude":41.88,"longitude":-87.63},
+              "startTime":"2026-08-04T00:00:00Z",
+              "endTime":"2026-08-04T06:00:00Z",
+              "variables":["precipitation_surface"]}]'
+    {% endframeHighlight %}
+  </div>
+
+  <h2 id="bounds">Bounds and work units</h2>
+  <p>
+    A point request is cheap, but a careless one can ask for millions of values. These are the
+    limits that keep the service predictable rather than a per-caller quota.
+  </p>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Bound</th><th>Limit</th></tr>
+      <tr><td>Queries per batch</td><td>10</td></tr>
+      <tr><td>Runs resolved per forecast query</td><td>10</td></tr>
+      <tr><td>Variables per query</td><td>25</td></tr>
+      <tr><td>Span per analysis query</td><td>31 days</td></tr>
+      <tr><td>Response values per batch</td><td>100,000</td></tr>
+      <tr><td>Requests per minute, per client</td><td>1,200 (burst 120)</td></tr>
+    </table>
+  </div>
+  <p>
+    The work budget is the real size bound: values are counted across variables, times, runs, and
+    ensemble members, and a batch that would exceed 100,000 is rejected rather than truncated. A
+    successful response reports what it actually used in <code>X-Dynamical-Work-Units</code> —
+    measure a small version of your query, then scale.
+  </p>
+  <p>
+    The rate limiter is an overload guard, applied to the point routes and forecast-run discovery.
+    Exceeding it returns <code>429</code> with a <code>Retry-After</code> header. Need more than
+    this? Write to <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a> rather than
+    working around it.
+  </p>
+
+  <h2 id="headers">Headers and caching</h2>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Header</th><th>Meaning</th></tr>
+      <tr><td><code>X-Dynamical-Work-Units</code></td><td>Response values counted against the work budget</td></tr>
+      <tr><td><code>X-Dynamical-Dataset-Cache</code></td><td><code>hit</code> or <code>miss</code> — whether the archive was already open on the serving container. A batch that did both reports <code>hit|miss</code></td></tr>
+      <tr><td><code>Server-Timing</code></td><td>Per-phase timing: <code>catalog</code>, <code>dataset_open</code>, <code>point_select</code>, <code>query_select</code>, <code>zarr_load</code>, <code>response_build</code>, <code>json_encode</code>, <code>handler</code></td></tr>
+      <tr><td><code>ETag</code></td><td>Strong validator over the response body</td></tr>
+    </table>
+  </div>
+  <div class="frame">{% frameHighlight "bash", "frameContent" %}
+server-timing: catalog;dur=0.016, dataset_open;dur=1255.050, point_select;dur=0.076,
+  query_select;dur=0.995, zarr_load;dur=668.879, response_build;dur=0.086,
+  json_encode;dur=0.027, handler;dur=1925.222, dataset_cache;desc="miss"
+x-dynamical-dataset-cache: miss
+x-dynamical-work-units: 4
+  {% endframeHighlight %}</div>
+  <p>
+    A cold <code>dataset_open</code> dominates a first request; the next request against the same
+    product on the same container is far faster. Cache lifetimes follow how mutable the answer is:
+  </p>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Response</th><th>Cache-Control</th></tr>
+      <tr><td>Data-product discovery</td><td><code>public, max-age=300, stale-while-revalidate=600</code></td></tr>
+      <tr><td>Forecast-run discovery</td><td><code>public, max-age=30, stale-while-revalidate=120</code></td></tr>
+      <tr><td>Point <code>POST</code> results</td><td><code>public, max-age=30, stale-while-revalidate=120</code></td></tr>
+      <tr><td><a href="#canonical-point">Canonical point</a></td><td><code>public, max-age=31536000, immutable</code></td></tr>
+    </table>
+  </div>
+
+  <h2 id="errors">Errors</h2>
+  <p>
+    Errors are a JSON object with a <code>detail</code> string, or — for request-shape failures —
+    FastAPI's validation array under the same key. Nothing is silently coerced: an unknown field, a
+    naive timestamp, or a location off the grid is an error, not a guess.
+  </p>
+  <div class="scroll">
+    <table class="data">
+      <tr><th>Status</th><th>When</th><th>Example detail</th></tr>
+      <tr>
+        <td>404</td>
+        <td>No such data product</td>
+        <td><code>Unknown data product 'nope'</code></td>
+      </tr>
+      <tr>
+        <td>422</td>
+        <td>The request cannot be answered as written</td>
+        <td><code>Location is outside the data product grid</code><br><code>Data product 'noaa-gfs-analysis' is analysis, not forecast</code><br><code>startTime must include a timezone</code></td>
+      </tr>
+      <tr>
+        <td>429</td>
+        <td>Rate limit exceeded; honor <code>Retry-After</code></td>
+        <td><code>Request rate limit exceeded</code></td>
+      </tr>
+      <tr>
+        <td>503</td>
+        <td>The upstream STAC catalog is unavailable</td>
+        <td><code>Failed to load STAC catalog …</code></td>
+      </tr>
+    </table>
+  </div>
+  <p>
+    A batch is all-or-nothing: if one query in <code>queries</code> fails, the whole request fails,
+    so a <code>200</code> means every result is present.
+  </p>
+</div>
+
+<style>{{ tocCSS | safe }}</style>
+<script>{{ tocJS | safe }}</script>
+<script type="module" src="/api-docs.mjs"></script>
