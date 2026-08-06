@@ -47,66 +47,47 @@ repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
 session = repo.readonly_session("main")
 ds = xr.open_zarr(session.store, consolidated=False, chunks=None)</code></pre>
 
-  <h2>URL mapping</h2>
-  <div class="table-container">
-    <table class="data">
-      <thead>
-        <tr>
-          <th>data.dynamical.org URL</th>
-          <th>Replacement dataset ID</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>data.dynamical.org/noaa/gfs/forecast/latest.zarr</code></td>
-          <td><a href="/catalog/noaa-gfs-forecast/"><code>noaa-gfs-forecast</code></a> · <a href="https://stac.dynamical.org/noaa-gfs-forecast/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/noaa/gfs/analysis/latest.zarr</code></td>
-          <td><a href="/catalog/noaa-gfs-analysis/"><code>noaa-gfs-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-gfs-analysis/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr</code></td>
-          <td>
-            <a href="/catalog/noaa-gfs-analysis/"><code>noaa-gfs-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-gfs-analysis/collection.json">STAC</a>
-            <br><small>This retired four-variable archive is replaced by the current GFS analysis dataset.</small>
-          </td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr</code></td>
-          <td><a href="/catalog/noaa-gefs-forecast-35-day/"><code>noaa-gefs-forecast-35-day</code></a> · <a href="https://stac.dynamical.org/noaa-gefs-forecast-35-day/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/noaa/gefs/analysis/latest.zarr</code></td>
-          <td><a href="/catalog/noaa-gefs-analysis/"><code>noaa-gefs-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-gefs-analysis/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr</code></td>
-          <td><a href="/catalog/noaa-hrrr-forecast-48-hour/"><code>noaa-hrrr-forecast-48-hour</code></a> · <a href="https://stac.dynamical.org/noaa-hrrr-forecast-48-hour/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/noaa/hrrr/analysis/latest.zarr</code></td>
-          <td><a href="/catalog/noaa-hrrr-analysis/"><code>noaa-hrrr-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-hrrr-analysis/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/noaa/mrms/conus-analysis-hourly/latest.zarr</code></td>
-          <td><a href="/catalog/noaa-mrms-conus-analysis-hourly/"><code>noaa-mrms-conus-analysis-hourly</code></a> · <a href="https://stac.dynamical.org/noaa-mrms-conus-analysis-hourly/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr</code></td>
-          <td><a href="/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/"><code>ecmwf-ifs-ens-forecast-15-day-0-25-degree</code></a> · <a href="https://stac.dynamical.org/ecmwf-ifs-ens-forecast-15-day-0-25-degree/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/ecmwf/aifs-single/forecast/latest.zarr</code></td>
-          <td><a href="/catalog/ecmwf-aifs-single-forecast/"><code>ecmwf-aifs-single-forecast</code></a> · <a href="https://stac.dynamical.org/ecmwf-aifs-single-forecast/collection.json">STAC</a></td>
-        </tr>
-        <tr>
-          <td><code>data.dynamical.org/dwd/icon-eu/forecast-5-day/latest.zarr</code></td>
-          <td><a href="/catalog/dwd-icon-eu-forecast-5-day/"><code>dwd-icon-eu-forecast-5-day</code></a> · <a href="https://stac.dynamical.org/dwd-icon-eu-forecast-5-day/collection.json">STAC</a></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <h2>Finding the replacement dataset ID</h2>
+  <p>
+    Drop the host and join the path with hyphens:
+    <code>data.dynamical.org/noaa/gfs/forecast/latest.zarr</code> becomes
+    <code>noaa-gfs-forecast</code>. Every ID is listed in the
+    <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a> and has a
+    <a href="/catalog/">catalog page</a>.
+  </p>
+  <p>
+    One path does not convert: <code>/noaa/gfs/analysis-hourly/</code> was a
+    retired four-variable archive with no current equivalent. Use
+    <a href="/catalog/noaa-gfs-analysis/"><code>noaa-gfs-analysis</code></a> instead.
+  </p>
+
+  <h2>Have an agent do it</h2>
+  <p>Paste this into a coding agent running in your repository.</p>
+  <pre><code>Replace every data.dynamical.org URL in this repository with dynamical.org's
+supported access, and leave no hard-coded storage locations behind.
+
+Context to read first:
+- https://dynamical.org/llms.txt for current access patterns and dataset IDs.
+- https://stac.dynamical.org/catalog.json is the source of truth. Confirm each
+  dataset ID against it rather than guessing.
+
+Rules:
+- A legacy URL maps to a dataset ID by dropping the host and joining the path
+  with hyphens: data.dynamical.org/noaa/gfs/forecast/latest.zarr ->
+  noaa-gfs-forecast. Exception: /noaa/gfs/analysis-hourly/ is retired, use
+  noaa-gfs-analysis.
+- Prefer dynamical_catalog.open("&lt;dataset-id&gt;"). It needs Python 3.12+ and
+  dynamical-catalog&gt;=0.7.0.
+- If a new dependency is not an option, resolve the "icechunk-https" asset from
+  the dataset's STAC Collection at open time. Do not hard-code the asset href,
+  the S3 bucket, or a version number.
+- Drop any ?email= query argument. It is no longer used.
+- Opened datasets are Icechunk 2 repositories read through xarray. Chunking and
+  variable names may differ from the legacy archive, so check any code that
+  assumes a specific chunk shape.
+
+Report every URL you could not map, and every place a dataset ID had to be
+chosen rather than derived.</code></pre>
 
   <h2>What changes</h2>
   <ul>
