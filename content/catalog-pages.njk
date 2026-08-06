@@ -192,6 +192,16 @@ eleventyComputed:
       padding: 0 9px;
     }
   }
+  /* data.dynamical.org sunset notice. The only <aside> on the site, so it needs
+     no class. Amber is the site's warning color (the status page's degraded
+     state); --link-color would have read as navigation, not as a deprecation. */
+  aside {
+    margin: 2rem 0;
+    padding: 1rem 1.2rem;
+    border-left: 4px solid var(--pill-degraded-bg);
+    border-radius: var(--radius-sm);
+    background: var(--surface-muted);
+  }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 {% macro variableTable(variables, groupName) %}
@@ -240,7 +250,7 @@ eleventyComputed:
     &gt; {{ entry.title }}
   </div>
   {% if entry.id in ["noaa-gfs-forecast", "noaa-gfs-analysis", "noaa-gefs-forecast-35-day", "noaa-gefs-analysis", "noaa-hrrr-forecast-48-hour", "noaa-hrrr-analysis", "noaa-mrms-conus-analysis-hourly", "ecmwf-ifs-ens-forecast-15-day-0-25-degree", "ecmwf-aifs-single-forecast", "dwd-icon-eu-forecast-5-day"] %}
-    <aside aria-label="data.dynamical.org migration" style="border-left: 4px solid var(--link-color); padding: 0.75rem 1rem; margin: 2rem 0;">
+    <aside aria-label="data.dynamical.org migration">
       <strong><code>data.dynamical.org</code> access ends August 31, 2026.</strong>
       If you use a <code>data.dynamical.org</code> URL for this dataset,
       <a href="/migration-2026/">migrate to a supported access pattern</a>.

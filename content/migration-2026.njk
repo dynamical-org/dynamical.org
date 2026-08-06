@@ -6,6 +6,36 @@ description: Replace data.dynamical.org Zarr URLs with our supported access patt
 permalink: /migration-2026/
 ---
 
+<style>
+  /* The agent prompt is text you hand to a tool, not source we highlight — a
+     readonly field rather than a <pre>, so it selects and copies as one unit. */
+  .agent-prompt textarea {
+    display: block;
+    width: 100%;
+    height: 34rem;
+    padding: 1em;
+    border: 1px solid var(--border-muted-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-muted);
+    color: inherit;
+    font: inherit;
+    font-size: 1.4rem;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  /* A link, not a button: it copies text, it doesn't submit anything. */
+  .agent-prompt button {
+    margin-top: 0.5rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--link-color);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+</style>
+
 <div class="content">
   <h1 style="margin-top: 4rem; margin-bottom: 1rem;">Migrate from data.dynamical.org</h1>
 
@@ -23,11 +53,11 @@ permalink: /migration-2026/
   <h2>Recommended: dynamical-catalog</h2>
   <p>
     Use Python 3.12 or newer and install <code>dynamical-catalog&gt;=0.7.0</code>.
-    Pass the replacement dataset ID from the table below.
+    Pass the dataset ID from its <a href="/catalog/">catalog page</a>.
   </p>
-  <pre><code class="language-python">import dynamical_catalog
+  {% frameHighlight "py" %}import dynamical_catalog
 
-ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)</code></pre>
+ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighlight %}
 
   <h2>Direct STAC and Icechunk</h2>
   <p>
@@ -35,7 +65,7 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)</code></pre>
     application opens a repository. Do not copy and permanently hard-code the
     asset URL.
   </p>
-  <pre><code class="language-python">import icechunk
+  {% frameHighlight "py" %}import icechunk
 import pystac
 import xarray as xr
 
@@ -45,25 +75,12 @@ asset = collection.assets["icechunk-https"]
 
 repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
 session = repo.readonly_session("main")
-ds = xr.open_zarr(session.store, consolidated=False, chunks=None)</code></pre>
-
-  <h2>Finding the replacement dataset ID</h2>
-  <p>
-    Drop the host and join the path with hyphens:
-    <code>data.dynamical.org/noaa/gfs/forecast/latest.zarr</code> becomes
-    <code>noaa-gfs-forecast</code>. Every ID is listed in the
-    <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a> and has a
-    <a href="/catalog/">catalog page</a>.
-  </p>
-  <p>
-    One path does not convert: <code>/noaa/gfs/analysis-hourly/</code> was a
-    retired four-variable archive with no current equivalent. Use
-    <a href="/catalog/noaa-gfs-analysis/"><code>noaa-gfs-analysis</code></a> instead.
-  </p>
+ds = xr.open_zarr(session.store, consolidated=False, chunks=None){% endframeHighlight %}
 
   <h2>Have an agent do it</h2>
   <p>Paste this into a coding agent running in your repository.</p>
-  <pre><code>Replace every data.dynamical.org URL in this repository with dynamical.org's
+  <div class="agent-prompt">
+    <textarea readonly rows="24" aria-label="Migration prompt for a coding agent">Replace every data.dynamical.org URL in this repository with dynamical.org's
 supported access, and leave no hard-coded storage locations behind.
 
 Context to read first:
@@ -87,7 +104,28 @@ Rules:
   assumes a specific chunk shape.
 
 Report every URL you could not map, and every place a dataset ID had to be
-chosen rather than derived.</code></pre>
+chosen rather than derived.</textarea>
+    <button type="button">copy to clipboard</button>
+  </div>
+  <script>
+    (() => {
+      const prompt = document.querySelector(".agent-prompt textarea");
+      const button = document.querySelector(".agent-prompt button");
+      const label = button.textContent;
+      button.addEventListener("click", async () => {
+        // Selecting first means the fallback below has something to copy, and
+        // leaves the text visibly selected if even that is unavailable.
+        prompt.select();
+        try {
+          await navigator.clipboard.writeText(prompt.value);
+        } catch {
+          document.execCommand("copy");
+        }
+        button.textContent = "copied";
+        setTimeout(() => { button.textContent = label; }, 2000);
+      });
+    })();
+  </script>
 
   <h2>What changes</h2>
   <ul>
