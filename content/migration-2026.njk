@@ -53,7 +53,7 @@ permalink: /migration-2026/
   <h2>Recommended: dynamical-catalog</h2>
   <p>
     Use Python 3.12 or newer and install <code>dynamical-catalog&gt;=0.7.0</code>.
-    Pass the replacement dataset ID, derived from your URL as described below.
+    Pass the dataset ID from its <a href="/catalog/">catalog page</a>.
   </p>
   {% frameHighlight "py" %}import dynamical_catalog
 
@@ -76,20 +76,6 @@ asset = collection.assets["icechunk-https"]
 repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
 session = repo.readonly_session("main")
 ds = xr.open_zarr(session.store, consolidated=False, chunks=None){% endframeHighlight %}
-
-  <h2>Finding the replacement dataset ID</h2>
-  <p>
-    Drop the host and join the path with hyphens:
-    <code>data.dynamical.org/noaa/gfs/forecast/latest.zarr</code> becomes
-    <code>noaa-gfs-forecast</code>. Every ID is listed in the
-    <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a> and has a
-    <a href="/catalog/">catalog page</a>.
-  </p>
-  <p>
-    One path does not convert: <code>/noaa/gfs/analysis-hourly/</code> was a
-    retired four-variable archive with no current equivalent. Use
-    <a href="/catalog/noaa-gfs-analysis/"><code>noaa-gfs-analysis</code></a> instead.
-  </p>
 
   <h2>Have an agent do it</h2>
   <p>Paste this into a coding agent running in your repository.</p>
