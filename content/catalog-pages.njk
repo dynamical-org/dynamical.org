@@ -238,11 +238,11 @@ eleventyComputed:
     {% if model %}&gt; <a href="/catalog/models/{{ model.id | slugify }}/">{{ model.name }}</a>{% endif %}
     &gt; {{ entry.title }}
   </div>
-  {% if legacyZarrMigration.affectedDatasetIds[entry.id] %}
-    <aside aria-label="Legacy Zarr migration" style="border-left: 4px solid var(--link-color); padding: 0.75rem 1rem; margin: 2rem 0;">
-      <strong>Legacy Zarr access ends {{ legacyZarrMigration.sunsetDisplay }}.</strong>
+  {% if entry.id in ["noaa-gfs-forecast", "noaa-gfs-analysis", "noaa-gefs-forecast-35-day", "noaa-gefs-analysis", "noaa-hrrr-forecast-48-hour", "noaa-hrrr-analysis", "noaa-mrms-conus-analysis-hourly", "ecmwf-ifs-ens-forecast-15-day-0-25-degree", "ecmwf-aifs-single-forecast", "dwd-icon-eu-forecast-5-day"] %}
+    <aside aria-label="data.dynamical.org migration" style="border-left: 4px solid var(--link-color); padding: 0.75rem 1rem; margin: 2rem 0;">
+      <strong><code>data.dynamical.org</code> access ends August 31, 2026.</strong>
       If you use a <code>data.dynamical.org</code> URL for this dataset,
-      <a href="{{ legacyZarrMigration.path }}">migrate to the catalog-driven Icechunk access pattern</a>.
+      <a href="/migration-2026/">migrate to a supported access pattern</a>.
     </aside>
   {% endif %}
   <div style="margin: 3rem 0;">

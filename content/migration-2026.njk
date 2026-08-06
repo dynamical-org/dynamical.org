@@ -1,0 +1,125 @@
+---
+layout: base.njk
+title: migrate from data.dynamical.org
+socialTitle: Migrate from data.dynamical.org to supported access
+description: Replace data.dynamical.org Zarr URLs with our supported access patterns — the dynamical-catalog Python library, or the STAC catalog directly.
+permalink: /migration-2026/
+---
+
+<div class="content">
+  <h1 style="margin-top: 4rem; margin-bottom: 1rem;">Migrate from data.dynamical.org</h1>
+
+  <p>
+    <strong><code>data.dynamical.org</code> stops serving datasets after August 31, 2026.</strong>
+    The datasets remain public and continue updating; only this access route goes away.
+  </p>
+  <p>
+    Replace each hard-coded <code>https://data.dynamical.org/.../latest.zarr</code>
+    URL with one of the supported access patterns below. Both resolve the current
+    repository from our <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>,
+    so your code does not need to track storage locations or version changes.
+  </p>
+
+  <h2>Recommended: dynamical-catalog</h2>
+  <p>
+    Use Python 3.12 or newer and install <code>dynamical-catalog&gt;=0.7.0</code>.
+    Pass the replacement dataset ID from the table below.
+  </p>
+  <pre><code class="language-python">import dynamical_catalog
+
+ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)</code></pre>
+
+  <h2>Direct STAC and Icechunk</h2>
+  <p>
+    Resolve the <code>icechunk-https</code> asset from STAC each time your
+    application opens a repository. Do not copy and permanently hard-code the
+    asset URL.
+  </p>
+  <pre><code class="language-python">import icechunk
+import pystac
+import xarray as xr
+
+catalog = pystac.Catalog.from_file("https://stac.dynamical.org/catalog.json")
+collection = catalog.get_child("noaa-gfs-forecast")
+asset = collection.assets["icechunk-https"]
+
+repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
+session = repo.readonly_session("main")
+ds = xr.open_zarr(session.store, consolidated=False, chunks=None)</code></pre>
+
+  <h2>URL mapping</h2>
+  <div class="table-container">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>data.dynamical.org URL</th>
+          <th>Replacement dataset ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data.dynamical.org/noaa/gfs/forecast/latest.zarr</code></td>
+          <td><a href="/catalog/noaa-gfs-forecast/"><code>noaa-gfs-forecast</code></a> · <a href="https://stac.dynamical.org/noaa-gfs-forecast/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/noaa/gfs/analysis/latest.zarr</code></td>
+          <td><a href="/catalog/noaa-gfs-analysis/"><code>noaa-gfs-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-gfs-analysis/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/noaa/gfs/analysis-hourly/latest.zarr</code></td>
+          <td>
+            <a href="/catalog/noaa-gfs-analysis/"><code>noaa-gfs-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-gfs-analysis/collection.json">STAC</a>
+            <br><small>This retired four-variable archive is replaced by the current GFS analysis dataset.</small>
+          </td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/noaa/gefs/forecast-35-day/latest.zarr</code></td>
+          <td><a href="/catalog/noaa-gefs-forecast-35-day/"><code>noaa-gefs-forecast-35-day</code></a> · <a href="https://stac.dynamical.org/noaa-gefs-forecast-35-day/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/noaa/gefs/analysis/latest.zarr</code></td>
+          <td><a href="/catalog/noaa-gefs-analysis/"><code>noaa-gefs-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-gefs-analysis/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/noaa/hrrr/forecast-48-hour/latest.zarr</code></td>
+          <td><a href="/catalog/noaa-hrrr-forecast-48-hour/"><code>noaa-hrrr-forecast-48-hour</code></a> · <a href="https://stac.dynamical.org/noaa-hrrr-forecast-48-hour/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/noaa/hrrr/analysis/latest.zarr</code></td>
+          <td><a href="/catalog/noaa-hrrr-analysis/"><code>noaa-hrrr-analysis</code></a> · <a href="https://stac.dynamical.org/noaa-hrrr-analysis/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/noaa/mrms/conus-analysis-hourly/latest.zarr</code></td>
+          <td><a href="/catalog/noaa-mrms-conus-analysis-hourly/"><code>noaa-mrms-conus-analysis-hourly</code></a> · <a href="https://stac.dynamical.org/noaa-mrms-conus-analysis-hourly/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/ecmwf/ifs-ens/forecast-15-day-0-25-degree/latest.zarr</code></td>
+          <td><a href="/catalog/ecmwf-ifs-ens-forecast-15-day-0-25-degree/"><code>ecmwf-ifs-ens-forecast-15-day-0-25-degree</code></a> · <a href="https://stac.dynamical.org/ecmwf-ifs-ens-forecast-15-day-0-25-degree/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/ecmwf/aifs-single/forecast/latest.zarr</code></td>
+          <td><a href="/catalog/ecmwf-aifs-single-forecast/"><code>ecmwf-aifs-single-forecast</code></a> · <a href="https://stac.dynamical.org/ecmwf-aifs-single-forecast/collection.json">STAC</a></td>
+        </tr>
+        <tr>
+          <td><code>data.dynamical.org/dwd/icon-eu/forecast-5-day/latest.zarr</code></td>
+          <td><a href="/catalog/dwd-icon-eu-forecast-5-day/"><code>dwd-icon-eu-forecast-5-day</code></a> · <a href="https://stac.dynamical.org/dwd-icon-eu-forecast-5-day/collection.json">STAC</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>What changes</h2>
+  <ul>
+    <li>Opening requires Icechunk 2 and Python 3.12 or newer.</li>
+    <li>The public STAC Collection is the source of truth for the current repository.</li>
+    <li>Dataset IDs replace <code>data.dynamical.org</code> paths; dimensions and variable coverage are documented on each catalog page.</li>
+    <li>The optional <code>?email=</code> query argument is no longer used.</li>
+  </ul>
+
+  <h2>Help</h2>
+  <p>
+    If the replacement does not cover your access pattern, email
+    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a> with the
+    <code>data.dynamical.org</code> URL, variables, spatial subset, and time range you use.
+  </p>
+</div>
