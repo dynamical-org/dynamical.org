@@ -76,7 +76,8 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighligh
 import pystac
 import xarray as xr
 
-collection = pystac.Collection.from_file("https://stac.dynamical.org/noaa-gfs-forecast/collection.json")
+catalog = pystac.Catalog.from_file("https://stac.dynamical.org/catalog.json")
+collection = catalog.get_child("noaa-gfs-forecast")
 asset = collection.assets["icechunk-https"]
 
 repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
