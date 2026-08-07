@@ -9,10 +9,12 @@ import {
   detailRows,
   displaySource,
   etaLineText,
+  facetRows,
   initParts,
   selectedTimeZone,
   validateDashboard,
 } from "../public/pipeline.mjs";
+import { onRequestGet } from "../functions/pipeline-staging/[[path]].js";
 import {
   agencyHealth,
   systemHealth,
@@ -45,10 +47,39 @@ test("accepts the versioned dashboard contract", () => {
   assert.equal(validateDashboard(dashboard()).groups[0].id, "noaa-gfs");
 });
 
+test("accepts dashboard v2 facets while retaining dashboard v1", () => {
+  const current = dashboard();
+  current.v = 2;
+  const [product] = current.groups[0].products;
+  product.facet_groups = [
+    { dimension: "component", name: "component:pgrb2a", label: "pgrb2a" },
+  ];
+  product.recent_inits = [
+    {
+      init_time: "2026-07-25T12:00:00Z",
+      status: "in_flight",
+      facets: [
+        {
+          dimension: "component",
+          name: "component:pgrb2a",
+          label: "pgrb2a",
+          dependencies_available: 9,
+          dependencies_expected: 10,
+          completion_pct: 0.9,
+          status: "in_flight",
+        },
+      ],
+    },
+  ];
+
+  assert.equal(validateDashboard(current), current);
+  assert.equal(validateDashboard(dashboard()).v, 1);
+});
+
 test("rejects empty, unknown, and oversized dashboards", () => {
   assert.throws(() => validateDashboard({}), /invalid pipeline dashboard/i);
   assert.throws(
-    () => validateDashboard({ ...dashboard(), v: 2 }),
+    () => validateDashboard({ ...dashboard(), v: 3 }),
     /invalid pipeline dashboard/i,
   );
   assert.throws(
@@ -61,6 +92,19 @@ test("rejects empty, unknown, and oversized dashboards", () => {
     (_, index) => ({ init_time: String(index) }),
   );
   assert.throws(() => validateDashboard(tooMany), /invalid pipeline product/i);
+
+  const malformedFacet = dashboard();
+  malformedFacet.v = 2;
+  malformedFacet.groups[0].products[0].facet_groups = [
+    { dimension: "component", name: "component:pgrb2a", label: "pgrb2a" },
+  ];
+  malformedFacet.groups[0].products[0].recent_inits = [
+    { facets: [{ completion_pct: 2 }] },
+  ];
+  assert.throws(
+    () => validateDashboard(malformedFacet),
+    /invalid pipeline facet/i,
+  );
 });
 
 test("summarizes upstream agency advisories without changing pipeline state", () => {
@@ -294,6 +338,112 @@ test("shows the previous init details while waiting for the next init", () => {
       { status: "complete", time: "06:45", duration: "45m" },
     ],
   );
+});
+
+test("groups component and member readiness for the displayed init", () => {
+  const product = {
+    recent_inits: [
+      {
+        init_time: "2026-07-26T12:00:00Z",
+        status: "in_flight",
+        facets: [
+          {
+            dimension: "component",
+            label: "pgrb2a",
+            status: "in_flight",
+            completion_pct: 0.75,
+            dependencies_available: 3,
+            dependencies_expected: 4,
+          },
+          {
+            dimension: "member",
+            label: "control",
+            status: "complete",
+            completion_pct: 1,
+            dependencies_available: 4,
+            dependencies_expected: 4,
+          },
+        ],
+      },
+    ],
+  };
+
+  assert.deepEqual(facetRows(product), [
+    {
+      dimension: "component",
+      label: "pgrb2a",
+      status: "processing",
+      completion: 0.75,
+      count: "3 / 4 files",
+    },
+    {
+      dimension: "member",
+      label: "control",
+      status: "complete",
+      completion: 1,
+      count: "4 / 4 files",
+    },
+  ]);
+});
+
+test("local preview fixture exercises dashboard v2 facet rendering", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  validateDashboard(fixture);
+  const [product] = fixture.groups[0].products;
+  assert.equal(fixture.v, 2);
+  assert.equal(product.facet_groups.length, 5);
+  assert.equal(facetRows(product).length, 5);
+});
+
+test("preview pipeline route exposes only allowlisted staging JSON", async () => {
+  const requested = [];
+  const bucket = {
+    async get(key) {
+      requested.push(key);
+      return key === "wxopticon/dashboard.json"
+        ? { body: '{"v":2}', httpEtag: '"etag"' }
+        : null;
+    },
+  };
+
+  const response = await onRequestGet({
+    env: { WXOPTICON_STAGING: bucket },
+    params: { path: ["wxopticon", "dashboard.json"] },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), '{"v":2}');
+  assert.equal(
+    response.headers.get("content-type"),
+    "application/json; charset=utf-8",
+  );
+  assert.deepEqual(requested, ["wxopticon/dashboard.json"]);
+
+  const unavailable = await onRequestGet({
+    env: {},
+    params: { path: ["wxopticon", "dashboard.json"] },
+  });
+  assert.equal(unavailable.status, 503);
+
+  const denied = await onRequestGet({
+    env: { WXOPTICON_STAGING: bucket },
+    params: { path: ["wxopticon", "events.jsonl"] },
+  });
+  assert.equal(denied.status, 404);
+  assert.deepEqual(requested, ["wxopticon/dashboard.json"]);
+});
+
+test("preview branches select the private staging route", () => {
+  const source = readFileSync(
+    new URL("../_data/pipelineAssetsBase.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /process\.env\.CF_PAGES_BRANCH/);
+  assert.match(source, /\/pipeline-staging\/wxopticon/);
 });
 
 test("status pages share the uptime, pipeline, and pipeline webhooks subnav", () => {

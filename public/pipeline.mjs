@@ -9,7 +9,7 @@ const POLL_INTERVAL_MS = 15_000;
 const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
-const DASHBOARD_VERSION = 1;
+const DASHBOARD_VERSIONS = new Set([1, 2]);
 
 function hasTimestamp(value) {
   return (
@@ -22,7 +22,7 @@ function hasTimestamp(value) {
 export function validateDashboard(data) {
   if (
     !data ||
-    data.v !== DASHBOARD_VERSION ||
+    !DASHBOARD_VERSIONS.has(data.v) ||
     !hasTimestamp(data.generated_at) ||
     !Array.isArray(data.groups) ||
     data.groups.length === 0 ||
@@ -30,6 +30,7 @@ export function validateDashboard(data) {
   ) {
     throw new TypeError("Invalid pipeline dashboard");
   }
+  let hasFacetGroups = false;
   for (const group of data.groups) {
     if (
       typeof group.id !== "string" ||
@@ -48,7 +49,50 @@ export function validateDashboard(data) {
       ) {
         throw new TypeError("Invalid pipeline product");
       }
+      if (product.facet_groups != null) {
+        if (
+          data.v !== 2 ||
+          !Array.isArray(product.facet_groups) ||
+          product.facet_groups.length === 0 ||
+          !product.facet_groups.every(
+            (facet) =>
+              typeof facet.dimension === "string" &&
+              typeof facet.name === "string" &&
+              typeof facet.label === "string",
+          )
+        ) {
+          throw new TypeError("Invalid pipeline facet group");
+        }
+        hasFacetGroups = true;
+      }
+      for (const init of product.recent_inits) {
+        if (init.facets == null) continue;
+        if (
+          data.v !== 2 ||
+          !Array.isArray(init.facets) ||
+          !init.facets.every(
+            (facet) =>
+              typeof facet.dimension === "string" &&
+              typeof facet.name === "string" &&
+              typeof facet.label === "string" &&
+              Number.isInteger(facet.dependencies_available) &&
+              facet.dependencies_available >= 0 &&
+              Number.isInteger(facet.dependencies_expected) &&
+              facet.dependencies_expected > 0 &&
+              facet.dependencies_available <= facet.dependencies_expected &&
+              Number.isFinite(facet.completion_pct) &&
+              facet.completion_pct >= 0 &&
+              facet.completion_pct <= 1 &&
+              typeof facet.status === "string",
+          )
+        ) {
+          throw new TypeError("Invalid pipeline facet");
+        }
+      }
     }
+  }
+  if (data.v === 2 && !hasFacetGroups) {
+    throw new TypeError("Invalid pipeline dashboard");
   }
   return data;
 }
@@ -413,7 +457,7 @@ export function detailRows(product, now, local) {
       : displayed
         ? `${initShort(displayed.init_time, local)} · previous init`
         : "waiting for next init",
-    rows: product.lead_group_stats.map((stats, index) => {
+    rows: (product.lead_group_stats ?? []).map((stats, index) => {
       const live = groups[index];
       let time = "—";
       let duration = "—";
@@ -446,6 +490,20 @@ export function detailRows(product, now, local) {
   };
 }
 
+export function facetRows(product) {
+  const running = product.recent_inits.findLast(
+    (init) => init.status === "in_flight",
+  );
+  const displayed = running ?? product.recent_inits.at(-1);
+  return (displayed?.facets ?? []).map((facet) => ({
+    dimension: facet.dimension,
+    label: facet.label,
+    status: statusLabel(facet.status),
+    completion: facet.completion_pct,
+    count: `${facet.dependencies_available.toLocaleString("en-US")} / ${facet.dependencies_expected.toLocaleString("en-US")} files`,
+  }));
+}
+
 function buildDetails(product, now, local) {
   const details = detailRows(product, now, local);
   const groupHead = element("tr", null, [
@@ -476,10 +534,48 @@ function buildDetails(product, now, local) {
       ]),
     );
   }
-  return element("table", null, [
+  const leadTable = element("table", null, [
     element("thead", null, [groupHead, head]),
     body,
   ]);
+  const facets = facetRows(product);
+  if (facets.length === 0) return leadTable;
+
+  const facetBody = element("tbody");
+  for (const facet of facets) {
+    facetBody.append(
+      element("tr", null, [
+        element("td", null, facet.dimension),
+        element("td", null, facet.label),
+        element("td", null, facet.status),
+        element("td", null, facet.count),
+        element("td", null, [
+          element("progress", {
+            max: "1",
+            value: String(facet.completion),
+            "aria-label": `${Math.round(facet.completion * 100)}% complete`,
+          }),
+          ` ${Math.round(facet.completion * 100)}%`,
+        ]),
+      ]),
+    );
+  }
+  const facetTable = element("table", { class: "pipeline-facets" }, [
+    element("thead", null, [
+      element("tr", null, [
+        element("th", { colspan: "5" }, "file arrival coverage"),
+      ]),
+      element("tr", null, [
+        element("th", null, "dimension"),
+        element("th", null, "group"),
+        element("th", null, "status"),
+        element("th", null, "files"),
+        element("th", null, "complete"),
+      ]),
+    ]),
+    facetBody,
+  ]);
+  return element("div", null, [leadTable, facetTable]);
 }
 
 function hydrateRow(row, product, now, local) {
@@ -490,7 +586,7 @@ function hydrateRow(row, product, now, local) {
 
   const button = row.querySelector('[data-slot="details-button"]');
   const details = row.querySelector('[data-slot="details"]');
-  if (product.lead_group_stats?.length) {
+  if (product.lead_group_stats?.length || facetRows(product).length) {
     button.hidden = false;
     details.replaceChildren(buildDetails(product, now, local));
   } else {

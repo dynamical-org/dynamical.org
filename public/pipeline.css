@@ -299,6 +299,16 @@
   text-align: left;
 }
 
+.pipeline-facets {
+  margin-top: 1.2rem;
+}
+
+.pipeline-facets progress {
+  width: 8rem;
+  accent-color: var(--pipeline-ok);
+  vertical-align: middle;
+}
+
 .pipeline-time-local .pipeline-time-utc,
 body:not(.pipeline-time-local) .pipeline-time-local-only {
   display: none;
