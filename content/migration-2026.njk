@@ -46,16 +46,18 @@ permalink: /migration-2026/
   </ul>
   <p>
     Replace each hard-coded <code>https://data.dynamical.org/.../latest.zarr</code>
-    URL with one of the two supported ways to open a dataset. Both need Python 3.12
-    or newer, and both resolve the current repository from our
+    URL with one of the two supported ways to open a dataset. Both resolve the
+    current repository from our
     <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, so your code
-    does not need to track storage locations or version changes.
+    does not need to track storage locations or version changes. The two examples
+    below are Python and need 3.12 or newer, but Python is not a requirement —
+    see <a href="#other-languages">other languages</a>.
   </p>
 
   <h2>dynamical-catalog</h2>
   <p>
     A thin STAC and Icechunk wrapper that ensures minimum dependency versions.
-    Install <code>dynamical-catalog&gt;=0.7.0</code> and pass the dataset ID from
+    Install <code>dynamical-catalog&gt;=0.8.0</code> and pass the dataset ID from
     its <a href="/catalog/">catalog page</a>.
   </p>
   {% frameHighlight "py" %}import dynamical_catalog
@@ -66,29 +68,30 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighligh
   <p>
     Resolve the <code>icechunk-https</code> asset from the dataset's STAC Collection
     each time your application opens a repository. Do not copy and permanently
-    hard-code the asset URL. Any HTTP client can read the Collection —
-    <code>pystac</code> works, but nothing beyond the standard library is required.
+    hard-code the asset URL. The example below reads the Collection with
+    <code>pystac</code>, but <code>pystac</code> is not required — the Collection is
+    plain JSON over HTTP, so any HTTP client will do.
   </p>
-  {% frameHighlight "py" %}import json
-import urllib.request
-
-import icechunk
+  {% frameHighlight "py" %}import icechunk
+import pystac
 import xarray as xr
 
-url = "https://stac.dynamical.org/noaa-gfs-forecast/collection.json"
-with urllib.request.urlopen(url) as response:
-    href = json.load(response)["assets"]["icechunk-https"]["href"]
+collection = pystac.Collection.from_file("https://stac.dynamical.org/noaa-gfs-forecast/collection.json")
+asset = collection.assets["icechunk-https"]
 
-repo = icechunk.Repository.open(icechunk.http_storage(href))
+repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
 session = repo.readonly_session("main")
 ds = xr.open_zarr(session.store, chunks=None){% endframeHighlight %}
+
+  <h2 id="other-languages">Other languages</h2>
   <p>
-    Python is not a requirement either. Icechunk publishes a
+    Icechunk publishes a
     <a href="https://icechunk.io/en/latest/reference/icechunk-js/">JavaScript/TypeScript client</a>
     (<code>@earthmover/icechunk</code>, paired with <code>zarrita</code>) and a
     <a href="https://icechunk.io/en/latest/reference/icechunk-rust/">Rust crate</a>
-    (<code>icechunk</code>), both of which open the same <code>icechunk-https</code>
-    asset over plain HTTP.
+    (<code>icechunk</code>). Both open the same <code>icechunk-https</code> asset from
+    the same STAC Collection, over plain HTTP. The Python 3.12 floor applies only to
+    the Python clients.
   </p>
 
   <h2>Have an agent do it</h2>
@@ -107,16 +110,19 @@ Rules:
   with hyphens: data.dynamical.org/noaa/gfs/forecast/latest.zarr ->
   noaa-gfs-forecast. Exception: /noaa/gfs/analysis-hourly/ is retired, use
   noaa-gfs-analysis.
-- Prefer dynamical_catalog.open("&lt;dataset-id&gt;"). It needs Python 3.12+ and
-  dynamical-catalog&gt;=0.7.0.
-- If a new dependency is not an option, resolve the "icechunk-https" asset from
-  the dataset's STAC Collection at open time. Any HTTP client can read the
-  Collection; pystac is not required. Do not hard-code the asset href, the S3
-  bucket, or a version number.
+- There are two supported ways to open a dataset. Both are equally good; pick
+  whichever fits this codebase and use it consistently.
+  1. dynamical_catalog.open("&lt;dataset-id&gt;"), with dynamical-catalog&gt;=0.8.0.
+  2. icechunk directly, resolving the "icechunk-https" asset from the dataset's
+     STAC Collection at open time. The Collection is plain JSON over HTTP, so
+     any HTTP client can read it; pystac is convenient but not required.
+- Either way icechunk&gt;=2 is a required dependency, and the Python clients need
+  Python 3.12+. Icechunk also has JavaScript and Rust clients if this codebase
+  is not Python.
+- Never hard-code the asset href, the S3 bucket, or a version number.
 - Drop any ?email= query argument. It is no longer used.
-- Opened datasets are Icechunk 2 repositories, so Icechunk 2 is a required
-  dependency. They are identical to the legacy archive in structure, naming,
-  attributes, chunking/sharding, and content — only the open call changes, so
+- The opened datasets are identical to the legacy archive in structure, naming,
+  attributes, chunking/sharding, and content. Only the open call changes, so
   leave the surrounding analysis code alone.
 
 Report every URL you could not map, and every place a dataset ID had to be
@@ -145,7 +151,7 @@ chosen rather than derived.</textarea>
 
   <h2>What changes</h2>
   <ul>
-    <li>Opening requires Icechunk 2 and Python 3.12 or newer.</li>
+    <li>Opening requires Icechunk 2 — Python 3.12 or newer if you use a Python client.</li>
     <li>The public STAC Collection is the source of truth for the current repository.</li>
     <li>Dataset IDs replace <code>data.dynamical.org</code> paths.</li>
     <li>The optional <code>?email=</code> query argument is no longer used.</li>
@@ -154,8 +160,10 @@ chosen rather than derived.</textarea>
 
   <h2>Help</h2>
   <p>
-    If the replacement does not cover your access pattern, email
-    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a> with the
-    <code>data.dynamical.org</code> URL, variables, spatial subset, and time range you use.
+    The data is unchanged, so this should come down to a one-line change at the point
+    you open a dataset. If it does not — a runtime you cannot move to Python 3.12, a
+    client we have not covered, or anything that does not behave the way this page says
+    it should — email <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>
+    and tell us what you ran into.
   </p>
 </div>
