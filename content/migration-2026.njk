@@ -66,16 +66,18 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighligh
   <p>
     Resolve the <code>icechunk-https</code> asset from the dataset's STAC Collection
     each time your application opens a repository. Do not copy and permanently
-    hard-code the asset URL. Any HTTP client can read the Collection — the example
-    below uses <code>httpx</code>, and <code>pystac</code> works too, but neither
-    is required.
+    hard-code the asset URL. Any HTTP client can read the Collection —
+    <code>pystac</code> works, but nothing beyond the standard library is required.
   </p>
-  {% frameHighlight "py" %}import httpx
+  {% frameHighlight "py" %}import json
+import urllib.request
+
 import icechunk
 import xarray as xr
 
 url = "https://stac.dynamical.org/noaa-gfs-forecast/collection.json"
-href = httpx.get(url).json()["assets"]["icechunk-https"]["href"]
+with urllib.request.urlopen(url) as response:
+    href = json.load(response)["assets"]["icechunk-https"]["href"]
 
 repo = icechunk.Repository.open(icechunk.http_storage(href))
 session = repo.readonly_session("main")
