@@ -1,5 +1,5 @@
 {
-  "v": 1,
+  "v": 2,
   "generated_at": "2026-07-25T18:00:00Z",
   "window_days": 90,
   "advisories": [
@@ -30,6 +30,13 @@
             {"name": "f024", "label": "1d", "leads_in_group": 5, "center_pct": 1.5},
             {"name": "f072", "label": "3d", "leads_in_group": 13, "center_pct": 4.5}
           ],
+          "facet_groups": [
+            {"dimension": "component", "name": "component:pgrb2a", "label": "pgrb2a"},
+            {"dimension": "component", "name": "component:pgrb2b", "label": "pgrb2b"},
+            {"dimension": "component", "name": "component:pgrb2s", "label": "pgrb2s"},
+            {"dimension": "member", "name": "members:control", "label": "control"},
+            {"dimension": "member", "name": "members:perturbed", "label": "perturbed"}
+          ],
           "latency_stats": {
             "p50_s": 3600,
             "p95_s": 5400,
@@ -51,7 +58,7 @@
             {"init_time": "2026-07-24T18:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3690, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 840, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1830, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3690, "leads_available": 13, "leads_expected": 13}]},
             {"init_time": "2026-07-25T00:00:00Z", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 5700, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 850, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1900, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 5700, "leads_available": 13, "leads_expected": 13}]},
             {"init_time": "2026-07-25T06:00:00Z", "status": "failed", "completion_pct": 0.38, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 900, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 3000, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "failed", "completion_pct": 0.38, "leads_available": 5, "leads_expected": 13}]},
-            {"init_time": "2026-07-25T12:00:00Z", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 920, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 3100, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "leads_available": 5, "leads_expected": 13}]}
+            {"init_time": "2026-07-25T12:00:00Z", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 920, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 3100, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "leads_available": 5, "leads_expected": 13}], "facets": [{"dimension": "component", "name": "component:pgrb2a", "label": "pgrb2a", "dependencies_available": 30, "dependencies_expected": 40, "completion_pct": 0.75, "status": "in_flight"}, {"dimension": "component", "name": "component:pgrb2b", "label": "pgrb2b", "dependencies_available": 20, "dependencies_expected": 40, "completion_pct": 0.5, "status": "in_flight"}, {"dimension": "component", "name": "component:pgrb2s", "label": "pgrb2s", "dependencies_available": 40, "dependencies_expected": 40, "completion_pct": 1, "status": "complete"}, {"dimension": "member", "name": "members:control", "label": "control", "dependencies_available": 8, "dependencies_expected": 8, "completion_pct": 1, "status": "complete"}, {"dimension": "member", "name": "members:perturbed", "label": "perturbed", "dependencies_available": 82, "dependencies_expected": 96, "completion_pct": 0.8542, "status": "in_flight"}]}
           ],
           "next_expected_init": "2026-07-25T18:00:00Z",
           "next_expected_completion_at": "2026-07-25T19:30:00Z"
