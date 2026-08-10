@@ -28,3 +28,9 @@ test("keeps commercial SLA services separate from catalog data licenses", () => 
   assert.match(TERMS, /commercial SLA services/i);
   assert.doesNotMatch(TERMS, /\bOrder\b/);
 });
+
+test("keeps ordinary SLA target misses within the SLA remedies", () => {
+  assert.match(TERMS, /written notice describing (?:the breach|it)/i);
+  assert.match(TERMS, /SLA's credits and termination rights/i);
+  assert.match(TERMS, /not, by itself, a material breach/i);
+});
