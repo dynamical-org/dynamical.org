@@ -46,8 +46,9 @@ permalink: /migration-2026/
   </ul>
   <p>
     Replace each hard-coded <code>https://data.dynamical.org/.../latest.zarr</code>
-    URL with one of the two supported ways to open a dataset. Both need Python 3.12
-    or newer, and both resolve the current repository from our
+    URL with one of the two supported ways to open a dataset. Both are fully
+    supported — pick whichever suits your stack. Both need Python 3.12 or newer,
+    and both resolve the current repository from our
     <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, so your code
     does not need to track storage locations or version changes.
   </p>
@@ -105,15 +106,16 @@ Rules:
   with hyphens: data.dynamical.org/noaa/gfs/forecast/latest.zarr ->
   noaa-gfs-forecast. Exception: /noaa/gfs/analysis-hourly/ is retired, use
   noaa-gfs-analysis.
-- Prefer dynamical_catalog.open("&lt;dataset-id&gt;"). It needs Python 3.12+ and
-  dynamical-catalog&gt;=0.7.0.
-- If a new dependency is not an option, resolve the "icechunk-https" asset from
-  the dataset's STAC Collection at open time. Any HTTP client can read the
-  Collection; pystac is not required. Do not hard-code the asset href, the S3
-  bucket, or a version number.
+- There are two equally supported ways to open a dataset. Either is fine; use
+  whichever fits this repository, and be consistent within it.
+  - dynamical_catalog.open("&lt;dataset-id&gt;"), with dynamical-catalog&gt;=0.7.0.
+  - Resolve the "icechunk-https" asset from the dataset's STAC Collection at
+    open time. Any HTTP client can read the Collection; pystac is not required.
+- Either way, opening needs Python 3.12+ and Icechunk 2, and reads an Icechunk
+  2.0 repository. Do not hard-code the asset href, the S3 bucket, or a version
+  number.
 - Drop any ?email= query argument. It is no longer used.
-- Opened datasets are Icechunk 2 repositories, so Icechunk 2 is a required
-  dependency. They are identical to the legacy archive in structure, naming,
+- The datasets are identical to the legacy archive in structure, naming,
   attributes, chunking/sharding, and content — only the open call changes, so
   leave the surrounding analysis code alone.
 
@@ -152,8 +154,8 @@ chosen rather than derived.</textarea>
 
   <h2>Help</h2>
   <p>
-    If the replacement does not cover your access pattern, email
-    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a> with the
-    <code>data.dynamical.org</code> URL, variables, spatial subset, and time range you use.
+    The data is unchanged, but if either access pattern causes trouble for the way
+    you use it, email <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>
+    with the <code>data.dynamical.org</code> URL you are replacing and how you open it.
   </p>
 </div>
