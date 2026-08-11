@@ -10,6 +10,7 @@ import {
   displaySource,
   etaLineText,
   initParts,
+  selectedTimeZone,
   validateDashboard,
 } from "../public/pipeline.mjs";
 import {
@@ -135,6 +136,29 @@ test("formats init labels in UTC and the selected local timezone", () => {
     date: "07-25",
     time: "19 CDT",
   });
+});
+
+test("falls back to UTC when the browser reports a non-IANA local timezone", () => {
+  // Some browsers resolve to non-standard zones (e.g. "Etc/Unknown") that
+  // Intl.DateTimeFormat itself rejects with a RangeError when passed explicitly.
+  const RealDateTimeFormat = Intl.DateTimeFormat;
+  function FakeDateTimeFormat(locale, options) {
+    if (options?.timeZone === "Etc/Unknown") {
+      throw new RangeError("Invalid time zone specified: Etc/Unknown");
+    }
+    const real = new RealDateTimeFormat(locale, options);
+    if (!options) {
+      const resolved = real.resolvedOptions();
+      real.resolvedOptions = () => ({ ...resolved, timeZone: "Etc/Unknown" });
+    }
+    return real;
+  }
+  Intl.DateTimeFormat = FakeDateTimeFormat;
+  try {
+    assert.equal(selectedTimeZone(true), "UTC");
+  } finally {
+    Intl.DateTimeFormat = RealDateTimeFormat;
+  }
 });
 
 test("shortens displayed web sources without changing other schemes", () => {

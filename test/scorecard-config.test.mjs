@@ -21,6 +21,7 @@ const {
   VARIABLE_METRICS,
   DEFAULT_METRIC,
   encodedWindowValues,
+  initDB,
 } = await import(
   `data:text/javascript,${encodeURIComponent(readFileSync(SCORECARD_JS, "utf8"))}`
 );
@@ -45,6 +46,19 @@ test("every variable's default metric is one it offers", () => {
       `${variable} defaults to ${metric}, which is not in its metric list, so ` +
         "no dropdown option would be preselected",
     );
+  }
+});
+
+test("rejects with a catchable error, without reaching the CDN, when WebAssembly is unavailable", async () => {
+  // A browser context without WebAssembly at all (e.g. Safari Lockdown Mode)
+  // must not reach duckdb-wasm's unconditional feature-detection, which
+  // throws an uncaught ReferenceError instead of reporting "unsupported".
+  const originalWebAssembly = globalThis.WebAssembly;
+  delete globalThis.WebAssembly;
+  try {
+    await assert.rejects(initDB(), /WebAssembly/);
+  } finally {
+    globalThis.WebAssembly = originalWebAssembly;
   }
 });
 
