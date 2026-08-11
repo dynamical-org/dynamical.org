@@ -350,14 +350,14 @@ test("groups component and member readiness for the displayed init", () => {
       label: "pgrb2a",
       status: "processing",
       completion: 0.75,
-      count: "3 / 4 files",
+      count: "3 / 4 observed",
     },
     {
       dimension: "member",
       label: "control",
       status: "complete",
       completion: 1,
-      count: "4 / 4 files",
+      count: "4 / 4 observed",
     },
   ]);
 });

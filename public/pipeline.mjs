@@ -480,7 +480,7 @@ export function facetRows(product) {
     label: facet.label,
     status: statusLabel(facet.status),
     completion: facet.completion_pct,
-    count: `${facet.dependencies_available.toLocaleString("en-US")} / ${facet.dependencies_expected.toLocaleString("en-US")} files`,
+    count: `${facet.dependencies_available.toLocaleString("en-US")} / ${facet.dependencies_expected.toLocaleString("en-US")} observed`,
   }));
 }
 
@@ -543,7 +543,7 @@ function buildDetails(product, now, local) {
   const facetTable = element("table", { class: "pipeline-facets" }, [
     element("thead", null, [
       element("tr", null, [
-        element("th", { colspan: "5" }, "file arrival coverage"),
+        element("th", { colspan: "5" }, "arrival coverage"),
       ]),
       element("tr", null, [
         element("th", null, "dimension"),
