@@ -121,8 +121,28 @@ export function initParts(timestamp, timeZone = "UTC") {
   };
 }
 
-function selectedTimeZone(local) {
-  return local ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+const validTimeZoneCache = new Map();
+
+// Some browsers report a non-standard IANA zone (e.g. "Etc/Unknown") from
+// resolvedOptions().timeZone, which Intl.DateTimeFormat itself rejects.
+function isValidTimeZone(timeZone) {
+  let valid = validTimeZoneCache.get(timeZone);
+  if (valid === undefined) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone });
+      valid = true;
+    } catch {
+      valid = false;
+    }
+    validTimeZoneCache.set(timeZone, valid);
+  }
+  return valid;
+}
+
+export function selectedTimeZone(local) {
+  if (!local) return "UTC";
+  const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return isValidTimeZone(resolved) ? resolved : "UTC";
 }
 
 function initShort(timestamp, local) {

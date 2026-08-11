@@ -88,9 +88,17 @@ function captureError(error, context) {
 
 let _dbReady = null;
 
-function initDB() {
+export function initDB() {
   if (_dbReady) return _dbReady;
   _dbReady = (async () => {
+    // duckdb-wasm's bundle selection references the global WebAssembly object
+    // unconditionally (via wasm-feature-detect's exceptions() check), which
+    // throws an uncaught ReferenceError rather than reporting "unsupported"
+    // on a browser context where WebAssembly is absent entirely (e.g. Safari
+    // Lockdown Mode). Fail fast with a catchable error instead.
+    if (typeof WebAssembly === "undefined") {
+      throw new Error("WebAssembly is not available in this browser");
+    }
     const duckdb = await import(
       "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm"
     );
