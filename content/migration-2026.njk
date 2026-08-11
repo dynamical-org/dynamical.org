@@ -47,8 +47,8 @@ permalink: /migration-2026/
   <p>
     Replace each hard-coded <code>https://data.dynamical.org/.../latest.zarr</code>
     URL with one of the two supported ways to open a dataset. Both are fully
-    supported — pick whichever suits your stack. Both need Python 3.12 or newer,
-    and both resolve the current repository from our
+    supported — pick whichever suits your stack. In Python both need 3.12 or
+    newer, and both resolve the current repository from our
     <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, so your code
     does not need to track storage locations or version changes.
   </p>
@@ -56,7 +56,7 @@ permalink: /migration-2026/
   <h2>dynamical-catalog</h2>
   <p>
     A thin STAC and Icechunk wrapper that ensures minimum dependency versions.
-    Install <code>dynamical-catalog&gt;=0.7.0</code> and pass the dataset ID from
+    Install <code>dynamical-catalog&gt;=0.8.0</code> and pass the dataset ID from
     its <a href="/catalog/">catalog page</a>.
   </p>
   {% frameHighlight "py" %}import dynamical_catalog
@@ -67,16 +67,15 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighligh
   <p>
     Resolve the <code>icechunk-https</code> asset from the dataset's STAC Collection
     each time your application opens a repository. Do not copy and permanently
-    hard-code the asset URL. Any HTTP client can read the Collection — the example
-    below uses <code>httpx</code>, and <code>pystac</code> works too, but neither
-    is required.
+    hard-code the asset URL. The example below uses <code>pystac</code>, but any
+    HTTP client can read the Collection.
   </p>
-  {% frameHighlight "py" %}import httpx
-import icechunk
+  {% frameHighlight "py" %}import icechunk
+import pystac
 import xarray as xr
 
 url = "https://stac.dynamical.org/noaa-gfs-forecast/collection.json"
-href = httpx.get(url).json()["assets"]["icechunk-https"]["href"]
+href = pystac.Collection.from_file(url).assets["icechunk-https"].href
 
 repo = icechunk.Repository.open(icechunk.http_storage(href))
 session = repo.readonly_session("main")
@@ -106,14 +105,13 @@ Rules:
   with hyphens: data.dynamical.org/noaa/gfs/forecast/latest.zarr ->
   noaa-gfs-forecast. Exception: /noaa/gfs/analysis-hourly/ is retired, use
   noaa-gfs-analysis.
-- There are two equally supported ways to open a dataset. Either is fine; use
-  whichever fits this repository, and be consistent within it.
-  - dynamical_catalog.open("&lt;dataset-id&gt;"), with dynamical-catalog&gt;=0.7.0.
-  - Resolve the "icechunk-https" asset from the dataset's STAC Collection at
-    open time. Any HTTP client can read the Collection; pystac is not required.
-- Either way, opening needs Python 3.12+ and Icechunk 2, and reads an Icechunk
-  2.0 repository. Do not hard-code the asset href, the S3 bucket, or a version
-  number.
+- Two ways to open a dataset, equally supported. Use either, consistently:
+  - dynamical_catalog.open("&lt;dataset-id&gt;"), with dynamical-catalog&gt;=0.8.0, or
+  - the "icechunk-https" asset from the dataset's STAC Collection, resolved at
+    open time. Any HTTP client reads the Collection; pystac is not required.
+- Either way you open an Icechunk 2.0 repository, so Icechunk 2 is required; in
+  Python that means 3.12+. Do not hard-code the asset href, the S3 bucket, or a
+  version number.
 - Drop any ?email= query argument. It is no longer used.
 - The datasets are identical to the legacy archive in structure, naming,
   attributes, chunking/sharding, and content — only the open call changes, so
@@ -145,7 +143,7 @@ chosen rather than derived.</textarea>
 
   <h2>What changes</h2>
   <ul>
-    <li>Opening requires Icechunk 2 and Python 3.12 or newer.</li>
+    <li>Opening requires Icechunk 2 — in Python, 3.12 or newer.</li>
     <li>The public STAC Collection is the source of truth for the current repository.</li>
     <li>Dataset IDs replace <code>data.dynamical.org</code> paths.</li>
     <li>The optional <code>?email=</code> query argument is no longer used.</li>
