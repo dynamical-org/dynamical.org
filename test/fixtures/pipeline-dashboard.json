@@ -1,5 +1,5 @@
 {
-  "v": 1,
+  "v": 2,
   "generated_at": "2026-07-25T18:00:00Z",
   "window_days": 90,
   "advisories": [
@@ -8,7 +8,9 @@
       "agency": "noaa",
       "title": "Fixture: GFS dissemination delay",
       "cause": "Local failure-mode preview",
-      "product_ids": ["external-noaa-gfs-aws"],
+      "product_ids": [
+        "external-noaa-gfs-aws"
+      ],
       "url": "https://nomads.ncep.noaa.gov/status.php"
     }
   ],
@@ -24,11 +26,58 @@
           "source_label": "AWS",
           "row_label": "AWS",
           "cadence_hours": 6,
-          "init_hours": ["00", "06", "12", "18"],
+          "init_hours": [
+            "00",
+            "06",
+            "12",
+            "18"
+          ],
           "lead_groups": [
-            {"name": "f000", "label": "0h", "leads_in_group": 1, "center_pct": 0.25},
-            {"name": "f024", "label": "1d", "leads_in_group": 5, "center_pct": 1.5},
-            {"name": "f072", "label": "3d", "leads_in_group": 13, "center_pct": 4.5}
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "center_pct": 0.25
+            },
+            {
+              "name": "f024",
+              "label": "1d",
+              "leads_in_group": 5,
+              "center_pct": 1.5
+            },
+            {
+              "name": "f072",
+              "label": "3d",
+              "leads_in_group": 13,
+              "center_pct": 4.5
+            }
+          ],
+          "facet_groups": [
+            {
+              "dimension": "component",
+              "name": "component:pgrb2a",
+              "label": "pgrb2a"
+            },
+            {
+              "dimension": "component",
+              "name": "component:pgrb2b",
+              "label": "pgrb2b"
+            },
+            {
+              "dimension": "component",
+              "name": "component:pgrb2s",
+              "label": "pgrb2s"
+            },
+            {
+              "dimension": "member",
+              "name": "members:control",
+              "label": "control"
+            },
+            {
+              "dimension": "member",
+              "name": "members:perturbed",
+              "label": "perturbed"
+            }
           ],
           "latency_stats": {
             "p50_s": 3600,
@@ -37,21 +86,1843 @@
             "sample_init_count": 30
           },
           "lead_group_stats": [
-            {"name": "f000", "label": "0h", "leads_in_group": 1, "p50_s": 900, "p95_s": 1200, "p99_s": 1500},
-            {"name": "f024", "label": "1d", "leads_in_group": 5, "p50_s": 1800, "p95_s": 2400, "p99_s": 2700},
-            {"name": "f072", "label": "3d", "leads_in_group": 13, "p50_s": 3600, "p95_s": 5400, "p99_s": 6000}
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "p50_s": 900,
+              "p95_s": 1200,
+              "p99_s": 1500
+            },
+            {
+              "name": "f024",
+              "label": "1d",
+              "leads_in_group": 5,
+              "p50_s": 1800,
+              "p95_s": 2400,
+              "p99_s": 2700
+            },
+            {
+              "name": "f072",
+              "label": "3d",
+              "leads_in_group": 13,
+              "p50_s": 3600,
+              "p95_s": 5400,
+              "p99_s": 6000
+            }
           ],
           "recent_inits": [
-            {"init_time": "2026-07-23T06:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3420, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 800, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1700, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3420, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-23T12:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3510, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 810, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1750, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3510, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-23T18:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3480, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 790, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1720, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3480, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-24T00:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3550, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 820, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1780, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3550, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-24T06:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3610, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 830, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1810, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3610, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-24T12:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3500, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 800, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1760, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3500, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-24T18:00:00Z", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3690, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 840, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1830, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 3690, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-25T00:00:00Z", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 5700, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 850, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 1900, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 5700, "leads_available": 13, "leads_expected": 13}]},
-            {"init_time": "2026-07-25T06:00:00Z", "status": "failed", "completion_pct": 0.38, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 900, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 3000, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "failed", "completion_pct": 0.38, "leads_available": 5, "leads_expected": 13}]},
-            {"init_time": "2026-07-25T12:00:00Z", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "lead_groups": [{"name": "f000", "status": "complete", "timing": "on_time", "completion_pct": 1, "latency_s": 920, "leads_available": 1, "leads_expected": 1}, {"name": "f024", "status": "complete", "timing": "delayed", "completion_pct": 1, "latency_s": 3100, "leads_available": 5, "leads_expected": 5}, {"name": "f072", "status": "in_flight", "timing": "delayed", "completion_pct": 0.38, "leads_available": 5, "leads_expected": 13}]}
+            {
+              "init_time": "2026-07-23T06:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3420,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 800,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1700,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 3420,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-23T12:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3510,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 810,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1750,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 3510,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-23T18:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3480,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 790,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1720,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 3480,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T00:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3550,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 820,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1780,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 3550,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T06:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3610,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 830,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1810,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 3610,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T12:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3500,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 800,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1760,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 3500,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T18:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3690,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 840,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1830,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 3690,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "timing": "delayed",
+              "completion_pct": 1,
+              "latency_s": 5700,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 850,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1900,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "delayed",
+                  "completion_pct": 1,
+                  "latency_s": 5700,
+                  "leads_available": 13,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 26,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 13,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 52,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T06:00:00Z",
+              "status": "failed",
+              "completion_pct": 0.38,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 900,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "delayed",
+                  "completion_pct": 1,
+                  "latency_s": 3000,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "failed",
+                  "completion_pct": 0.38,
+                  "leads_available": 5,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "failed",
+                      "completion_pct": 0.5385,
+                      "dependencies_available": 14,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "failed",
+                      "completion_pct": 0.5385,
+                      "dependencies_available": 14,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "failed",
+                      "completion_pct": 0.8462,
+                      "dependencies_available": 11,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "failed",
+                      "completion_pct": 0.8462,
+                      "dependencies_available": 11,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "failed",
+                      "completion_pct": 0.3077,
+                      "dependencies_available": 16,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T12:00:00Z",
+              "status": "in_flight",
+              "timing": "delayed",
+              "completion_pct": 0.38,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 920,
+                  "leads_available": 1,
+                  "leads_expected": 1,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 4,
+                      "dependencies_expected": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "delayed",
+                  "completion_pct": 1,
+                  "latency_s": 3100,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 10,
+                      "dependencies_expected": 10
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 5,
+                      "dependencies_expected": 5
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 20,
+                      "dependencies_expected": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "f072",
+                  "status": "in_flight",
+                  "timing": "delayed",
+                  "completion_pct": 0.38,
+                  "leads_available": 5,
+                  "leads_expected": 13,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2a",
+                      "label": "pgrb2a",
+                      "status": "in_flight",
+                      "completion_pct": 0.5385,
+                      "dependencies_available": 14,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2b",
+                      "label": "pgrb2b",
+                      "status": "in_flight",
+                      "completion_pct": 0.5385,
+                      "dependencies_available": 14,
+                      "dependencies_expected": 26
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:pgrb2s",
+                      "label": "pgrb2s",
+                      "status": "in_flight",
+                      "completion_pct": 0.8462,
+                      "dependencies_available": 11,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:control",
+                      "label": "control",
+                      "status": "in_flight",
+                      "completion_pct": 0.8462,
+                      "dependencies_available": 11,
+                      "dependencies_expected": 13
+                    },
+                    {
+                      "dimension": "member",
+                      "name": "members:perturbed",
+                      "label": "perturbed",
+                      "status": "in_flight",
+                      "completion_pct": 0.3077,
+                      "dependencies_available": 16,
+                      "dependencies_expected": 52
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:pgrb2a",
+                  "label": "pgrb2a",
+                  "dependencies_available": 30,
+                  "dependencies_expected": 40,
+                  "completion_pct": 0.75,
+                  "status": "in_flight"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:pgrb2b",
+                  "label": "pgrb2b",
+                  "dependencies_available": 20,
+                  "dependencies_expected": 40,
+                  "completion_pct": 0.5,
+                  "status": "in_flight"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:pgrb2s",
+                  "label": "pgrb2s",
+                  "dependencies_available": 40,
+                  "dependencies_expected": 40,
+                  "completion_pct": 1,
+                  "status": "complete"
+                },
+                {
+                  "dimension": "member",
+                  "name": "members:control",
+                  "label": "control",
+                  "dependencies_available": 8,
+                  "dependencies_expected": 8,
+                  "completion_pct": 1,
+                  "status": "complete"
+                },
+                {
+                  "dimension": "member",
+                  "name": "members:perturbed",
+                  "label": "perturbed",
+                  "dependencies_available": 82,
+                  "dependencies_expected": 96,
+                  "completion_pct": 0.8542,
+                  "status": "in_flight"
+                }
+              ]
+            }
           ],
           "next_expected_init": "2026-07-25T18:00:00Z",
           "next_expected_completion_at": "2026-07-25T19:30:00Z"

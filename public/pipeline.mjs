@@ -9,13 +9,50 @@ const POLL_INTERVAL_MS = 15_000;
 const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
-const DASHBOARD_VERSION = 1;
+const DASHBOARD_VERSION = 2; // the granular schema; the lead-only shape is gone
+// Field geometry. JS owns these because the run count is computed from them;
+// the CSS reads them back off the field as custom properties.
+const CELL_PX = 12; // one measurement, the same size in every view
+const CLUMP_GAP_PX = 2; // between the lead columns within one run
+const RUN_GAP_PX = 6; // between init columns, as main spaced its bars
+const CLUMPED_RUN_GAP_PX = 6; // between run blocks, which need daylight
+// no lead group is thinner than its own label: "0h" is two characters, which is
+// exactly one cell, so every group can name itself
+const MIN_LEAD_PX = 12;
+const BAND_GAP_PX = 2; // between bands, inside a field
+const LABEL_PX = 12; // one axis-label row
+const FOOT_GAP_PX = 3; // the breath above the init tiers
+const HEAD_GAP_PX = 2; // the head band's margin under the lead labels
+const CH_PX = 6; // one monospace character at the band-label size
+const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
+const RUNS_MAX = 10; // what the payload carries
 
 function hasTimestamp(value) {
   return (
     typeof value === "string" &&
     /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) &&
     Number.isFinite(Date.parse(value))
+  );
+}
+
+function validFacets(facets) {
+  return (
+    Array.isArray(facets) &&
+    facets.every(
+      (facet) =>
+        typeof facet.dimension === "string" &&
+        typeof facet.name === "string" &&
+        typeof facet.label === "string" &&
+        Number.isInteger(facet.dependencies_available) &&
+        facet.dependencies_available >= 0 &&
+        Number.isInteger(facet.dependencies_expected) &&
+        facet.dependencies_expected > 0 &&
+        facet.dependencies_available <= facet.dependencies_expected &&
+        Number.isFinite(facet.completion_pct) &&
+        facet.completion_pct >= 0 &&
+        facet.completion_pct <= 1 &&
+        typeof facet.status === "string",
+    )
   );
 }
 
@@ -47,6 +84,32 @@ export function validateDashboard(data) {
         product.recent_inits.length > 10
       ) {
         throw new TypeError("Invalid pipeline product");
+      }
+      if (product.facet_groups != null) {
+        if (
+          !Array.isArray(product.facet_groups) ||
+          product.facet_groups.length === 0 ||
+          !product.facet_groups.every(
+            (facet) =>
+              typeof facet.dimension === "string" &&
+              typeof facet.name === "string" &&
+              typeof facet.label === "string",
+          )
+        ) {
+          throw new TypeError("Invalid pipeline facet group");
+        }
+      }
+      for (const init of product.recent_inits) {
+        if (init.facets != null && !validFacets(init.facets)) {
+          throw new TypeError("Invalid pipeline facet");
+        }
+        // the lead × facet joint: the same facet shape, reported per lead group
+        for (const group of init.lead_groups ?? []) {
+          if (group.facets == null) continue;
+          if (!validFacets(group.facets)) {
+            throw new TypeError("Invalid pipeline facet");
+          }
+        }
       }
     }
   }
@@ -103,22 +166,48 @@ function formatDuration(seconds) {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
+/* Every square carries a hover label, so a faceted row asks for hundreds of
+   formatted init times per render. Constructing an Intl formatter each time
+   dominated the render; these two caches are keyed by the only things that
+   vary. */
+
+const initFormatters = new Map();
+const initPartCache = new Map();
+const INIT_PART_CACHE_MAX = 4096;
+
+function initFormatter(timeZone) {
+  let formatter = initFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hourCycle: "h23",
+      timeZone,
+      timeZoneName: "short",
+    });
+    initFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
 export function initParts(timestamp, timeZone = "UTC") {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hourCycle: "h23",
-    timeZone,
-    timeZoneName: "short",
-  }).formatToParts(new Date(timestamp));
+  const key = `${timestamp}|${timeZone}`;
+  const cached = initPartCache.get(key);
+  if (cached) return cached;
+
+  const parts = initFormatter(timeZone).formatToParts(new Date(timestamp));
   const part = (type) =>
     parts.find((candidate) => candidate.type === type)?.value;
   const hour = part("hour");
-  return {
+  const value = {
     date: `${part("month")}-${part("day")}`,
     time: timeZone === "UTC" ? `${hour}z` : `${hour} ${part("timeZoneName")}`,
   };
+  // scrubbing through history would otherwise grow this without bound
+  if (initPartCache.size >= INIT_PART_CACHE_MAX) initPartCache.clear();
+  initPartCache.set(key, value);
+  return value;
 }
 
 const validTimeZoneCache = new Map();
@@ -139,20 +228,22 @@ function isValidTimeZone(timeZone) {
   return valid;
 }
 
+// Resolved once, after validation: every hover label asks for the zone, and both
+// resolving and validating it mean constructing a formatter.
+let localZone = null;
+
 export function selectedTimeZone(local) {
   if (!local) return "UTC";
-  const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return isValidTimeZone(resolved) ? resolved : "UTC";
+  if (localZone === null) {
+    const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    localZone = isValidTimeZone(resolved) ? resolved : "UTC";
+  }
+  return localZone;
 }
 
 function initShort(timestamp, local) {
   const { date, time } = initParts(timestamp, selectedTimeZone(local));
   return `${date} ${time}`;
-}
-
-function initLabel(timestamp, local) {
-  const { date, time } = initParts(timestamp, selectedTimeZone(local));
-  return element("span", null, [element("strong", null, date), time]);
 }
 
 function formatTime(timestamp, local, includeZone = true) {
@@ -193,8 +284,10 @@ function timeNode(timestamp) {
   ]);
 }
 
-function groupSlices(groups) {
-  const total = groups.at(-1)?.leads_expected ?? 0;
+/* One square per measurement. Lead-group counts arrive cumulative, so a band's
+   own share is the difference from the band below it. */
+
+function leadSlices(groups) {
   let previousAvailable = 0;
   let previousExpected = 0;
   return groups.map((group) => {
@@ -203,86 +296,528 @@ function groupSlices(groups) {
     previousExpected = group.leads_expected;
     previousAvailable = group.leads_available;
     return {
-      ...group,
-      height: total ? (expected / total) * 100 : 0,
-      fill: expected ? Math.max(0, Math.min(100, (available / expected) * 100)) : 0,
+      name: group.name,
+      status: group.status,
+      timing: group.timing,
+      available,
+      expected,
+      completion: expected
+        ? Math.max(0, Math.min(1, available / expected))
+        : (group.completion_pct ?? 0),
     };
   });
 }
 
-export function barTooltip(init, local) {
-  if (init.status === "unobserved") {
-    return `${initShort(init.init_time, local)} · no probe visibility; not a publication failure`;
+/* The lead groups a product measures, shortest horizon first — the order the
+   payload declares them in. History snapshots declare neither list up front,
+   so both fall back to the newest run's own. */
+
+export function leadAxis(product) {
+  const labelOf = new Map(
+    (product.lead_group_stats ?? []).map((stats) => [stats.name, stats.label]),
+  );
+  // a snapshot's newest run can be unobserved and carry no groups at all, while
+  // the runs beside it carry full data — so take the newest that reported any
+  const reported = [...(product.recent_inits ?? [])]
+    .reverse()
+    .find((init) => init.lead_groups?.length);
+  const declared = product.lead_groups?.length
+    ? product.lead_groups
+    : (reported?.lead_groups ?? []);
+  return declared.map((group) => ({
+    kind: "lead",
+    key: group.name,
+    label: group.label ?? labelOf.get(group.name) ?? group.name,
+  }));
+}
+
+/* How much of the lead axis each group takes. Main's bars sized a segment by
+   the group's share of the run's expected files, and this keeps that reading:
+   the cell size is constant across views, and the lead dimension stretches.
+   The total stays what uniform cells would have occupied, so a view's footprint
+   does not change, and a floor keeps the smallest group from vanishing — GEFS
+   f000 is 0.7% of its run, which would round to nothing. */
+
+export function leadExtents(product) {
+  const leads = leadAxis(product);
+  const newest = product.recent_inits?.at(-1);
+  const slices = leadSlices(newest?.lead_groups ?? []);
+  const expected = leads.map(
+    (lead) => slices.find((slice) => slice.name === lead.key)?.expected ?? 0,
+  );
+  const total = expected.reduce((sum, count) => sum + count, 0);
+  // every group starts at its label's width, then shares out an allowance the
+  // size of the axis again — so the biggest group reads as biggest without the
+  // smallest becoming a sliver that cannot name itself
+  const allowance = leads.length * CELL_PX;
+  return new Map(
+    leads.map((lead, index) => [
+      lead.key,
+      MIN_LEAD_PX +
+        (total ? expected[index] / total : 1 / leads.length) * allowance,
+    ]),
+  );
+}
+
+/* How tall a view draws. The label rows have fixed heights, so this needs no
+   measurement — which matters because the render pass writes without reading. */
+
+function chromePx(view, rows) {
+  const head = view.dimension ? LABEL_PX + BAND_GAP_PX + HEAD_GAP_PX : 0;
+  const tiers = FOOT_GAP_PX + 2 * (LABEL_PX + BAND_GAP_PX);
+  return head + tiers + BAND_GAP_PX * Math.max(0, rows - 1);
+}
+
+function viewHeightPx(product, view) {
+  const bands = view.dimension
+    ? facetRowsOf(product, view.dimension).map(() => CELL_PX)
+    : [...leadExtents(product).values()];
+  const rows = bands.length || 1;
+  return bands.reduce((sum, px) => sum + px, 0) + chromePx(view, rows);
+}
+
+
+
+/* The box every view of a product sits in: the tallest one. Clicking through
+   the views then never moves the rest of the page. */
+
+export function reservedHeightPx(product) {
+  return Math.max(
+    ...viewsOf(product).map((view) => viewHeightPx(product, view)),
+  );
+}
+
+/* The bands of the marginal field, top row first: longest horizon down to the
+   floor, then a band per facet grouped by dimension. Bands come from the product
+   rather than one run, so the field keeps its shape as runs scroll through it. */
+
+export function bandsOf(product) {
+  // the lead grid stacks bottom-up, so the longest horizon is the top row
+  const leads = [...leadAxis(product)].reverse();
+
+  return leads;
+}
+
+/* The facets of one lead group in one run, in the product's declared order.
+   Empty when the payload reports no joint for that group. */
+
+export function facetsAt(product, init, leadName, order) {
+  const group = (init?.lead_groups ?? []).find(
+    (entry) => entry.name === leadName,
+  );
+  if (!Array.isArray(group?.facets)) return [];
+  const measured = new Map(group.facets.map((facet) => [facet.name, facet]));
+  // the rows come from facetRowsOf, so the cells must use that same order —
+  // ordering by facet_groups alone would leave a measured-but-undeclared facet
+  // with a row and no squares, reading as "no monitoring data" for data that
+  // did arrive
+  const names = order ?? facetRowsOf(product).map((facet) => facet.name);
+  // a facet absent at this lead simply has no square
+  return names.map((name) => measured.get(name)).filter(Boolean);
+}
+
+/* The label gutter is only as wide as the labels beside it. Lead-only rows read
+   "3d"; a facet row reads "precipitation and snow". Sizing it per product is
+   what keeps the strip from starting a third of the way in. Stated in px, not
+   ch: CSS resolves ch against the band's inherited font, which is not the
+   font these labels are set in. */
+
+/* An init column is as wide as the label beneath it. Measured from the labels
+   this product actually formats, not guessed from a mode: `en-US` renders a zone
+   without a letter abbreviation as a GMT offset, so local time is "08 CDT" in
+   Chicago but "18 GMT+5:30" in Kolkata — nearly twice as wide. */
+
+export function initColumnPx(product, zone) {
+  const widest = (product.recent_inits ?? []).reduce((max, init) => {
+    const { date, time } = initParts(init.init_time, zone);
+    return Math.max(max, date.length, time.length);
+  }, 2);
+  return Math.max(CELL_PX, widest * CH_PX);
+}
+
+export function gutterPx(labelled) {
+  const widest = labelled.reduce(
+    (max, entry) => Math.max(max, (entry.label ?? "").length),
+    2,
+  );
+  return Math.min(GUTTER_MAX_CH, widest) * CH_PX;
+}
+
+/* How many runs fit, given what one run costs. Both layouts share the whole
+   calculation and differ only in that width. */
+
+function runsFitting(availablePx, gutter, runWidth, gap) {
+  // an unmeasured row shows everything rather than nothing
+  if (!Number.isFinite(availablePx) || availablePx <= 0) return RUNS_MAX;
+  // 6px band gap, and 4px of slack so a font fallback cannot overflow the row
+  const usable = availablePx - gutter - 6 - 4;
+  if (usable <= 0) return 1;
+  return Math.max(
+    1,
+    Math.min(RUNS_MAX, Math.floor((usable + gap) / (runWidth + gap))),
+  );
+}
+
+export function runsThatFit(product, availablePx, local) {
+  return runsFitting(
+    availablePx,
+    gutterPx(bandsOf(product)),
+    initColumnPx(product, selectedTimeZone(local)),
+    RUN_GAP_PX,
+  );
+}
+
+/* A facet grid spends its width on lead columns inside every run, and those
+   columns are proportional, so the block width comes from the extents. */
+
+export function runsThatFitFacetRows(product, availablePx, dimension) {
+  const leads = leadAxis(product);
+  const extents = leadExtents(product);
+  const runWidth =
+    leads.reduce((sum, lead) => sum + (extents.get(lead.key) ?? CELL_PX), 0) +
+    Math.max(0, leads.length - 1) * CLUMP_GAP_PX;
+  return runsFitting(
+    availablePx,
+    gutterPx(facetRowsOf(product, dimension)),
+    runWidth,
+    CLUMPED_RUN_GAP_PX,
+  );
+}
+
+/* Every band is the same skeleton: a gutter label, then its row of cells. */
+
+function bandNode({
+  className = "pipeline-band",
+  kind,
+  label = "",
+  labelTitle,
+  clumped = false,
+  style,
+  children,
+}) {
+  return element("div", { class: className, "data-kind": kind, style }, [
+    element("span", { class: "pipeline-band-label", title: labelTitle }, label),
+    element(
+      "div",
+      { class: "pipeline-cells", "data-clumped": clumped ? "" : null },
+      children,
+    ),
+  ]);
+}
+
+/* What one run measured for one band. A band the run never reported reads as
+   unobserved rather than as a failure. */
+
+export function cellOf(band, init) {
+  if (!init) return { state: "unobserved" };
+  if (init.status === "unobserved") return { state: "unobserved" };
+
+  if (band.kind === "lead") {
+    const slice = leadSlices(init.lead_groups ?? []).find(
+      (group) => group.name === band.key,
+    );
+    if (!slice) return { state: "unobserved" };
+    return {
+      state: slice.status,
+      timing: slice.timing,
+      completion: slice.completion,
+    };
   }
-  const state = init.timing ? `${init.status} · ${init.timing}` : init.status;
-  const run = [
-    initShort(init.init_time, local),
-    state,
-    init.completion_pct == null
-      ? null
-      : `${Math.round(init.completion_pct * 100)}%`,
-    init.latency_s == null ? null : `latency ${formatLatency(init.latency_s)}`,
+
+  const facet = (init.facets ?? []).find((entry) => entry.name === band.key);
+  if (!facet) return { state: "unobserved" };
+  return facetCell(facet, init);
+}
+
+function facetCell(facet, init, timing = init.timing) {
+  return {
+    state: facet.status,
+    timing,
+    completion: facet.completion_pct ?? 0,
+    available: facet.dependencies_available,
+    expected: facet.dependencies_expected,
+  };
+}
+
+/* The hover label. What the square stands for comes first, then when, then how
+   much of it arrived — a facet names itself and its dimension. */
+
+export function cellTitle(band, init, cell, local) {
+  if (!init) return `${band.label} · not reported`;
+  const when = initShort(init.init_time, local);
+  if (cell.state === "unobserved") {
+    return `${band.label} · ${when} · no probe visibility; not a publication failure`;
+  }
+  const volume =
+    cell.expected != null
+      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} files`
+      : `${Math.round((cell.completion ?? 0) * 100)}%`;
+  return [
+    band.kind === "facet" ? `${band.label} (${band.dimension})` : `lead ${band.label}`,
+    // a facet nested in a lead band names the lead it belongs to
+    band.lead ? `lead ${band.lead}` : null,
+    when,
+    volume,
+    statusLabel(cell.state),
+    cell.timing ? cell.timing.replaceAll("_", " ") : null,
   ]
     .filter(Boolean)
     .join(" · ");
-  if (!init.lead_groups?.length) return run;
-  const groups = init.lead_groups.map((group) => {
-    const groupState = group.timing
-      ? `${group.status} · ${group.timing}`
-      : group.status;
-    const progress =
-      group.status === "in_flight" && group.completion_pct != null
-        ? ` ${Math.round(group.completion_pct * 100)}%`
-        : "";
-    return `${group.name} ${groupState}${progress}`;
-  });
-  return `${run}\n${groups.join(" · ")}`;
 }
 
-function renderBar(init, local) {
-  const track = element("div", { class: "pipeline-bar-track" });
-  if (init.lead_groups?.length) {
-    let bottom = 0;
-    for (const group of groupSlices(init.lead_groups)) {
-      const segment = element(
-        "div",
-        {
-          class: `pipeline-bar-segment g-${group.status}`,
-          "data-group": group.name,
-          "data-timing": group.timing,
-          style: `--band-height:${group.height}%;--band-bottom:${bottom}%;--fill:${group.fill}%`,
-        },
-        element("div", { class: "pipeline-bar-segment-fill" }),
-      );
-      track.append(segment);
-      bottom += group.height;
-    }
-  } else {
-    track.append(
-      element("div", {
-        class: "pipeline-bar-fill",
-        style: `--fill:${Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100))}%`,
-      }),
-    );
-  }
+function renderCell(band, init, local, measured, style) {
+  const cell = measured ?? cellOf(band, init);
   return element(
     "div",
     {
-      class: "pipeline-bar",
-      "data-init-time": init.init_time,
-      "data-status": init.status,
-      "data-timing": init.timing,
-      title: barTooltip(init, local),
+      class: `pipeline-cell g-${cell.state}`,
+      "data-init-time": init?.init_time,
+      "data-timing": cell.timing,
+      title: cellTitle(band, init, cell, local),
+      style,
     },
-    [
-      track,
-      element(
-        "div",
-        { class: "pipeline-bar-label" },
-        initLabel(init.init_time, local),
-      ),
-    ],
+    element("div", {
+      class: "pipeline-cell-fill",
+      style: `--fill:${Math.max(0, Math.min(100, (cell.completion ?? 0) * 100))}%`,
+    }),
   );
+}
+
+/* The facet-row field spends width on lead-group columns inside every run, so
+   it needs its own fit. */
+
+export function facetRowsOf(product, dimension) {
+  // every facet the joint mentions anywhere in the displayed runs: the newest
+  // run may report none yet, and a rollout or rollback can leave the window
+  // mixed, but those rows still have measurements in the runs beside them
+  const reported = new Map();
+  for (const init of product.recent_inits ?? []) {
+    for (const group of init.lead_groups ?? []) {
+      for (const facet of group.facets ?? []) {
+        if (!reported.has(facet.name)) reported.set(facet.name, facet);
+      }
+    }
+  }
+  // the declared schema owns the order; anything it never declares still gets a
+  // row, since the payload measured it
+  const declared = (product.facet_groups ?? []).filter((facet) =>
+    reported.has(facet.name),
+  );
+  const undeclared = [...reported.values()].filter(
+    (facet) => !declared.some((entry) => entry.name === facet.name),
+  );
+  const rows = [...declared, ...undeclared];
+  return dimension ? rows.filter((facet) => facet.dimension === dimension) : rows;
+}
+
+/* The views a product offers, in click order: the lead grid it opens on, then
+   one grid per facet dimension the joint reports. A product without a joint
+   offers the lead grid alone, so clicking it does nothing. */
+
+export function viewsOf(product) {
+  const dimensions = [];
+  for (const facet of facetRowsOf(product)) {
+    if (!dimensions.includes(facet.dimension)) dimensions.push(facet.dimension);
+  }
+  return [
+    { rows: "lead time", dimension: null },
+    ...dimensions.map((dimension) => ({ rows: dimension, dimension })),
+  ];
+}
+
+function wrapIndex(index, length) {
+  return ((index % length) + length) % length;
+}
+
+export function viewAt(product, index) {
+  const views = viewsOf(product);
+  return views[wrapIndex(index, views.length)];
+}
+
+/* The init axis: the time under every column, then the date only where it turns
+   over, so a date lines up with the first timestamp it covers. */
+
+function initTiers(runs, local) {
+  const zone = selectedTimeZone(local);
+  let previousDate = null;
+  return [
+    labelTier({
+      bandClass: "pipeline-band pipeline-band--foot",
+      spanClass: "pipeline-run-label",
+      runs,
+      textOf: (init) => initParts(init.init_time, zone).time,
+    }),
+    labelTier({
+      spanClass: "pipeline-run-date",
+      runs,
+      textOf: (init) => {
+        const { date } = initParts(init.init_time, zone);
+        const turned = date !== previousDate;
+        previousDate = date;
+        return turned ? date : "";
+      },
+    }),
+  ];
+}
+
+/* The joint, indexed once per render: which facets a run reported under a lead
+   group, and that group's timing. Built from `facetsAt` so the declared order
+   still decides, then read by name per square. */
+
+function jointIndex(product, runs, leads) {
+  const order = facetRowsOf(product).map((facet) => facet.name);
+  const index = new Map();
+  for (const init of runs) {
+    const byLead = new Map();
+    for (const lead of leads) {
+      const facets = facetsAt(product, init, lead.key, order);
+      if (!facets.length) continue;
+      byLead.set(lead.key, {
+        // the lead group's own timing is more specific than the run's
+        timing:
+          (init.lead_groups ?? []).find((group) => group.name === lead.key)
+            ?.timing ?? init.timing,
+        facets: new Map(facets.map((facet) => [facet.name, facet])),
+      });
+    }
+    index.set(init, byLead);
+  }
+  return index;
+}
+
+/* One label tier under the blocks: a span per run, exactly one block wide, so
+   every tier centres on the same axis as the squares above it. */
+
+function labelTier({ bandClass = "pipeline-band", spanClass, runs, textOf }) {
+  return bandNode({
+    className: bandClass,
+    clumped: true,
+    children: runs.map((init) =>
+      element("span", { class: spanClass }, textOf(init)),
+    ),
+  });
+}
+
+/* The facet-row field: one row per facet, one block per run, one column per
+   lead group inside a block. Same squares and same hover labels as the banded
+   field — only which dimension owns which axis changes. */
+
+function renderFacetRows(product, local, runCount, dimension) {
+  const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+  const leads = leadAxis(product); // shortest horizon first
+  const facets = facetRowsOf(product, dimension);
+  const joint = jointIndex(product, runs, leads);
+  const extents = leadExtents(product);
+  const leadWidth = (lead) => extents.get(lead.key) ?? CELL_PX;
+  const runWidth =
+    leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
+    Math.max(0, leads.length - 1) * CLUMP_GAP_PX;
+  const field = element("div", {
+    class: "pipeline-field",
+    // lead time runs across here, so progress fills across too
+    "data-fill": "side",
+    style: `--sq:${CELL_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
+  });
+
+  // the lead order repeats in every run, so name it once over the first block
+  field.append(
+    bandNode({
+      className: "pipeline-band pipeline-band--head",
+      clumped: true,
+      children: runs.map((init, index) =>
+        element(
+          "div",
+          { class: "pipeline-clump" },
+          leads.map((lead) => {
+            // a proportional column can be narrower than its own name; the
+            // ones that cannot hold their label keep it on hover only
+            const width = leadWidth(lead);
+            const fits = width >= lead.label.length * CH_PX;
+            return element(
+              "span",
+              {
+                class: "pipeline-column-label",
+                style: `--cell-w:${width.toFixed(2)}px`,
+                title: `lead ${lead.label}`,
+              },
+              index === 0 && fits ? lead.label : "",
+            );
+          }),
+        ),
+      ),
+    }),
+  );
+
+  // one container so the rows share out whatever height the box leaves them
+  const rowsNode = element("div", { class: "pipeline-rows" });
+  for (const facet of facets) {
+    rowsNode.append(
+      bandNode({
+        kind: "facet",
+        label: facet.label,
+        labelTitle: `${facet.label} (${facet.dimension})`,
+        clumped: true,
+        children: runs.map((init) =>
+          element(
+            "div",
+            { class: "pipeline-clump" },
+            leads.map((lead) => {
+              const measured = joint.get(init)?.get(lead.key);
+              const facetAt = measured?.facets.get(facet.name);
+              const band = {
+                kind: "facet",
+                key: facet.name,
+                label: facet.label,
+                dimension: facet.dimension,
+                lead: lead.label,
+              };
+              return renderCell(
+                band,
+                init,
+                local,
+                facetAt
+                  ? facetCell(facetAt, init, measured.timing)
+                  : { state: "unobserved" },
+                `--cell-w:${leadWidth(lead).toFixed(2)}px`,
+              );
+            }),
+          ),
+        ),
+      }),
+    );
+  }
+  field.append(rowsNode);
+
+
+  field.append(...initTiers(runs, local));
+  return field;
+}
+
+function renderField(product, local, runCount) {
+  const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+  const extents = leadExtents(product);
+  const column = initColumnPx(product, selectedTimeZone(local));
+  const field = element("div", {
+    class: "pipeline-field",
+    // a cell is as wide as its init label; the lead axis keeps its own scale
+    style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
+  });
+  for (const band of bandsOf(product)) {
+    field.append(
+      bandNode({
+        kind: band.kind,
+        label: band.label,
+        labelTitle: band.label,
+        // a lead band is as tall as its share of the run; a facet band is a cell
+        style: `--cell-h:${(band.kind === "lead" ? (extents.get(band.key) ?? CELL_PX) : CELL_PX).toFixed(2)}px`,
+        children: runs.map((init) => renderCell(band, init, local)),
+      }),
+    );
+  }
+
+  // every column is wide enough to name itself, so the axis is per column
+  field.append(...initTiers(runs, local));
+  return field;
 }
 
 function renderStructure(app, dashboard, rows) {
@@ -295,20 +830,6 @@ function renderStructure(app, dashboard, rows) {
       element("h3", null, group.label),
     ]);
     for (const product of group.products) {
-      const leadLabels = element("div", {
-        class: "pipeline-lead-labels",
-        "aria-hidden": "true",
-      });
-      for (const lead of product.lead_groups?.slice(1) ?? []) {
-        leadLabels.append(
-          element(
-            "span",
-            { style: `bottom:${lead.center_pct}%` },
-            lead.label,
-          ),
-        );
-      }
-
       const advisory = element("div", {
         class: "pipeline-row-advisory",
         "data-slot": "row-advisory",
@@ -328,8 +849,7 @@ function renderStructure(app, dashboard, rows) {
             ]),
           ]),
           element("div", { class: "pipeline-row-body" }, [
-            leadLabels,
-            element("div", { class: "pipeline-grid", "data-slot": "grid" }),
+            element("div", { class: "pipeline-viz", "data-slot": "field" }),
           ]),
           element("div", { class: "pipeline-stats" }, [
             element("strong", { "data-slot": "eta-init" }, "—"),
@@ -413,7 +933,7 @@ export function detailRows(product, now, local) {
       : displayed
         ? `${initShort(displayed.init_time, local)} · previous init`
         : "waiting for next init",
-    rows: product.lead_group_stats.map((stats, index) => {
+    rows: (product.lead_group_stats ?? []).map((stats, index) => {
       const live = groups[index];
       let time = "—";
       let duration = "—";
@@ -446,6 +966,20 @@ export function detailRows(product, now, local) {
   };
 }
 
+export function facetRows(product) {
+  const running = product.recent_inits.findLast(
+    (init) => init.status === "in_flight",
+  );
+  const displayed = running ?? product.recent_inits.at(-1);
+  return (displayed?.facets ?? []).map((facet) => ({
+    dimension: facet.dimension,
+    label: facet.label,
+    status: statusLabel(facet.status),
+    completion: facet.completion_pct,
+    count: `${facet.dependencies_available.toLocaleString("en-US")} / ${facet.dependencies_expected.toLocaleString("en-US")} observed`,
+  }));
+}
+
 function buildDetails(product, now, local) {
   const details = detailRows(product, now, local);
   const groupHead = element("tr", null, [
@@ -476,21 +1010,99 @@ function buildDetails(product, now, local) {
       ]),
     );
   }
-  return element("table", null, [
+  const leadTable = element("table", null, [
     element("thead", null, [groupHead, head]),
     body,
   ]);
+  const facets = facetRows(product);
+  if (facets.length === 0) return leadTable;
+
+  const facetBody = element("tbody");
+  for (const facet of facets) {
+    facetBody.append(
+      element("tr", null, [
+        element("td", null, facet.dimension),
+        element("td", null, facet.label),
+        element("td", null, facet.status),
+        element("td", null, facet.count),
+        element("td", null, [
+          element("progress", {
+            max: "1",
+            value: String(facet.completion),
+            "aria-label": `${Math.round(facet.completion * 100)}% complete`,
+          }),
+          // the number holds three characters whatever it is — "5", "62", "100" —
+          // so every bar ends in the same place, with the sign kept against it
+          element("span", { class: "pipeline-facet-pct" }, [
+            element(
+              "span",
+              { class: "pipeline-facet-num" },
+              String(Math.round(facet.completion * 100)),
+            ),
+            "%",
+          ]),
+        ]),
+      ]),
+    );
+  }
+  const facetTable = element("table", { class: "pipeline-facets" }, [
+    element("thead", null, [
+      element("tr", null, [
+        element("th", { colspan: "5" }, "arrival facets"),
+      ]),
+      element("tr", null, [
+        element("th", null, "dimension"),
+        element("th", null, "group"),
+        element("th", null, "status"),
+        element("th", null, "files"),
+        element("th", null, "complete"),
+      ]),
+    ]),
+    facetBody,
+  ]);
+  return element("div", null, [leadTable, facetTable]);
 }
 
-function hydrateRow(row, product, now, local) {
-  row.querySelector('[data-slot="grid"]').replaceChildren(
-    ...product.recent_inits.slice(-10).map((init) => renderBar(init, local)),
-  );
+function hydrateRow(row, product, now, local, available) {
+  // the lead grid is the view a row opens on; the facet grids are a click away
+  const views = viewsOf(product);
+  const index = wrapIndex(Number(row.dataset.view ?? 0), views.length);
+  const view = views[index];
+  row.dataset.view = String(index);
+
+  const field = view.dimension
+    ? renderFacetRows(
+        product,
+        local,
+        runsThatFitFacetRows(product, available, view.dimension),
+        view.dimension,
+      )
+    : renderField(product, local, runsThatFit(product, available, local));
+
+  const viz = row.querySelector('[data-slot="field"]');
+  viz.replaceChildren(field);
+  // the cycle is only reachable, and only worth announcing, when a product has
+  // more than the one view
+  if (views.length > 1) {
+    const next = views[(index + 1) % views.length];
+    // a group, not a button: role="button" would collapse the field into one
+    // node and hide every cell's own label from assistive tech
+    viz.setAttribute("role", "group");
+    viz.setAttribute("tabindex", "0");
+    viz.setAttribute(
+      "aria-label",
+      `${view.rows} by ${view.dimension ? "lead group" : "init"}; activate for ${next.rows}`,
+    );
+  } else {
+    viz.removeAttribute("role");
+    viz.removeAttribute("tabindex");
+    viz.removeAttribute("aria-label");
+  }
   hydrateEta(row, product, now, local);
 
   const button = row.querySelector('[data-slot="details-button"]');
   const details = row.querySelector('[data-slot="details"]');
-  if (product.lead_group_stats?.length) {
+  if (product.lead_group_stats?.length || facetRows(product).length) {
     button.hidden = false;
     details.replaceChildren(buildDetails(product, now, local));
   } else {
@@ -580,9 +1192,18 @@ function renderSnapshot(app, snapshot, rows, now) {
   app
     .querySelector('[data-slot="generated-at"]')
     .replaceChildren(timeNode(snapshot.generated_at));
+  // measure every row before writing any of them: the row body is a 1fr grid
+  // column, so its width does not depend on the field it holds, and reading all
+  // the widths first costs one layout instead of one per product
+  const pending = [];
   for (const product of productsOf(snapshot)) {
     const row = rows.get(product.id);
-    if (row) hydrateRow(row, product, now, local);
+    if (!row) continue;
+    const body = row.querySelector(".pipeline-row-body");
+    pending.push([row, product, body?.getBoundingClientRect().width ?? 0]);
+  }
+  for (const [row, product, available] of pending) {
+    hydrateRow(row, product, now, local, available);
   }
   renderAdvisories(app, snapshot.advisories ?? [], rows);
 }
@@ -624,6 +1245,56 @@ function start(app) {
     displayedAt = now;
     renderSnapshot(app, snapshot, rows, now);
   }
+
+  /* Clicking a product's field cycles its rows: lead time, then one grid per
+     facet dimension. The listener is delegated to the group container so it
+     survives every re-render, and the view index lives on the row. */
+
+  function cycleView(row) {
+    if (!row || !displayedSnapshot) return;
+    const product = productsOf(displayedSnapshot).find(
+      (entry) => entry.id === row.dataset.productId,
+    );
+    if (!product || viewsOf(product).length < 2) return;
+    row.dataset.view = String(Number(row.dataset.view ?? 0) + 1);
+    const body = row.querySelector(".pipeline-row-body");
+    hydrateRow(
+      row,
+      product,
+      displayedAt ?? Date.now(),
+      document.body.classList.contains("pipeline-time-local"),
+      body?.getBoundingClientRect().width ?? 0,
+    );
+  }
+
+  const groupsSlot = app.querySelector('[data-slot="groups"]');
+  groupsSlot.addEventListener("click", (event) => {
+    // the details button and any link keep their own behaviour
+    if (event.target.closest("button, a, summary")) return;
+    cycleView(event.target.closest(".pipeline-viz")?.closest(".pipeline-row"));
+  });
+  groupsSlot.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const viz = event.target.closest?.(".pipeline-viz");
+    if (!viz) return;
+    event.preventDefault();
+    cycleView(viz.closest(".pipeline-row"));
+  });
+
+  // the run count comes from the measured row, so a resize has to re-fit
+  let refitTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(refitTimer);
+    refitTimer = setTimeout(() => {
+      if (!displayedSnapshot) return;
+      // a scrubbed snapshot keeps the time it was displayed at, exactly as the
+      // time-mode handler does — re-timing it to now invents latencies
+      displaySnapshot(
+        displayedSnapshot,
+        mode === "live" ? Date.now() : displayedAt,
+      );
+    }, 150);
+  });
 
   function setTimeMode(local) {
     document.body.classList.toggle("pipeline-time-local", local);

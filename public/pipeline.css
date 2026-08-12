@@ -27,16 +27,25 @@
 }
 
 .pipeline-legend-mark--pending {
-  border: 1px dotted var(--pipeline-unobserved);
+  border: 1px solid var(--pipeline-unobserved);
+}
+
+.pipeline-legend-mark--partial {
+  border: 1px solid var(--text-color);
   background: linear-gradient(
     to right,
-    var(--pipeline-ok) 0 50%,
-    transparent 50%
+    var(--pipeline-progress) 0 55%,
+    transparent 55%
   );
 }
 
 .pipeline-legend-mark--unobserved {
   border: 1px dotted var(--pipeline-unobserved);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--pipeline-unobserved) 0 1px,
+    transparent 1px 4px
+  );
 }
 
 .pipeline-ribbon:not([hidden]),
@@ -120,123 +129,204 @@
   min-width: 0;
 }
 
-.pipeline-lead-labels {
-  position: relative;
-  flex: none;
-  width: 2.6rem;
-  height: 13rem;
-  color: var(--muted-text);
-  font-size: 1rem;
-  line-height: 1;
-}
+/* The field: a band per measurement, a square per run, time to the right.
+   Clicking it cycles which dimension owns the rows. */
 
-.pipeline-lead-labels span {
-  position: absolute;
-  right: 0;
-  transform: translateY(50%);
-  white-space: nowrap;
-}
-
-.pipeline-grid {
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+.pipeline-viz {
   flex: 1;
-  gap: 0.6rem;
   min-width: 0;
 }
 
-.pipeline-bar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
+.pipeline-viz[role="group"] {
+  cursor: pointer;
 }
 
-.pipeline-bar-track {
-  position: relative;
-  width: 100%;
-  height: 13rem;
+.pipeline-viz:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 3px;
+}
+
+.pipeline-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--band-gap);
+  /* every view reserves the tallest view's height, so cycling does not shift
+     the page under the reader; a view that cannot fill it sits centred */
+  justify-content: center;
+  min-height: var(--reserve, auto);
+  min-width: 0;
+}
+
+/* The facet rows share out whatever height the reserved box leaves them, so a
+   view with two rows draws as much ink as one with six — capped at three cells
+   so a sparse product does not draw absurdly tall rows. */
+
+.pipeline-rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--band-gap);
+  justify-content: center;
+  min-height: 0;
+}
+
+.pipeline-rows > .pipeline-band {
+  flex: 1;
+  max-height: calc(3 * var(--sq));
+}
+
+.pipeline-rows .pipeline-cells,
+.pipeline-rows .pipeline-clump {
+  align-self: stretch;
+  height: 100%;
+}
+
+.pipeline-rows .pipeline-cell {
+  height: auto;
+}
+
+.pipeline-band {
+  display: grid;
+  grid-template-columns: var(--band-gutter) minmax(0, max-content);
+  align-items: center;
+  gap: 0 0.6rem;
+}
+
+.pipeline-band-label {
   overflow: hidden;
+  color: var(--muted-text);
+  font-size: 1rem;
+  line-height: 1;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipeline-band[data-kind="lead"] .pipeline-band-label {
+  color: var(--text-color);
+}
+
+.pipeline-cells {
+  display: flex;
+  gap: var(--run-gap);
+}
+
+/* a clumped band needs daylight between runs, since the squares within one run
+   sit a single pixel apart */
+.pipeline-cells[data-clumped] {
+  gap: var(--clumped-run-gap);
+}
+
+.pipeline-clump {
+  display: flex;
+  flex: none;
+  gap: var(--clump-gap);
+}
+
+.pipeline-cell {
+  position: relative;
+  flex: none;
+  /* the lead dimension is proportional, so whichever axis it owns is set
+     per cell; the other axis stays one cell */
+  width: var(--cell-w, var(--sq));
+  height: var(--cell-h, var(--sq));
   border: 1px solid var(--text-color);
 }
 
-.pipeline-bar-fill,
-.pipeline-bar-segment,
-.pipeline-bar-segment-fill {
+.pipeline-cell-fill {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
-}
-
-.pipeline-bar-fill {
   height: var(--fill, 0%);
 }
 
-.pipeline-bar-segment {
-  bottom: var(--band-bottom, 0%);
-  height: var(--band-height, 0%);
+/* where lead time owns the horizontal axis, a cell fills from its left edge
+   rather than its floor, so progress reads along the same axis as the leads */
+.pipeline-field[data-fill="side"] .pipeline-cell-fill {
+  top: 0;
+  right: auto;
+  width: var(--fill, 0%);
+  height: auto;
 }
 
-.pipeline-bar-segment
-  + .pipeline-bar-segment:not(:last-child, .g-pending, .g-unobserved) {
-  border-top: 1px solid var(--text-color);
-}
-
-.pipeline-bar-segment-fill {
-  height: var(--fill, 0%);
-}
-
-.pipeline-bar[data-status="complete"] .pipeline-bar-fill,
-.pipeline-bar-segment.g-complete .pipeline-bar-segment-fill {
+.pipeline-cell.g-complete .pipeline-cell-fill {
   background: var(--pipeline-ok);
 }
 
-.pipeline-bar[data-status="complete"][data-timing="delayed"] .pipeline-bar-fill,
-.pipeline-bar[data-status="in_flight"] .pipeline-bar-fill,
-.pipeline-bar-segment.g-complete[data-timing="delayed"] .pipeline-bar-segment-fill,
-.pipeline-bar-segment.g-in_flight .pipeline-bar-segment-fill {
+.pipeline-cell.g-complete[data-timing="delayed"] .pipeline-cell-fill,
+.pipeline-cell.g-in_flight .pipeline-cell-fill {
   background: var(--pipeline-progress);
 }
 
-.pipeline-bar[data-status="in_flight"][data-timing="on_time"] .pipeline-bar-fill,
-.pipeline-bar-segment.g-in_flight[data-timing="on_time"] .pipeline-bar-segment-fill {
+.pipeline-cell.g-in_flight[data-timing="on_time"] .pipeline-cell-fill {
   background: var(--pipeline-ok);
 }
 
-.pipeline-bar[data-status="failed"] .pipeline-bar-fill,
-.pipeline-bar-segment.g-failed .pipeline-bar-segment-fill {
+.pipeline-cell.g-failed .pipeline-cell-fill {
   height: 100%;
   background: var(--pipeline-failed);
 }
 
-.pipeline-bar-segment.g-pending,
-.pipeline-bar-segment.g-unobserved {
-  border: 1px dotted var(--pipeline-unobserved);
+.pipeline-field[data-fill="side"] .pipeline-cell.g-failed .pipeline-cell-fill {
+  width: 100%;
 }
 
-.pipeline-bar[data-status="unobserved"] .pipeline-bar-track {
-  border: 1px dotted var(--pipeline-unobserved);
+/* an empty outline is "expected, nothing yet"; hatching is "no evidence either
+   way" — the two must not read the same, since one is a measurement and the
+   other is the absence of one */
+.pipeline-cell.g-pending {
+  border: 1px solid var(--pipeline-unobserved);
 }
 
-.pipeline-bar[data-status="unobserved"] .pipeline-bar-fill,
-.pipeline-bar[data-status="unobserved"] .pipeline-bar-segment,
-.pipeline-bar-segment.g-pending .pipeline-bar-segment-fill,
-.pipeline-bar-segment.g-unobserved .pipeline-bar-segment-fill {
+.pipeline-cell.g-unobserved {
+  border: 1px dotted var(--pipeline-unobserved);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--pipeline-unobserved) 0 1px,
+    transparent 1px 4px
+  );
+}
+
+.pipeline-cell.g-pending .pipeline-cell-fill,
+.pipeline-cell.g-unobserved .pipeline-cell-fill {
   display: none;
 }
 
-.pipeline-bar-label {
-  min-height: 2.4em;
-  color: var(--muted-text);
-  font-size: 1rem;
-  line-height: 1.2;
+/* The facet-row field: a run per block, lead groups as columns inside it */
+
+.pipeline-column-label {
+  flex: none;
+  width: var(--cell-w, var(--sq));
+  height: var(--label-h);
+  font-size: 0.9rem;
+  line-height: var(--label-h);
   text-align: center;
 }
 
-.pipeline-bar-label strong {
-  display: block;
-  color: var(--text-color);
+.pipeline-band--head {
+  margin-bottom: 0.2rem;
+}
+
+.pipeline-band--foot {
+  margin-top: 0.3rem;
+}
+
+/* one per run block, exactly as wide as the block it names */
+.pipeline-run-label,
+.pipeline-run-date {
+  /* never shrink, or a label drifts out from under the blocks it names */
+  flex: none;
+  /* exactly one run block wide, so both tiers centre on the same axis */
+  width: var(--run-width);
+  height: var(--label-h);
+  font-size: 0.9rem;
+  line-height: var(--label-h);
+  text-align: center;
+}
+
+.pipeline-run-label {
+  color: var(--muted-text);
 }
 
 .pipeline-stats {
@@ -299,6 +389,36 @@
   text-align: left;
 }
 
+.pipeline-facets {
+  margin-top: 1.2rem;
+}
+
+/* the bar takes the row's leftover width, and the number beside it is always
+   three characters wide, so every bar starts and ends in the same place */
+.pipeline-facets td:last-child {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.pipeline-facets progress {
+  flex: 1;
+  accent-color: var(--pipeline-ok);
+  vertical-align: middle;
+}
+
+.pipeline-facet-pct {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.pipeline-facet-num {
+  display: inline-block;
+  width: 3ch;
+  text-align: right;
+}
+
 .pipeline-time-local .pipeline-time-utc,
 body:not(.pipeline-time-local) .pipeline-time-local-only {
   display: none;
@@ -311,15 +431,5 @@ body:not(.pipeline-time-local) .pipeline-time-local-only {
 
   .pipeline-stats {
     text-align: left;
-  }
-}
-
-@media (max-width: 680px) {
-  .pipeline-grid {
-    gap: 0.3rem;
-  }
-
-  .pipeline-bar-label {
-    font-size: 0.8rem;
   }
 }

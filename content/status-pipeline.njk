@@ -30,17 +30,23 @@ pageStylesheet: /pipeline.css
   </div>
   <div data-slot="banners" aria-live="polite"></div>
 
-  <div class="pipeline-legend" aria-label="Pipeline bar legend">
+  <div class="pipeline-legend" aria-label="Pipeline legend">
+    <span>
+      <span class="pipeline-legend-mark pipeline-legend-mark--partial"
+        aria-hidden="true"></span>
+      part arrived
+    </span>
     <span>
       <span class="pipeline-legend-mark pipeline-legend-mark--pending"
         aria-hidden="true"></span>
-      forecast hours still expected
+      still expected
     </span>
     <span>
       <span class="pipeline-legend-mark pipeline-legend-mark--unobserved"
         aria-hidden="true"></span>
       no monitoring data
     </span>
+    <span>one square per measurement · hover a square for what it measured</span>
   </div>
 
   <div id="pipeline-history-panel" hidden>
