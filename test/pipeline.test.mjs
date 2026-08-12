@@ -12,9 +12,7 @@ import {
   leadExtents,
   viewAt,
   viewsOf,
-  usesFacetRows,
   facetsAt,
-  hasJointFacets,
   gutterPx,
   runsThatFit,
   runsThatFitFacetRows,
@@ -377,19 +375,26 @@ test("orders the lead axis shortest horizon first, and the bands from the floor 
   );
 });
 
-test("gives an init column room for its own label", () => {
-  // "08-12" is five characters; a zone abbreviation makes local mode wider
-  assert.equal(initColumnPx(false), 30);
-  assert.equal(initColumnPx(true), 36);
+test("gives an init column room for its own label, in any zone", () => {
+  const product = facetedProduct();
+  // "08-12" is five characters, and a UTC time is three
+  assert.equal(initColumnPx(product, "UTC"), 30);
+  // a zone with a letter abbreviation is six: "19 CDT"
+  assert.equal(initColumnPx(product, "America/Chicago"), 36);
+  // en-US has no abbreviation for these, so it renders a GMT offset — the case a
+  // local/UTC guess got wrong, at nearly twice the width
+  assert.equal(initColumnPx(product, "Europe/Berlin"), 48);
+  assert.equal(initColumnPx(product, "Asia/Kolkata"), 66);
 });
 
 test("fits the run count to the width the row actually has", () => {
   const flat = facetedProduct();
 
-  // production middle column is 390px, less 18px of lead gutter; a labelled
-  // column costs 30px in UTC plus a 6px gap, and 36px in local
+  // production middle column is 390px, less 18px of lead gutter; a UTC-labelled
+  // column costs 30px plus a 6px gap. The local-zone widths are asserted
+  // separately, with explicit zones — asserting them through `local: true` here
+  // would only test whatever zone the test machine happens to be in.
   assert.equal(runsThatFit(flat, 390, false), 10);
-  assert.equal(runsThatFit(flat, 390, true), 8);
   // squeeze it
   assert.equal(runsThatFit(flat, 200, false), 4);
   // never zero, however cramped, and never more than the payload carries
@@ -401,10 +406,10 @@ test("fits the run count to the width the row actually has", () => {
 
 test("moves facets out of their own bands once the joint is published", () => {
   const flat = facetedProduct();
-  assert.equal(hasJointFacets(flat), false);
+  assert.deepEqual(facetRowsOf(flat), []);
 
   const joint = jointProduct();
-  assert.equal(hasJointFacets(joint), true);
+  assert.ok(facetRowsOf(joint).length > 0);
   // facets own their own rows now, so a band of their own would only repeat
   // the run total the details table already carries
   assert.deepEqual(
@@ -500,8 +505,7 @@ test("keeps the lead grid usable when a joint reports nothing", () => {
   // the validator accepts an empty facets array, so this is supported input
   const empty = jointProduct();
   for (const group of empty.recent_inits[0].lead_groups) group.facets = [];
-  assert.equal(hasJointFacets(empty), false);
-  assert.equal(usesFacetRows(empty), false);
+  assert.deepEqual(facetRowsOf(empty), []);
   // no facet views to cycle to, and the lead measurements still render
   assert.deepEqual(
     viewsOf(empty).map((view) => view.rows),
@@ -515,7 +519,10 @@ test("keeps the lead grid usable when a joint reports nothing", () => {
   // a rollback drops the key entirely
   const rolledBack = jointProduct();
   for (const group of rolledBack.recent_inits[0].lead_groups) delete group.facets;
-  assert.equal(usesFacetRows(rolledBack), false);
+  assert.deepEqual(
+    viewsOf(rolledBack).map((view) => view.rows),
+    ["lead time"],
+  );
   assert.equal(bandsOf(rolledBack).length, 2);
 });
 
@@ -528,7 +535,7 @@ test("draws a facet row for anything the joint reported in the window", () => {
   for (const group of newest.lead_groups) group.facets = [];
   mixed.recent_inits = [older, newest];
 
-  assert.equal(usesFacetRows(mixed), true);
+  assert.ok(facetRowsOf(mixed).length > 0);
   // rows come from the whole window, not just the newest run
   assert.deepEqual(
     facetRowsOf(mixed).map((facet) => facet.label),

@@ -22,6 +22,7 @@ const MIN_LEAD_PX = 12;
 const BAND_GAP_PX = 2; // between bands, inside a field
 const LABEL_PX = 12; // one axis-label row
 const FOOT_GAP_PX = 3; // the breath above the init tiers
+const HEAD_GAP_PX = 2; // the head band's margin under the lead labels
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
@@ -307,29 +308,22 @@ function leadSlices(groups) {
   });
 }
 
-/* True once a payload reports facets per lead group. An empty array is a
-   validated, supported input — a run that reported nothing yet — so it does not
-   count as a joint. Until a real one arrives the two published marginals are all
-   there is, and facets get their own bands. */
-
-export function hasJointFacets(product) {
-  return (product.recent_inits ?? []).some((init) =>
-    (init.lead_groups ?? []).some((group) => group.facets?.length),
-  );
-}
-
 /* The lead groups a product measures, shortest horizon first — the order the
    payload declares them in. History snapshots declare neither list up front,
    so both fall back to the newest run's own. */
 
 export function leadAxis(product) {
-  const newest = product.recent_inits?.at(-1);
   const labelOf = new Map(
     (product.lead_group_stats ?? []).map((stats) => [stats.name, stats.label]),
   );
+  // a snapshot's newest run can be unobserved and carry no groups at all, while
+  // the runs beside it carry full data — so take the newest that reported any
+  const reported = [...(product.recent_inits ?? [])]
+    .reverse()
+    .find((init) => init.lead_groups?.length);
   const declared = product.lead_groups?.length
     ? product.lead_groups
-    : (newest?.lead_groups ?? []);
+    : (reported?.lead_groups ?? []);
   return declared.map((group) => ({
     kind: "lead",
     key: group.name,
@@ -369,7 +363,7 @@ export function leadExtents(product) {
    measurement — which matters because the render pass writes without reading. */
 
 function chromePx(view, rows) {
-  const head = view.dimension ? LABEL_PX + BAND_GAP_PX : 0;
+  const head = view.dimension ? LABEL_PX + BAND_GAP_PX + HEAD_GAP_PX : 0;
   const tiers = FOOT_GAP_PX + 2 * (LABEL_PX + BAND_GAP_PX);
   return head + tiers + BAND_GAP_PX * Math.max(0, rows - 1);
 }
@@ -407,18 +401,19 @@ export function bandsOf(product) {
 /* The facets of one lead group in one run, in the product's declared order.
    Empty when the payload reports no joint for that group. */
 
-export function facetsAt(product, init, leadName) {
+export function facetsAt(product, init, leadName, order) {
   const group = (init?.lead_groups ?? []).find(
     (entry) => entry.name === leadName,
   );
   if (!Array.isArray(group?.facets)) return [];
-  const order = (product.facet_groups ?? []).map((facet) => facet.name);
   const measured = new Map(group.facets.map((facet) => [facet.name, facet]));
-  const ordered = order.length ? order : group.facets.map((f) => f.name);
+  // the rows come from facetRowsOf, so the cells must use that same order —
+  // ordering by facet_groups alone would leave a measured-but-undeclared facet
+  // with a row and no squares, reading as "no monitoring data" for data that
+  // did arrive
+  const names = order ?? facetRowsOf(product).map((facet) => facet.name);
   // a facet absent at this lead simply has no square
-  return ordered
-    .map((name) => measured.get(name))
-    .filter(Boolean);
+  return names.map((name) => measured.get(name)).filter(Boolean);
 }
 
 /* The label gutter is only as wide as the labels beside it. Lead-only rows read
@@ -427,12 +422,17 @@ export function facetsAt(product, init, leadName) {
    ch: CSS resolves ch against the band's inherited font, which is not the
    font these labels are set in. */
 
-/* An init column is as wide as the label beneath it: "08-12" in UTC, and the
-   zone abbreviation makes local mode wider. Main sized its bars the same way,
-   which is what lets every column carry its own timestamp. */
+/* An init column is as wide as the label beneath it. Measured from the labels
+   this product actually formats, not guessed from a mode: `en-US` renders a zone
+   without a letter abbreviation as a GMT offset, so local time is "08 CDT" in
+   Chicago but "18 GMT+5:30" in Kolkata — nearly twice as wide. */
 
-export function initColumnPx(local) {
-  return (local ? 6 : 5) * CH_PX;
+export function initColumnPx(product, zone) {
+  const widest = (product.recent_inits ?? []).reduce((max, init) => {
+    const { date, time } = initParts(init.init_time, zone);
+    return Math.max(max, date.length, time.length);
+  }, 2);
+  return Math.max(CELL_PX, widest * CH_PX);
 }
 
 export function gutterPx(labelled) {
@@ -462,7 +462,7 @@ export function runsThatFit(product, availablePx, local) {
   return runsFitting(
     availablePx,
     gutterPx(bandsOf(product)),
-    initColumnPx(local),
+    initColumnPx(product, selectedTimeZone(local)),
     RUN_GAP_PX,
   );
 }
@@ -625,16 +625,13 @@ export function viewsOf(product) {
   ];
 }
 
-export function viewAt(product, index) {
-  const views = viewsOf(product);
-  return views[((index % views.length) + views.length) % views.length];
+function wrapIndex(index, length) {
+  return ((index % length) + length) % length;
 }
 
-/* The layout only transposes when there are rows to draw. Without this a joint
-   that reports nothing would hide the lead measurements it replaced. */
-
-export function usesFacetRows(product) {
-  return hasJointFacets(product) && facetRowsOf(product).length > 0;
+export function viewAt(product, index) {
+  const views = viewsOf(product);
+  return views[wrapIndex(index, views.length)];
 }
 
 /* The init axis: the time under every column, then the date only where it turns
@@ -668,11 +665,12 @@ function initTiers(runs, local) {
    still decides, then read by name per square. */
 
 function jointIndex(product, runs, leads) {
+  const order = facetRowsOf(product).map((facet) => facet.name);
   const index = new Map();
   for (const init of runs) {
     const byLead = new Map();
     for (const lead of leads) {
-      const facets = facetsAt(product, init, lead.key);
+      const facets = facetsAt(product, init, lead.key, order);
       if (!facets.length) continue;
       byLead.set(lead.key, {
         // the lead group's own timing is more specific than the run's
@@ -713,7 +711,7 @@ function renderFacetRows(product, local, runCount, dimension) {
   const leadWidth = (lead) => extents.get(lead.key) ?? CELL_PX;
   const runWidth =
     leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
-    (leads.length - 1) * CLUMP_GAP_PX;
+    Math.max(0, leads.length - 1) * CLUMP_GAP_PX;
   const field = element("div", {
     class: "pipeline-field",
     // lead time runs across here, so progress fills across too
@@ -798,23 +796,13 @@ function renderFacetRows(product, local, runCount, dimension) {
 function renderField(product, local, runCount) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
   const extents = leadExtents(product);
-  const column = initColumnPx(local);
+  const column = initColumnPx(product, selectedTimeZone(local));
   const field = element("div", {
     class: "pipeline-field",
     // a cell is as wide as its init label; the lead axis keeps its own scale
     style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
   });
-  let dimension = null;
-
   for (const band of bandsOf(product)) {
-    // name each facet dimension once, where it starts
-    if (band.kind === "facet" && band.dimension !== dimension) {
-      field.append(
-        element("div", { class: "pipeline-dimension" }, band.dimension),
-      );
-    }
-    dimension = band.kind === "facet" ? band.dimension : null;
-
     field.append(
       bandNode({
         kind: band.kind,
@@ -1078,7 +1066,7 @@ function buildDetails(product, now, local) {
 function hydrateRow(row, product, now, local, available) {
   // the lead grid is the view a row opens on; the facet grids are a click away
   const views = viewsOf(product);
-  const index = Number(row.dataset.view ?? 0) % views.length;
+  const index = wrapIndex(Number(row.dataset.view ?? 0), views.length);
   const view = views[index];
   row.dataset.view = String(index);
 
@@ -1097,7 +1085,9 @@ function hydrateRow(row, product, now, local, available) {
   // more than the one view
   if (views.length > 1) {
     const next = views[(index + 1) % views.length];
-    viz.setAttribute("role", "button");
+    // a group, not a button: role="button" would collapse the field into one
+    // node and hide every cell's own label from assistive tech
+    viz.setAttribute("role", "group");
     viz.setAttribute("tabindex", "0");
     viz.setAttribute(
       "aria-label",
