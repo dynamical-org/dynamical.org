@@ -1040,6 +1040,11 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   );
 
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  // the migration notice is deliberate copy, not decoration: it should leave
+  // with the cutover and backfill it describes
+  assert.match(template, /increasing the granularity of arrival monitoring/);
+  assert.match(template, /intermittent or\s+show arrival states that appear incorrect/);
+  assert.match(pipelineCss, /\.pipeline-notice \{/);
   assert.match(template, /part arrived/);
   assert.match(template, /still expected/);
   assert.match(template, /no monitoring data/);

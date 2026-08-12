@@ -22,10 +22,16 @@ const FIXTURE = JSON.parse(
 
 const JSON_HEADERS = { "access-control-allow-origin": "*" };
 
+/* Match by filename, not by base: the dev server points the page at the published
+   assets under `npm start` but at `/pipeline-preview/` under `npm run
+   start:pipeline`, and a stub that only matched one of those would silently stop
+   applying — leaving a test asserting against whatever the server happened to
+   serve. */
+
 /** Serve the pipeline page its data, optionally reshaped for one test. */
 async function stubPipeline(page, mutate = (payload) => payload) {
   const payload = mutate(structuredClone(FIXTURE));
-  await page.route("**/wxopticon/dashboard.json", (route) =>
+  await page.route("**/dashboard.json", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -35,7 +41,7 @@ async function stubPipeline(page, mutate = (payload) => payload) {
   );
   // the shared health strip and the history index are separate feeds; stub them
   // so the spec neither waits on the network nor reports their failures as ours
-  await page.route("**/status/status.json", (route) =>
+  await page.route("**/status.json", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -43,7 +49,7 @@ async function stubPipeline(page, mutate = (payload) => payload) {
       body: JSON.stringify({ endpoints: [{ status: "operational" }] }),
     }),
   );
-  await page.route("**/wxopticon/history/index.json", (route) =>
+  await page.route("**/history/index.json", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",

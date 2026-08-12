@@ -25,6 +25,14 @@ pageStylesheet: /pipeline.css
     </p>
   {% endcall %}
 
+  {# Remove once wxopticon's granular cutover and history backfill are done:
+     dynamical-org/wxopticon#163 (cutover), #161 and #162 (backfill). #}
+  <p class="pipeline-notice">
+    We are increasing the granularity of arrival monitoring and rebuilding its
+    history. During the migration and backfill, this page may be intermittent or
+    show arrival states that appear incorrect.
+  </p>
+
   <div class="pipeline-ribbon" data-slot="ribbon" hidden>
     Pipeline data is more than 10 minutes old — it may be stalled.
   </div>
