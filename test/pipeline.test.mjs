@@ -24,7 +24,7 @@ import { localZoneLabel } from "../public/status-time.mjs";
 
 function dashboard() {
   return {
-    v: 1,
+    v: 2,
     generated_at: "2026-07-25T18:00:00Z",
     window_days: 90,
     advisories: [],
@@ -36,6 +36,13 @@ function dashboard() {
           {
             id: "external-noaa-gfs-aws",
             row_label: "AWS",
+            facet_groups: [
+              {
+                dimension: "component",
+                name: "component:data",
+                label: "data",
+              },
+            ],
             recent_inits: [],
           },
         ],
@@ -48,9 +55,8 @@ test("accepts the versioned dashboard contract", () => {
   assert.equal(validateDashboard(dashboard()).groups[0].id, "noaa-gfs");
 });
 
-test("accepts dashboard v2 facets while retaining dashboard v1", () => {
+test("accepts dashboard v2 facets and rejects dashboard v1", () => {
   const current = dashboard();
-  current.v = 2;
   const [product] = current.groups[0].products;
   product.facet_groups = [
     { dimension: "component", name: "component:pgrb2a", label: "pgrb2a" },
@@ -74,7 +80,11 @@ test("accepts dashboard v2 facets while retaining dashboard v1", () => {
   ];
 
   assert.equal(validateDashboard(current), current);
-  assert.equal(validateDashboard(dashboard()).v, 1);
+  assert.equal(validateDashboard(dashboard()).v, 2);
+  assert.throws(
+    () => validateDashboard({ ...dashboard(), v: 1 }),
+    /invalid pipeline dashboard/i,
+  );
 });
 
 test("rejects empty, unknown, and oversized dashboards", () => {

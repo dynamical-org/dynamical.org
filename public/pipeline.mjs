@@ -9,7 +9,7 @@ const POLL_INTERVAL_MS = 15_000;
 const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
-const DASHBOARD_VERSIONS = new Set([1, 2]);
+const DASHBOARD_VERSION = 2;
 
 function hasTimestamp(value) {
   return (
@@ -22,7 +22,7 @@ function hasTimestamp(value) {
 export function validateDashboard(data) {
   if (
     !data ||
-    !DASHBOARD_VERSIONS.has(data.v) ||
+    data.v !== DASHBOARD_VERSION ||
     !hasTimestamp(data.generated_at) ||
     !Array.isArray(data.groups) ||
     data.groups.length === 0 ||
@@ -51,7 +51,6 @@ export function validateDashboard(data) {
       }
       if (product.facet_groups != null) {
         if (
-          data.v !== 2 ||
           !Array.isArray(product.facet_groups) ||
           product.facet_groups.length === 0 ||
           !product.facet_groups.every(
@@ -68,7 +67,6 @@ export function validateDashboard(data) {
       for (const init of product.recent_inits) {
         if (init.facets == null) continue;
         if (
-          data.v !== 2 ||
           !Array.isArray(init.facets) ||
           !init.facets.every(
             (facet) =>
@@ -91,7 +89,7 @@ export function validateDashboard(data) {
       }
     }
   }
-  if (data.v === 2 && !hasFacetGroups) {
+  if (!hasFacetGroups) {
     throw new TypeError("Invalid pipeline dashboard");
   }
   return data;
