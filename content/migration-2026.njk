@@ -12,7 +12,7 @@ permalink: /migration-2026/
   .agent-prompt textarea {
     display: block;
     width: 100%;
-    height: 34rem;
+    height: 44rem;
     padding: 1em;
     border: 1px solid var(--border-muted-color);
     border-radius: var(--radius-sm);
@@ -107,12 +107,30 @@ Rules:
   noaa-gfs-forecast. Exception: /noaa/gfs/analysis-hourly/ is retired, use
   noaa-gfs-analysis.
 - Two ways to open a dataset, equally supported. Use either, consistently:
-  - dynamical_catalog.open("&lt;dataset-id&gt;"), with dynamical-catalog&gt;=0.8.0, or
-  - the "icechunk-https" asset from the dataset's STAC Collection, resolved at
-    open time. Any HTTP client reads the Collection; pystac is not required.
+
+  import dynamical_catalog  # dynamical-catalog&gt;=0.8.0
+
+  ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)
+
+  or, resolving the asset from STAC yourself:
+
+  import icechunk
+  import pystac
+  import xarray as xr
+
+  catalog = pystac.Catalog.from_file("https://stac.dynamical.org/catalog.json")
+  collection = catalog.get_child("noaa-gfs-forecast")
+  asset = collection.assets["icechunk-https"]
+
+  repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
+  session = repo.readonly_session("main")
+
+  ds = xr.open_zarr(session.store, chunks=None)
+
+  Any HTTP client reads the STAC; pystac is not required.
 - Either way you open an Icechunk 2.0 repository, so Icechunk 2 is required; in
-  Python that means 3.12+. Do not hard-code the asset href, the S3 bucket, or a
-  version number.
+  Python that means 3.12+. Resolve the asset at open time — do not hard-code the
+  asset href, the S3 bucket, or a version number.
 - Drop any ?email= query argument. It is no longer used.
 - The datasets are identical to the legacy archive in structure, naming,
   attributes, chunking/sharding, and content — only the open call changes, so
