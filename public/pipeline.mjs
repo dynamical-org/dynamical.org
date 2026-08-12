@@ -1065,21 +1065,16 @@ function hydrateRow(row, product, now, local, available) {
 
   const viz = row.querySelector('[data-slot="field"]');
   viz.replaceChildren(field);
-  // only worth announcing when there is somewhere to click to
+  // the cycle is only reachable, and only worth announcing, when a product has
+  // more than the one view
   if (views.length > 1) {
     const next = views[(index + 1) % views.length];
-    field.append(
-      element(
-        "div",
-        { class: "pipeline-view-hint" },
-        view.dimension
-          ? `rows: ${view.rows} · columns: lead time · click for ${next.rows}`
-          : `rows: lead time · columns: init · click for ${next.rows}`,
-      ),
-    );
     viz.setAttribute("role", "button");
     viz.setAttribute("tabindex", "0");
-    viz.setAttribute("aria-label", `${view.rows} by lead group; activate for ${next.rows}`);
+    viz.setAttribute(
+      "aria-label",
+      `${view.rows} by ${view.dimension ? "lead group" : "init"}; activate for ${next.rows}`,
+    );
   } else {
     viz.removeAttribute("role");
     viz.removeAttribute("tabindex");

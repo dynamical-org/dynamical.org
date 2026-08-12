@@ -137,17 +137,6 @@
   outline-offset: 3px;
 }
 
-.pipeline-view-hint {
-  margin-top: 0.4rem;
-  padding-left: calc(var(--band-gutter) + 0.6rem);
-  color: var(--muted-text-2);
-  font-size: 1rem;
-}
-
-.pipeline-viz:hover .pipeline-view-hint {
-  color: var(--link-color);
-}
-
 .pipeline-field {
   display: flex;
   flex-direction: column;
