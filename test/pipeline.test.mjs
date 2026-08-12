@@ -7,6 +7,8 @@ import {
   bandsOf,
   cellOf,
   cellTitle,
+  facetsAt,
+  hasJointFacets,
   clockTime,
   detailRows,
   displaySource,
@@ -287,6 +289,147 @@ test("bands the field by lead group from the floor up, then by facet dimension",
     bandsOf(noFacets).map((band) => band.kind),
     ["lead", "lead"],
   );
+});
+
+function jointProduct() {
+  const product = facetedProduct();
+  const [init] = product.recent_inits;
+  const [shortLead, longLead] = init.lead_groups;
+  shortLead.facets = [
+    {
+      dimension: "component",
+      name: "component:pgrb2a",
+      label: "pgrb2a.0p50",
+      status: "complete",
+      completion_pct: 1,
+      dependencies_available: 100,
+      dependencies_expected: 100,
+    },
+    {
+      dimension: "member",
+      name: "members:control",
+      label: "control",
+      status: "complete",
+      completion_pct: 1,
+      dependencies_available: 100,
+      dependencies_expected: 100,
+    },
+  ];
+  longLead.facets = [
+    // declared second in facet_groups, reported first here
+    {
+      dimension: "member",
+      name: "members:control",
+      label: "control",
+      status: "in_flight",
+      completion_pct: 0.5,
+      dependencies_available: 150,
+      dependencies_expected: 300,
+    },
+    {
+      dimension: "component",
+      name: "component:pgrb2a",
+      label: "pgrb2a.0p50",
+      status: "pending",
+      completion_pct: 0,
+      dependencies_available: 0,
+      dependencies_expected: 300,
+    },
+  ];
+  return product;
+}
+
+test("nests facets inside their lead group once the joint is published", () => {
+  const flat = facetedProduct();
+  assert.equal(hasJointFacets(flat), false);
+  assert.deepEqual(
+    bandsOf(flat).map((band) => band.kind),
+    ["lead", "lead", "facet", "facet"],
+  );
+
+  const joint = jointProduct();
+  assert.equal(hasJointFacets(joint), true);
+  // facets live in the lead bands now, so a band of their own would only
+  // repeat the run total
+  assert.deepEqual(
+    bandsOf(joint).map((band) => `${band.kind}:${band.label}`),
+    ["lead:10d", "lead:1d"],
+  );
+});
+
+test("orders a lead group's facets as the product declares them", () => {
+  const joint = jointProduct();
+  const init = joint.recent_inits[0];
+  assert.deepEqual(
+    facetsAt(joint, init, "f240").map((facet) => facet.label),
+    ["pgrb2a.0p50", "control"],
+  );
+  assert.deepEqual(
+    facetsAt(joint, init, "f000").map((facet) => facet.label),
+    ["pgrb2a.0p50", "control"],
+  );
+  // a product without the joint has nothing to nest
+  const flat = facetedProduct();
+  assert.deepEqual(facetsAt(flat, flat.recent_inits[0], "f240"), []);
+});
+
+test("a nested square names its facet and the lead it arrived under", () => {
+  const joint = jointProduct();
+  const init = joint.recent_inits[0];
+  const [facet] = facetsAt(joint, init, "f240");
+  const band = {
+    kind: "facet",
+    key: facet.name,
+    label: facet.label,
+    dimension: facet.dimension,
+    lead: "10d",
+  };
+  assert.equal(
+    cellTitle(band, init, cellOf({ ...band, kind: "facet" }, init), false),
+    "pgrb2a.0p50 (component) · lead 10d · 07-26 00z · 200 / 400 files · processing · delayed",
+  );
+});
+
+test("rejects a malformed joint the same way as run-level facets", () => {
+  const current = dashboard();
+  current.v = 2;
+  const [product] = current.groups[0].products;
+  product.facet_groups = [
+    { dimension: "component", name: "component:pgrb2a", label: "pgrb2a" },
+  ];
+  product.recent_inits = [
+    {
+      init_time: "2026-07-25T12:00:00Z",
+      status: "in_flight",
+      lead_groups: [
+        {
+          name: "f000",
+          status: "in_flight",
+          facets: [
+            {
+              dimension: "component",
+              name: "component:pgrb2a",
+              label: "pgrb2a",
+              status: "in_flight",
+              completion_pct: 0.5,
+              dependencies_available: 5,
+              dependencies_expected: 10,
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  assert.equal(validateDashboard(current), current);
+
+  const broken = JSON.parse(JSON.stringify(current));
+  broken.groups[0].products[0].recent_inits[0].lead_groups[0].facets[0].dependencies_available = 99;
+  assert.throws(() => validateDashboard(broken), /invalid pipeline facet/i);
+
+  const wrongVersion = JSON.parse(JSON.stringify(current));
+  wrongVersion.v = 1;
+  delete wrongVersion.groups[0].products[0].facet_groups;
+  assert.throws(() => validateDashboard(wrongVersion), /invalid pipeline facet/i);
 });
 
 test("bands a history snapshot, which declares neither list up front", () => {

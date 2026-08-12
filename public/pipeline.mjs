@@ -21,6 +21,27 @@ function hasTimestamp(value) {
   );
 }
 
+function validFacets(facets) {
+  return (
+    Array.isArray(facets) &&
+    facets.every(
+      (facet) =>
+        typeof facet.dimension === "string" &&
+        typeof facet.name === "string" &&
+        typeof facet.label === "string" &&
+        Number.isInteger(facet.dependencies_available) &&
+        facet.dependencies_available >= 0 &&
+        Number.isInteger(facet.dependencies_expected) &&
+        facet.dependencies_expected > 0 &&
+        facet.dependencies_available <= facet.dependencies_expected &&
+        Number.isFinite(facet.completion_pct) &&
+        facet.completion_pct >= 0 &&
+        facet.completion_pct <= 1 &&
+        typeof facet.status === "string",
+    )
+  );
+}
+
 export function validateDashboard(data) {
   if (
     !data ||
@@ -68,27 +89,15 @@ export function validateDashboard(data) {
         hasFacetGroups = true;
       }
       for (const init of product.recent_inits) {
-        if (init.facets == null) continue;
-        if (
-          data.v !== 2 ||
-          !Array.isArray(init.facets) ||
-          !init.facets.every(
-            (facet) =>
-              typeof facet.dimension === "string" &&
-              typeof facet.name === "string" &&
-              typeof facet.label === "string" &&
-              Number.isInteger(facet.dependencies_available) &&
-              facet.dependencies_available >= 0 &&
-              Number.isInteger(facet.dependencies_expected) &&
-              facet.dependencies_expected > 0 &&
-              facet.dependencies_available <= facet.dependencies_expected &&
-              Number.isFinite(facet.completion_pct) &&
-              facet.completion_pct >= 0 &&
-              facet.completion_pct <= 1 &&
-              typeof facet.status === "string",
-          )
-        ) {
+        if (init.facets != null && (data.v !== 2 || !validFacets(init.facets))) {
           throw new TypeError("Invalid pipeline facet");
+        }
+        // the lead × facet joint: the same facet shape, reported per lead group
+        for (const group of init.lead_groups ?? []) {
+          if (group.facets == null) continue;
+          if (data.v !== 2 || !validFacets(group.facets)) {
+            throw new TypeError("Invalid pipeline facet");
+          }
         }
       }
     }
@@ -264,6 +273,15 @@ function leadSlices(groups) {
    product rather than a single run so the field keeps its shape as runs
    scroll through it. */
 
+/* True once a payload reports facets per lead group. Until then the two
+   published marginals are all there is, and facets get their own bands. */
+
+export function hasJointFacets(product) {
+  return (product.recent_inits ?? []).some((init) =>
+    (init.lead_groups ?? []).some((group) => Array.isArray(group.facets)),
+  );
+}
+
 export function bandsOf(product) {
   const newest = product.recent_inits?.at(-1);
   // history snapshots carry the same runs but declare neither list up front
@@ -289,7 +307,26 @@ export function bandsOf(product) {
     label: facet.label,
     dimension: facet.dimension,
   }));
-  return [...leads, ...facets];
+  // with the joint, facets sit inside their lead band and a band of their own
+  // would only repeat the run total
+  return hasJointFacets(product) ? leads : [...leads, ...facets];
+}
+
+/* The facets of one lead group in one run, in the product's declared order.
+   Empty when the payload reports no joint for that group. */
+
+export function facetsAt(product, init, leadName) {
+  const group = (init?.lead_groups ?? []).find(
+    (entry) => entry.name === leadName,
+  );
+  if (!Array.isArray(group?.facets)) return [];
+  const order = (product.facet_groups ?? []).map((facet) => facet.name);
+  const measured = new Map(group.facets.map((facet) => [facet.name, facet]));
+  const ordered = order.length ? order : group.facets.map((f) => f.name);
+  // a facet absent at this lead leaves the clump one square narrower
+  return ordered
+    .map((name) => measured.get(name))
+    .filter(Boolean);
 }
 
 /* What one run measured for one band. A band the run never reported reads as
@@ -313,9 +350,13 @@ export function cellOf(band, init) {
 
   const facet = (init.facets ?? []).find((entry) => entry.name === band.key);
   if (!facet) return { state: "unobserved" };
+  return facetCell(facet, init);
+}
+
+function facetCell(facet, init, timing = init.timing) {
   return {
     state: facet.status,
-    timing: init.timing,
+    timing,
     completion: facet.completion_pct ?? 0,
     available: facet.dependencies_available,
     expected: facet.dependencies_expected,
@@ -337,6 +378,8 @@ export function cellTitle(band, init, cell, local) {
       : `${Math.round((cell.completion ?? 0) * 100)}%`;
   return [
     band.kind === "facet" ? `${band.label} (${band.dimension})` : `lead ${band.label}`,
+    // a facet nested in a lead band names the lead it belongs to
+    band.lead ? `lead ${band.lead}` : null,
     when,
     volume,
     statusLabel(cell.state),
@@ -346,8 +389,8 @@ export function cellTitle(band, init, cell, local) {
     .join(" · ");
 }
 
-function renderCell(band, init, local) {
-  const cell = cellOf(band, init);
+function renderCell(band, init, local, measured) {
+  const cell = measured ?? cellOf(band, init);
   return element(
     "div",
     {
@@ -377,8 +420,47 @@ function renderField(product, local) {
     }
     dimension = band.kind === "facet" ? band.dimension : null;
 
-    const cells = element("div", { class: "pipeline-cells" });
-    for (const init of runs) cells.append(renderCell(band, init, local));
+    const clumped = band.kind === "lead" && hasJointFacets(product);
+    const cells = element("div", {
+      class: "pipeline-cells",
+      "data-clumped": clumped ? "" : null,
+    });
+    for (const init of runs) {
+      if (!clumped) {
+        cells.append(renderCell(band, init, local));
+        continue;
+      }
+      // one square per facet, grouped inside the lead band it arrived under
+      const facets = facetsAt(product, init, band.key);
+      if (!facets.length) {
+        cells.append(renderCell(band, init, local));
+        continue;
+      }
+      // the lead group's own timing is more specific than the run's
+      const timing = (init.lead_groups ?? []).find(
+        (group) => group.name === band.key,
+      )?.timing;
+      cells.append(
+        element(
+          "div",
+          { class: "pipeline-clump" },
+          facets.map((facet) =>
+            renderCell(
+              {
+                kind: "facet",
+                key: facet.name,
+                label: facet.label,
+                dimension: facet.dimension,
+                lead: band.label,
+              },
+              init,
+              local,
+              facetCell(facet, init, timing ?? init.timing),
+            ),
+          ),
+        ),
+      );
+    }
     field.append(
       element("div", { class: "pipeline-band", "data-kind": band.kind }, [
         element(
