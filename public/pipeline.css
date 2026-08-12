@@ -48,6 +48,16 @@
   );
 }
 
+/* A migration notice, not a fault: dotted and muted so it reads as context
+   rather than competing with the ribbon's live staleness warning. */
+.pipeline-notice {
+  margin: 0 0 1.6rem;
+  padding: 0.8rem 1.2rem;
+  border: 1px dotted var(--border-muted-color);
+  color: var(--muted-text);
+  font-size: 1.2rem;
+}
+
 .pipeline-ribbon:not([hidden]),
 .pipeline-banner {
   margin-bottom: 1.5rem;
