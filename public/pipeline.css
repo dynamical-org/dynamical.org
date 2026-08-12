@@ -27,16 +27,25 @@
 }
 
 .pipeline-legend-mark--pending {
-  border: 1px dotted var(--pipeline-unobserved);
+  border: 1px solid var(--pipeline-unobserved);
+}
+
+.pipeline-legend-mark--partial {
+  border: 1px solid var(--text-color);
   background: linear-gradient(
     to right,
-    var(--pipeline-ok) 0 50%,
-    transparent 50%
+    var(--pipeline-progress) 0 55%,
+    transparent 55%
   );
 }
 
 .pipeline-legend-mark--unobserved {
   border: 1px dotted var(--pipeline-unobserved);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--pipeline-unobserved) 0 1px,
+    transparent 1px 4px
+  );
 }
 
 .pipeline-ribbon:not([hidden]),
@@ -140,8 +149,40 @@
 .pipeline-field {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--band-gap);
+  /* every view reserves the tallest view's height, so cycling does not shift
+     the page under the reader; a view that cannot fill it sits centred */
+  justify-content: center;
+  min-height: var(--reserve, auto);
   min-width: 0;
+}
+
+/* The facet rows share out whatever height the reserved box leaves them, so a
+   view with two rows draws as much ink as one with six — capped at three cells
+   so a sparse product does not draw absurdly tall rows. */
+
+.pipeline-rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--band-gap);
+  justify-content: center;
+  min-height: 0;
+}
+
+.pipeline-rows > .pipeline-band {
+  flex: 1;
+  max-height: calc(3 * var(--sq));
+}
+
+.pipeline-rows .pipeline-cells,
+.pipeline-rows .pipeline-clump {
+  align-self: stretch;
+  height: 100%;
+}
+
+.pipeline-rows .pipeline-cell {
+  height: auto;
 }
 
 .pipeline-band {
@@ -241,9 +282,20 @@
   width: 100%;
 }
 
-.pipeline-cell.g-pending,
+/* an empty outline is "expected, nothing yet"; hatching is "no evidence either
+   way" — the two must not read the same, since one is a measurement and the
+   other is the absence of one */
+.pipeline-cell.g-pending {
+  border: 1px solid var(--pipeline-unobserved);
+}
+
 .pipeline-cell.g-unobserved {
   border: 1px dotted var(--pipeline-unobserved);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--pipeline-unobserved) 0 1px,
+    transparent 1px 4px
+  );
 }
 
 .pipeline-cell.g-pending .pipeline-cell-fill,
@@ -256,8 +308,9 @@
 .pipeline-column-label {
   flex: none;
   width: var(--cell-w, var(--sq));
+  height: var(--label-h);
   font-size: 0.9rem;
-  line-height: 1;
+  line-height: var(--label-h);
   text-align: center;
 }
 
@@ -276,8 +329,9 @@
   flex: none;
   /* exactly one run block wide, so both tiers centre on the same axis */
   width: var(--run-width);
+  height: var(--label-h);
   font-size: 0.9rem;
-  line-height: 1.2;
+  line-height: var(--label-h);
   text-align: center;
 }
 
@@ -349,10 +403,30 @@
   margin-top: 1.2rem;
 }
 
+/* the bar takes the row's leftover width, and the number beside it is always
+   three characters wide, so every bar starts and ends in the same place */
+.pipeline-facets td:last-child {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
 .pipeline-facets progress {
-  width: 8rem;
+  flex: 1;
   accent-color: var(--pipeline-ok);
   vertical-align: middle;
+}
+
+.pipeline-facet-pct {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.pipeline-facet-num {
+  display: inline-block;
+  width: 3ch;
+  text-align: right;
 }
 
 .pipeline-time-local .pipeline-time-utc,

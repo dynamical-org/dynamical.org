@@ -9,7 +9,7 @@ const POLL_INTERVAL_MS = 15_000;
 const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
-const DASHBOARD_VERSIONS = new Set([1, 2]);
+const DASHBOARD_VERSION = 2; // the granular schema; the lead-only shape is gone
 // Field geometry. JS owns these because the run count is computed from them;
 // the CSS reads them back off the field as custom properties.
 const CELL_PX = 12; // one measurement, the same size in every view
@@ -19,6 +19,9 @@ const CLUMPED_RUN_GAP_PX = 6; // between run blocks, which need daylight
 // no lead group is thinner than its own label: "0h" is two characters, which is
 // exactly one cell, so every group can name itself
 const MIN_LEAD_PX = 12;
+const BAND_GAP_PX = 2; // between bands, inside a field
+const LABEL_PX = 12; // one axis-label row
+const FOOT_GAP_PX = 3; // the breath above the init tiers
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
@@ -55,7 +58,7 @@ function validFacets(facets) {
 export function validateDashboard(data) {
   if (
     !data ||
-    !DASHBOARD_VERSIONS.has(data.v) ||
+    data.v !== DASHBOARD_VERSION ||
     !hasTimestamp(data.generated_at) ||
     !Array.isArray(data.groups) ||
     data.groups.length === 0 ||
@@ -63,7 +66,6 @@ export function validateDashboard(data) {
   ) {
     throw new TypeError("Invalid pipeline dashboard");
   }
-  let hasFacetGroups = false;
   for (const group of data.groups) {
     if (
       typeof group.id !== "string" ||
@@ -84,7 +86,6 @@ export function validateDashboard(data) {
       }
       if (product.facet_groups != null) {
         if (
-          data.v !== 2 ||
           !Array.isArray(product.facet_groups) ||
           product.facet_groups.length === 0 ||
           !product.facet_groups.every(
@@ -96,24 +97,20 @@ export function validateDashboard(data) {
         ) {
           throw new TypeError("Invalid pipeline facet group");
         }
-        hasFacetGroups = true;
       }
       for (const init of product.recent_inits) {
-        if (init.facets != null && (data.v !== 2 || !validFacets(init.facets))) {
+        if (init.facets != null && !validFacets(init.facets)) {
           throw new TypeError("Invalid pipeline facet");
         }
         // the lead × facet joint: the same facet shape, reported per lead group
         for (const group of init.lead_groups ?? []) {
           if (group.facets == null) continue;
-          if (data.v !== 2 || !validFacets(group.facets)) {
+          if (!validFacets(group.facets)) {
             throw new TypeError("Invalid pipeline facet");
           }
         }
       }
     }
-  }
-  if (data.v === 2 && !hasFacetGroups) {
-    throw new TypeError("Invalid pipeline dashboard");
   }
   return data;
 }
@@ -368,27 +365,43 @@ export function leadExtents(product) {
   );
 }
 
+/* How tall a view draws. The label rows have fixed heights, so this needs no
+   measurement — which matters because the render pass writes without reading. */
+
+function chromePx(view, rows) {
+  const head = view.dimension ? LABEL_PX + BAND_GAP_PX : 0;
+  const tiers = FOOT_GAP_PX + 2 * (LABEL_PX + BAND_GAP_PX);
+  return head + tiers + BAND_GAP_PX * Math.max(0, rows - 1);
+}
+
+function viewHeightPx(product, view) {
+  const bands = view.dimension
+    ? facetRowsOf(product, view.dimension).map(() => CELL_PX)
+    : [...leadExtents(product).values()];
+  const rows = bands.length || 1;
+  return bands.reduce((sum, px) => sum + px, 0) + chromePx(view, rows);
+}
+
+
+
+/* The box every view of a product sits in: the tallest one. Clicking through
+   the views then never moves the rest of the page. */
+
+export function reservedHeightPx(product) {
+  return Math.max(
+    ...viewsOf(product).map((view) => viewHeightPx(product, view)),
+  );
+}
+
 /* The bands of the marginal field, top row first: longest horizon down to the
    floor, then a band per facet grouped by dimension. Bands come from the product
    rather than one run, so the field keeps its shape as runs scroll through it. */
 
 export function bandsOf(product) {
-  const newest = product.recent_inits?.at(-1);
-  // the banded field stacks bottom-up, so the longest horizon is the top row
+  // the lead grid stacks bottom-up, so the longest horizon is the top row
   const leads = [...leadAxis(product)].reverse();
 
-  const declaredFacets = product.facet_groups?.length
-    ? product.facet_groups
-    : (newest?.facets ?? []);
-  const facets = declaredFacets.map((facet) => ({
-    kind: "facet",
-    key: facet.name,
-    label: facet.label,
-    dimension: facet.dimension,
-  }));
-  // with the joint, facets sit inside their lead band and a band of their own
-  // would only repeat the run total
-  return usesFacetRows(product) ? leads : [...leads, ...facets];
+  return leads;
 }
 
 /* The facets of one lead group in one run, in the product's declared order.
@@ -705,7 +718,7 @@ function renderFacetRows(product, local, runCount, dimension) {
     class: "pipeline-field",
     // lead time runs across here, so progress fills across too
     "data-fill": "side",
-    style: `--sq:${CELL_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px`,
+    style: `--sq:${CELL_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
   });
 
   // the lead order repeats in every run, so name it once over the first block
@@ -737,8 +750,10 @@ function renderFacetRows(product, local, runCount, dimension) {
     }),
   );
 
+  // one container so the rows share out whatever height the box leaves them
+  const rowsNode = element("div", { class: "pipeline-rows" });
   for (const facet of facets) {
-    field.append(
+    rowsNode.append(
       bandNode({
         kind: "facet",
         label: facet.label,
@@ -773,6 +788,8 @@ function renderFacetRows(product, local, runCount, dimension) {
       }),
     );
   }
+  field.append(rowsNode);
+
 
   field.append(...initTiers(runs, local));
   return field;
@@ -785,7 +802,7 @@ function renderField(product, local, runCount) {
   const field = element("div", {
     class: "pipeline-field",
     // a cell is as wide as its init label; the lead axis keeps its own scale
-    style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px`,
+    style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
   });
   let dimension = null;
 
@@ -1026,7 +1043,16 @@ function buildDetails(product, now, local) {
             value: String(facet.completion),
             "aria-label": `${Math.round(facet.completion * 100)}% complete`,
           }),
-          ` ${Math.round(facet.completion * 100)}%`,
+          // the number holds three characters whatever it is — "5", "62", "100" —
+          // so every bar ends in the same place, with the sign kept against it
+          element("span", { class: "pipeline-facet-pct" }, [
+            element(
+              "span",
+              { class: "pipeline-facet-num" },
+              String(Math.round(facet.completion * 100)),
+            ),
+            "%",
+          ]),
         ]),
       ]),
     );
@@ -1034,7 +1060,7 @@ function buildDetails(product, now, local) {
   const facetTable = element("table", { class: "pipeline-facets" }, [
     element("thead", null, [
       element("tr", null, [
-        element("th", { colspan: "5" }, "arrival coverage"),
+        element("th", { colspan: "5" }, "arrival facets"),
       ]),
       element("tr", null, [
         element("th", null, "dimension"),

@@ -37,7 +37,7 @@ import { localZoneLabel } from "../public/status-time.mjs";
 
 function dashboard() {
   return {
-    v: 1,
+    v: 2,
     generated_at: "2026-07-25T18:00:00Z",
     window_days: 90,
     advisories: [],
@@ -57,13 +57,21 @@ function dashboard() {
   };
 }
 
-test("accepts the versioned dashboard contract", () => {
+test("accepts the granular dashboard contract", () => {
   assert.equal(validateDashboard(dashboard()).groups[0].id, "noaa-gfs");
 });
 
-test("accepts dashboard v2 facets while retaining dashboard v1", () => {
+test("rejects the lead-only schema it replaced", () => {
+  // wxopticon#158 cut the representative/lead-only writer over; this frontend
+  // consumes the granular schema only, so old JSON must fail loudly rather
+  // than render as though it were complete
+  const legacy = dashboard();
+  legacy.v = 1;
+  assert.throws(() => validateDashboard(legacy), /invalid pipeline dashboard/i);
+});
+
+test("accepts a product's facets", () => {
   const current = dashboard();
-  current.v = 2;
   const [product] = current.groups[0].products;
   product.facet_groups = [
     { dimension: "component", name: "component:pgrb2a", label: "pgrb2a" },
@@ -87,7 +95,6 @@ test("accepts dashboard v2 facets while retaining dashboard v1", () => {
   ];
 
   assert.equal(validateDashboard(current), current);
-  assert.equal(validateDashboard(dashboard()).v, 1);
 });
 
 test("rejects empty, unknown, and oversized dashboards", () => {
@@ -108,7 +115,6 @@ test("rejects empty, unknown, and oversized dashboards", () => {
   assert.throws(() => validateDashboard(tooMany), /invalid pipeline product/i);
 
   const malformedFacet = dashboard();
-  malformedFacet.v = 2;
   malformedFacet.groups[0].products[0].facet_groups = [
     { dimension: "component", name: "component:pgrb2a", label: "pgrb2a" },
   ];
@@ -285,19 +291,20 @@ function facetedProduct() {
   };
 }
 
-test("bands the field by lead group from the floor up, then by facet dimension", () => {
+test("bands the lead grid from the floor up, and only by lead group", () => {
+  // facets have their own views now, so the lead grid stays lead-only whether
+  // or not a product reports them
   assert.deepEqual(
     bandsOf(facetedProduct()).map((band) => `${band.kind}:${band.label}`),
-    ["lead:10d", "lead:1d", "facet:pgrb2a.0p50", "facet:control"],
+    ["lead:10d", "lead:1d"],
   );
 
-  // a v1 product reports no facets at all and gets lead bands only
   const noFacets = facetedProduct();
   delete noFacets.facet_groups;
   for (const init of noFacets.recent_inits) delete init.facets;
   assert.deepEqual(
-    bandsOf(noFacets).map((band) => band.kind),
-    ["lead", "lead"],
+    bandsOf(noFacets).map((band) => `${band.kind}:${band.label}`),
+    ["lead:10d", "lead:1d"],
   );
 });
 
@@ -350,11 +357,10 @@ function jointProduct() {
 }
 
 test("sizes the label gutter to the labels beside it", () => {
-  // "pgrb2a.0p50" is 11 characters, the widest of the flat product's bands
-  assert.equal(gutterPx(bandsOf(facetedProduct())), 66);
-  // with the joint the bands are lead-only, so only "10d" has to fit
+  // the lead grid's bands are lead-only, so only "10d" has to fit
+  assert.equal(gutterPx(bandsOf(facetedProduct())), 18);
   assert.equal(gutterPx(bandsOf(jointProduct())), 18);
-  // its facet rows carry the long labels instead
+  // the facet views carry the long labels instead
   assert.equal(gutterPx(facetRowsOf(jointProduct())), 66);
 });
 
@@ -380,12 +386,12 @@ test("gives an init column room for its own label", () => {
 test("fits the run count to the width the row actually has", () => {
   const flat = facetedProduct();
 
-  // production middle column is 390px, less 66px of gutter; a labelled column
-  // costs 30px in UTC plus a 6px gap, and 36px in local
-  assert.equal(runsThatFit(flat, 390, false), 8);
-  assert.equal(runsThatFit(flat, 390, true), 7);
+  // production middle column is 390px, less 18px of lead gutter; a labelled
+  // column costs 30px in UTC plus a 6px gap, and 36px in local
+  assert.equal(runsThatFit(flat, 390, false), 10);
+  assert.equal(runsThatFit(flat, 390, true), 8);
   // squeeze it
-  assert.equal(runsThatFit(flat, 200, false), 3);
+  assert.equal(runsThatFit(flat, 200, false), 4);
   // never zero, however cramped, and never more than the payload carries
   assert.equal(runsThatFit(flat, 40, false), 1);
   assert.equal(runsThatFit(flat, 4000, false), 10);
@@ -490,23 +496,27 @@ test("gives every facet in the joint its own labelled row", () => {
   );
 });
 
-test("keeps the lead field when a joint reports nothing", () => {
+test("keeps the lead grid usable when a joint reports nothing", () => {
   // the validator accepts an empty facets array, so this is supported input
   const empty = jointProduct();
   for (const group of empty.recent_inits[0].lead_groups) group.facets = [];
   assert.equal(hasJointFacets(empty), false);
   assert.equal(usesFacetRows(empty), false);
-  // and the field still carries every measurement it did before
+  // no facet views to cycle to, and the lead measurements still render
+  assert.deepEqual(
+    viewsOf(empty).map((view) => view.rows),
+    ["lead time"],
+  );
   assert.deepEqual(
     bandsOf(empty).map((band) => `${band.kind}:${band.label}`),
-    ["lead:10d", "lead:1d", "facet:pgrb2a.0p50", "facet:control"],
+    ["lead:10d", "lead:1d"],
   );
 
   // a rollback drops the key entirely
   const rolledBack = jointProduct();
   for (const group of rolledBack.recent_inits[0].lead_groups) delete group.facets;
   assert.equal(usesFacetRows(rolledBack), false);
-  assert.equal(bandsOf(rolledBack).length, 4);
+  assert.equal(bandsOf(rolledBack).length, 2);
 });
 
 test("draws a facet row for anything the joint reported in the window", () => {
@@ -620,10 +630,14 @@ test("rejects a malformed joint the same way as run-level facets", () => {
   broken.groups[0].products[0].recent_inits[0].lead_groups[0].facets[0].dependencies_available = 99;
   assert.throws(() => validateDashboard(broken), /invalid pipeline facet/i);
 
+  // the schema itself is checked before its facets, so old JSON carrying a
+  // joint is still rejected as the wrong schema
   const wrongVersion = JSON.parse(JSON.stringify(current));
   wrongVersion.v = 1;
-  delete wrongVersion.groups[0].products[0].facet_groups;
-  assert.throws(() => validateDashboard(wrongVersion), /invalid pipeline facet/i);
+  assert.throws(
+    () => validateDashboard(wrongVersion),
+    /invalid pipeline dashboard/i,
+  );
 });
 
 test("bands a history snapshot, which declares neither list up front", () => {
@@ -637,7 +651,7 @@ test("bands a history snapshot, which declares neither list up front", () => {
 
   assert.deepEqual(
     bandsOf(snapshot).map((band) => `${band.kind}:${band.label}`),
-    ["lead:10d", "lead:1d", "facet:pgrb2a.0p50", "facet:control"],
+    ["lead:10d", "lead:1d"],
   );
   // and still measures, rather than rendering an empty field
   const [longest] = bandsOf(snapshot);
@@ -657,14 +671,18 @@ test("measures a lead band by its own share, not the cumulative count", () => {
 test("names what a square measured, facet first, in its hover label", () => {
   const product = facetedProduct();
   const init = product.recent_inits[0];
-  const bands = bandsOf(product);
-  const facetBand = bands.find((band) => band.label === "pgrb2a.0p50");
+  const facetBand = {
+    kind: "facet",
+    key: "component:pgrb2a",
+    label: "pgrb2a.0p50",
+    dimension: "component",
+  };
   assert.equal(
     cellTitle(facetBand, init, cellOf(facetBand, init), false),
     "pgrb2a.0p50 (component) · 07-26 00z · 200 / 400 files · processing · delayed",
   );
 
-  const leadBand = bands.find((band) => band.label === "1d");
+  const leadBand = bandsOf(product).find((band) => band.label === "1d");
   assert.equal(
     cellTitle(leadBand, init, cellOf(leadBand, init), false),
     "lead 1d · 07-26 00z · 100% · complete · on time",
@@ -673,7 +691,12 @@ test("names what a square measured, facet first, in its hover label", () => {
 
 test("reads an unreported band as unobserved rather than a failure", () => {
   const product = facetedProduct();
-  const band = bandsOf(product).find((entry) => entry.kind === "facet");
+  const band = {
+    kind: "facet",
+    key: "component:pgrb2a",
+    label: "pgrb2a.0p50",
+    dimension: "component",
+  };
   const blind = { ...product.recent_inits[0], status: "unobserved" };
   assert.equal(cellOf(band, blind).state, "unobserved");
   assert.match(
@@ -1010,7 +1033,9 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   );
 
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
+  assert.match(template, /part arrived/);
   assert.match(template, /still expected/);
+  assert.match(template, /no monitoring data/);
   assert.match(template, /hover a square for what it measured/);
   assert.match(template, /no monitoring data/);
   assert.doesNotMatch(template, /pipeline-footer|window-days/);
@@ -1019,9 +1044,18 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   assert.match(template, /status-page-updated[\s\S]*status-time-toggle/);
   assert.doesNotMatch(template, /Local time|Coordinated Universal Time/);
   assert.doesNotMatch(template, /Data product pipeline|Forecast-run arrival/);
+  // "expected, nothing yet" and "no evidence either way" must not look alike
   assert.match(
     pipelineCss,
-    /\.pipeline-cell\.g-pending,[\s\S]*\.pipeline-cell\.g-unobserved\s*{\s*border: 1px dotted var\(--pipeline-unobserved\)/,
+    /\.pipeline-cell\.g-pending\s*{\s*border: 1px solid var\(--pipeline-unobserved\);\s*}/,
+  );
+  assert.match(
+    pipelineCss,
+    /\.pipeline-cell\.g-unobserved\s*{[\s\S]*?repeating-linear-gradient/,
+  );
+  assert.doesNotMatch(
+    pipelineCss,
+    /\.pipeline-cell\.g-pending,\s*\.pipeline-cell\.g-unobserved/,
   );
   assert.match(
     pipelineCss,
