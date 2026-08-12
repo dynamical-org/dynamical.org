@@ -210,6 +210,15 @@
   height: var(--fill, 0%);
 }
 
+/* where lead time owns the horizontal axis, a cell fills from its left edge
+   rather than its floor, so progress reads along the same axis as the leads */
+.pipeline-field[data-fill="side"] .pipeline-cell-fill {
+  top: 0;
+  right: auto;
+  width: var(--fill, 0%);
+  height: auto;
+}
+
 .pipeline-cell.g-complete .pipeline-cell-fill {
   background: var(--pipeline-ok);
 }
@@ -226,6 +235,10 @@
 .pipeline-cell.g-failed .pipeline-cell-fill {
   height: 100%;
   background: var(--pipeline-failed);
+}
+
+.pipeline-field[data-fill="side"] .pipeline-cell.g-failed .pipeline-cell-fill {
+  width: 100%;
 }
 
 .pipeline-cell.g-pending,

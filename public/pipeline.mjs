@@ -703,6 +703,8 @@ function renderFacetRows(product, local, runCount, dimension) {
     (leads.length - 1) * CLUMP_GAP_PX;
   const field = element("div", {
     class: "pipeline-field",
+    // lead time runs across here, so progress fills across too
+    "data-fill": "side",
     style: `--sq:${CELL_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px`,
   });
 
