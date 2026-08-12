@@ -15,7 +15,9 @@ import {
   summarizeOverallStatus,
   uptimeDescription,
   validateStatusData,
+  withoutExperimentalComponents,
 } from "../public/status.mjs";
+import { systemHealth } from "../public/status-health.mjs";
 
 const fixture = JSON.parse(
   readFileSync(new URL("./fixtures/status.json", import.meta.url), "utf8"),
@@ -65,6 +67,41 @@ test("accepts the published feed shape", () => {
   assert.deepEqual(summarizeOverallStatus(fixture), {
     status: "down",
     incidents: [{ name: "Data product reads", status: "down" }],
+  });
+});
+
+test("keeps the experimental wxopticon components off the page", () => {
+  // The publisher keeps measuring them; this page drops them until they are
+  // stable enough to sit behind an uptime claim.
+  const data = withoutExperimentalComponents(validateStatusData(fixture));
+  assert.deepEqual(
+    data.endpoints.map((entry) => entry.id),
+    ["stac-catalog", "data-product-reads", "scorecard", "dynamical-org"],
+  );
+  // Dropping them from the component list is what hides their bars and their
+  // incident-log entries; the rest of the document stays as published.
+  assert.deepEqual(data.datasets, fixture.datasets);
+  assert.deepEqual(data.component_aliases, fixture.component_aliases);
+});
+
+test("an experimental component's state does not move the rollup", () => {
+  const feed = structuredClone(operationalData);
+  feed.endpoints.push({
+    id: "wxopticon-arrivals",
+    name: "pipeline observability",
+    group: "tool",
+    status: "down",
+  });
+  const data = withoutExperimentalComponents(validateStatusData(feed));
+
+  assert.deepEqual(summarizeOverallStatus(data), {
+    status: "operational",
+    incidents: [],
+  });
+  assert.deepEqual(systemHealth(data), {
+    state: "operational",
+    label: "all systems",
+    value: "operational",
   });
 });
 
