@@ -108,6 +108,20 @@ export function validateStatusData(data) {
   };
 }
 
+// wxopticon keeps publishing into the feed — we still measure it — but it is
+// experimental, so its components stay off this page until they are stable
+// enough to sit behind an uptime claim.
+const EXPERIMENTAL_PREFIX = "wxopticon";
+
+export function withoutExperimentalComponents(data) {
+  return {
+    ...data,
+    endpoints: data.endpoints.filter(
+      (entry) => !entry.id.startsWith(EXPERIMENTAL_PREFIX),
+    ),
+  };
+}
+
 export function isStatusDataStale(generatedAt, now = new Date()) {
   const age = now.getTime() - Date.parse(generatedAt);
   return !Number.isFinite(age) || age > STALE_AFTER_MS;
@@ -687,7 +701,9 @@ async function loadStatus(root, render) {
     if (!response.ok) {
       throw new Error(`Status request failed: ${response.status}`);
     }
-    const data = validateStatusData(await response.json());
+    const data = withoutExperimentalComponents(
+      validateStatusData(await response.json()),
+    );
     render(data, await history);
   } catch (error) {
     console.error("Unable to load public status", error);
