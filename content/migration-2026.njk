@@ -46,9 +46,8 @@ permalink: /migration-2026/
   </ul>
   <p>
     Replace each hard-coded <code>https://data.dynamical.org/.../latest.zarr</code>
-    URL with one of the two supported ways to open a dataset. Both are fully
-    supported — pick whichever suits your stack. In Python both need 3.12 or
-    newer, and both resolve the current repository from our
+    URL with one of the two supported ways to open a dataset. In Python both
+    need 3.12 or newer, and both resolve the current repository from our
     <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, so your code
     does not need to track storage locations or version changes.
   </p>
@@ -74,11 +73,13 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighligh
 import pystac
 import xarray as xr
 
-url = "https://stac.dynamical.org/noaa-gfs-forecast/collection.json"
-href = pystac.Collection.from_file(url).assets["icechunk-https"].href
+catalog = pystac.Catalog.from_file("https://stac.dynamical.org/catalog.json")
+collection = catalog.get_child("noaa-gfs-forecast")
+asset = collection.assets["icechunk-https"]
 
-repo = icechunk.Repository.open(icechunk.http_storage(href))
+repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
 session = repo.readonly_session("main")
+
 ds = xr.open_zarr(session.store, chunks=None){% endframeHighlight %}
   <p>
     Python is not a requirement either. Icechunk publishes a
