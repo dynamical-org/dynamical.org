@@ -282,12 +282,14 @@ function leadSlices(groups) {
    product rather than a single run so the field keeps its shape as runs
    scroll through it. */
 
-/* True once a payload reports facets per lead group. Until then the two
-   published marginals are all there is, and facets get their own bands. */
+/* True once a payload reports facets per lead group. An empty array is a
+   validated, supported input — a run that reported nothing yet — so it does not
+   count as a joint. Until a real one arrives the two published marginals are all
+   there is, and facets get their own bands. */
 
 export function hasJointFacets(product) {
   return (product.recent_inits ?? []).some((init) =>
-    (init.lead_groups ?? []).some((group) => Array.isArray(group.facets)),
+    (init.lead_groups ?? []).some((group) => group.facets?.length),
   );
 }
 
@@ -318,7 +320,7 @@ export function bandsOf(product) {
   }));
   // with the joint, facets sit inside their lead band and a band of their own
   // would only repeat the run total
-  return hasJointFacets(product) ? leads : [...leads, ...facets];
+  return usesFacetRows(product) ? leads : [...leads, ...facets];
 }
 
 /* The facets of one lead group in one run, in the product's declared order.
@@ -354,7 +356,7 @@ export function bandGutterCh(product) {
 }
 
 export function runsThatFit(product, availablePx) {
-  const clumped = hasJointFacets(product);
+  const clumped = usesFacetRows(product);
   const widest = clumped
     ? Math.max(
         1,
@@ -456,13 +458,33 @@ function renderCell(band, init, local, measured) {
    it needs its own fit. */
 
 export function facetRowsOf(product) {
-  const newest = product.recent_inits?.at(-1);
-  const leads = bandsOf(product);
-  return (product.facet_groups ?? []).filter((facet) =>
-    leads.some((lead) =>
-      facetsAt(product, newest, lead.key).some((entry) => entry.name === facet.name),
-    ),
+  // every facet the joint mentions anywhere in the displayed runs: the newest
+  // run may report none yet, and a rollout or rollback can leave the window
+  // mixed, but those rows still have measurements in the runs beside them
+  const reported = new Map();
+  for (const init of product.recent_inits ?? []) {
+    for (const group of init.lead_groups ?? []) {
+      for (const facet of group.facets ?? []) {
+        if (!reported.has(facet.name)) reported.set(facet.name, facet);
+      }
+    }
+  }
+  // the declared schema owns the order; anything it never declares still gets a
+  // row, since the payload measured it
+  const declared = (product.facet_groups ?? []).filter((facet) =>
+    reported.has(facet.name),
   );
+  const undeclared = [...reported.values()].filter(
+    (facet) => !declared.some((entry) => entry.name === facet.name),
+  );
+  return [...declared, ...undeclared];
+}
+
+/* The layout only transposes when there are rows to draw. Without this a joint
+   that reports nothing would hide the lead measurements it replaced. */
+
+export function usesFacetRows(product) {
+  return hasJointFacets(product) && facetRowsOf(product).length > 0;
 }
 
 function facetRowsGutterCh(product) {
@@ -639,7 +661,7 @@ function renderField(product, local, runCount) {
     }
     dimension = band.kind === "facet" ? band.dimension : null;
 
-    const clumped = band.kind === "lead" && hasJointFacets(product);
+    const clumped = band.kind === "lead" && usesFacetRows(product);
     const cells = element("div", {
       class: "pipeline-cells",
       "data-clumped": clumped ? "" : null,
@@ -950,7 +972,7 @@ function hydrateRow(row, product, now, local) {
   const available = body?.getBoundingClientRect().width ?? 0;
   // with the joint, facets get their own labelled rows; without it, the two
   // published marginals get their own bands
-  const nested = hasJointFacets(product);
+  const nested = usesFacetRows(product);
   const runCount = nested
     ? runsThatFitFacetRows(product, available)
     : runsThatFit(product, available);
@@ -1103,7 +1125,13 @@ function start(app) {
   window.addEventListener("resize", () => {
     clearTimeout(refitTimer);
     refitTimer = setTimeout(() => {
-      if (displayedSnapshot) displaySnapshot(displayedSnapshot, Date.now());
+      if (!displayedSnapshot) return;
+      // a scrubbed snapshot keeps the time it was displayed at, exactly as the
+      // time-mode handler does — re-timing it to now invents latencies
+      displaySnapshot(
+        displayedSnapshot,
+        mode === "live" ? Date.now() : displayedAt,
+      );
     }, 150);
   });
 

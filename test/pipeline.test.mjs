@@ -8,6 +8,7 @@ import {
   cellOf,
   cellTitle,
   facetRowsOf,
+  usesFacetRows,
   facetsAt,
   hasJointFacets,
   bandGutterCh,
@@ -406,6 +407,54 @@ test("gives every facet in the joint its own labelled row", () => {
   );
 });
 
+test("keeps the lead field when a joint reports nothing", () => {
+  // the validator accepts an empty facets array, so this is supported input
+  const empty = jointProduct();
+  for (const group of empty.recent_inits[0].lead_groups) group.facets = [];
+  assert.equal(hasJointFacets(empty), false);
+  assert.equal(usesFacetRows(empty), false);
+  // and the field still carries every measurement it did before
+  assert.deepEqual(
+    bandsOf(empty).map((band) => `${band.kind}:${band.label}`),
+    ["lead:10d", "lead:1d", "facet:pgrb2a.0p50", "facet:control"],
+  );
+
+  // a rollback drops the key entirely
+  const rolledBack = jointProduct();
+  for (const group of rolledBack.recent_inits[0].lead_groups) delete group.facets;
+  assert.equal(usesFacetRows(rolledBack), false);
+  assert.equal(bandsOf(rolledBack).length, 4);
+});
+
+test("draws a facet row for anything the joint reported in the window", () => {
+  // a rollout leaves the window mixed: the newest run has not reported yet
+  const mixed = jointProduct();
+  const older = mixed.recent_inits[0];
+  const newest = JSON.parse(JSON.stringify(older));
+  newest.init_time = "2026-07-26T06:00:00Z";
+  for (const group of newest.lead_groups) group.facets = [];
+  mixed.recent_inits = [older, newest];
+
+  assert.equal(usesFacetRows(mixed), true);
+  // rows come from the whole window, not just the newest run
+  assert.deepEqual(
+    facetRowsOf(mixed).map((facet) => facet.label),
+    ["pgrb2a.0p50", "control"],
+  );
+  // and the newest run's own cells read as unobserved rather than vanishing
+  assert.deepEqual(facetsAt(mixed, newest, "f240"), []);
+
+  // a facet the schema never declared still earns a row, since it was measured
+  const undeclared = jointProduct();
+  undeclared.facet_groups = undeclared.facet_groups.filter(
+    (facet) => facet.dimension === "component",
+  );
+  assert.deepEqual(
+    facetRowsOf(undeclared).map((facet) => facet.label),
+    ["pgrb2a.0p50", "control"],
+  );
+});
+
 test("fits run blocks of lead columns to the width, once facets own the rows", () => {
   const joint = jointProduct();
   // "pgrb2a.0p50" is 11ch of gutter; a block is 2 leads at 12px plus a 2px gap,
@@ -756,6 +805,17 @@ test("preview branches select the private staging route", () => {
   );
   assert.match(source, /process\.env\.CF_PAGES_BRANCH/);
   assert.match(source, /\/pipeline-staging\/wxopticon/);
+});
+
+test("a resize re-fits without re-timing a scrubbed snapshot", () => {
+  const script = readFileSync("public/pipeline.mjs", "utf8");
+  const handler = script.slice(
+    script.indexOf('window.addEventListener("resize"'),
+    script.indexOf("function setTimeMode"),
+  );
+  assert.match(handler, /displaySnapshot\(/);
+  assert.match(handler, /mode === "live" \? Date\.now\(\) : displayedAt/);
+  assert.doesNotMatch(handler, /displaySnapshot\(\s*displayedSnapshot,\s*Date\.now\(\)/);
 });
 
 test("status pages share the uptime, pipeline, and pipeline webhooks subnav", () => {
