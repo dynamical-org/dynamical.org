@@ -41,13 +41,16 @@ permalink: /migration-2026/
 
   <ul>
     <li><strong><code>data.dynamical.org</code> is going away</strong> — plan on August 31, 2026. In practice we will turn URLs off dataset by dataset over the following months rather than all at once, so nothing breaks the morning of September 1.</li>
-    <li><strong>The replacement datasets are stored as Icechunk Zarr repositories.</strong> Both access patterns below read the Icechunk 2.0 version of a dataset, which makes Icechunk 2 a required dependency.</li>
+    <li><strong>The replacement datasets are stored as Icechunk Zarr repositories.</strong></li>
     <li><strong>Only how they are opened needs to change.</strong> The Icechunk versions are identical in structure, naming, attributes, chunking/sharding, and content — drop-in replacements for the deprecated Zarrs.</li>
   </ul>
   <p>
     Replace each hard-coded <code>https://data.dynamical.org/.../latest.zarr</code>
-    URL with one of the two supported ways to open a dataset. In Python both
-    need 3.12 or newer, and both resolve the current repository from our
+    URL with one of the two supported ways to open a dataset. Dataset IDs replace
+    <code>data.dynamical.org</code> paths:
+    <code>https://data.dynamical.org/noaa/gfs/forecast/latest.zarr</code> becomes
+    <code>noaa-gfs-forecast</code>. Both need Icechunk 2 — in Python, 3.12 or
+    newer — and both resolve the current repository from our
     <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, so your code
     does not need to track storage locations or version changes.
   </p>
@@ -84,7 +87,7 @@ session = repo.readonly_session("main")
 
 ds = xr.open_zarr(session.store, chunks=None){% endframeHighlight %}
   <p>
-    Python is not a requirement either. Icechunk publishes a
+    Option 2 is not Python-specific. Icechunk publishes a
     <a href="https://icechunk.io/en/latest/reference/icechunk-js/">JavaScript/TypeScript client</a>
     (<code>@earthmover/icechunk</code>, paired with <code>zarrita</code>) and a
     <a href="https://icechunk.io/en/latest/reference/icechunk-rust/">Rust crate</a>
@@ -162,17 +165,6 @@ chosen rather than derived.</textarea>
       });
     })();
   </script>
-
-  <h2>What changes</h2>
-  <ul>
-    <li>Opening requires Icechunk 2 — in Python, 3.12 or newer.</li>
-    <li>The public STAC Collection is the source of truth for the current repository.</li>
-    <li>Dataset IDs replace <code>data.dynamical.org</code> paths:
-      <code>https://data.dynamical.org/noaa/gfs/forecast/latest.zarr</code> becomes
-      <code>noaa-gfs-forecast</code>.</li>
-    <li>The optional <code>?email=</code> query argument is no longer used.</li>
-    <li>Nothing about the data itself. Variables, attributes, chunking, and values are unchanged.</li>
-  </ul>
 
   <h2>Help</h2>
   <p>
