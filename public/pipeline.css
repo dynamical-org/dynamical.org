@@ -120,11 +120,36 @@
   min-width: 0;
 }
 
-/* The field: a band per measurement, a square per run, time to the right. */
+/* The field: a band per measurement, a square per run, time to the right.
+   Clicking it cycles which dimension owns the rows. */
+
+.pipeline-viz {
+  flex: 1;
+  min-width: 0;
+}
+
+.pipeline-viz[role="button"] {
+  cursor: pointer;
+}
+
+.pipeline-viz:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 3px;
+}
+
+.pipeline-view-hint {
+  margin-top: 0.4rem;
+  padding-left: calc(var(--band-gutter) + 0.6rem);
+  color: var(--muted-text-2);
+  font-size: 1rem;
+}
+
+.pipeline-viz:hover .pipeline-view-hint {
+  color: var(--link-color);
+}
 
 .pipeline-field {
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
@@ -182,8 +207,10 @@
 .pipeline-cell {
   position: relative;
   flex: none;
-  width: var(--sq);
-  height: var(--sq);
+  /* the lead dimension is proportional, so whichever axis it owns is set
+     per cell; the other axis stays one cell */
+  width: var(--cell-w, var(--sq));
+  height: var(--cell-h, var(--sq));
   border: 1px solid var(--text-color);
 }
 
@@ -227,7 +254,7 @@
 
 .pipeline-column-label {
   flex: none;
-  width: var(--sq);
+  width: var(--cell-w, var(--sq));
   font-size: 0.9rem;
   line-height: 1;
   text-align: center;

@@ -9,6 +9,9 @@ import {
   cellTitle,
   facetRowsOf,
   leadAxis,
+  leadExtents,
+  viewAt,
+  viewsOf,
   usesFacetRows,
   facetsAt,
   hasJointFacets,
@@ -373,8 +376,8 @@ test("fits the run count to the width the row actually has", () => {
   // production middle column is 390px; one square per run is 10px of pitch, so
   // everything the payload carries fits
   assert.equal(runsThatFit(flat, 390), 10);
-  // squeeze it: 66px of gutter leaves 314px, then 274px, then 74px
-  assert.equal(runsThatFit(flat, 150), 7);
+  // squeeze it: 66px of gutter leaves 74px, and a run costs 12px plus a 2px gap
+  assert.equal(runsThatFit(flat, 150), 5);
   // never zero, however cramped, and never more than the payload carries
   assert.equal(runsThatFit(flat, 40), 1);
   assert.equal(runsThatFit(flat, 4000), 10);
@@ -394,6 +397,71 @@ test("moves facets out of their own bands once the joint is published", () => {
     bandsOf(joint).map((band) => `${band.kind}:${band.label}`),
     ["lead:10d", "lead:1d"],
   );
+});
+
+test("sizes a lead group by its share of the run, never below its label", () => {
+  // counts arrive cumulative: f000 owns 100 of the run's 400, f240 the other
+  // 300. Each group starts at the 12px a two-character label needs, then shares
+  // an allowance the size of the axis again.
+  const extents = leadExtents(facetedProduct());
+  assert.equal(extents.get("f000"), 12 + 0.25 * 24);
+  assert.equal(extents.get("f240"), 12 + 0.75 * 24);
+  assert.ok(extents.get("f240") > extents.get("f000"));
+
+  // even a group that is a rounding error keeps room to name itself
+  const lopsided = facetedProduct();
+  const [init] = lopsided.recent_inits;
+  init.lead_groups[0].leads_expected = 1;
+  init.lead_groups[0].leads_available = 1;
+  init.lead_groups[1].leads_expected = 4000;
+  init.lead_groups[1].leads_available = 1;
+  const floored = leadExtents(lopsided);
+  assert.ok(floored.get("f000") >= 12);
+  assert.ok(floored.get("f240") > floored.get("f000") * 2);
+
+  // a product that reports no counts splits the allowance evenly
+  const uncounted = facetedProduct();
+  for (const group of uncounted.recent_inits[0].lead_groups) {
+    delete group.leads_expected;
+    delete group.leads_available;
+  }
+  assert.deepEqual([...leadExtents(uncounted).values()], [24, 24]);
+});
+
+test("offers one view per facet dimension, opening on the lead grid", () => {
+  // nothing to cycle without a joint: the lead grid is the only view
+  assert.deepEqual(
+    viewsOf(facetedProduct()).map((view) => view.rows),
+    ["lead time"],
+  );
+
+  const joint = jointProduct();
+  assert.deepEqual(
+    viewsOf(joint).map((view) => view.rows),
+    ["lead time", "component", "member"],
+  );
+  // clicking wraps back to the lead grid, in both directions
+  assert.equal(viewAt(joint, 0).dimension, null);
+  assert.equal(viewAt(joint, 1).dimension, "component");
+  assert.equal(viewAt(joint, 2).dimension, "member");
+  assert.equal(viewAt(joint, 3).dimension, null);
+  assert.equal(viewAt(joint, -1).dimension, "member");
+});
+
+test("a facet view shows only its own dimension's rows", () => {
+  const joint = jointProduct();
+  assert.deepEqual(
+    facetRowsOf(joint, "component").map((facet) => facet.label),
+    ["pgrb2a.0p50"],
+  );
+  assert.deepEqual(
+    facetRowsOf(joint, "member").map((facet) => facet.label),
+    ["control"],
+  );
+  // and the fit follows the rows it will actually draw: "pgrb2a.0p50" needs a
+  // 66px gutter where "control" needs 42px, so the member view fits one more run
+  assert.equal(runsThatFitFacetRows(joint, 390, "component"), 5);
+  assert.equal(runsThatFitFacetRows(joint, 390, "member"), 6);
 });
 
 test("gives every facet in the joint its own labelled row", () => {
@@ -464,12 +532,11 @@ test("draws a facet row for anything the joint reported in the window", () => {
 
 test("fits run blocks of lead columns to the width, once facets own the rows", () => {
   const joint = jointProduct();
-  // "pgrb2a.0p50" is 11ch of gutter; a block is 2 leads at 12px plus a 2px gap,
-  // so 32px of pitch — the payload's ten runs still fit the production column
-  assert.equal(runsThatFitFacetRows(joint, 390), 10);
-  assert.equal(runsThatFitFacetRows(joint, 240), 5);
-  assert.equal(runsThatFitFacetRows(joint, 200), 4);
-  assert.equal(runsThatFitFacetRows(joint, 150), 2);
+  // a block is its lead columns at proportional widths (18px + 30px) plus the
+  // 2px between them, so 50px of block and 56px of pitch
+  assert.equal(runsThatFitFacetRows(joint, 390), 5);
+  assert.equal(runsThatFitFacetRows(joint, 240), 3);
+  assert.equal(runsThatFitFacetRows(joint, 200), 2);
   assert.equal(runsThatFitFacetRows(joint, 1200), 10);
   // never zero, and an unmeasured row shows everything rather than nothing
   assert.equal(runsThatFitFacetRows(joint, 80), 1);

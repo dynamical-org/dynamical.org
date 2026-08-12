@@ -12,14 +12,15 @@ const FETCH_TIMEOUT_MS = 10_000;
 const DASHBOARD_VERSIONS = new Set([1, 2]);
 // Field geometry. JS owns these because the run count is computed from them;
 // the CSS reads them back off the field as custom properties.
-const SQUARE_PX = 8;
-const CLUMP_GAP_PX = 1; // between facet squares within one run
-const RUN_GAP_PX = 2; // between runs of a single square
-const CLUMPED_RUN_GAP_PX = 6; // between runs of a clump, which needs daylight
+const CELL_PX = 12; // one measurement, the same size in every view
+const CLUMP_GAP_PX = 2; // between the lead columns within one run
+const RUN_GAP_PX = 2; // between runs, in the lead grid
+const CLUMPED_RUN_GAP_PX = 6; // between run blocks, which need daylight
+// no lead group is thinner than its own label: "0h" is two characters, which is
+// exactly one cell, so every group can name itself
+const MIN_LEAD_PX = 12;
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
-const FACET_SQUARE_PX = 12; // wide enough for a lead label over each column
-const FACET_GAP_PX = 2; // and enough air that the labels do not touch
 const RUNS_MAX = 10; // what the payload carries
 
 function hasTimestamp(value) {
@@ -339,6 +340,34 @@ export function leadAxis(product) {
   }));
 }
 
+/* How much of the lead axis each group takes. Main's bars sized a segment by
+   the group's share of the run's expected files, and this keeps that reading:
+   the cell size is constant across views, and the lead dimension stretches.
+   The total stays what uniform cells would have occupied, so a view's footprint
+   does not change, and a floor keeps the smallest group from vanishing — GEFS
+   f000 is 0.7% of its run, which would round to nothing. */
+
+export function leadExtents(product) {
+  const leads = leadAxis(product);
+  const newest = product.recent_inits?.at(-1);
+  const slices = leadSlices(newest?.lead_groups ?? []);
+  const expected = leads.map(
+    (lead) => slices.find((slice) => slice.name === lead.key)?.expected ?? 0,
+  );
+  const total = expected.reduce((sum, count) => sum + count, 0);
+  // every group starts at its label's width, then shares out an allowance the
+  // size of the axis again — so the biggest group reads as biggest without the
+  // smallest becoming a sliver that cannot name itself
+  const allowance = leads.length * CELL_PX;
+  return new Map(
+    leads.map((lead, index) => [
+      lead.key,
+      MIN_LEAD_PX +
+        (total ? expected[index] / total : 1 / leads.length) * allowance,
+    ]),
+  );
+}
+
 /* The bands of the marginal field, top row first: longest horizon down to the
    floor, then a band per facet grouped by dimension. Bands come from the product
    rather than one run, so the field keeps its shape as runs scroll through it. */
@@ -412,8 +441,25 @@ export function runsThatFit(product, availablePx) {
   return runsFitting(
     availablePx,
     gutterPx(bandsOf(product)),
-    SQUARE_PX,
+    CELL_PX,
     RUN_GAP_PX,
+  );
+}
+
+/* A facet grid spends its width on lead columns inside every run, and those
+   columns are proportional, so the block width comes from the extents. */
+
+export function runsThatFitFacetRows(product, availablePx, dimension) {
+  const leads = leadAxis(product);
+  const extents = leadExtents(product);
+  const runWidth =
+    leads.reduce((sum, lead) => sum + (extents.get(lead.key) ?? CELL_PX), 0) +
+    Math.max(0, leads.length - 1) * CLUMP_GAP_PX;
+  return runsFitting(
+    availablePx,
+    gutterPx(facetRowsOf(product, dimension)),
+    runWidth,
+    CLUMPED_RUN_GAP_PX,
   );
 }
 
@@ -425,9 +471,10 @@ function bandNode({
   label = "",
   labelTitle,
   clumped = false,
+  style,
   children,
 }) {
-  return element("div", { class: className, "data-kind": kind }, [
+  return element("div", { class: className, "data-kind": kind, style }, [
     element("span", { class: "pipeline-band-label", title: labelTitle }, label),
     element(
       "div",
@@ -497,7 +544,7 @@ export function cellTitle(band, init, cell, local) {
     .join(" · ");
 }
 
-function renderCell(band, init, local, measured) {
+function renderCell(band, init, local, measured, style) {
   const cell = measured ?? cellOf(band, init);
   return element(
     "div",
@@ -506,6 +553,7 @@ function renderCell(band, init, local, measured) {
       "data-init-time": init?.init_time,
       "data-timing": cell.timing,
       title: cellTitle(band, init, cell, local),
+      style,
     },
     element("div", {
       class: "pipeline-cell-fill",
@@ -517,7 +565,7 @@ function renderCell(band, init, local, measured) {
 /* The facet-row field spends width on lead-group columns inside every run, so
    it needs its own fit. */
 
-export function facetRowsOf(product) {
+export function facetRowsOf(product, dimension) {
   // every facet the joint mentions anywhere in the displayed runs: the newest
   // run may report none yet, and a rollout or rollback can leave the window
   // mixed, but those rows still have measurements in the runs beside them
@@ -537,7 +585,28 @@ export function facetRowsOf(product) {
   const undeclared = [...reported.values()].filter(
     (facet) => !declared.some((entry) => entry.name === facet.name),
   );
-  return [...declared, ...undeclared];
+  const rows = [...declared, ...undeclared];
+  return dimension ? rows.filter((facet) => facet.dimension === dimension) : rows;
+}
+
+/* The views a product offers, in click order: the lead grid it opens on, then
+   one grid per facet dimension the joint reports. A product without a joint
+   offers the lead grid alone, so clicking it does nothing. */
+
+export function viewsOf(product) {
+  const dimensions = [];
+  for (const facet of facetRowsOf(product)) {
+    if (!dimensions.includes(facet.dimension)) dimensions.push(facet.dimension);
+  }
+  return [
+    { rows: "lead time", dimension: null },
+    ...dimensions.map((dimension) => ({ rows: dimension, dimension })),
+  ];
+}
+
+export function viewAt(product, index) {
+  const views = viewsOf(product);
+  return views[((index % views.length) + views.length) % views.length];
 }
 
 /* The layout only transposes when there are rows to draw. Without this a joint
@@ -545,17 +614,6 @@ export function facetRowsOf(product) {
 
 export function usesFacetRows(product) {
   return hasJointFacets(product) && facetRowsOf(product).length > 0;
-}
-
-export function runsThatFitFacetRows(product, availablePx) {
-  // a run is still the group: one square per lead group inside it
-  const leads = Math.max(1, leadAxis(product).length);
-  return runsFitting(
-    availablePx,
-    gutterPx(facetRowsOf(product)),
-    leads * FACET_SQUARE_PX + (leads - 1) * FACET_GAP_PX,
-    CLUMPED_RUN_GAP_PX,
-  );
 }
 
 /* The joint, indexed once per render: which facets a run reported under a lead
@@ -599,16 +657,19 @@ function labelTier({ bandClass = "pipeline-band", spanClass, runs, textOf }) {
    lead group inside a block. Same squares and same hover labels as the banded
    field — only which dimension owns which axis changes. */
 
-function renderFacetRows(product, local, runCount) {
+function renderFacetRows(product, local, runCount, dimension) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
   const leads = leadAxis(product); // shortest horizon first
-  const facets = facetRowsOf(product);
+  const facets = facetRowsOf(product, dimension);
   const joint = jointIndex(product, runs, leads);
+  const extents = leadExtents(product);
+  const leadWidth = (lead) => extents.get(lead.key) ?? CELL_PX;
   const runWidth =
-    leads.length * FACET_SQUARE_PX + (leads.length - 1) * FACET_GAP_PX;
+    leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
+    (leads.length - 1) * CLUMP_GAP_PX;
   const field = element("div", {
     class: "pipeline-field",
-    style: `--sq:${FACET_SQUARE_PX}px;--clump-gap:${FACET_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px`,
+    style: `--sq:${CELL_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px`,
   });
 
   // the lead order repeats in every run, so name it once over the first block
@@ -620,15 +681,21 @@ function renderFacetRows(product, local, runCount) {
         element(
           "div",
           { class: "pipeline-clump" },
-          leads.map((lead) =>
-            element(
+          leads.map((lead) => {
+            // a proportional column can be narrower than its own name; the
+            // ones that cannot hold their label keep it on hover only
+            const width = leadWidth(lead);
+            const fits = width >= lead.label.length * CH_PX;
+            return element(
               "span",
-              index === 0
-                ? { class: "pipeline-column-label", title: `lead ${lead.label}` }
-                : { class: "pipeline-column-label" },
-              index === 0 ? lead.label : "",
-            ),
-          ),
+              {
+                class: "pipeline-column-label",
+                style: `--cell-w:${width.toFixed(2)}px`,
+                title: `lead ${lead.label}`,
+              },
+              index === 0 && fits ? lead.label : "",
+            );
+          }),
         ),
       ),
     }),
@@ -662,6 +729,7 @@ function renderFacetRows(product, local, runCount) {
                 facetAt
                   ? facetCell(facetAt, init, measured.timing)
                   : { state: "unobserved" },
+                `--cell-w:${leadWidth(lead).toFixed(2)}px`,
               );
             }),
           ),
@@ -699,9 +767,10 @@ function renderFacetRows(product, local, runCount) {
 
 function renderField(product, local, runCount) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+  const extents = leadExtents(product);
   const field = element("div", {
     class: "pipeline-field",
-    style: `--sq:${SQUARE_PX}px;--run-gap:${RUN_GAP_PX}px;--band-gutter:${gutterPx(bandsOf(product))}px`,
+    style: `--sq:${CELL_PX}px;--run-gap:${RUN_GAP_PX}px;--band-gutter:${gutterPx(bandsOf(product))}px`,
   });
   let dimension = null;
 
@@ -719,6 +788,11 @@ function renderField(product, local, runCount) {
         kind: band.kind,
         label: band.label,
         labelTitle: band.label,
+        // a lead band is as tall as its share of the run; a facet band is a cell
+        style:
+          band.kind === "lead"
+            ? `--cell-h:${(extents.get(band.key) ?? CELL_PX).toFixed(2)}px`
+            : null,
         children: runs.map((init) => renderCell(band, init, local)),
       }),
     );
@@ -770,7 +844,7 @@ function renderStructure(app, dashboard, rows) {
             ]),
           ]),
           element("div", { class: "pipeline-row-body" }, [
-            element("div", { "data-slot": "field" }),
+            element("div", { class: "pipeline-viz", "data-slot": "field" }),
           ]),
           element("div", { class: "pipeline-stats" }, [
             element("strong", { "data-slot": "eta-init" }, "—"),
@@ -976,17 +1050,43 @@ function buildDetails(product, now, local) {
 }
 
 function hydrateRow(row, product, now, local, available) {
-  // with the joint, facets get their own labelled rows; without it, the two
-  // published marginals get their own bands
-  const nested = usesFacetRows(product);
-  const runCount = nested
-    ? runsThatFitFacetRows(product, available)
-    : runsThatFit(product, available);
-  row
-    .querySelector('[data-slot="field"]')
-    .replaceChildren(
-      (nested ? renderFacetRows : renderField)(product, local, runCount),
+  // the lead grid is the view a row opens on; the facet grids are a click away
+  const views = viewsOf(product);
+  const index = Number(row.dataset.view ?? 0) % views.length;
+  const view = views[index];
+  row.dataset.view = String(index);
+
+  const field = view.dimension
+    ? renderFacetRows(
+        product,
+        local,
+        runsThatFitFacetRows(product, available, view.dimension),
+        view.dimension,
+      )
+    : renderField(product, local, runsThatFit(product, available));
+
+  const viz = row.querySelector('[data-slot="field"]');
+  viz.replaceChildren(field);
+  // only worth announcing when there is somewhere to click to
+  if (views.length > 1) {
+    const next = views[(index + 1) % views.length];
+    field.append(
+      element(
+        "div",
+        { class: "pipeline-view-hint" },
+        view.dimension
+          ? `rows: ${view.rows} · columns: lead time · click for ${next.rows}`
+          : `rows: lead time · columns: init · click for ${next.rows}`,
+      ),
     );
+    viz.setAttribute("role", "button");
+    viz.setAttribute("tabindex", "0");
+    viz.setAttribute("aria-label", `${view.rows} by lead group; activate for ${next.rows}`);
+  } else {
+    viz.removeAttribute("role");
+    viz.removeAttribute("tabindex");
+    viz.removeAttribute("aria-label");
+  }
   hydrateEta(row, product, now, local);
 
   const button = row.querySelector('[data-slot="details-button"]');
@@ -1134,6 +1234,41 @@ function start(app) {
     displayedAt = now;
     renderSnapshot(app, snapshot, rows, now);
   }
+
+  /* Clicking a product's field cycles its rows: lead time, then one grid per
+     facet dimension. The listener is delegated to the group container so it
+     survives every re-render, and the view index lives on the row. */
+
+  function cycleView(row) {
+    if (!row || !displayedSnapshot) return;
+    const product = productsOf(displayedSnapshot).find(
+      (entry) => entry.id === row.dataset.productId,
+    );
+    if (!product || viewsOf(product).length < 2) return;
+    row.dataset.view = String(Number(row.dataset.view ?? 0) + 1);
+    const body = row.querySelector(".pipeline-row-body");
+    hydrateRow(
+      row,
+      product,
+      displayedAt ?? Date.now(),
+      document.body.classList.contains("pipeline-time-local"),
+      body?.getBoundingClientRect().width ?? 0,
+    );
+  }
+
+  const groupsSlot = app.querySelector('[data-slot="groups"]');
+  groupsSlot.addEventListener("click", (event) => {
+    // the details button and any link keep their own behaviour
+    if (event.target.closest("button, a, summary")) return;
+    cycleView(event.target.closest(".pipeline-viz")?.closest(".pipeline-row"));
+  });
+  groupsSlot.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const viz = event.target.closest?.(".pipeline-viz");
+    if (!viz) return;
+    event.preventDefault();
+    cycleView(viz.closest(".pipeline-row"));
+  });
 
   // the run count comes from the measured row, so a resize has to re-fit
   let refitTimer = null;
