@@ -130,6 +130,7 @@ Rules:
   ds = xr.open_zarr(session.store, chunks=None)
 
   Any HTTP client reads the STAC; pystac is not required.
+- The first option needs dynamical-catalog&gt;=0.8.0.
 - Either way you open an Icechunk 2.0 repository, so Icechunk 2 is required; in
   Python that means 3.12+. Resolve the asset at open time — do not hard-code the
   asset href, the S3 bucket, or a version number.
@@ -166,7 +167,9 @@ chosen rather than derived.</textarea>
   <ul>
     <li>Opening requires Icechunk 2 — in Python, 3.12 or newer.</li>
     <li>The public STAC Collection is the source of truth for the current repository.</li>
-    <li>Dataset IDs replace <code>data.dynamical.org</code> paths.</li>
+    <li>Dataset IDs replace <code>data.dynamical.org</code> paths:
+      <code>https://data.dynamical.org/noaa/gfs/forecast/latest.zarr</code> becomes
+      <code>noaa-gfs-forecast</code>.</li>
     <li>The optional <code>?email=</code> query argument is no longer used.</li>
     <li>Nothing about the data itself. Variables, attributes, chunking, and values are unchanged.</li>
   </ul>
