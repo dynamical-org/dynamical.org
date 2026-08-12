@@ -10,6 +10,8 @@ const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
 const DASHBOARD_VERSIONS = new Set([1, 2]);
+// the payload carries ten runs; the field shows the most recent few
+const RUNS_SHOWN = 4;
 
 function hasTimestamp(value) {
   return (
@@ -362,7 +364,7 @@ function renderCell(band, init, local) {
 }
 
 function renderField(product, local) {
-  const runs = product.recent_inits.slice(-10);
+  const runs = product.recent_inits.slice(-RUNS_SHOWN);
   const field = element("div", { class: "pipeline-field" });
   let dimension = null;
 
