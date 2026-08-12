@@ -23,6 +23,7 @@ import {
   displaySource,
   etaLineText,
   facetRows,
+  initColumnPx,
   initParts,
   selectedTimeZone,
   validateDashboard,
@@ -370,19 +371,26 @@ test("orders the lead axis shortest horizon first, and the bands from the floor 
   );
 });
 
+test("gives an init column room for its own label", () => {
+  // "08-12" is five characters; a zone abbreviation makes local mode wider
+  assert.equal(initColumnPx(false), 30);
+  assert.equal(initColumnPx(true), 36);
+});
+
 test("fits the run count to the width the row actually has", () => {
   const flat = facetedProduct();
 
-  // production middle column is 390px; one square per run is 10px of pitch, so
-  // everything the payload carries fits
-  assert.equal(runsThatFit(flat, 390), 10);
-  // squeeze it: 66px of gutter leaves 74px, and a run costs 12px plus a 2px gap
-  assert.equal(runsThatFit(flat, 150), 5);
+  // production middle column is 390px, less 66px of gutter; a labelled column
+  // costs 30px in UTC plus a 6px gap, and 36px in local
+  assert.equal(runsThatFit(flat, 390, false), 8);
+  assert.equal(runsThatFit(flat, 390, true), 7);
+  // squeeze it
+  assert.equal(runsThatFit(flat, 200, false), 3);
   // never zero, however cramped, and never more than the payload carries
-  assert.equal(runsThatFit(flat, 40), 1);
-  assert.equal(runsThatFit(flat, 4000), 10);
+  assert.equal(runsThatFit(flat, 40, false), 1);
+  assert.equal(runsThatFit(flat, 4000, false), 10);
   // an unmeasurable row shows everything rather than nothing
-  assert.equal(runsThatFit(flat, 0), 10);
+  assert.equal(runsThatFit(flat, 0, false), 10);
 });
 
 test("moves facets out of their own bands once the joint is published", () => {

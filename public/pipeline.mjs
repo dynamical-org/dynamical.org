@@ -14,7 +14,7 @@ const DASHBOARD_VERSIONS = new Set([1, 2]);
 // the CSS reads them back off the field as custom properties.
 const CELL_PX = 12; // one measurement, the same size in every view
 const CLUMP_GAP_PX = 2; // between the lead columns within one run
-const RUN_GAP_PX = 2; // between runs, in the lead grid
+const RUN_GAP_PX = 6; // between init columns, as main spaced its bars
 const CLUMPED_RUN_GAP_PX = 6; // between run blocks, which need daylight
 // no lead group is thinner than its own label: "0h" is two characters, which is
 // exactly one cell, so every group can name itself
@@ -414,6 +414,14 @@ export function facetsAt(product, init, leadName) {
    ch: CSS resolves ch against the band's inherited font, which is not the
    font these labels are set in. */
 
+/* An init column is as wide as the label beneath it: "08-12" in UTC, and the
+   zone abbreviation makes local mode wider. Main sized its bars the same way,
+   which is what lets every column carry its own timestamp. */
+
+export function initColumnPx(local) {
+  return (local ? 6 : 5) * CH_PX;
+}
+
 export function gutterPx(labelled) {
   const widest = labelled.reduce(
     (max, entry) => Math.max(max, (entry.label ?? "").length),
@@ -437,11 +445,11 @@ function runsFitting(availablePx, gutter, runWidth, gap) {
   );
 }
 
-export function runsThatFit(product, availablePx) {
+export function runsThatFit(product, availablePx, local) {
   return runsFitting(
     availablePx,
     gutterPx(bandsOf(product)),
-    CELL_PX,
+    initColumnPx(local),
     RUN_GAP_PX,
   );
 }
@@ -616,6 +624,32 @@ export function usesFacetRows(product) {
   return hasJointFacets(product) && facetRowsOf(product).length > 0;
 }
 
+/* The init axis: the time under every column, then the date only where it turns
+   over, so a date lines up with the first timestamp it covers. */
+
+function initTiers(runs, local) {
+  const zone = selectedTimeZone(local);
+  let previousDate = null;
+  return [
+    labelTier({
+      bandClass: "pipeline-band pipeline-band--foot",
+      spanClass: "pipeline-run-label",
+      runs,
+      textOf: (init) => initParts(init.init_time, zone).time,
+    }),
+    labelTier({
+      spanClass: "pipeline-run-date",
+      runs,
+      textOf: (init) => {
+        const { date } = initParts(init.init_time, zone);
+        const turned = date !== previousDate;
+        previousDate = date;
+        return turned ? date : "";
+      },
+    }),
+  ];
+}
+
 /* The joint, indexed once per render: which facets a run reported under a lead
    group, and that group's timing. Built from `facetsAt` so the declared order
    still decides, then read by name per square. */
@@ -738,39 +772,18 @@ function renderFacetRows(product, local, runCount, dimension) {
     );
   }
 
-  // the init time under every block, then the date only where it turns over, so
-  // a date lines up with the first timestamp it covers
-  const zone = selectedTimeZone(local);
-  field.append(
-    labelTier({
-      bandClass: "pipeline-band pipeline-band--foot",
-      spanClass: "pipeline-run-label",
-      runs,
-      textOf: (init) => initParts(init.init_time, zone).time,
-    }),
-  );
-  let previousDate = null;
-  field.append(
-    labelTier({
-      spanClass: "pipeline-run-date",
-      runs,
-      textOf: (init) => {
-        const { date } = initParts(init.init_time, zone);
-        const turned = date !== previousDate;
-        previousDate = date;
-        return turned ? date : "";
-      },
-    }),
-  );
+  field.append(...initTiers(runs, local));
   return field;
 }
 
 function renderField(product, local, runCount) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
   const extents = leadExtents(product);
+  const column = initColumnPx(local);
   const field = element("div", {
     class: "pipeline-field",
-    style: `--sq:${CELL_PX}px;--run-gap:${RUN_GAP_PX}px;--band-gutter:${gutterPx(bandsOf(product))}px`,
+    // a cell is as wide as its init label; the lead axis keeps its own scale
+    style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px`,
   });
   let dimension = null;
 
@@ -789,29 +802,14 @@ function renderField(product, local, runCount) {
         label: band.label,
         labelTitle: band.label,
         // a lead band is as tall as its share of the run; a facet band is a cell
-        style:
-          band.kind === "lead"
-            ? `--cell-h:${(extents.get(band.key) ?? CELL_PX).toFixed(2)}px`
-            : null,
+        style: `--cell-h:${(band.kind === "lead" ? (extents.get(band.key) ?? CELL_PX) : CELL_PX).toFixed(2)}px`,
         children: runs.map((init) => renderCell(band, init, local)),
       }),
     );
   }
 
-  const first = runs[0];
-  const last = runs.at(-1);
-  if (first && last) {
-    field.append(
-      element("div", { class: "pipeline-axis" }, [
-        element("span"),
-        element(
-          "span",
-          null,
-          `${initShort(first.init_time, local)} → ${initShort(last.init_time, local)}`,
-        ),
-      ]),
-    );
-  }
+  // every column is wide enough to name itself, so the axis is per column
+  field.append(...initTiers(runs, local));
   return field;
 }
 
@@ -1063,7 +1061,7 @@ function hydrateRow(row, product, now, local, available) {
         runsThatFitFacetRows(product, available, view.dimension),
         view.dimension,
       )
-    : renderField(product, local, runsThatFit(product, available));
+    : renderField(product, local, runsThatFit(product, available, local));
 
   const viz = row.querySelector('[data-slot="field"]');
   viz.replaceChildren(field);

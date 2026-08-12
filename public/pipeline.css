@@ -155,8 +155,7 @@
   min-width: 0;
 }
 
-.pipeline-band,
-.pipeline-axis {
+.pipeline-band {
   display: grid;
   grid-template-columns: var(--band-gutter) minmax(0, max-content);
   align-items: center;
@@ -282,13 +281,6 @@
 
 .pipeline-run-label {
   color: var(--muted-text);
-}
-
-.pipeline-axis {
-  margin-top: 0.4rem;
-  color: var(--muted-text-2);
-  font-size: 1rem;
-  white-space: nowrap;
 }
 
 .pipeline-stats {
