@@ -9,6 +9,7 @@ import {
   cellTitle,
   facetsAt,
   hasJointFacets,
+  runsThatFit,
   clockTime,
   detailRows,
   displaySource,
@@ -338,6 +339,24 @@ function jointProduct() {
   ];
   return product;
 }
+
+test("fits the run count to the width the row actually has", () => {
+  const flat = facetedProduct();
+  const joint = jointProduct();
+
+  // production middle column: 390px, less the 140px gutter and the 6px band gap
+  // one square per run is 10px of pitch, so everything the payload carries fits
+  assert.equal(runsThatFit(flat, 390), 10);
+  // a clump of two facets is 17px plus a 6px gap, so fewer runs fit
+  assert.equal(runsThatFit(joint, 390), 10);
+  assert.equal(runsThatFit(joint, 240), 4);
+  assert.equal(runsThatFit(flat, 240), 9);
+  // never zero, however cramped, and never more than the payload carries
+  assert.equal(runsThatFit(joint, 150), 1);
+  assert.equal(runsThatFit(flat, 4000), 10);
+  // an unmeasurable row shows everything rather than nothing
+  assert.equal(runsThatFit(flat, 0), 10);
+});
 
 test("nests facets inside their lead group once the joint is published", () => {
   const flat = facetedProduct();

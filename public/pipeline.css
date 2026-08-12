@@ -132,7 +132,7 @@
 
 .pipeline-band {
   display: grid;
-  grid-template-columns: 14rem minmax(0, max-content);
+  grid-template-columns: var(--band-gutter, 14rem) minmax(0, max-content);
   align-items: center;
   gap: 0 0.6rem;
 }
@@ -163,24 +163,24 @@
 
 .pipeline-cells {
   display: flex;
-  gap: 2px;
+  gap: var(--run-gap, 2px);
 }
 
 /* a clumped band needs daylight between runs, since the squares within one run
    sit a single pixel apart */
 .pipeline-cells[data-clumped] {
-  gap: 6px;
+  gap: var(--clumped-run-gap, 6px);
 }
 
 .pipeline-clump {
   display: flex;
-  gap: 1px;
+  gap: var(--clump-gap, 1px);
 }
 
 .pipeline-cell {
   position: relative;
-  width: 8px;
-  height: 8px;
+  width: var(--sq, 8px);
+  height: var(--sq, 8px);
   border: 1px solid var(--text-color);
 }
 
@@ -222,7 +222,7 @@
 
 .pipeline-axis {
   display: grid;
-  grid-template-columns: 14rem minmax(0, max-content);
+  grid-template-columns: var(--band-gutter, 14rem) minmax(0, max-content);
   gap: 0 0.6rem;
   margin-top: 0.4rem;
   color: var(--muted-text-2);

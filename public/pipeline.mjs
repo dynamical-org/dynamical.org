@@ -10,8 +10,14 @@ const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
 const DASHBOARD_VERSIONS = new Set([1, 2]);
-// the payload carries ten runs; the field shows the most recent few
-const RUNS_SHOWN = 4;
+// Field geometry. JS owns these because the run count is computed from them;
+// the CSS reads them back off the field as custom properties.
+const SQUARE_PX = 8;
+const CLUMP_GAP_PX = 1; // between facet squares within one run
+const RUN_GAP_PX = 2; // between runs of a single square
+const CLUMPED_RUN_GAP_PX = 6; // between runs of a clump, which needs daylight
+const BAND_GUTTER_PX = 140; // the lead/facet label column
+const RUNS_MAX = 10; // what the payload carries
 
 function hasTimestamp(value) {
   return (
@@ -329,6 +335,30 @@ export function facetsAt(product, init, leadName) {
     .filter(Boolean);
 }
 
+/* How many runs fit. A run is one square when there is no joint and a clump of
+   facet squares when there is, so the answer depends on the product, not just
+   the viewport. Falls back to everything the payload carries when the width is
+   not measurable yet. */
+
+export function runsThatFit(product, availablePx) {
+  const clumped = hasJointFacets(product);
+  const widest = clumped
+    ? Math.max(
+        1,
+        ...(product.recent_inits ?? []).flatMap((init) =>
+          bandsOf(product).map(
+            (band) => facetsAt(product, init, band.key).length,
+          ),
+        ),
+      )
+    : 1;
+  const runWidth = widest * SQUARE_PX + (widest - 1) * CLUMP_GAP_PX;
+  const gap = clumped ? CLUMPED_RUN_GAP_PX : RUN_GAP_PX;
+  const usable = availablePx - BAND_GUTTER_PX - 6; // 0.6rem band gap
+  if (!Number.isFinite(usable) || usable <= 0) return RUNS_MAX;
+  return Math.max(1, Math.min(RUNS_MAX, Math.floor((usable + gap) / (runWidth + gap))));
+}
+
 /* What one run measured for one band. A band the run never reported reads as
    unobserved rather than as a failure. */
 
@@ -406,9 +436,12 @@ function renderCell(band, init, local, measured) {
   );
 }
 
-function renderField(product, local) {
-  const runs = product.recent_inits.slice(-RUNS_SHOWN);
-  const field = element("div", { class: "pipeline-field" });
+function renderField(product, local, runCount) {
+  const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+  const field = element("div", {
+    class: "pipeline-field",
+    style: `--sq:${SQUARE_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${BAND_GUTTER_PX}px`,
+  });
   let dimension = null;
 
   for (const band of bandsOf(product)) {
@@ -725,9 +758,13 @@ function buildDetails(product, now, local) {
 }
 
 function hydrateRow(row, product, now, local) {
+  // the row body is a 1fr grid column, so its width is independent of the
+  // field it holds — measuring it cannot feed back into the fit
+  const body = row.querySelector(".pipeline-row-body");
+  const available = body?.getBoundingClientRect().width ?? 0;
   row
     .querySelector('[data-slot="field"]')
-    .replaceChildren(renderField(product, local));
+    .replaceChildren(renderField(product, local, runsThatFit(product, available)));
   hydrateEta(row, product, now, local);
 
   const button = row.querySelector('[data-slot="details-button"]');
@@ -866,6 +903,15 @@ function start(app) {
     displayedAt = now;
     renderSnapshot(app, snapshot, rows, now);
   }
+
+  // the run count comes from the measured row, so a resize has to re-fit
+  let refitTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(refitTimer);
+    refitTimer = setTimeout(() => {
+      if (displayedSnapshot) displaySnapshot(displayedSnapshot, Date.now());
+    }, 150);
+  });
 
   function setTimeMode(local) {
     document.body.classList.toggle("pipeline-time-local", local);
