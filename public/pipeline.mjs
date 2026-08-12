@@ -16,7 +16,10 @@ const SQUARE_PX = 8;
 const CLUMP_GAP_PX = 1; // between facet squares within one run
 const RUN_GAP_PX = 2; // between runs of a single square
 const CLUMPED_RUN_GAP_PX = 6; // between runs of a clump, which needs daylight
-const BAND_GUTTER_PX = 140; // the lead/facet label column
+const CH_PX = 6; // one monospace character at the band-label size
+const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
+const FACET_SQUARE_PX = 12; // wide enough for a lead label over each column
+const FACET_GAP_PX = 2; // and enough air that the labels do not touch
 const RUNS_MAX = 10; // what the payload carries
 
 function hasTimestamp(value) {
@@ -340,6 +343,16 @@ export function facetsAt(product, init, leadName) {
    the viewport. Falls back to everything the payload carries when the width is
    not measurable yet. */
 
+/* The label gutter is only as wide as the labels a product actually renders.
+   Lead-only rows read "3d"; a facet row reads "precipitation and snow". Sizing
+   it per product is what keeps the strip from starting a third of the way in. */
+
+export function bandGutterCh(product) {
+  const labels = bandsOf(product).map((band) => band.label ?? "");
+  const widest = labels.reduce((max, label) => Math.max(max, label.length), 2);
+  return Math.min(GUTTER_MAX_CH, widest);
+}
+
 export function runsThatFit(product, availablePx) {
   const clumped = hasJointFacets(product);
   const widest = clumped
@@ -354,8 +367,11 @@ export function runsThatFit(product, availablePx) {
     : 1;
   const runWidth = widest * SQUARE_PX + (widest - 1) * CLUMP_GAP_PX;
   const gap = clumped ? CLUMPED_RUN_GAP_PX : RUN_GAP_PX;
-  const usable = availablePx - BAND_GUTTER_PX - 6; // 0.6rem band gap
-  if (!Number.isFinite(usable) || usable <= 0) return RUNS_MAX;
+  // an unmeasured row shows everything rather than nothing
+  if (!Number.isFinite(availablePx) || availablePx <= 0) return RUNS_MAX;
+  // 6px band gap, and 4px of slack so a font fallback cannot overflow the row
+  const usable = availablePx - bandGutterCh(product) * CH_PX - 6 - 4;
+  if (usable <= 0) return 1;
   return Math.max(1, Math.min(RUNS_MAX, Math.floor((usable + gap) / (runWidth + gap))));
 }
 
@@ -436,11 +452,181 @@ function renderCell(band, init, local, measured) {
   );
 }
 
+/* The facet-row field spends width on lead-group columns inside every run, so
+   it needs its own fit. */
+
+export function facetRowsOf(product) {
+  const newest = product.recent_inits?.at(-1);
+  const leads = bandsOf(product);
+  return (product.facet_groups ?? []).filter((facet) =>
+    leads.some((lead) =>
+      facetsAt(product, newest, lead.key).some((entry) => entry.name === facet.name),
+    ),
+  );
+}
+
+function facetRowsGutterCh(product) {
+  return Math.min(
+    GUTTER_MAX_CH,
+    facetRowsOf(product).reduce(
+      (max, facet) => Math.max(max, facet.label.length),
+      2,
+    ),
+  );
+}
+
+export function runsThatFitFacetRows(product, availablePx) {
+  // a run is still the group: one square per lead group inside it
+  const leads = Math.max(1, bandsOf(product).length);
+  const runWidth = leads * FACET_SQUARE_PX + (leads - 1) * FACET_GAP_PX;
+  if (!Number.isFinite(availablePx) || availablePx <= 0) return RUNS_MAX;
+  const usable = availablePx - facetRowsGutterCh(product) * CH_PX - 6 - 4;
+  if (usable <= 0) return 1;
+  return Math.max(
+    1,
+    Math.min(
+      RUNS_MAX,
+      Math.floor((usable + CLUMPED_RUN_GAP_PX) / (runWidth + CLUMPED_RUN_GAP_PX)),
+    ),
+  );
+}
+
+/* The facet-row field: one row per facet, one run per block, one column per
+   lead group inside a block. The runs
+   clumped inside each cell. Same squares and same titles as the banded field —
+   only which dimension owns which axis changes. */
+
+function renderFacetRows(product, local, runCount) {
+  const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+  const leads = [...bandsOf(product)].reverse(); // shortest horizon first
+  const facets = facetRowsOf(product);
+  const field = element("div", {
+    class: "pipeline-field pipeline-field--facets",
+    style: `--sq:${FACET_SQUARE_PX}px;--clump-gap:${FACET_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${facetRowsGutterCh(product) * CH_PX}px;--leads:${leads.length}`,
+  });
+
+  // the lead order repeats in every run, so name it once over the first block
+  field.append(
+    element("div", { class: "pipeline-band pipeline-band--head" }, [
+      element("span", { class: "pipeline-band-label" }),
+      element(
+        "div",
+        { class: "pipeline-cells", "data-clumped": "" },
+        runs.map((init, index) =>
+          element(
+            "div",
+            { class: "pipeline-clump" },
+            index === 0
+              ? leads.map((lead) =>
+                  element(
+                    "span",
+                    { class: "pipeline-column-label", title: `lead ${lead.label}` },
+                    lead.label,
+                  ),
+                )
+              : leads.map(() => element("span", { class: "pipeline-column-label" })),
+          ),
+        ),
+      ),
+    ]),
+  );
+
+  for (const facet of facets) {
+    const cells = element("div", { class: "pipeline-cells", "data-clumped": "" });
+    for (const init of runs) {
+      const clump = element("div", { class: "pipeline-clump" });
+      for (const lead of leads) {
+        const measured = facetsAt(product, init, lead.key).find(
+          (entry) => entry.name === facet.name,
+        );
+        const band = {
+          kind: "facet",
+          key: facet.name,
+          label: facet.label,
+          dimension: facet.dimension,
+          lead: lead.label,
+        };
+        const timing = (init.lead_groups ?? []).find(
+          (group) => group.name === lead.key,
+        )?.timing;
+        clump.append(
+          renderCell(
+            band,
+            init,
+            local,
+            measured
+              ? facetCell(measured, init, timing ?? init.timing)
+              : { state: "unobserved" },
+          ),
+        );
+      }
+      cells.append(clump);
+    }
+    field.append(
+      element("div", { class: "pipeline-band", "data-kind": "facet" }, [
+        element(
+          "span",
+          { class: "pipeline-band-label", title: `${facet.label} (${facet.dimension})` },
+          facet.label,
+        ),
+        cells,
+      ]),
+    );
+  }
+
+  // two tiers under the blocks: the init time on every block, then each date
+  // centred under the run of blocks that share it
+  field.append(
+    element("div", { class: "pipeline-band pipeline-band--foot" }, [
+      element("span", { class: "pipeline-band-label" }),
+      element(
+        "div",
+        { class: "pipeline-cells", "data-clumped": "" },
+        runs.map((init) =>
+          element(
+            "span",
+            {
+              class: "pipeline-run-label",
+              title: initShort(init.init_time, local),
+            },
+            initParts(init.init_time, selectedTimeZone(local)).time,
+          ),
+        ),
+      ),
+    ]),
+  );
+
+  // the date tier mirrors the time tier block for block, carrying text only
+  // where the date turns over, so a date lines up with its first timestamp
+  let previousDate = null;
+  field.append(
+    element("div", { class: "pipeline-band pipeline-band--dates" }, [
+      element("span", { class: "pipeline-band-label" }),
+      element(
+        "div",
+        { class: "pipeline-cells", "data-clumped": "" },
+        runs.map((init) => {
+          const { date } = initParts(init.init_time, selectedTimeZone(local));
+          const turned = date !== previousDate;
+          previousDate = date;
+          return element(
+            "span",
+            { class: "pipeline-run-date" },
+            turned ? date : "",
+          );
+        }),
+      ),
+    ]),
+  );
+
+  return field;
+}
+
 function renderField(product, local, runCount) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
   const field = element("div", {
     class: "pipeline-field",
-    style: `--sq:${SQUARE_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${BAND_GUTTER_PX}px`,
+    style: `--sq:${SQUARE_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${bandGutterCh(product) * CH_PX}px`,
   });
   let dimension = null;
 
@@ -762,9 +948,17 @@ function hydrateRow(row, product, now, local) {
   // field it holds — measuring it cannot feed back into the fit
   const body = row.querySelector(".pipeline-row-body");
   const available = body?.getBoundingClientRect().width ?? 0;
+  // with the joint, facets get their own labelled rows; without it, the two
+  // published marginals get their own bands
+  const nested = hasJointFacets(product);
+  const runCount = nested
+    ? runsThatFitFacetRows(product, available)
+    : runsThatFit(product, available);
   row
     .querySelector('[data-slot="field"]')
-    .replaceChildren(renderField(product, local, runsThatFit(product, available)));
+    .replaceChildren(
+      (nested ? renderFacetRows : renderField)(product, local, runCount),
+    );
   hydrateEta(row, product, now, local);
 
   const button = row.querySelector('[data-slot="details-button"]');

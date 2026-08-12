@@ -7,9 +7,12 @@ import {
   bandsOf,
   cellOf,
   cellTitle,
+  facetRowsOf,
   facetsAt,
   hasJointFacets,
+  bandGutterCh,
   runsThatFit,
+  runsThatFitFacetRows,
   clockTime,
   detailRows,
   displaySource,
@@ -340,19 +343,28 @@ function jointProduct() {
   return product;
 }
 
+test("sizes the label gutter to the labels a product actually renders", () => {
+  // "pgrb2a.0p50" is the widest of the flat product's band labels
+  assert.equal(bandGutterCh(facetedProduct()), 11);
+  // with the joint there are no facet bands, so only "10d" has to fit
+  assert.equal(bandGutterCh(jointProduct()), 3);
+});
+
 test("fits the run count to the width the row actually has", () => {
   const flat = facetedProduct();
   const joint = jointProduct();
 
-  // production middle column: 390px, less the 140px gutter and the 6px band gap
-  // one square per run is 10px of pitch, so everything the payload carries fits
+  // production middle column is 390px; one square per run is 10px of pitch, so
+  // everything the payload carries fits either way
   assert.equal(runsThatFit(flat, 390), 10);
-  // a clump of two facets is 17px plus a 6px gap, so fewer runs fit
   assert.equal(runsThatFit(joint, 390), 10);
-  assert.equal(runsThatFit(joint, 240), 4);
-  assert.equal(runsThatFit(flat, 240), 9);
+  // squeeze it: a clump of two facets is 17px plus a 6px gap
+  assert.equal(runsThatFit(joint, 240), 9);
+  assert.equal(runsThatFit(flat, 150), 7);
   // never zero, however cramped, and never more than the payload carries
-  assert.equal(runsThatFit(joint, 150), 1);
+  assert.equal(runsThatFit(joint, 100), 3);
+  assert.equal(runsThatFit(joint, 40), 1);
+  assert.equal(runsThatFit(flat, 40), 1);
   assert.equal(runsThatFit(flat, 4000), 10);
   // an unmeasurable row shows everything rather than nothing
   assert.equal(runsThatFit(flat, 0), 10);
@@ -374,6 +386,38 @@ test("nests facets inside their lead group once the joint is published", () => {
     bandsOf(joint).map((band) => `${band.kind}:${band.label}`),
     ["lead:10d", "lead:1d"],
   );
+});
+
+test("gives every facet in the joint its own labelled row", () => {
+  const joint = jointProduct();
+  assert.deepEqual(
+    facetRowsOf(joint).map((facet) => facet.label),
+    ["pgrb2a.0p50", "control"],
+  );
+
+  // a facet the joint never reports gets no row
+  const partial = jointProduct();
+  for (const group of partial.recent_inits[0].lead_groups) {
+    group.facets = group.facets.filter((facet) => facet.dimension === "component");
+  }
+  assert.deepEqual(
+    facetRowsOf(partial).map((facet) => facet.label),
+    ["pgrb2a.0p50"],
+  );
+});
+
+test("fits run blocks of lead columns to the width, once facets own the rows", () => {
+  const joint = jointProduct();
+  // "pgrb2a.0p50" is 11ch of gutter; a block is 2 leads at 12px plus a 2px gap,
+  // so 32px of pitch — the payload's ten runs still fit the production column
+  assert.equal(runsThatFitFacetRows(joint, 390), 10);
+  assert.equal(runsThatFitFacetRows(joint, 240), 5);
+  assert.equal(runsThatFitFacetRows(joint, 200), 4);
+  assert.equal(runsThatFitFacetRows(joint, 150), 2);
+  assert.equal(runsThatFitFacetRows(joint, 1200), 10);
+  // never zero, and an unmeasured row shows everything rather than nothing
+  assert.equal(runsThatFitFacetRows(joint, 80), 1);
+  assert.equal(runsThatFitFacetRows(joint, 0), 10);
 });
 
 test("orders a lead group's facets as the product declares them", () => {

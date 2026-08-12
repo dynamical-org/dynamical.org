@@ -154,7 +154,7 @@
 /* names a facet dimension once, where its bands start */
 .pipeline-dimension {
   margin: 0.6rem 0 0.1rem;
-  padding-left: 14.6rem;
+  padding-left: calc(var(--band-gutter, 14rem) + 0.6rem);
   color: var(--muted-text-2);
   font-size: 1rem;
   letter-spacing: 0.06em;
@@ -174,11 +174,13 @@
 
 .pipeline-clump {
   display: flex;
+  flex: none;
   gap: var(--clump-gap, 1px);
 }
 
 .pipeline-cell {
   position: relative;
+  flex: none;
   width: var(--sq, 8px);
   height: var(--sq, 8px);
   border: 1px solid var(--text-color);
@@ -218,6 +220,55 @@
 .pipeline-cell.g-pending .pipeline-cell-fill,
 .pipeline-cell.g-unobserved .pipeline-cell-fill {
   display: none;
+}
+
+/* The facet-row field: a run per block, lead groups as columns inside it */
+
+.pipeline-column-label {
+  flex: none;
+  width: var(--sq);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.pipeline-band--head {
+  margin-bottom: 0.2rem;
+}
+
+.pipeline-band--foot {
+  margin-top: 0.3rem;
+}
+
+/* one per run block, exactly as wide as the block it names */
+.pipeline-run-label,
+.pipeline-run-date {
+  /* never shrink, or a label drifts out from under the blocks it names */
+  flex: none;
+  /* exactly one run block wide, so both tiers centre on the same axis */
+  width: calc(
+    var(--sq) * var(--leads, 3) + var(--clump-gap) * (var(--leads, 3) - 1)
+  );
+  font-size: 0.9rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.pipeline-run-label {
+  color: var(--muted-text);
+}
+
+.pipeline-run-date {
+  color: var(--text-color);
+}
+
+.pipeline-band--dates {
+  margin-top: 0.1rem;
+}
+
+.pipeline-field--facets .pipeline-band-label {
+  color: var(--muted-text);
 }
 
 .pipeline-axis {
@@ -312,16 +363,5 @@ body:not(.pipeline-time-local) .pipeline-time-local-only {
 
   .pipeline-stats {
     text-align: left;
-  }
-}
-
-@media (max-width: 680px) {
-  .pipeline-band,
-  .pipeline-axis {
-    grid-template-columns: 8rem minmax(0, max-content);
-  }
-
-  .pipeline-dimension {
-    padding-left: 8.6rem;
   }
 }
