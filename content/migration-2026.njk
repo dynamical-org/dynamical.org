@@ -54,7 +54,8 @@ permalink: /migration-2026/
 
   <h2>dynamical-catalog</h2>
   <p>
-    A thin STAC and Icechunk wrapper that ensures minimum dependency versions.
+    Option 1: open using <code>dynamical-catalog</code>, a thin STAC and Icechunk
+    wrapper that ensures minimum dependency versions.
     Install <code>dynamical-catalog&gt;=0.8.0</code> and pass the dataset ID from
     its <a href="/catalog/">catalog page</a>.
   </p>
@@ -64,7 +65,8 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighligh
 
   <h2>STAC and Icechunk</h2>
   <p>
-    Resolve the <code>icechunk-https</code> asset from the dataset's STAC Collection
+    Option 2: load the STAC and open directly with Icechunk. Resolve the
+    <code>icechunk-https</code> asset from the dataset's STAC Collection
     each time your application opens a repository. Do not copy and permanently
     hard-code the asset URL. The example below uses <code>pystac</code>, but any
     HTTP client can read the Collection.
