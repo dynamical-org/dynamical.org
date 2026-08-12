@@ -130,9 +130,10 @@
   min-width: 0;
 }
 
-.pipeline-band {
+.pipeline-band,
+.pipeline-axis {
   display: grid;
-  grid-template-columns: var(--band-gutter, 14rem) minmax(0, max-content);
+  grid-template-columns: var(--band-gutter) minmax(0, max-content);
   align-items: center;
   gap: 0 0.6rem;
 }
@@ -154,7 +155,7 @@
 /* names a facet dimension once, where its bands start */
 .pipeline-dimension {
   margin: 0.6rem 0 0.1rem;
-  padding-left: calc(var(--band-gutter, 14rem) + 0.6rem);
+  padding-left: calc(var(--band-gutter) + 0.6rem);
   color: var(--muted-text-2);
   font-size: 1rem;
   letter-spacing: 0.06em;
@@ -163,26 +164,26 @@
 
 .pipeline-cells {
   display: flex;
-  gap: var(--run-gap, 2px);
+  gap: var(--run-gap);
 }
 
 /* a clumped band needs daylight between runs, since the squares within one run
    sit a single pixel apart */
 .pipeline-cells[data-clumped] {
-  gap: var(--clumped-run-gap, 6px);
+  gap: var(--clumped-run-gap);
 }
 
 .pipeline-clump {
   display: flex;
   flex: none;
-  gap: var(--clump-gap, 1px);
+  gap: var(--clump-gap);
 }
 
 .pipeline-cell {
   position: relative;
   flex: none;
-  width: var(--sq, 8px);
-  height: var(--sq, 8px);
+  width: var(--sq);
+  height: var(--sq);
   border: 1px solid var(--text-color);
 }
 
@@ -227,7 +228,6 @@
 .pipeline-column-label {
   flex: none;
   width: var(--sq);
-  color: var(--text-color);
   font-size: 0.9rem;
   line-height: 1;
   text-align: center;
@@ -247,9 +247,7 @@
   /* never shrink, or a label drifts out from under the blocks it names */
   flex: none;
   /* exactly one run block wide, so both tiers centre on the same axis */
-  width: calc(
-    var(--sq) * var(--leads, 3) + var(--clump-gap) * (var(--leads, 3) - 1)
-  );
+  width: var(--run-width);
   font-size: 0.9rem;
   line-height: 1.2;
   text-align: center;
@@ -259,22 +257,7 @@
   color: var(--muted-text);
 }
 
-.pipeline-run-date {
-  color: var(--text-color);
-}
-
-.pipeline-band--dates {
-  margin-top: 0.1rem;
-}
-
-.pipeline-field--facets .pipeline-band-label {
-  color: var(--muted-text);
-}
-
 .pipeline-axis {
-  display: grid;
-  grid-template-columns: var(--band-gutter, 14rem) minmax(0, max-content);
-  gap: 0 0.6rem;
   margin-top: 0.4rem;
   color: var(--muted-text-2);
   font-size: 1rem;
