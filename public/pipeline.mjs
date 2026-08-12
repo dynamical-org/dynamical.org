@@ -174,11 +174,6 @@ function initShort(timestamp, local) {
   return `${date} ${time}`;
 }
 
-function initLabel(timestamp, local) {
-  const { date, time } = initParts(timestamp, selectedTimeZone(local));
-  return element("span", null, [element("strong", null, date), time]);
-}
-
 function formatTime(timestamp, local, includeZone = true) {
   const options = {
     month: "short",
@@ -217,8 +212,11 @@ function timeNode(timestamp) {
   ]);
 }
 
-function groupSlices(groups) {
-  const total = groups.at(-1)?.leads_expected ?? 0;
+/* One square per measurement. Lead-group counts arrive cumulative, so a band's
+   own share is the difference from the band below it — the same arithmetic the
+   bars used for segment heights. */
+
+function leadSlices(groups) {
   let previousAvailable = 0;
   let previousExpected = 0;
   return groups.map((group) => {
@@ -227,86 +225,165 @@ function groupSlices(groups) {
     previousExpected = group.leads_expected;
     previousAvailable = group.leads_available;
     return {
-      ...group,
-      height: total ? (expected / total) * 100 : 0,
-      fill: expected ? Math.max(0, Math.min(100, (available / expected) * 100)) : 0,
+      name: group.name,
+      status: group.status,
+      timing: group.timing,
+      available,
+      expected,
+      completion: expected
+        ? Math.max(0, Math.min(1, available / expected))
+        : (group.completion_pct ?? 0),
     };
   });
 }
 
-export function barTooltip(init, local) {
-  if (init.status === "unobserved") {
-    return `${initShort(init.init_time, local)} · no probe visibility; not a publication failure`;
+/* The bands of a product's field, top row first: longest horizon down to the
+   floor, then a band per facet grouped by dimension. Bands come from the
+   product rather than a single run so the field keeps its shape as runs
+   scroll through it. */
+
+export function bandsOf(product) {
+  const newest = product.recent_inits?.at(-1);
+  // history snapshots carry the same runs but declare neither list up front
+  const labelOf = new Map(
+    (product.lead_group_stats ?? []).map((stats) => [stats.name, stats.label]),
+  );
+  const declaredLeads = product.lead_groups?.length
+    ? product.lead_groups
+    : (newest?.lead_groups ?? []);
+  const leads = declaredLeads.map((group) => ({
+    kind: "lead",
+    key: group.name,
+    label: group.label ?? labelOf.get(group.name) ?? group.name,
+  }));
+  leads.reverse();
+
+  const declaredFacets = product.facet_groups?.length
+    ? product.facet_groups
+    : (newest?.facets ?? []);
+  const facets = declaredFacets.map((facet) => ({
+    kind: "facet",
+    key: facet.name,
+    label: facet.label,
+    dimension: facet.dimension,
+  }));
+  return [...leads, ...facets];
+}
+
+/* What one run measured for one band. A band the run never reported reads as
+   unobserved rather than as a failure. */
+
+export function cellOf(band, init) {
+  if (!init) return { state: "unobserved" };
+  if (init.status === "unobserved") return { state: "unobserved" };
+
+  if (band.kind === "lead") {
+    const slice = leadSlices(init.lead_groups ?? []).find(
+      (group) => group.name === band.key,
+    );
+    if (!slice) return { state: "unobserved" };
+    return {
+      state: slice.status,
+      timing: slice.timing,
+      completion: slice.completion,
+    };
   }
-  const state = init.timing ? `${init.status} · ${init.timing}` : init.status;
-  const run = [
-    initShort(init.init_time, local),
-    state,
-    init.completion_pct == null
-      ? null
-      : `${Math.round(init.completion_pct * 100)}%`,
-    init.latency_s == null ? null : `latency ${formatLatency(init.latency_s)}`,
+
+  const facet = (init.facets ?? []).find((entry) => entry.name === band.key);
+  if (!facet) return { state: "unobserved" };
+  return {
+    state: facet.status,
+    timing: init.timing,
+    completion: facet.completion_pct ?? 0,
+    available: facet.dependencies_available,
+    expected: facet.dependencies_expected,
+  };
+}
+
+/* The hover label. What the square stands for comes first, then when, then how
+   much of it arrived — a facet names itself and its dimension. */
+
+export function cellTitle(band, init, cell, local) {
+  if (!init) return `${band.label} · not reported`;
+  const when = initShort(init.init_time, local);
+  if (cell.state === "unobserved") {
+    return `${band.label} · ${when} · no probe visibility; not a publication failure`;
+  }
+  const volume =
+    cell.expected != null
+      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} files`
+      : `${Math.round((cell.completion ?? 0) * 100)}%`;
+  return [
+    band.kind === "facet" ? `${band.label} (${band.dimension})` : `lead ${band.label}`,
+    when,
+    volume,
+    statusLabel(cell.state),
+    cell.timing ? cell.timing.replaceAll("_", " ") : null,
   ]
     .filter(Boolean)
     .join(" · ");
-  if (!init.lead_groups?.length) return run;
-  const groups = init.lead_groups.map((group) => {
-    const groupState = group.timing
-      ? `${group.status} · ${group.timing}`
-      : group.status;
-    const progress =
-      group.status === "in_flight" && group.completion_pct != null
-        ? ` ${Math.round(group.completion_pct * 100)}%`
-        : "";
-    return `${group.name} ${groupState}${progress}`;
-  });
-  return `${run}\n${groups.join(" · ")}`;
 }
 
-function renderBar(init, local) {
-  const track = element("div", { class: "pipeline-bar-track" });
-  if (init.lead_groups?.length) {
-    let bottom = 0;
-    for (const group of groupSlices(init.lead_groups)) {
-      const segment = element(
-        "div",
-        {
-          class: `pipeline-bar-segment g-${group.status}`,
-          "data-group": group.name,
-          "data-timing": group.timing,
-          style: `--band-height:${group.height}%;--band-bottom:${bottom}%;--fill:${group.fill}%`,
-        },
-        element("div", { class: "pipeline-bar-segment-fill" }),
-      );
-      track.append(segment);
-      bottom += group.height;
-    }
-  } else {
-    track.append(
-      element("div", {
-        class: "pipeline-bar-fill",
-        style: `--fill:${Math.max(0, Math.min(100, (init.completion_pct ?? 0) * 100))}%`,
-      }),
-    );
-  }
+function renderCell(band, init, local) {
+  const cell = cellOf(band, init);
   return element(
     "div",
     {
-      class: "pipeline-bar",
-      "data-init-time": init.init_time,
-      "data-status": init.status,
-      "data-timing": init.timing,
-      title: barTooltip(init, local),
+      class: `pipeline-cell g-${cell.state}`,
+      "data-init-time": init?.init_time,
+      "data-timing": cell.timing,
+      title: cellTitle(band, init, cell, local),
     },
-    [
-      track,
-      element(
-        "div",
-        { class: "pipeline-bar-label" },
-        initLabel(init.init_time, local),
-      ),
-    ],
+    element("div", {
+      class: "pipeline-cell-fill",
+      style: `--fill:${Math.max(0, Math.min(100, (cell.completion ?? 0) * 100))}%`,
+    }),
   );
+}
+
+function renderField(product, local) {
+  const runs = product.recent_inits.slice(-10);
+  const field = element("div", { class: "pipeline-field" });
+  let dimension = null;
+
+  for (const band of bandsOf(product)) {
+    // name each facet dimension once, where it starts
+    if (band.kind === "facet" && band.dimension !== dimension) {
+      field.append(
+        element("div", { class: "pipeline-dimension" }, band.dimension),
+      );
+    }
+    dimension = band.kind === "facet" ? band.dimension : null;
+
+    const cells = element("div", { class: "pipeline-cells" });
+    for (const init of runs) cells.append(renderCell(band, init, local));
+    field.append(
+      element("div", { class: "pipeline-band", "data-kind": band.kind }, [
+        element(
+          "span",
+          { class: "pipeline-band-label", title: band.label },
+          band.label,
+        ),
+        cells,
+      ]),
+    );
+  }
+
+  const first = runs[0];
+  const last = runs.at(-1);
+  if (first && last) {
+    field.append(
+      element("div", { class: "pipeline-axis" }, [
+        element("span"),
+        element(
+          "span",
+          null,
+          `${initShort(first.init_time, local)} → ${initShort(last.init_time, local)}`,
+        ),
+      ]),
+    );
+  }
+  return field;
 }
 
 function renderStructure(app, dashboard, rows) {
@@ -319,20 +396,6 @@ function renderStructure(app, dashboard, rows) {
       element("h3", null, group.label),
     ]);
     for (const product of group.products) {
-      const leadLabels = element("div", {
-        class: "pipeline-lead-labels",
-        "aria-hidden": "true",
-      });
-      for (const lead of product.lead_groups?.slice(1) ?? []) {
-        leadLabels.append(
-          element(
-            "span",
-            { style: `bottom:${lead.center_pct}%` },
-            lead.label,
-          ),
-        );
-      }
-
       const advisory = element("div", {
         class: "pipeline-row-advisory",
         "data-slot": "row-advisory",
@@ -352,8 +415,7 @@ function renderStructure(app, dashboard, rows) {
             ]),
           ]),
           element("div", { class: "pipeline-row-body" }, [
-            leadLabels,
-            element("div", { class: "pipeline-grid", "data-slot": "grid" }),
+            element("div", { "data-slot": "field" }),
           ]),
           element("div", { class: "pipeline-stats" }, [
             element("strong", { "data-slot": "eta-init" }, "—"),
@@ -559,9 +621,9 @@ function buildDetails(product, now, local) {
 }
 
 function hydrateRow(row, product, now, local) {
-  row.querySelector('[data-slot="grid"]').replaceChildren(
-    ...product.recent_inits.slice(-10).map((init) => renderBar(init, local)),
-  );
+  row
+    .querySelector('[data-slot="field"]')
+    .replaceChildren(renderField(product, local));
   hydrateEta(row, product, now, local);
 
   const button = row.querySelector('[data-slot="details-button"]');

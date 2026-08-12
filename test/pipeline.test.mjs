@@ -4,7 +4,9 @@ import test from "node:test";
 
 import {
   agencySummary,
-  barTooltip,
+  bandsOf,
+  cellOf,
+  cellTitle,
   clockTime,
   detailRows,
   displaySource,
@@ -187,35 +189,139 @@ test("shortens displayed web sources without changing other schemes", () => {
   assert.equal(displaySource("s3://noaa-gfs-bdp-pds"), "s3://noaa-gfs-bdp-pds");
 });
 
-test("preserves run and lead-group detail in bar tooltips", () => {
-  assert.equal(
-    barTooltip(
+function facetedProduct() {
+  return {
+    id: "external-noaa-gefs-long-aws",
+    row_label: "AWS",
+    lead_groups: [
+      { name: "f000", label: "1d" },
+      { name: "f240", label: "10d" },
+    ],
+    facet_groups: [
+      { dimension: "component", name: "component:pgrb2a", label: "pgrb2a.0p50" },
+      { dimension: "member", name: "members:control", label: "control" },
+    ],
+    recent_inits: [
       {
         init_time: "2026-07-26T00:00:00Z",
         status: "in_flight",
-        timing: "on_time",
-        completion_pct: 0.5,
-        latency_s: 3600,
+        timing: "delayed",
         lead_groups: [
           {
-            name: "1d",
+            name: "f000",
             status: "complete",
             timing: "on_time",
             completion_pct: 1,
+            leads_available: 100,
+            leads_expected: 100,
           },
           {
-            name: "3d",
+            name: "f240",
             status: "in_flight",
             timing: "delayed",
             completion_pct: 0.25,
+            leads_available: 175,
+            leads_expected: 400,
+          },
+        ],
+        facets: [
+          {
+            dimension: "component",
+            name: "component:pgrb2a",
+            label: "pgrb2a.0p50",
+            status: "in_flight",
+            completion_pct: 0.5,
+            dependencies_available: 200,
+            dependencies_expected: 400,
+          },
+          {
+            dimension: "member",
+            name: "members:control",
+            label: "control",
+            status: "complete",
+            completion_pct: 1,
+            dependencies_available: 400,
+            dependencies_expected: 400,
           },
         ],
       },
-      false,
-    ),
-    "07-26 00z · in_flight · on_time · 50% · latency 1h\n" +
-      "1d complete · on_time · 3d in_flight · delayed 25%",
+    ],
+  };
+}
+
+test("bands the field by lead group from the floor up, then by facet dimension", () => {
+  assert.deepEqual(
+    bandsOf(facetedProduct()).map((band) => `${band.kind}:${band.label}`),
+    ["lead:10d", "lead:1d", "facet:pgrb2a.0p50", "facet:control"],
   );
+
+  // a v1 product reports no facets at all and gets lead bands only
+  const noFacets = facetedProduct();
+  delete noFacets.facet_groups;
+  for (const init of noFacets.recent_inits) delete init.facets;
+  assert.deepEqual(
+    bandsOf(noFacets).map((band) => band.kind),
+    ["lead", "lead"],
+  );
+});
+
+test("bands a history snapshot, which declares neither list up front", () => {
+  const snapshot = facetedProduct();
+  delete snapshot.lead_groups;
+  delete snapshot.facet_groups;
+  snapshot.lead_group_stats = [
+    { name: "f000", label: "1d" },
+    { name: "f240", label: "10d" },
+  ];
+
+  assert.deepEqual(
+    bandsOf(snapshot).map((band) => `${band.kind}:${band.label}`),
+    ["lead:10d", "lead:1d", "facet:pgrb2a.0p50", "facet:control"],
+  );
+  // and still measures, rather than rendering an empty field
+  const [longest] = bandsOf(snapshot);
+  assert.equal(cellOf(longest, snapshot.recent_inits[0]).state, "in_flight");
+});
+
+test("measures a lead band by its own share, not the cumulative count", () => {
+  const product = facetedProduct();
+  const [longest] = bandsOf(product);
+  const cell = cellOf(longest, product.recent_inits[0]);
+  // 175/400 cumulative becomes 75/300 once the band below it is taken out
+  assert.equal(cell.state, "in_flight");
+  assert.equal(cell.timing, "delayed");
+  assert.equal(cell.completion, 0.25);
+});
+
+test("names what a square measured, facet first, in its hover label", () => {
+  const product = facetedProduct();
+  const init = product.recent_inits[0];
+  const bands = bandsOf(product);
+  const facetBand = bands.find((band) => band.label === "pgrb2a.0p50");
+  assert.equal(
+    cellTitle(facetBand, init, cellOf(facetBand, init), false),
+    "pgrb2a.0p50 (component) · 07-26 00z · 200 / 400 files · processing · delayed",
+  );
+
+  const leadBand = bands.find((band) => band.label === "1d");
+  assert.equal(
+    cellTitle(leadBand, init, cellOf(leadBand, init), false),
+    "lead 1d · 07-26 00z · 100% · complete · on time",
+  );
+});
+
+test("reads an unreported band as unobserved rather than a failure", () => {
+  const product = facetedProduct();
+  const band = bandsOf(product).find((entry) => entry.kind === "facet");
+  const blind = { ...product.recent_inits[0], status: "unobserved" };
+  assert.equal(cellOf(band, blind).state, "unobserved");
+  assert.match(
+    cellTitle(band, blind, cellOf(band, blind), false),
+    /no probe visibility; not a publication failure/,
+  );
+
+  const missing = { ...product.recent_inits[0], facets: [] };
+  assert.equal(cellOf(band, missing).state, "unobserved");
 });
 
 test("shows exact and relative ETA in the selected timezone", () => {
@@ -532,7 +638,8 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   );
 
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
-  assert.match(template, /forecast hours still expected/);
+  assert.match(template, /still expected/);
+  assert.match(template, /hover a square for what it measured/);
   assert.match(template, /no monitoring data/);
   assert.doesNotMatch(template, /pipeline-footer|window-days/);
   assert.doesNotMatch(pipelineScript, /window-days/);
@@ -542,12 +649,13 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   assert.doesNotMatch(template, /Data product pipeline|Forecast-run arrival/);
   assert.match(
     pipelineCss,
-    /\.pipeline-bar-segment\.g-pending,[\s\S]*\.pipeline-bar-segment\.g-unobserved\s*{\s*border: 1px dotted var\(--pipeline-unobserved\)/,
+    /\.pipeline-cell\.g-pending,[\s\S]*\.pipeline-cell\.g-unobserved\s*{\s*border: 1px dotted var\(--pipeline-unobserved\)/,
   );
   assert.match(
     pipelineCss,
-    /\.pipeline-bar\[data-status="unobserved"\] \.pipeline-bar-track\s*{\s*border: 1px dotted/,
+    /\.pipeline-cell\.g-failed \.pipeline-cell-fill\s*{\s*height: 100%/,
   );
+  assert.doesNotMatch(pipelineCss, /pipeline-bar|pipeline-lead-labels/);
   assert.doesNotMatch(
     mainCss,
     /\.status-subnav\s*{[^}]*font-size:/s,
