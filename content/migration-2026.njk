@@ -49,8 +49,8 @@ permalink: /migration-2026/
     URL with one of the two supported ways to open a dataset. Dataset IDs replace
     <code>data.dynamical.org</code> paths:
     <code>https://data.dynamical.org/noaa/gfs/forecast/latest.zarr</code> becomes
-    <code>noaa-gfs-forecast</code>. Both need Icechunk 2 — in Python, 3.12 or
-    newer — and both resolve the current repository from our
+    <code>noaa-gfs-forecast</code>. Both need Icechunk 2, and both resolve the
+    current repository from our
     <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, so your code
     does not need to track storage locations or version changes.
   </p>
@@ -59,8 +59,8 @@ permalink: /migration-2026/
   <p>
     Option 1: open using <code>dynamical-catalog</code>, a thin STAC and Icechunk
     wrapper that ensures minimum dependency versions.
-    Install <code>dynamical-catalog&gt;=0.8.0</code> and pass the dataset ID from
-    its <a href="/catalog/">catalog page</a>.
+    Install <code>dynamical-catalog&gt;=0.8.0</code> on Python 3.12 or newer, and
+    pass the dataset ID from its <a href="/catalog/">catalog page</a>.
   </p>
   {% frameHighlight "py" %}import dynamical_catalog
 
@@ -92,7 +92,7 @@ ds = xr.open_zarr(session.store, chunks=None){% endframeHighlight %}
     (<code>@earthmover/icechunk</code>, paired with <code>zarrita</code>) and a
     <a href="https://icechunk.io/en/latest/reference/icechunk-rust/">Rust crate</a>
     (<code>icechunk</code>), both of which open the same <code>icechunk-https</code>
-    asset over plain HTTP.
+    asset over HTTP.
   </p>
 
   <h2>Have an agent do it</h2>
