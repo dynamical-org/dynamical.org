@@ -90,7 +90,7 @@ let _dbReady = null;
 
 export function initDB() {
   if (_dbReady) return _dbReady;
-  _dbReady = (async () => {
+  const ready = (async () => {
     // duckdb-wasm's bundle selection references the global WebAssembly object
     // unconditionally (via wasm-feature-detect's exceptions() check), which
     // throws an uncaught ReferenceError rather than reporting "unsupported"
@@ -110,12 +110,32 @@ export function initDB() {
       })
     );
     const worker = new Worker(workerUrl);
+    // A CDN hiccup serving the worker script throws inside the worker's own
+    // global scope: uncaught there, invisible to this function's try/catch,
+    // and left as a permanently pending instantiate() below without a
+    // listener that turns it into a rejection.
+    const workerFailure = new Promise((_resolve, reject) => {
+      worker.onerror = (event) => {
+        event.preventDefault();
+        reject(new Error(`duckdb-wasm worker failed to load: ${event.message}`));
+      };
+    });
     const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
     const db = new duckdb.AsyncDuckDB(logger, worker);
-    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    await Promise.race([
+      db.instantiate(bundle.mainModule, bundle.pthreadWorker),
+      workerFailure,
+    ]);
     URL.revokeObjectURL(workerUrl);
     return db;
   })();
+  // Memoize the promise, but never the rejection: caching a failed worker
+  // load would leave every later chart on the page permanently stuck, since
+  // this database instance is shared across all of them.
+  ready.catch(() => {
+    if (_dbReady === ready) _dbReady = null;
+  });
+  _dbReady = ready;
   return _dbReady;
 }
 
