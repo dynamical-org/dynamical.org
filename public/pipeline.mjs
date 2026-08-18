@@ -920,6 +920,14 @@ export function etaLineText(target, now, local) {
     : `ETA ${time} (in ${formatDuration(seconds)})`;
 }
 
+// The percentile columns summarise every init in the historical baseline, not
+// just the runs the grid draws, so the header names the sample they came from.
+function statsHeader(sampleInitCount) {
+  return sampleInitCount
+    ? `time after init · ${sampleInitCount.toLocaleString("en-US")} inits`
+    : "time after init";
+}
+
 export function detailRows(product, now, local) {
   const running = product.recent_inits.findLast(
     (init) => init.status === "in_flight",
@@ -933,6 +941,7 @@ export function detailRows(product, now, local) {
       : displayed
         ? `${initShort(displayed.init_time, local)} · previous init`
         : "waiting for next init",
+    statsHeader: statsHeader(product.latency_stats?.sample_init_count),
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
       const live = groups[index];
       let time = "—";
@@ -985,7 +994,7 @@ function buildDetails(product, now, local) {
   const groupHead = element("tr", null, [
     element("th"),
     element("th", { colspan: "3" }, details.header),
-    element("th", { colspan: "3" }, "time after init"),
+    element("th", { colspan: "3" }, details.statsHeader),
   ]);
   const head = element("tr", null, [
     element("th", null, "horizon"),

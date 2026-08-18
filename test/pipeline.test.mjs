@@ -751,6 +751,7 @@ test("retains live horizon status, time, and duration in details", () => {
     detailRows(product, Date.parse("2026-07-26T12:30:00Z"), false),
     {
       header: "07-26 12z",
+      statsHeader: "time after init",
       rows: [
         {
           label: "1d",
@@ -772,6 +773,36 @@ test("retains live horizon status, time, and duration in details", () => {
         },
       ],
     },
+  );
+});
+
+test("names the init sample the percentile columns summarise", () => {
+  const product = {
+    recent_inits: [
+      {
+        init_time: "2026-07-26T06:00:00Z",
+        status: "complete",
+        lead_groups: [{ status: "complete", latency_s: 1200 }],
+      },
+    ],
+    latency_stats: {
+      p50_s: 1200,
+      p95_s: 1800,
+      p99_s: 2400,
+      sample_init_count: 1394,
+    },
+    lead_group_stats: [{ label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 }],
+  };
+
+  assert.equal(
+    detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,
+    "time after init · 1,394 inits",
+  );
+
+  product.latency_stats.sample_init_count = 0;
+  assert.equal(
+    detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,
+    "time after init",
   );
 });
 
