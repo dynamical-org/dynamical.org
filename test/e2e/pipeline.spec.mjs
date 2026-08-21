@@ -21,6 +21,10 @@ const FIXTURE = JSON.parse(
 );
 
 const JSON_HEADERS = { "access-control-allow-origin": "*" };
+const REPEATED_LEAD_LABELS = Array.from(
+  { length: 5 },
+  () => ["0h", "1d", "3d"],
+).flat();
 
 /* Match by filename, not by base: the dev server points the page at the published
    assets under `npm start` but at `/pipeline-preview/` under `npm run
@@ -154,7 +158,7 @@ test("clicking cycles the rows through each facet dimension without moving the p
   const columnLabels = (
     await firstLane.locator(".pipeline-column-label").allTextContents()
   ).filter(Boolean);
-  expect(columnLabels).toEqual(["0h", "1d", "3d"]);
+  expect(columnLabels).toEqual(REPEATED_LEAD_LABELS);
 
   // the views share one box: a cycle must not shift what is below the row
   expect(component.fieldHeight).toBe(lead.fieldHeight);
@@ -187,7 +191,7 @@ test("facet views use two compact lanes and show every available init", async ({
     const leadLabels = (
       await lane.locator(".pipeline-column-label").allTextContents()
     ).filter(Boolean);
-    expect(leadLabels).toEqual(["0h", "1d", "3d"]);
+    expect(leadLabels).toEqual(REPEATED_LEAD_LABELS);
     await expect(lane.locator(".pipeline-run-label")).toHaveCount(5);
   }
   const rowGaps = await lanes.first().evaluate((lane) => {

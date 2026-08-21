@@ -387,16 +387,15 @@ export function compactLeadExtents(product) {
   );
 }
 
-function leadLabel(lead, width, visible) {
+function leadLabel(lead, width) {
   return element(
     "span",
     {
       class: "pipeline-column-label",
       style: `--cell-w:${width.toFixed(2)}px`,
       title: `lead ${lead.label}`,
-      "aria-hidden": visible ? null : "true",
     },
-    visible ? lead.label : "",
+    lead.label,
   );
 }
 
@@ -661,11 +660,23 @@ export function facetRowsOf(product, dimension) {
   return dimension ? rows.filter((facet) => facet.dimension === dimension) : rows;
 }
 
-function facetAxisLabel(facet) {
-  if (facet.dimension !== "member") return facet.label;
-  if (facet.label === "control") return "ctl";
-  if (facet.label === "perturbed") return "pert";
-  return facet.label;
+const FACET_AXIS_ABBREVIATIONS = new Map([
+  ["cloud and convection", "cloud/conv"],
+  ["natural levels", "nat lvls"],
+  ["precipitation and snow", "precip/snow"],
+  ["pressure levels", "prs lvls"],
+  ["solar radiation", "solar"],
+  ["surface state", "sfc state"],
+  ["control", "ctl"],
+  ["perturbed", "pert"],
+  ["perturbed members", "pert"],
+]);
+
+export function facetAxisLabel(facet) {
+  return (
+    FACET_AXIS_ABBREVIATIONS.get(facet.label) ??
+    facet.label.replace(/^(pgrb2[abs])\.\d+p\d+$/, "$1")
+  );
 }
 
 function facetGutterPx(facets) {
@@ -784,13 +795,11 @@ function renderFacetLane(product, local, runs, leads, facets, leadWidth) {
     bandNode({
       className: "pipeline-band pipeline-band--head",
       clumped: true,
-      children: runs.map((init, index) =>
+      children: runs.map(() =>
         element(
           "div",
           { class: "pipeline-clump" },
-          leads.map((lead) =>
-            leadLabel(lead, leadWidth(lead), index === 0),
-          ),
+          leads.map((lead) => leadLabel(lead, leadWidth(lead))),
         ),
       ),
     }),

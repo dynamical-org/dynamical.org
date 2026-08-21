@@ -8,6 +8,7 @@ import {
   cellOf,
   cellTitle,
   compactLeadExtents,
+  facetAxisLabel,
   facetRowsOf,
   leadAxis,
   leadExtents,
@@ -492,6 +493,24 @@ test("a facet view shows only its own dimension's rows", () => {
   // both gutters leave enough room for all ten compact run blocks
   assert.equal(runsThatFitFacetRows(joint, 390, "component"), 10);
   assert.equal(runsThatFitFacetRows(joint, 390, "member"), 10);
+});
+
+test("abbreviates long facet axis labels without changing their data labels", () => {
+  const abbreviations = new Map([
+    ["cloud and convection", "cloud/conv"],
+    ["natural levels", "nat lvls"],
+    ["pgrb2a.0p50", "pgrb2a"],
+    ["precipitation and snow", "precip/snow"],
+    ["pressure levels", "prs lvls"],
+    ["solar radiation", "solar"],
+    ["surface state", "sfc state"],
+    ["control", "ctl"],
+    ["perturbed members", "pert"],
+  ]);
+  for (const [label, abbreviation] of abbreviations) {
+    assert.equal(facetAxisLabel({ label }), abbreviation);
+  }
+  assert.equal(facetAxisLabel({ label: "wind" }), "wind");
 });
 
 test("gives every facet in the joint its own labelled row", () => {
