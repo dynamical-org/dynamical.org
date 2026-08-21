@@ -42,10 +42,13 @@
      a 2px checker at that size averages out into a flat darker fill instead
      of reading as texture. Tiled at 4px x 4px.
 
-     No dark-mode twin, unlike the shadow tiles above: those sit on the page
-     background and have to flip ink with it, while this one only ever marks
-     --pill-available-bg, which is the same green in both themes. */
-  --hatch-diagonal: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 4' shape-rendering='crispEdges'><g fill='black' fill-opacity='.5'><rect width='2' height='1'/><rect y='1' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='2' y='2' width='2' height='1'/><rect x='1' y='3' width='2' height='1'/></g></svg>");
+     Ink runs opposite to the shadow tiles above. Those darken to cast a
+     shadow, so they flip to white where the page goes dark. This one erodes:
+     it pulls the fill it marks toward the page background, so the marked
+     cell reads as partly absent rather than merely shaded — which is what a
+     gap in coverage is. That means white on a light page and black on a dark
+     one, the inverse of a shadow. */
+  --hatch-diagonal: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 4' shape-rendering='crispEdges'><g fill='white' fill-opacity='.5'><rect width='2' height='1'/><rect y='1' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='2' y='2' width='2' height='1'/><rect x='1' y='3' width='2' height='1'/></g></svg>");
 
   --pill-available-bg: #5bc54a;
   --pill-available-fg: #081a08;
@@ -91,6 +94,8 @@
 
     --shadow-dither-l: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 4' preserveAspectRatio='none' shape-rendering='crispEdges'><g fill='white' fill-opacity='.5'><rect width='1' height='4'/><rect x='1' width='1' height='4'/><rect x='2' width='1' height='1'/><rect x='2' y='2' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='3' y='3' width='1' height='1'/><rect x='4' width='1' height='3'/><rect x='5' y='1' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='6' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='8' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='9' y='1' width='1' height='1'/><rect x='10' y='2' width='1' height='1'/><rect x='11' y='3' width='1' height='1'/></g></svg>");
     --shadow-dither-r: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 4' preserveAspectRatio='none' shape-rendering='crispEdges'><g fill='white' fill-opacity='.5' transform='translate(14 0) scale(-1 1)'><rect width='1' height='4'/><rect x='1' width='1' height='4'/><rect x='2' width='1' height='1'/><rect x='2' y='2' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='3' y='3' width='1' height='1'/><rect x='4' width='1' height='3'/><rect x='5' y='1' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='6' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='8' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='9' y='1' width='1' height='1'/><rect x='10' y='2' width='1' height='1'/><rect x='11' y='3' width='1' height='1'/></g></svg>");
+
+    --hatch-diagonal: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 4' shape-rendering='crispEdges'><g fill='black' fill-opacity='.5'><rect width='2' height='1'/><rect y='1' width='1' height='1'/><rect x='3' y='1' width='1' height='1'/><rect x='2' y='2' width='2' height='1'/><rect x='1' y='3' width='2' height='1'/></g></svg>");
 
     --pill-muted-bg: #2a2a2d;
     --pill-muted-fg: #e8e8ea;

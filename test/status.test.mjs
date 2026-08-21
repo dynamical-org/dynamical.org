@@ -726,12 +726,15 @@ test("the hatch tile the status bars mark gaps with is a shared token", () => {
     "utf8",
   );
 
-  // One definition, no dark-mode override: the hatch only ever marks the
-  // operational green, which is the same colour in both themes, so flipping
-  // its ink the way the shadow tiles do would make one state read two ways.
-  assert.equal(css.match(/--hatch-diagonal:/g)?.length, 1);
-  assert.doesNotMatch(
-    css.slice(css.indexOf("prefers-color-scheme: dark")),
-    /--hatch-diagonal/,
-  );
+  // One definition per theme, and the ink runs opposite to the shadow tiles:
+  // the hatch erodes the cell toward the page background, so it lightens on a
+  // light page and darkens on a dark one.
+  assert.equal(css.match(/--hatch-diagonal:/g)?.length, 2);
+  // One line per declaration; the data URI has semicolons of its own, so the
+  // line is the boundary to cut on, not the statement terminator.
+  const declaration = (block) =>
+    block.slice(block.indexOf("--hatch-diagonal:")).split("\n")[0];
+  const [light, dark] = css.split("prefers-color-scheme: dark");
+  assert.match(declaration(light), /fill='white'/);
+  assert.match(declaration(dark), /fill='black'/);
 });
