@@ -18,8 +18,9 @@ const RUN_GAP_PX = 6; // between init columns, as main spaced its bars
 const FACET_CELL_PX = 8; // compact rows when a facet owns the vertical axis
 const FACET_CLUMP_GAP_PX = 1; // lead columns remain visibly separate
 const FACET_RUN_GAP_PX = 6; // separate runs after the lead columns compact
+const FACET_BAND_GAP_PX = 4; // use the reserved height between compact rows
 const FACET_LANES = 2; // two chronological rows show more runs without crowding
-const FACET_LANE_GAP_PX = 6;
+const FACET_LANE_GAP_PX = 10;
 // no lead group is thinner than its own label: "0h" is two characters, which is
 // exactly one cell, so every group can name itself
 const MIN_LEAD_PX = 12;
@@ -403,9 +404,10 @@ function leadLabel(lead, width, visible) {
    measurement — which matters because the render pass writes without reading. */
 
 function chromePx(view, rows) {
-  const head = view.dimension ? LABEL_PX + BAND_GAP_PX + HEAD_GAP_PX : 0;
-  const tiers = FOOT_GAP_PX + 2 * (LABEL_PX + BAND_GAP_PX);
-  return head + tiers + BAND_GAP_PX * Math.max(0, rows - 1);
+  const gap = view.dimension ? FACET_BAND_GAP_PX : BAND_GAP_PX;
+  const head = view.dimension ? LABEL_PX + gap + HEAD_GAP_PX : 0;
+  const tiers = FOOT_GAP_PX + 2 * (LABEL_PX + gap);
+  return head + tiers + gap * Math.max(0, rows - 1);
 }
 
 function viewHeightPx(product, view) {
@@ -526,7 +528,7 @@ export function runsThatFitFacetRows(product, availablePx, dimension) {
     Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
   const perLane = runsFitting(
     availablePx,
-    gutterPx(facetRowsOf(product, dimension)),
+    facetGutterPx(facetRowsOf(product, dimension)),
     runWidth,
     FACET_RUN_GAP_PX,
   );
@@ -659,6 +661,19 @@ export function facetRowsOf(product, dimension) {
   return dimension ? rows.filter((facet) => facet.dimension === dimension) : rows;
 }
 
+function facetAxisLabel(facet) {
+  if (facet.dimension !== "member") return facet.label;
+  if (facet.label === "control") return "ctl";
+  if (facet.label === "perturbed") return "pert";
+  return facet.label;
+}
+
+function facetGutterPx(facets) {
+  return gutterPx(
+    facets.map((facet) => ({ ...facet, label: facetAxisLabel(facet) })),
+  );
+}
+
 /* The views a product offers, in click order: the lead grid it opens on, then
    one grid per facet dimension the joint reports. A product without a joint
    offers the lead grid alone, so clicking it does nothing. */
@@ -785,7 +800,7 @@ function renderFacetLane(product, local, runs, leads, facets, leadWidth) {
     rowsNode.append(
       bandNode({
         kind: "facet",
-        label: facet.label,
+        label: facetAxisLabel(facet),
         labelTitle: `${facet.label} (${facet.dimension})`,
         clumped: true,
         children: runs.map((init) =>
@@ -836,7 +851,7 @@ function renderFacetRows(product, local, runCount, dimension) {
     // lead time runs across here, so progress fills across too
     "data-fill": "side",
     "data-compact": "",
-    style: `--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
+    style: `--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
   });
   const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
   const runsPerLane = Math.ceil(runs.length / laneCount);

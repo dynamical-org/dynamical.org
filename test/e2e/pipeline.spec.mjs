@@ -147,7 +147,7 @@ test("clicking cycles the rows through each facet dimension without moving the p
 
   await viz.click();
   const member = await bandGeometry(row);
-  expect(member.labels).toEqual(["control", "perturbed"]);
+  expect(member.labels).toEqual(["ctl", "pert"]);
 
   // lead time owns the columns in a facet view, so each lane names it there
   const firstLane = row.locator(".pipeline-facet-lane").first();
@@ -179,12 +179,27 @@ test("facet views use two compact lanes and show every available init", async ({
   const lanes = row.locator(".pipeline-facet-lane");
   await expect(lanes).toHaveCount(2);
   for (const lane of await lanes.all()) {
+    expect(
+      await lane
+        .locator(".pipeline-band[data-kind='facet'] .pipeline-band-label")
+        .allTextContents(),
+    ).toEqual(["pgrb2a", "pgrb2b", "pgrb2s"]);
     const leadLabels = (
       await lane.locator(".pipeline-column-label").allTextContents()
     ).filter(Boolean);
     expect(leadLabels).toEqual(["0h", "1d", "3d"]);
     await expect(lane.locator(".pipeline-run-label")).toHaveCount(5);
   }
+  const rowGaps = await lanes.first().evaluate((lane) => {
+    const cells = [
+      ...lane.querySelectorAll(".pipeline-band[data-kind='facet']"),
+    ].map((band) =>
+      band.querySelector(".pipeline-cell").getBoundingClientRect(),
+    );
+    return cells.slice(1).map((cell, index) => cell.top - cells[index].bottom);
+  });
+  expect(rowGaps.length).toBeGreaterThan(0);
+  for (const gap of rowGaps) expect(gap).toBeGreaterThanOrEqual(4);
 
   const times = await row.locator(".pipeline-run-label").allTextContents();
   expect(times).toHaveLength(10);
