@@ -7,6 +7,7 @@ import {
   barDescription,
   buildHistory,
   incidentDescription,
+  groupedIncidentDescription,
   isHistoryCurrent,
   isStatusDataStale,
   overlappingEntries,
@@ -298,6 +299,49 @@ test("groups explicitly related outages and remaps day links", () => {
       incidentIds: ["incident-group-hrrr-history-migration"],
     });
   }
+});
+
+test("accepts and preserves an observation-gap explanation", () => {
+  const description =
+    "Our monitoring telemetry of data product reads was unavailable for 18 minutes. " +
+    "We have no indication that data product reads themselves were impacted.";
+  const group = {
+    id: "data-product-read-telemetry-gap",
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description,
+    started_at: "2026-08-19T23:45:15Z",
+    ended_at: "2026-08-20T00:03:24Z",
+    components: ["data-product-reads"],
+  };
+  const data = validateStatusData({
+    ...operationalData,
+    incident_groups: [group],
+  });
+  const incident = {
+    id: "incident-data-product-reads-1",
+    component: "data-product-reads",
+    kind: "outage",
+    start: Date.parse(group.started_at),
+    end: Date.parse(group.ended_at),
+    ending: "resolved",
+  };
+
+  const grouped = applyIncidentGroups(
+    { incidents: [incident], cells: new Map() },
+    data.incident_groups,
+  );
+
+  assert.equal(grouped.incidents[0].kind, "observation");
+  assert.equal(grouped.incidents[0].description, description);
+  assert.equal(
+    groupedIncidentDescription(
+      grouped.incidents[0],
+      new Map([["data-product-reads", "Data product reads"]]),
+      incident.end,
+    ),
+    description,
+  );
 });
 
 test("explicit unplanned incident groups retain outage severity", () => {
