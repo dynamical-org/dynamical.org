@@ -39,8 +39,10 @@ function isIncidentGroup(group) {
   return (
     group &&
     typeof group.id === "string" &&
-    ["outage", "planned"].includes(group.kind) &&
+    ["observation", "outage", "planned"].includes(group.kind) &&
     typeof group.summary === "string" &&
+    (group.description == null || typeof group.description === "string") &&
+    (group.kind !== "observation" || typeof group.description === "string") &&
     hasUtcOffset(group.started_at) &&
     hasUtcOffset(group.ended_at) &&
     Date.parse(group.ended_at) > Date.parse(group.started_at) &&
@@ -262,6 +264,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       id,
       kind: configured.kind,
       summary: configured.summary,
+      ...(configured.description ? { description: configured.description } : {}),
       components: configured.components.filter((component) =>
         matches.some((incident) => incident.component === component),
       ),
@@ -563,7 +566,8 @@ function incidentName(incident, names) {
   return incident.summary ?? names.get(incident.component);
 }
 
-function groupedIncidentDescription(incident, names, end) {
+export function groupedIncidentDescription(incident, names, end) {
+  if (incident.description) return incident.description;
   const affected = sentenceList([
     ...new Set(
       incident.components
@@ -612,7 +616,12 @@ function renderIncidentLog(root, history, data, local) {
     const summary = document.createElement("p");
     const timing = document.createElement("p");
     const kind = incident.kind ?? "outage";
-    const label = kind === "planned" ? "planned outage" : kind;
+    const label =
+      kind === "planned"
+        ? "planned outage"
+        : kind === "observation"
+          ? "observation gap"
+          : kind;
     const end = incident.end ?? history.asOf.getTime();
 
     item.id = incident.id;
