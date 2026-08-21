@@ -7,6 +7,7 @@ import {
   bandsOf,
   cellOf,
   cellTitle,
+  compactLeadExtents,
   facetRowsOf,
   leadAxis,
   leadExtents,
@@ -445,6 +446,16 @@ test("sizes a lead group by its share of the run, never below its label", () => 
     delete group.leads_available;
   }
   assert.deepEqual([...leadExtents(uncounted).values()], [24, 24]);
+});
+
+test("compacts lead columns when facets own the rows", () => {
+  const product = facetedProduct();
+  const regular = leadExtents(product);
+  const compact = compactLeadExtents(product);
+
+  assert.ok(compact.get("f000") < regular.get("f000"));
+  assert.ok(compact.get("f240") < regular.get("f240"));
+  assert.ok(compact.get("f240") > compact.get("f000"));
 });
 
 test("offers one view per facet dimension, opening on the lead grid", () => {

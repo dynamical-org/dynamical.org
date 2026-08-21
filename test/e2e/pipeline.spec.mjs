@@ -167,6 +167,22 @@ test("clicking cycles the rows through each facet dimension without moving the p
   expect((await bandGeometry(row)).labels).toEqual(component.labels);
 });
 
+test("facet views use compact lead dots and show every available init", async ({ page }) => {
+  const row = await openPipeline(page);
+  await row.locator(".pipeline-viz").click();
+
+  const leadMarkers = row.locator(".pipeline-column-label");
+  await expect(leadMarkers).toHaveCount(30);
+  await expect(leadMarkers.nth(0)).toHaveAttribute("aria-label", "lead 0h");
+  await expect(leadMarkers.nth(1).locator(".pipeline-lead-dot")).toHaveCount(1);
+  await expect(leadMarkers.nth(2).locator(".pipeline-lead-dot")).toHaveCount(3);
+
+  await expect(row.locator(".pipeline-run-label")).toHaveCount(10);
+  const labelled = (await row.locator(".pipeline-run-label").allTextContents()).filter(Boolean);
+  expect(labelled.length).toBeLessThan(10);
+  expect((await bandGeometry(row)).overflowsColumn).toBe(false);
+});
+
 test("progress fills along whichever axis lead time owns", async ({ page }) => {
   const row = await openPipeline(page);
 
