@@ -80,6 +80,17 @@ statusSection: uptime
     border-color: var(--pill-available-bg);
     background: var(--pill-available-bg);
   }
+  /* A gap in our monitoring is not a confirmed outage. The day keeps the
+     operational green and wears the shared 1-bit hatch, so it reads as
+     "up, but partly unwatched" rather than as downtime — and stays
+     distinct from a fully unobserved day, which renders empty. */
+  .status-bars [data-day="observation"] {
+    border-style: solid;
+    border-color: var(--pill-available-bg);
+    background-color: var(--pill-available-bg);
+    background-image: var(--hatch-diagonal);
+    background-size: 4px 4px;
+  }
   .status-bars [data-day="degraded"] {
     border-style: solid;
     border-color: var(--pill-degraded-bg);

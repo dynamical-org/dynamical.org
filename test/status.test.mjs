@@ -650,3 +650,91 @@ test("status page passes its timestamp into the shared subnav row", () => {
     /#status-as-of\.status-stale\s*\{\s*color: var\(--pill-degraded-bg\)/,
   );
 });
+
+test("observation groups render their days as a gap, not an outage", () => {
+  const incident = {
+    id: "incident-data-product-reads-1",
+    component: "data-product-reads",
+    kind: "outage",
+    start: Date.parse("2026-08-19T23:45:15Z"),
+    end: Date.parse("2026-08-20T00:03:24Z"),
+    ending: "resolved",
+  };
+  const history = {
+    incidents: [incident],
+    cells: new Map([
+      [
+        "data-product-reads",
+        [
+          {
+            date: "2026-08-19",
+            state: "down",
+            incidentIds: [incident.id],
+          },
+        ],
+      ],
+    ]),
+  };
+
+  const grouped = applyIncidentGroups(history, [
+    {
+      id: "data-product-read-telemetry-gap",
+      kind: "observation",
+      summary: "Data product read monitoring telemetry",
+      description: "Telemetry was unavailable; reads were not confirmed down.",
+      started_at: "2026-08-19T23:45:15Z",
+      ended_at: "2026-08-20T00:03:24Z",
+      components: ["data-product-reads"],
+    },
+  ]);
+
+  assert.deepEqual(grouped.cells.get("data-product-reads")[0], {
+    date: "2026-08-19",
+    state: "down",
+    displayState: "observation",
+    incidentIds: ["incident-group-data-product-read-telemetry-gap"],
+  });
+});
+
+test("bar descriptions separate monitoring gaps from outages", () => {
+  const description = barDescription([
+    { state: "down", displayState: "observation" },
+    { state: "down" },
+  ]);
+  assert.match(description, /1 of the last 2 days had an outage/i);
+  assert.match(description, /1 day had a monitoring gap/i);
+});
+
+test("monitoring-gap days render as dithered green, not red", () => {
+  const template = readFileSync(
+    new URL("../content/status.njk", import.meta.url),
+    "utf8",
+  );
+
+  const rule = template.match(
+    /\.status-bars \[data-day="observation"\]\s*{([^}]*)}/s,
+  );
+  assert.ok(rule, "expected a bar rule for observation days");
+  assert.match(rule[1], /var\(--pill-available-bg\)/);
+  assert.match(rule[1], /var\(--hatch-diagonal\)/);
+  assert.doesNotMatch(rule[1], /--pill-down-bg/);
+});
+
+test("the hatch tile the status bars mark gaps with is a shared token", () => {
+  const css = readFileSync(
+    new URL("../public/main.css", import.meta.url),
+    "utf8",
+  );
+
+  // One definition per theme, and the ink runs opposite to the shadow tiles:
+  // the hatch erodes the cell toward the page background, so it lightens on a
+  // light page and darkens on a dark one.
+  assert.equal(css.match(/--hatch-diagonal:/g)?.length, 2);
+  // One line per declaration; the data URI has semicolons of its own, so the
+  // line is the boundary to cut on, not the statement terminator.
+  const declaration = (block) =>
+    block.slice(block.indexOf("--hatch-diagonal:")).split("\n")[0];
+  const [light, dark] = css.split("prefers-color-scheme: dark");
+  assert.match(declaration(light), /fill='white'/);
+  assert.match(declaration(dark), /fill='black'/);
+});

@@ -19,6 +19,11 @@ const STALE_AFTER_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const BAR_DAYS = 90;
+// Group kinds that reframe what their days mean on the 90-day strip: planned
+// work is not an unplanned outage, and a gap in our monitoring is not a
+// confirmed one. An "outage" group has no entry here, so its days stay red.
+const GROUP_DAY_STATES = { observation: "observation", planned: "planned" };
+const REFRAMED_DAYS = new Set(Object.values(GROUP_DAY_STATES));
 export const STALE_MESSAGE = "Stale: status page experiencing delayed updates";
 
 function isStatusEntry(entry) {
@@ -237,7 +242,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
   let ungrouped = [...history.incidents];
   const grouped = [];
   const aliases = new Map();
-  const plannedMembers = new Set();
+  const dayStates = new Map();
 
   for (const configured of incidentGroups) {
     const windowStart = Date.parse(configured.started_at);
@@ -255,9 +260,10 @@ export function applyIncidentGroups(history, incidentGroups = []) {
     ungrouped = ungrouped.filter((incident) => !matched.has(incident));
     const id = `incident-group-${configured.id}`;
     const memberIds = matches.map((incident) => incident.id);
+    const dayState = GROUP_DAY_STATES[configured.kind];
     for (const memberId of memberIds) {
       aliases.set(memberId, id);
-      if (configured.kind === "planned") plannedMembers.add(memberId);
+      if (dayState) dayStates.set(memberId, dayState);
     }
     const allEnded = matches.every((incident) => incident.end != null);
     grouped.push({
@@ -290,11 +296,14 @@ export function applyIncidentGroups(history, incidentGroups = []) {
         const incidentIds = [
           ...new Set(cell.incidentIds.map((id) => aliases.get(id) ?? id)),
         ];
-        const displayState = cell.incidentIds.every((id) =>
-          plannedMembers.has(id),
-        )
-          ? "planned"
-          : cell.displayState;
+        // Only a day whose every incident agrees on one reframing takes it.
+        // A day that mixes reframed and unreframed incidents keeps the
+        // stronger claim, which is the one the strip should not soften.
+        const claimed = new Set(cell.incidentIds.map((id) => dayStates.get(id)));
+        const displayState =
+          claimed.size === 1 && !claimed.has(undefined)
+            ? [...claimed][0]
+            : cell.displayState;
         return {
           ...cell,
           ...(displayState ? { displayState } : {}),
@@ -372,8 +381,11 @@ export function barDescription(cells) {
   const planned = cells.filter(
     (cell) => cell.displayState === "planned",
   ).length;
+  const gaps = cells.filter(
+    (cell) => cell.displayState === "observation",
+  ).length;
   const down = cells.filter(
-    (cell) => cell.state === "down" && cell.displayState !== "planned",
+    (cell) => cell.state === "down" && !REFRAMED_DAYS.has(cell.displayState),
   ).length;
   const degraded = cells.filter((cell) => cell.state === "degraded").length;
   const unknown = cells.filter((cell) => cell.state === "unknown").length;
@@ -388,11 +400,18 @@ export function barDescription(cells) {
   if (planned > 0) {
     parts.push(`${planned} ${plural(planned)} had a planned outage`);
   }
+  if (gaps > 0) parts.push(`${gaps} ${plural(gaps)} had a monitoring gap`);
   if (degraded > 0) parts.push(`${degraded} ${plural(degraded)} degraded`);
   if (unknown > 0) parts.push(`${unknown} ${plural(unknown)} had an unknown state`);
   if (uncovered > 0) parts.push(`${uncovered} ${plural(uncovered)} not monitored`);
   return parts.join("; ");
 }
+
+const DAY_LABELS = {
+  nodata: "not monitored",
+  observation: "monitoring gap",
+  planned: "planned outage",
+};
 
 function barStrip(cells) {
   const strip = document.createElement("div");
@@ -402,12 +421,7 @@ function barStrip(cells) {
   for (const cell of cells) {
     const anchor = cell.incidentIds?.[0] ?? cell.delayIds?.[0];
     const dayState = cell.displayState ?? cell.state;
-    const dayLabel =
-      dayState === "nodata"
-        ? "not monitored"
-        : dayState === "planned"
-          ? "planned outage"
-          : dayState;
+    const dayLabel = DAY_LABELS[dayState] ?? dayState;
     const day = document.createElement(anchor ? "a" : "span");
     day.dataset.day = dayState;
     day.title = `${cell.date}: ${dayLabel}`;
