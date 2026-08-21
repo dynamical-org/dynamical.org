@@ -716,17 +716,22 @@ test("monitoring-gap days render as dithered green, not red", () => {
   );
   assert.ok(rule, "expected a bar rule for observation days");
   assert.match(rule[1], /var\(--pill-available-bg\)/);
-  assert.match(rule[1], /var\(--dither-50\)/);
+  assert.match(rule[1], /var\(--hatch-diagonal\)/);
   assert.doesNotMatch(rule[1], /--pill-down-bg/);
 });
 
-test("the dither tile the status bars hatch with is a shared token", () => {
+test("the hatch tile the status bars mark gaps with is a shared token", () => {
   const css = readFileSync(
     new URL("../public/main.css", import.meta.url),
     "utf8",
   );
 
-  // Defined once per theme so the hatch reads the same way as the table
-  // scroll shadows it borrows its 1-bit look from.
-  assert.equal(css.match(/--dither-50:/g)?.length, 2);
+  // One definition, no dark-mode override: the hatch only ever marks the
+  // operational green, which is the same colour in both themes, so flipping
+  // its ink the way the shadow tiles do would make one state read two ways.
+  assert.equal(css.match(/--hatch-diagonal:/g)?.length, 1);
+  assert.doesNotMatch(
+    css.slice(css.indexOf("prefers-color-scheme: dark")),
+    /--hatch-diagonal/,
+  );
 });
