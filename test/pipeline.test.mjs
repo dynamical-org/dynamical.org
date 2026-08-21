@@ -7,6 +7,8 @@ import {
   bandsOf,
   cellOf,
   cellTitle,
+  compactLeadExtents,
+  facetAxisLabel,
   facetRowsOf,
   leadAxis,
   leadExtents,
@@ -447,6 +449,17 @@ test("sizes a lead group by its share of the run, never below its label", () => 
   assert.deepEqual([...leadExtents(uncounted).values()], [24, 24]);
 });
 
+test("compacts lead columns when facets own the rows", () => {
+  const product = facetedProduct();
+  const regular = leadExtents(product);
+  const compact = compactLeadExtents(product);
+
+  assert.ok(compact.get("f000") < regular.get("f000"));
+  assert.ok(compact.get("f000") >= 12);
+  assert.ok(compact.get("f240") < regular.get("f240"));
+  assert.ok(compact.get("f240") > compact.get("f000"));
+});
+
 test("offers one view per facet dimension, opening on the lead grid", () => {
   // nothing to cycle without a joint: the lead grid is the only view
   assert.deepEqual(
@@ -477,10 +490,27 @@ test("a facet view shows only its own dimension's rows", () => {
     facetRowsOf(joint, "member").map((facet) => facet.label),
     ["control"],
   );
-  // and the fit follows the rows it will actually draw: "pgrb2a.0p50" needs a
-  // 66px gutter where "control" needs 42px, so the member view fits one more run
-  assert.equal(runsThatFitFacetRows(joint, 390, "component"), 5);
-  assert.equal(runsThatFitFacetRows(joint, 390, "member"), 6);
+  // both gutters leave enough room for all ten compact run blocks
+  assert.equal(runsThatFitFacetRows(joint, 390, "component"), 10);
+  assert.equal(runsThatFitFacetRows(joint, 390, "member"), 10);
+});
+
+test("abbreviates long facet axis labels without changing their data labels", () => {
+  const abbreviations = new Map([
+    ["cloud and convection", "cloud/conv"],
+    ["natural levels", "nat lvls"],
+    ["pgrb2a.0p50", "pgrb2a"],
+    ["precipitation and snow", "precip/snow"],
+    ["pressure levels", "prs lvls"],
+    ["solar radiation", "solar"],
+    ["surface state", "sfc state"],
+    ["control", "ctl"],
+    ["perturbed members", "pert"],
+  ]);
+  for (const [label, abbreviation] of abbreviations) {
+    assert.equal(facetAxisLabel({ label }), abbreviation);
+  }
+  assert.equal(facetAxisLabel({ label: "wind" }), "wind");
 });
 
 test("gives every facet in the joint its own labelled row", () => {
@@ -557,14 +587,13 @@ test("draws a facet row for anything the joint reported in the window", () => {
 
 test("fits run blocks of lead columns to the width, once facets own the rows", () => {
   const joint = jointProduct();
-  // a block is its lead columns at proportional widths (18px + 30px) plus the
-  // 2px between them, so 50px of block and 56px of pitch
-  assert.equal(runsThatFitFacetRows(joint, 390), 5);
-  assert.equal(runsThatFitFacetRows(joint, 240), 3);
-  assert.equal(runsThatFitFacetRows(joint, 200), 2);
+  // each lane keeps the text floor; two lanes double the fitted run count
+  assert.equal(runsThatFitFacetRows(joint, 390), 10);
+  assert.equal(runsThatFitFacetRows(joint, 240), 8);
+  assert.equal(runsThatFitFacetRows(joint, 200), 6);
   assert.equal(runsThatFitFacetRows(joint, 1200), 10);
   // never zero, and an unmeasured row shows everything rather than nothing
-  assert.equal(runsThatFitFacetRows(joint, 80), 1);
+  assert.equal(runsThatFitFacetRows(joint, 80), 2);
   assert.equal(runsThatFitFacetRows(joint, 0), 10);
 });
 
@@ -1079,7 +1108,7 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   assert.match(template, /part arrived/);
   assert.match(template, /still expected/);
   assert.match(template, /no monitoring data/);
-  assert.match(template, /hover a square for what it measured/);
+  assert.match(template, /hover a cell for what it measured/);
   assert.match(template, /no monitoring data/);
   assert.doesNotMatch(template, /pipeline-footer|window-days/);
   assert.doesNotMatch(pipelineScript, /window-days/);

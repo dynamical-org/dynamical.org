@@ -21,6 +21,10 @@ const FIXTURE = JSON.parse(
 );
 
 const JSON_HEADERS = { "access-control-allow-origin": "*" };
+const REPEATED_LEAD_LABELS = Array.from(
+  { length: 5 },
+  () => ["0h", "1d", "3d"],
+).flat();
 
 /* Match by filename, not by base: the dev server points the page at the published
    assets under `npm start` but at `/pipeline-preview/` under `npm run
@@ -72,11 +76,16 @@ async function openPipeline(page, mutate) {
 /** What one band's cells actually measure, in the row's first band. */
 function bandGeometry(row) {
   return row.evaluate((node) => {
-    const bands = [...node.querySelectorAll(".pipeline-band[data-kind]")];
-    const field = node.querySelector(".pipeline-field").getBoundingClientRect();
+    const fieldNode = node.querySelector(".pipeline-field");
+    const geometryRoot =
+      fieldNode.querySelector(".pipeline-facet-lane") ?? fieldNode;
+    const bands = [...geometryRoot.querySelectorAll(".pipeline-band[data-kind]")];
+    const field = fieldNode.getBoundingClientRect();
     const body = node.querySelector(".pipeline-row-body").getBoundingClientRect();
     return {
-      labels: bands.map((band) => band.querySelector(".pipeline-band-label").textContent),
+      labels: bands.map(
+        (band) => band.querySelector(".pipeline-band-label").textContent,
+      ),
       cellHeights: bands.map(
         (band) => +band.querySelector(".pipeline-cell").getBoundingClientRect().height.toFixed(1),
       ),
@@ -142,14 +151,14 @@ test("clicking cycles the rows through each facet dimension without moving the p
 
   await viz.click();
   const member = await bandGeometry(row);
-  expect(member.labels).toEqual(["control", "perturbed"]);
+  expect(member.labels).toEqual(["ctl", "pert"]);
 
-  // lead time owns the columns in a facet view, so it is named there instead
-  expect(await row.locator(".pipeline-column-label").first()).toBeTruthy();
-  const columnLabels = (await row.locator(".pipeline-column-label").allTextContents()).filter(
-    Boolean,
-  );
-  expect(columnLabels).toEqual(["0h", "1d", "3d"]);
+  // lead time owns the columns in a facet view, so each lane names it there
+  const firstLane = row.locator(".pipeline-facet-lane").first();
+  const columnLabels = (
+    await firstLane.locator(".pipeline-column-label").allTextContents()
+  ).filter(Boolean);
+  expect(columnLabels).toEqual(REPEATED_LEAD_LABELS);
 
   // the views share one box: a cycle must not shift what is below the row
   expect(component.fieldHeight).toBe(lead.fieldHeight);
@@ -165,6 +174,48 @@ test("clicking cycles the rows through each facet dimension without moving the p
   await viz.focus();
   await page.keyboard.press("Enter");
   expect((await bandGeometry(row)).labels).toEqual(component.labels);
+});
+
+test("facet views use two compact lanes and show every available init", async ({ page }) => {
+  const row = await openPipeline(page);
+  await row.locator(".pipeline-viz").click();
+
+  const lanes = row.locator(".pipeline-facet-lane");
+  await expect(lanes).toHaveCount(2);
+  for (const lane of await lanes.all()) {
+    expect(
+      await lane
+        .locator(".pipeline-band[data-kind='facet'] .pipeline-band-label")
+        .allTextContents(),
+    ).toEqual(["pgrb2a", "pgrb2b", "pgrb2s"]);
+    const leadLabels = (
+      await lane.locator(".pipeline-column-label").allTextContents()
+    ).filter(Boolean);
+    expect(leadLabels).toEqual(REPEATED_LEAD_LABELS);
+    await expect(lane.locator(".pipeline-run-label")).toHaveCount(5);
+  }
+  const rowGaps = await lanes.first().evaluate((lane) => {
+    const cells = [
+      ...lane.querySelectorAll(".pipeline-band[data-kind='facet']"),
+    ].map((band) =>
+      band.querySelector(".pipeline-cell").getBoundingClientRect(),
+    );
+    return cells.slice(1).map((cell, index) => cell.top - cells[index].bottom);
+  });
+  expect(rowGaps.length).toBeGreaterThan(0);
+  for (const gap of rowGaps) expect(gap).toBeGreaterThanOrEqual(4);
+
+  const times = await row.locator(".pipeline-run-label").allTextContents();
+  expect(times).toHaveLength(10);
+  expect(times.every(Boolean)).toBe(true);
+  expect(await row.locator(".pipeline-lead-dot").count()).toBe(0);
+  expect(
+    await row
+      .locator(".pipeline-cell")
+      .first()
+      .evaluate((cell) => cell.offsetHeight),
+  ).toBe(8);
+  expect((await bandGeometry(row)).overflowsColumn).toBe(false);
 });
 
 test("progress fills along whichever axis lead time owns", async ({ page }) => {
