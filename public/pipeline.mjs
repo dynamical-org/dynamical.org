@@ -15,10 +15,14 @@ const DASHBOARD_VERSION = 2; // the granular schema; the lead-only shape is gone
 const CELL_PX = 12; // one measurement, the same size in every view
 const CLUMP_GAP_PX = 2; // between the lead columns within one run
 const RUN_GAP_PX = 6; // between init columns, as main spaced its bars
-const CLUMPED_RUN_GAP_PX = 6; // between run blocks, which need daylight
+const FACET_CELL_PX = 8; // compact rows when a facet owns the vertical axis
+const FACET_CLUMP_GAP_PX = 1; // lead columns remain visibly separate
+const FACET_RUN_GAP_PX = 6; // separate runs after the lead columns compact
 // no lead group is thinner than its own label: "0h" is two characters, which is
 // exactly one cell, so every group can name itself
 const MIN_LEAD_PX = 12;
+const FACET_MIN_LEAD_PX = 3; // 0h needs status ink, not room for a text label
+const FACET_LEAD_ALLOWANCE_PX = 5;
 const BAND_GAP_PX = 2; // between bands, inside a field
 const LABEL_PX = 12; // one axis-label row
 const FOOT_GAP_PX = 3; // the breath above the init tiers
@@ -359,6 +363,62 @@ export function leadExtents(product) {
   );
 }
 
+/* Facet views name the lead scale with dots instead of text, so their columns
+   can preserve the same proportions without paying the 12px label floor. */
+
+export function compactLeadExtents(product) {
+  const leads = leadAxis(product);
+  const newest = product.recent_inits?.at(-1);
+  const slices = leadSlices(newest?.lead_groups ?? []);
+  const expected = leads.map(
+    (lead) => slices.find((slice) => slice.name === lead.key)?.expected ?? 0,
+  );
+  const total = expected.reduce((sum, count) => sum + count, 0);
+  const allowance = leads.length * FACET_LEAD_ALLOWANCE_PX;
+  return new Map(
+    leads.map((lead, index) => [
+      lead.key,
+      FACET_MIN_LEAD_PX +
+        (total ? expected[index] / total : 1 / leads.length) * allowance,
+    ]),
+  );
+}
+
+function leadDays(label) {
+  const match = /^(\d+)d$/.exec(label);
+  return match ? Number(match[1]) : 0;
+}
+
+function leadMarker(lead, width, visible) {
+  const days = visible ? leadDays(lead.label) : 0;
+  const columns = Math.ceil(Math.sqrt(days));
+  const dots = Array.from({ length: days }, () =>
+    element("span", { class: "pipeline-lead-dot" }),
+  );
+  return element(
+    "span",
+    {
+      class: "pipeline-column-label",
+      style: `--cell-w:${width.toFixed(2)}px`,
+      title: `lead ${lead.label}`,
+      role: visible ? "img" : null,
+      "aria-label": visible ? `lead ${lead.label}` : null,
+      "aria-hidden": visible ? null : "true",
+    },
+    days
+      ? element(
+          "span",
+          {
+            class: "pipeline-lead-dots",
+            "aria-hidden": "true",
+            style: `--dot-width:${columns * 3 - 1}px`,
+          },
+          dots,
+        )
+      : null,
+  );
+}
+
 /* How tall a view draws. The label rows have fixed heights, so this needs no
    measurement — which matters because the render pass writes without reading. */
 
@@ -370,7 +430,7 @@ function chromePx(view, rows) {
 
 function viewHeightPx(product, view) {
   const bands = view.dimension
-    ? facetRowsOf(product, view.dimension).map(() => CELL_PX)
+    ? facetRowsOf(product, view.dimension).map(() => FACET_CELL_PX)
     : [...leadExtents(product).values()];
   const rows = bands.length || 1;
   return bands.reduce((sum, px) => sum + px, 0) + chromePx(view, rows);
@@ -472,15 +532,18 @@ export function runsThatFit(product, availablePx, local) {
 
 export function runsThatFitFacetRows(product, availablePx, dimension) {
   const leads = leadAxis(product);
-  const extents = leadExtents(product);
+  const extents = compactLeadExtents(product);
   const runWidth =
-    leads.reduce((sum, lead) => sum + (extents.get(lead.key) ?? CELL_PX), 0) +
-    Math.max(0, leads.length - 1) * CLUMP_GAP_PX;
+    leads.reduce(
+      (sum, lead) => sum + (extents.get(lead.key) ?? FACET_CELL_PX),
+      0,
+    ) +
+    Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
   return runsFitting(
     availablePx,
     gutterPx(facetRowsOf(product, dimension)),
     runWidth,
-    CLUMPED_RUN_GAP_PX,
+    FACET_RUN_GAP_PX,
   );
 }
 
@@ -637,7 +700,7 @@ export function viewAt(product, index) {
 /* The init axis: the time under every column, then the date only where it turns
    over, so a date lines up with the first timestamp it covers. */
 
-function initTiers(runs, local) {
+function initTiers(runs, local, sparse = false) {
   const zone = selectedTimeZone(local);
   let previousDate = null;
   return [
@@ -645,7 +708,11 @@ function initTiers(runs, local) {
       bandClass: "pipeline-band pipeline-band--foot",
       spanClass: "pipeline-run-label",
       runs,
-      textOf: (init) => initParts(init.init_time, zone).time,
+      textOf: (init, index) =>
+        sparse && (runs.length - 1 - index) % 2
+          ? ""
+          : initParts(init.init_time, zone).time,
+      titleOf: (init) => initShort(init.init_time, local),
     }),
     labelTier({
       spanClass: "pipeline-run-date",
@@ -688,12 +755,22 @@ function jointIndex(product, runs, leads) {
 /* One label tier under the blocks: a span per run, exactly one block wide, so
    every tier centres on the same axis as the squares above it. */
 
-function labelTier({ bandClass = "pipeline-band", spanClass, runs, textOf }) {
+function labelTier({
+  bandClass = "pipeline-band",
+  spanClass,
+  runs,
+  textOf,
+  titleOf,
+}) {
   return bandNode({
     className: bandClass,
     clumped: true,
-    children: runs.map((init) =>
-      element("span", { class: spanClass }, textOf(init)),
+    children: runs.map((init, index) =>
+      element(
+        "span",
+        { class: spanClass, title: titleOf?.(init) },
+        textOf(init, index),
+      ),
     ),
   });
 }
@@ -707,16 +784,17 @@ function renderFacetRows(product, local, runCount, dimension) {
   const leads = leadAxis(product); // shortest horizon first
   const facets = facetRowsOf(product, dimension);
   const joint = jointIndex(product, runs, leads);
-  const extents = leadExtents(product);
-  const leadWidth = (lead) => extents.get(lead.key) ?? CELL_PX;
+  const extents = compactLeadExtents(product);
+  const leadWidth = (lead) => extents.get(lead.key) ?? FACET_CELL_PX;
   const runWidth =
     leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
-    Math.max(0, leads.length - 1) * CLUMP_GAP_PX;
+    Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
   const field = element("div", {
     class: "pipeline-field",
     // lead time runs across here, so progress fills across too
     "data-fill": "side",
-    style: `--sq:${CELL_PX}px;--clump-gap:${CLUMP_GAP_PX}px;--clumped-run-gap:${CLUMPED_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
+    "data-compact": "",
+    style: `--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--band-gutter:${gutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
   });
 
   // the lead order repeats in every run, so name it once over the first block
@@ -728,27 +806,15 @@ function renderFacetRows(product, local, runCount, dimension) {
         element(
           "div",
           { class: "pipeline-clump" },
-          leads.map((lead) => {
-            // a proportional column can be narrower than its own name; the
-            // ones that cannot hold their label keep it on hover only
-            const width = leadWidth(lead);
-            const fits = width >= lead.label.length * CH_PX;
-            return element(
-              "span",
-              {
-                class: "pipeline-column-label",
-                style: `--cell-w:${width.toFixed(2)}px`,
-                title: `lead ${lead.label}`,
-              },
-              index === 0 && fits ? lead.label : "",
-            );
-          }),
+          leads.map((lead) =>
+            leadMarker(lead, leadWidth(lead), index === 0),
+          ),
         ),
       ),
     }),
   );
 
-  // one container so the rows share out whatever height the box leaves them
+  // facet rows stay short; the reserved field still prevents view-switch jumps
   const rowsNode = element("div", { class: "pipeline-rows" });
   for (const facet of facets) {
     rowsNode.append(
@@ -787,9 +853,7 @@ function renderFacetRows(product, local, runCount, dimension) {
     );
   }
   field.append(rowsNode);
-
-
-  field.append(...initTiers(runs, local));
+  field.append(...initTiers(runs, local, true));
   return field;
 }
 

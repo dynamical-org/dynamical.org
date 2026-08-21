@@ -144,12 +144,13 @@ test("clicking cycles the rows through each facet dimension without moving the p
   const member = await bandGeometry(row);
   expect(member.labels).toEqual(["control", "perturbed"]);
 
-  // lead time owns the columns in a facet view, so it is named there instead
-  expect(await row.locator(".pipeline-column-label").first()).toBeTruthy();
-  const columnLabels = (await row.locator(".pipeline-column-label").allTextContents()).filter(
-    Boolean,
-  );
-  expect(columnLabels).toEqual(["0h", "1d", "3d"]);
+  // lead time owns the columns in a facet view, so the first dot cluster names it
+  const columnLabels = await row
+    .locator(".pipeline-column-label")
+    .evaluateAll((nodes) =>
+      nodes.slice(0, 3).map((node) => node.getAttribute("aria-label")),
+    );
+  expect(columnLabels).toEqual(["lead 0h", "lead 1d", "lead 3d"]);
 
   // the views share one box: a cycle must not shift what is below the row
   expect(component.fieldHeight).toBe(lead.fieldHeight);
@@ -174,11 +175,14 @@ test("facet views use compact lead dots and show every available init", async ({
   const leadMarkers = row.locator(".pipeline-column-label");
   await expect(leadMarkers).toHaveCount(30);
   await expect(leadMarkers.nth(0)).toHaveAttribute("aria-label", "lead 0h");
+  await expect(leadMarkers.nth(0)).toHaveAttribute("role", "img");
   await expect(leadMarkers.nth(1).locator(".pipeline-lead-dot")).toHaveCount(1);
   await expect(leadMarkers.nth(2).locator(".pipeline-lead-dot")).toHaveCount(3);
 
   await expect(row.locator(".pipeline-run-label")).toHaveCount(10);
-  const labelled = (await row.locator(".pipeline-run-label").allTextContents()).filter(Boolean);
+  const labelled = (
+    await row.locator(".pipeline-run-label").allTextContents()
+  ).filter(Boolean);
   expect(labelled.length).toBeLessThan(10);
   expect((await bandGeometry(row)).overflowsColumn).toBe(false);
 });

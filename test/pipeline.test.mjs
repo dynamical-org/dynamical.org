@@ -488,10 +488,9 @@ test("a facet view shows only its own dimension's rows", () => {
     facetRowsOf(joint, "member").map((facet) => facet.label),
     ["control"],
   );
-  // and the fit follows the rows it will actually draw: "pgrb2a.0p50" needs a
-  // 66px gutter where "control" needs 42px, so the member view fits one more run
-  assert.equal(runsThatFitFacetRows(joint, 390, "component"), 5);
-  assert.equal(runsThatFitFacetRows(joint, 390, "member"), 6);
+  // both gutters leave enough room for all ten compact run blocks
+  assert.equal(runsThatFitFacetRows(joint, 390, "component"), 10);
+  assert.equal(runsThatFitFacetRows(joint, 390, "member"), 10);
 });
 
 test("gives every facet in the joint its own labelled row", () => {
@@ -568,11 +567,10 @@ test("draws a facet row for anything the joint reported in the window", () => {
 
 test("fits run blocks of lead columns to the width, once facets own the rows", () => {
   const joint = jointProduct();
-  // a block is its lead columns at proportional widths (18px + 30px) plus the
-  // 2px between them, so 50px of block and 56px of pitch
-  assert.equal(runsThatFitFacetRows(joint, 390), 5);
-  assert.equal(runsThatFitFacetRows(joint, 240), 3);
-  assert.equal(runsThatFitFacetRows(joint, 200), 2);
+  // compact columns make a two-lead block 17px wide with a 23px pitch
+  assert.equal(runsThatFitFacetRows(joint, 390), 10);
+  assert.equal(runsThatFitFacetRows(joint, 240), 7);
+  assert.equal(runsThatFitFacetRows(joint, 200), 5);
   assert.equal(runsThatFitFacetRows(joint, 1200), 10);
   // never zero, and an unmeasured row shows everything rather than nothing
   assert.equal(runsThatFitFacetRows(joint, 80), 1);
@@ -1090,7 +1088,7 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   assert.match(template, /part arrived/);
   assert.match(template, /still expected/);
   assert.match(template, /no monitoring data/);
-  assert.match(template, /hover a square for what it measured/);
+  assert.match(template, /hover a cell for what it measured/);
   assert.match(template, /no monitoring data/);
   assert.doesNotMatch(template, /pipeline-footer|window-days/);
   assert.doesNotMatch(pipelineScript, /window-days/);
