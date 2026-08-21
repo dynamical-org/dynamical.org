@@ -204,6 +204,16 @@
   height: var(--sq);
 }
 
+.pipeline-field[data-compact] {
+  gap: var(--lane-gap);
+}
+
+.pipeline-facet-lane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--band-gap);
+}
+
 .pipeline-band {
   display: grid;
   grid-template-columns: var(--band-gutter) minmax(0, max-content);
@@ -324,22 +334,6 @@
   font-size: 0.9rem;
   line-height: var(--label-h);
   text-align: center;
-}
-
-.pipeline-lead-dots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1px;
-  justify-content: center;
-  width: var(--dot-width);
-}
-
-.pipeline-lead-dot {
-  flex: none;
-  width: 2px;
-  height: 2px;
-  border-radius: 50%;
-  background: currentColor;
 }
 
 .pipeline-band--head {

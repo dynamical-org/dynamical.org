@@ -454,6 +454,7 @@ test("compacts lead columns when facets own the rows", () => {
   const compact = compactLeadExtents(product);
 
   assert.ok(compact.get("f000") < regular.get("f000"));
+  assert.ok(compact.get("f000") >= 12);
   assert.ok(compact.get("f240") < regular.get("f240"));
   assert.ok(compact.get("f240") > compact.get("f000"));
 });
@@ -567,13 +568,13 @@ test("draws a facet row for anything the joint reported in the window", () => {
 
 test("fits run blocks of lead columns to the width, once facets own the rows", () => {
   const joint = jointProduct();
-  // compact columns make a two-lead block 17px wide with a 23px pitch
+  // each lane keeps the text floor; two lanes double the fitted run count
   assert.equal(runsThatFitFacetRows(joint, 390), 10);
-  assert.equal(runsThatFitFacetRows(joint, 240), 7);
-  assert.equal(runsThatFitFacetRows(joint, 200), 5);
+  assert.equal(runsThatFitFacetRows(joint, 240), 8);
+  assert.equal(runsThatFitFacetRows(joint, 200), 6);
   assert.equal(runsThatFitFacetRows(joint, 1200), 10);
   // never zero, and an unmeasured row shows everything rather than nothing
-  assert.equal(runsThatFitFacetRows(joint, 80), 1);
+  assert.equal(runsThatFitFacetRows(joint, 80), 2);
   assert.equal(runsThatFitFacetRows(joint, 0), 10);
 });
 
