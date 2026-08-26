@@ -598,9 +598,11 @@ export function cellTitle(band, init, cell, local) {
   if (cell.state === "unobserved") {
     return `${band.label} · ${when} · no probe visibility; not a publication failure`;
   }
+  // the unit agrees with the total, so a band of one lead reads "1 / 1 file"
+  const files = cell.expected === 1 ? "file" : "files";
   const volume =
     cell.expected != null
-      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} files`
+      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} ${files}`
       : `${Math.round((cell.completion ?? 0) * 100)}%`;
   return [
     band.kind === "facet" ? `${band.label} (${band.dimension})` : `lead ${band.label}`,

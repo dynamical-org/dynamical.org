@@ -723,6 +723,17 @@ test("names what a square measured, facet first, in its hover label", () => {
     cellTitle(leadBand, init, cellOf(leadBand, init), false),
     "lead 1d · 07-26 00z · 100% · complete · on time",
   );
+
+  // the unit agrees with the total: a band holding one file is not "1 files",
+  // and an empty one is still "0 / 1 file"
+  assert.match(
+    cellTitle(facetBand, init, { ...cellOf(facetBand, init), available: 1, expected: 1 }, false),
+    /1 \/ 1 file ·/,
+  );
+  assert.match(
+    cellTitle(facetBand, init, { ...cellOf(facetBand, init), available: 0, expected: 1 }, false),
+    /0 \/ 1 file ·/,
+  );
 });
 
 test("reads an unreported band as unobserved rather than a failure", () => {
