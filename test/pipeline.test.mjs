@@ -940,6 +940,33 @@ test("local preview fixture exercises dashboard v2 facet rendering", () => {
   assert.equal(facetRows(product).length, 5);
 });
 
+// A source with no mirror and no facets is the other shape the payload carries:
+// one row under its group, one view, and a baseline as short as its monitoring.
+test("local preview fixture carries a source-only group", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const group = fixture.groups.find(({ id }) => id === "eccc-hrdps");
+  assert.equal(group.products.length, 1);
+
+  const [product] = group.products;
+  assert.equal(product.row_label, "MSC Datamart");
+  assert.equal(displaySource(product.source), "dd.weather.gc.ca");
+  assert.equal(product.facet_groups, undefined);
+  assert.equal(viewsOf(product).length, 1);
+  assert.deepEqual(
+    (product.lead_group_stats ?? []).map(({ label }) => label),
+    ["0h", "1d", "2d"],
+  );
+  assert.equal(
+    detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).statsHeader,
+    "time after init \u00b7 1 init",
+  );
+});
+
 test("preview pipeline route exposes only allowlisted staging JSON", async () => {
   const requested = [];
   const bucket = {

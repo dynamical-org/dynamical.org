@@ -135,6 +135,37 @@ test("the default view is lead groups by init, sized by group and labelled per c
   expect(geometry.overflowsColumn).toBe(false);
 });
 
+test("a source with no mirror and no facets draws one row that does not cycle", async ({
+  page,
+}) => {
+  // HRDPS arrives as a group of one, with no facets and a baseline as short as
+  // its monitoring: three lead bands, five runs, and nothing to cycle to
+  await openPipeline(page);
+  const group = page
+    .locator(".pipeline-group")
+    .filter({ hasText: "ECCC HRDPS continental 2.5 km" });
+  const row = group.locator(".pipeline-row");
+  await expect(row).toHaveCount(1);
+  await expect(row.locator("strong").first()).toHaveText("MSC Datamart");
+  await expect(row.locator(".pipeline-source-meta")).toContainText("00/06/12/18z");
+  await expect(row.locator(".pipeline-run-label")).toHaveCount(5);
+
+  const geometry = await bandGeometry(row);
+  expect(geometry.labels).toEqual(["2d", "1d", "0h"]);
+  // the two 24-hour groups cover the same span; only 0h's single lead is thinner,
+  // and even it stays tall enough to carry its own label
+  const [longest, middle, shortest] = geometry.cellHeights;
+  expect(longest).toBe(middle);
+  expect(shortest).toBeLessThan(middle);
+  expect(shortest).toBeGreaterThanOrEqual(12);
+  expect(geometry.overflowsColumn).toBe(false);
+
+  // one view means a click is inert: no facet lanes, and the field keeps its shape
+  await row.locator(".pipeline-viz").click();
+  await expect(row.locator(".pipeline-facet-lane")).toHaveCount(0);
+  expect(await bandGeometry(row)).toEqual(geometry);
+});
+
 test("clicking cycles the rows through each facet dimension without moving the page", async ({
   page,
 }) => {

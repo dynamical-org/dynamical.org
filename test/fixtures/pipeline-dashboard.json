@@ -1928,6 +1928,262 @@
           "next_expected_completion_at": "2026-07-25T19:30:00Z"
         }
       ]
+    },
+    {
+      "id": "eccc-hrdps",
+      "label": "ECCC HRDPS continental 2.5 km",
+      "products": [
+        {
+          "id": "external-eccc-hrdps-datamart",
+          "label": "ECCC HRDPS continental 2.5 km",
+          "source": "https://dd.weather.gc.ca",
+          "source_label": "MSC Datamart",
+          "row_label": "MSC Datamart",
+          "cadence_hours": 6,
+          "init_hours": [
+            "00",
+            "06",
+            "12",
+            "18"
+          ],
+          "lead_groups": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "center_pct": 1.02
+            },
+            {
+              "name": "f024",
+              "label": "1d",
+              "leads_in_group": 25,
+              "center_pct": 26.53
+            },
+            {
+              "name": "f048",
+              "label": "2d",
+              "leads_in_group": 49,
+              "center_pct": 75.51
+            }
+          ],
+          "latency_stats": {
+            "p50_s": 13440,
+            "p95_s": 13440,
+            "p99_s": 13440,
+            "sample_init_count": 1
+          },
+          "lead_group_stats": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "p50_s": 13200,
+              "p95_s": 13200,
+              "p99_s": 13200
+            },
+            {
+              "name": "f024",
+              "label": "1d",
+              "leads_in_group": 25,
+              "p50_s": 13200,
+              "p95_s": 13200,
+              "p99_s": 13200
+            },
+            {
+              "name": "f048",
+              "label": "2d",
+              "leads_in_group": 49,
+              "p50_s": 13440,
+              "p95_s": 13440,
+              "p99_s": 13440
+            }
+          ],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-24T12:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 13440,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 25,
+                  "leads_expected": 25
+                },
+                {
+                  "name": "f048",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13440,
+                  "leads_available": 49,
+                  "leads_expected": 49
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T18:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 13440,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 25,
+                  "leads_expected": 25
+                },
+                {
+                  "name": "f048",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13440,
+                  "leads_available": 49,
+                  "leads_expected": 49
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 13440,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 25,
+                  "leads_expected": 25
+                },
+                {
+                  "name": "f048",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13440,
+                  "leads_available": 49,
+                  "leads_expected": 49
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T06:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 13440,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 25,
+                  "leads_expected": 25
+                },
+                {
+                  "name": "f048",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13440,
+                  "leads_available": 49,
+                  "leads_expected": 49
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T12:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 13440,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13200,
+                  "leads_available": 25,
+                  "leads_expected": 25
+                },
+                {
+                  "name": "f048",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 13440,
+                  "leads_available": 49,
+                  "leads_expected": 49
+                }
+              ]
+            }
+          ],
+          "next_expected_init": "2026-07-25T18:00:00Z",
+          "next_expected_completion_at": "2026-07-25T21:44:00Z"
+        }
+      ]
     }
   ]
 }
