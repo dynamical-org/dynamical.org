@@ -828,6 +828,13 @@ test("names the init sample the percentile columns summarise", () => {
     "time after init · 1,394 inits",
   );
 
+  // a product monitored since its first init has a sample of exactly one
+  product.latency_stats.sample_init_count = 1;
+  assert.equal(
+    detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,
+    "time after init \u00b7 1 init",
+  );
+
   product.latency_stats.sample_init_count = 0;
   assert.equal(
     detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,

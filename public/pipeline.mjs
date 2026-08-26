@@ -1010,9 +1010,9 @@ export function etaLineText(target, now, local) {
 // The percentile columns summarise every init in the historical baseline, not
 // just the runs the grid draws, so the header names the sample they came from.
 function statsHeader(sampleInitCount) {
-  return sampleInitCount
-    ? `time after init · ${sampleInitCount.toLocaleString("en-US")} inits`
-    : "time after init";
+  if (!sampleInitCount) return "time after init";
+  const inits = sampleInitCount === 1 ? "init" : "inits";
+  return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${inits}`;
 }
 
 export function detailRows(product, now, local) {
