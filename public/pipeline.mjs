@@ -28,8 +28,6 @@ const FACET_MIN_LEAD_PX = 12; // every lead group keeps room for its text label
 const FACET_LEAD_ALLOWANCE_PX = 5;
 const BAND_GAP_PX = 2; // between bands, inside a field
 const LABEL_PX = 12; // one axis-label row
-const FOOT_GAP_PX = 3; // the breath above the init tiers
-const HEAD_GAP_PX = 2; // the head band's margin under the lead labels
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
@@ -396,40 +394,6 @@ function leadLabel(lead, width) {
       title: `lead ${lead.label}`,
     },
     lead.label,
-  );
-}
-
-/* How tall a view draws. The label rows have fixed heights, so this needs no
-   measurement — which matters because the render pass writes without reading. */
-
-function chromePx(view, rows) {
-  const gap = view.dimension ? FACET_BAND_GAP_PX : BAND_GAP_PX;
-  const head = view.dimension ? LABEL_PX + gap + HEAD_GAP_PX : 0;
-  const tiers = FOOT_GAP_PX + 2 * (LABEL_PX + gap);
-  return head + tiers + gap * Math.max(0, rows - 1);
-}
-
-function viewHeightPx(product, view) {
-  const bands = view.dimension
-    ? facetRowsOf(product, view.dimension).map(() => FACET_CELL_PX)
-    : [...leadExtents(product).values()];
-  const rows = bands.length || 1;
-  const laneHeight =
-    bands.reduce((sum, px) => sum + px, 0) + chromePx(view, rows);
-  if (!view.dimension) return laneHeight;
-  const laneCount = Math.min(
-    FACET_LANES,
-    Math.max(1, product.recent_inits?.length ?? 0),
-  );
-  return laneHeight * laneCount + FACET_LANE_GAP_PX * (laneCount - 1);
-}
-
-/* The box every view of a product sits in: the tallest one. Clicking through
-   the views then never moves the rest of the page. */
-
-export function reservedHeightPx(product) {
-  return Math.max(
-    ...viewsOf(product).map((view) => viewHeightPx(product, view)),
   );
 }
 
@@ -862,7 +826,7 @@ function renderFacetRows(product, local, runCount, dimension) {
     // lead time runs across here, so progress fills across too
     "data-fill": "side",
     "data-compact": "",
-    style: `--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
+    style: `--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px`,
   });
   const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
   const runsPerLane = Math.ceil(runs.length / laneCount);
@@ -889,7 +853,7 @@ function renderField(product, local, runCount) {
   const field = element("div", {
     class: "pipeline-field",
     // a cell is as wide as its init label; the lead axis keeps its own scale
-    style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px;--reserve:${reservedHeightPx(product)}px`,
+    style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px`,
   });
   for (const band of bandsOf(product)) {
     field.append(
