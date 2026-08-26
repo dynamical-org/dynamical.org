@@ -9,7 +9,7 @@ statusSection: pipeline
 pageStylesheet: /pipeline.css
 ---
 
-<main class="content pipeline-page" id="pipeline-app"
+<main class="content pipeline-page md-toc-content" id="pipeline-app"
   data-assets-base="{{ pipelineAssetsBase }}" style="margin-top: 4rem;">
   {% from "status-subnav.njk" import statusSubnav %}
   {% call statusSubnav(statusSection, statusFeed, pipelineAssetsBase) %}
@@ -24,6 +24,12 @@ pageStylesheet: /pipeline.css
       </label>
     </p>
   {% endcall %}
+
+  <div class="md-toc-rail" data-slot="pipeline-toc-rail" hidden>
+    <nav class="md-toc" data-slot="pipeline-toc" aria-label="Pipeline groups">
+      <ul class="toc-tree" data-slot="pipeline-toc-tree"></ul>
+    </nav>
+  </div>
 
   {# Remove once wxopticon's granular cutover and history backfill are done:
      dynamical-org/wxopticon#163 (cutover), #161 and #162 (backfill). #}
@@ -73,4 +79,6 @@ pageStylesheet: /pipeline.css
   <noscript><p>Pipeline status requires JavaScript.</p></noscript>
 </main>
 
+<style>{{ tocCSS | safe }}</style>
+<script>{{ tocJS | safe }}</script>
 <script type="module" src="/pipeline.mjs"></script>

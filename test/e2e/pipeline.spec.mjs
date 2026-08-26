@@ -3,9 +3,8 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 // /status/pipeline/ is drawn entirely by measurement: lead rows are sized by each
-// group's share of a run, init columns by the width of the label beneath them,
-// and every view reserves the tallest view's height so clicking through them does
-// not move the page. None of that is visible to `npm test`, which has no layout
+// group's share of a run and init columns by the width of the label beneath them.
+// None of that is visible to `npm test`, which has no layout
 // engine — and three defects found in review were geometry: an init label that
 // overflowed its tier in any timezone rendered as a GMT offset, a snapshot whose
 // newest run reported nothing rendering an empty field, and a negative
@@ -93,6 +92,7 @@ function bandGeometry(row) {
         (band) => +band.querySelector(".pipeline-cell").getBoundingClientRect().width.toFixed(1),
       ),
       fieldHeight: Math.round(field.height),
+      reserve: getComputedStyle(fieldNode).getPropertyValue("--reserve").trim(),
       overflowsColumn: field.width > body.width + 0.5,
     };
   });
@@ -135,6 +135,34 @@ test("the default view is lead groups by init, sized by group and labelled per c
   expect(geometry.overflowsColumn).toBe(false);
 });
 
+test("the table of contents follows the rendered pipeline groups", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await openPipeline(page);
+  const links = page.locator('[data-slot="pipeline-toc"] a');
+
+  expect(
+    await page
+      .locator('[data-slot="pipeline-toc-rail"]')
+      .evaluate((node) => getComputedStyle(node).position),
+  ).toBe("absolute");
+
+  await expect(links).toHaveText([
+    "NOAA GFS forecast",
+    "ECCC HRDPS continental 2.5 km",
+  ]);
+  expect(
+    await links.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute("href")),
+    ),
+  ).toEqual(["#pipeline-group-noaa-gfs", "#pipeline-group-eccc-hrdps"]);
+
+  await links.nth(1).click();
+  await expect(page).toHaveURL(/#pipeline-group-eccc-hrdps$/);
+  await expect(links.nth(1)).toHaveClass(/active/);
+});
+
 test("a source with no mirror and no facets draws one row that does not cycle", async ({
   page,
 }) => {
@@ -166,15 +194,13 @@ test("a source with no mirror and no facets draws one row that does not cycle", 
   expect(await bandGeometry(row)).toEqual(geometry);
 });
 
-test("clicking cycles the rows through each facet dimension without moving the page", async ({
+test("clicking cycles the rows through content-height facet dimensions", async ({
   page,
 }) => {
   const row = await openPipeline(page);
   const viz = row.locator(".pipeline-viz");
-  const pageHeight = () => page.evaluate(() => document.body.scrollHeight);
 
   const lead = await bandGeometry(row);
-  const heightBefore = await pageHeight();
 
   await viz.click();
   const component = await bandGeometry(row);
@@ -191,10 +217,12 @@ test("clicking cycles the rows through each facet dimension without moving the p
   ).filter(Boolean);
   expect(columnLabels).toEqual(REPEATED_LEAD_LABELS);
 
-  // the views share one box: a cycle must not shift what is below the row
-  expect(component.fieldHeight).toBe(lead.fieldHeight);
-  expect(member.fieldHeight).toBe(lead.fieldHeight);
-  expect(await pageHeight()).toBe(heightBefore);
+  // each view fits its content instead of reserving the tallest view's height
+  expect(lead.reserve).toBe("");
+  expect(component.reserve).toBe("");
+  expect(member.reserve).toBe("");
+  expect(component.fieldHeight).not.toBe(lead.fieldHeight);
+  expect(member.fieldHeight).not.toBe(lead.fieldHeight);
   expect(member.overflowsColumn).toBe(false);
 
   // and it wraps back to where it started

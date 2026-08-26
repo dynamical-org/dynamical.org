@@ -23,8 +23,8 @@ the published parquet files and take about a minute; they are the only check tha
 catches the data those charts read drifting out from under them. `pipeline.spec.mjs`
 instead stubs every request from `test/fixtures/pipeline-dashboard.json`, so it is
 offline and finishes in seconds — it exists because `/status/pipeline/` is laid out by
-measurement (lead rows sized by group, init columns sized by their label, views sharing
-one reserved height), and `npm test` has no layout engine to catch that class of bug.
+measurement (lead rows sized by group and init columns sized by their label), and `npm
+test` has no layout engine to catch that class of bug.
 Keep both out of `npm test`, which stays offline and instant.
 
 ## Architecture
