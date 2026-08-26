@@ -598,9 +598,11 @@ export function cellTitle(band, init, cell, local) {
   if (cell.state === "unobserved") {
     return `${band.label} · ${when} · no probe visibility; not a publication failure`;
   }
+  // the unit agrees with the total, so a band of one lead reads "1 / 1 file"
+  const files = cell.expected === 1 ? "file" : "files";
   const volume =
     cell.expected != null
-      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} files`
+      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} ${files}`
       : `${Math.round((cell.completion ?? 0) * 100)}%`;
   return [
     band.kind === "facet" ? `${band.label} (${band.dimension})` : `lead ${band.label}`,
@@ -1010,9 +1012,9 @@ export function etaLineText(target, now, local) {
 // The percentile columns summarise every init in the historical baseline, not
 // just the runs the grid draws, so the header names the sample they came from.
 function statsHeader(sampleInitCount) {
-  return sampleInitCount
-    ? `time after init · ${sampleInitCount.toLocaleString("en-US")} inits`
-    : "time after init";
+  if (!sampleInitCount) return "time after init";
+  const inits = sampleInitCount === 1 ? "init" : "inits";
+  return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${inits}`;
 }
 
 export function detailRows(product, now, local) {

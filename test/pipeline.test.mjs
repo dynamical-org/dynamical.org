@@ -723,6 +723,17 @@ test("names what a square measured, facet first, in its hover label", () => {
     cellTitle(leadBand, init, cellOf(leadBand, init), false),
     "lead 1d · 07-26 00z · 100% · complete · on time",
   );
+
+  // the unit agrees with the total: a band holding one file is not "1 files",
+  // and an empty one is still "0 / 1 file"
+  assert.match(
+    cellTitle(facetBand, init, { ...cellOf(facetBand, init), available: 1, expected: 1 }, false),
+    /1 \/ 1 file ·/,
+  );
+  assert.match(
+    cellTitle(facetBand, init, { ...cellOf(facetBand, init), available: 0, expected: 1 }, false),
+    /0 \/ 1 file ·/,
+  );
 });
 
 test("reads an unreported band as unobserved rather than a failure", () => {
@@ -828,6 +839,13 @@ test("names the init sample the percentile columns summarise", () => {
     "time after init · 1,394 inits",
   );
 
+  // a product monitored since its first init has a sample of exactly one
+  product.latency_stats.sample_init_count = 1;
+  assert.equal(
+    detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,
+    "time after init \u00b7 1 init",
+  );
+
   product.latency_stats.sample_init_count = 0;
   assert.equal(
     detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,
@@ -931,6 +949,33 @@ test("local preview fixture exercises dashboard v2 facet rendering", () => {
   assert.equal(fixture.v, 2);
   assert.equal(product.facet_groups.length, 5);
   assert.equal(facetRows(product).length, 5);
+});
+
+// A source with no mirror and no facets is the other shape the payload carries:
+// one row under its group, one view, and a baseline as short as its monitoring.
+test("local preview fixture carries a source-only group", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const group = fixture.groups.find(({ id }) => id === "eccc-hrdps");
+  assert.equal(group.products.length, 1);
+
+  const [product] = group.products;
+  assert.equal(product.row_label, "MSC Datamart");
+  assert.equal(displaySource(product.source), "dd.weather.gc.ca");
+  assert.equal(product.facet_groups, undefined);
+  assert.equal(viewsOf(product).length, 1);
+  assert.deepEqual(
+    (product.lead_group_stats ?? []).map(({ label }) => label),
+    ["0h", "1d", "2d"],
+  );
+  assert.equal(
+    detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).statsHeader,
+    "time after init \u00b7 1 init",
+  );
 });
 
 test("preview pipeline route exposes only allowlisted staging JSON", async () => {
