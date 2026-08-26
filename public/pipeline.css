@@ -164,9 +164,6 @@
   min-width: 0;
 }
 
-/* Facet rows grow evenly within a lane, capped at three cells so a sparse
-   product does not draw absurdly tall rows. */
-
 .pipeline-rows {
   display: flex;
   flex: 1;

@@ -138,8 +138,15 @@ test("the default view is lead groups by init, sized by group and labelled per c
 test("the table of contents follows the rendered pipeline groups", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
   await openPipeline(page);
   const links = page.locator('[data-slot="pipeline-toc"] a');
+
+  expect(
+    await page
+      .locator('[data-slot="pipeline-toc-rail"]')
+      .evaluate((node) => getComputedStyle(node).position),
+  ).toBe("absolute");
 
   await expect(links).toHaveText([
     "NOAA GFS forecast",
