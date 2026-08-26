@@ -875,13 +875,22 @@ function renderField(product, local, runCount) {
 
 function renderStructure(app, dashboard, rows) {
   const groupsSlot = app.querySelector('[data-slot="groups"]');
+  const tocRail = app.querySelector('[data-slot="pipeline-toc-rail"]');
+  const tocTree = app.querySelector('[data-slot="pipeline-toc-tree"]');
   groupsSlot.replaceChildren();
+  tocTree.replaceChildren();
   rows.clear();
 
   for (const group of dashboard.groups) {
+    const groupId = `pipeline-group-${group.id}`;
     const section = element("section", { class: "pipeline-group" }, [
-      element("h3", null, group.label),
+      element("h3", { id: groupId }, group.label),
     ]);
+    tocTree.append(
+      element("li", { class: "toc-h2" }, [
+        element("a", { href: `#${groupId}` }, group.label),
+      ]),
+    );
     for (const product of group.products) {
       const advisory = element("div", {
         class: "pipeline-row-advisory",
@@ -932,6 +941,8 @@ function renderStructure(app, dashboard, rows) {
     }
     groupsSlot.append(section);
   }
+  tocRail.hidden = false;
+  document.dispatchEvent(new Event("md-toc:refresh"));
 }
 
 function etaTarget(product) {

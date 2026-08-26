@@ -111,6 +111,7 @@
 .pipeline-group > h3 {
   margin: 1.6rem 0 0.4rem;
   font-size: 1.5rem;
+  scroll-margin-top: 2rem;
 }
 
 .pipeline-row {

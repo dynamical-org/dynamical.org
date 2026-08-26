@@ -135,6 +135,27 @@ test("the default view is lead groups by init, sized by group and labelled per c
   expect(geometry.overflowsColumn).toBe(false);
 });
 
+test("the table of contents follows the rendered pipeline groups", async ({
+  page,
+}) => {
+  await openPipeline(page);
+  const links = page.locator('[data-slot="pipeline-toc"] a');
+
+  await expect(links).toHaveText([
+    "NOAA GFS forecast",
+    "ECCC HRDPS continental 2.5 km",
+  ]);
+  expect(
+    await links.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute("href")),
+    ),
+  ).toEqual(["#pipeline-group-noaa-gfs", "#pipeline-group-eccc-hrdps"]);
+
+  await links.nth(1).click();
+  await expect(page).toHaveURL(/#pipeline-group-eccc-hrdps$/);
+  await expect(links.nth(1)).toHaveClass(/active/);
+});
+
 test("a source with no mirror and no facets draws one row that does not cycle", async ({
   page,
 }) => {
