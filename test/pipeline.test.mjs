@@ -704,6 +704,25 @@ test("measures a lead band by its own share, not the cumulative count", () => {
   assert.equal(cell.completion, 0.25);
 });
 
+test("preserves delayed timing on an empty pending lead band", () => {
+  const product = facetedProduct();
+  const init = product.recent_inits[0];
+  init.status = "pending";
+  init.timing = "delayed";
+  init.completion_pct = 0;
+  for (const group of init.lead_groups) {
+    group.status = "pending";
+    group.timing = "delayed";
+    group.completion_pct = 0;
+    group.leads_available = 0;
+  }
+
+  const cell = cellOf(bandsOf(product)[0], init);
+  assert.equal(cell.state, "pending");
+  assert.equal(cell.timing, "delayed");
+  assert.equal(cell.completion, 0);
+});
+
 test("names what a square measured, facet first, in its hover label", () => {
   const product = facetedProduct();
   const init = product.recent_inits[0];
@@ -814,6 +833,25 @@ test("retains live horizon status, time, and duration in details", () => {
       ],
     },
   );
+});
+
+test("treats a delayed pending init as the current run in details", () => {
+  const product = {
+    recent_inits: [
+      {
+        init_time: "2026-07-26T12:00:00Z",
+        status: "pending",
+        timing: "delayed",
+        lead_groups: [{ status: "pending", timing: "delayed" }],
+      },
+    ],
+    lead_group_stats: [{ label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 }],
+  };
+
+  const details = detailRows(product, Date.parse("2026-07-26T12:45:00Z"), false);
+  assert.equal(details.header, "07-26 12z");
+  assert.equal(details.rows[0].status, "pending");
+  assert.equal(details.rows[0].duration, "45m 0s");
 });
 
 test("names the init sample the percentile columns summarise", () => {
@@ -1165,6 +1203,10 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   assert.match(
     pipelineCss,
     /\.pipeline-cell\.g-pending\s*{\s*border: 1px solid var\(--pipeline-unobserved\);\s*}/,
+  );
+  assert.match(
+    pipelineCss,
+    /\.pipeline-cell\.g-pending\[data-timing="delayed"\]\s*{\s*border-color: var\(--pipeline-progress\);\s*}/,
   );
   assert.match(
     pipelineCss,

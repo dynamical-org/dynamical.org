@@ -972,7 +972,7 @@ function renderStructure(app, dashboard, rows) {
 
 function etaTarget(product) {
   const running = product.recent_inits.findLast(
-    (init) => init.status === "in_flight",
+    (init) => init.status === "pending" || init.status === "in_flight",
   );
   if (running) {
     const p95 = product.latency_stats?.p95_s;
@@ -1019,7 +1019,7 @@ function statsHeader(sampleInitCount) {
 
 export function detailRows(product, now, local) {
   const running = product.recent_inits.findLast(
-    (init) => init.status === "in_flight",
+    (init) => init.status === "pending" || init.status === "in_flight",
   );
   const displayed = running ?? product.recent_inits.at(-1);
   const groups = displayed?.lead_groups ?? [];
