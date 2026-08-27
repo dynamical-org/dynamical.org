@@ -357,6 +357,21 @@ test("scan-confirmed late pending work is visibly delayed", async ({ page }) => 
   );
 });
 
+test("details distinguish last, current or upcoming, and historical timings", async ({
+  page,
+}) => {
+  const row = await openPipeline(page);
+  await row.locator('[data-slot="details-button"]').click();
+  const headings = await row
+    .locator(".pipeline-row-details table:first-child thead tr:first-child th")
+    .allTextContents();
+
+  expect(headings[0]).toBe("horizon");
+  expect(headings[1]).toMatch(/^last run(?: · |$)/);
+  expect(headings[2]).toMatch(/^(?:current|upcoming) run(?: · |$)/);
+  expect(headings[3]).toMatch(/^time after init · [\d,]+ samples$/);
+});
+
 test("history scrubber stays fixed to the viewport bottom", async ({ page }) => {
   await openPipeline(page);
   await page.locator("#pipeline-history-toggle").click();

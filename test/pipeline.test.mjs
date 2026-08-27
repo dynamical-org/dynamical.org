@@ -793,6 +793,14 @@ test("retains live horizon status, time, and duration in details", () => {
   const product = {
     recent_inits: [
       {
+        init_time: "2026-07-26T06:00:00Z",
+        status: "complete",
+        lead_groups: [
+          { status: "complete", latency_s: 1200 },
+          { status: "complete", latency_s: 2700 },
+        ],
+      },
+      {
         init_time: "2026-07-26T12:00:00Z",
         status: "in_flight",
         lead_groups: [
@@ -809,23 +817,22 @@ test("retains live horizon status, time, and duration in details", () => {
   assert.deepEqual(
     detailRows(product, Date.parse("2026-07-26T12:30:00Z"), false),
     {
-      header: "07-26 12z",
+      lastHeader: "last run · 07-26 06z",
+      runHeader: "current run · 07-26 12z",
       statsHeader: "time after init",
       rows: [
         {
           label: "1d",
-          status: "complete",
-          time: "12:30",
-          duration: "30m",
+          last: { status: "complete", time: "06:20", duration: "20m" },
+          run: { status: "complete", time: "12:30", duration: "30m" },
           p50: "20m",
           p95: "30m",
           p99: "40m",
         },
         {
           label: "3d",
-          status: "processing",
-          time: "ETA 13:00",
-          duration: "30m 0s",
+          last: { status: "complete", time: "06:45", duration: "45m" },
+          run: { status: "processing", time: "ETA 13:00", duration: "30m 0s" },
           p50: "40m",
           p95: "1h",
           p99: "1h 20m",
@@ -849,9 +856,9 @@ test("treats a delayed pending init as the current run in details", () => {
   };
 
   const details = detailRows(product, Date.parse("2026-07-26T12:45:00Z"), false);
-  assert.equal(details.header, "07-26 12z");
-  assert.equal(details.rows[0].status, "pending");
-  assert.equal(details.rows[0].duration, "45m 0s");
+  assert.equal(details.runHeader, "current run · 07-26 12z");
+  assert.equal(details.rows[0].run.status, "pending");
+  assert.equal(details.rows[0].run.duration, "45m 0s");
 });
 
 test("names the init sample the percentile columns summarise", () => {
@@ -874,14 +881,14 @@ test("names the init sample the percentile columns summarise", () => {
 
   assert.equal(
     detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,
-    "time after init · 1,394 inits",
+    "time after init · 1,394 samples",
   );
 
   // a product monitored since its first init has a sample of exactly one
   product.latency_stats.sample_init_count = 1;
   assert.equal(
     detailRows(product, Date.parse("2026-07-26T07:00:00Z"), false).statsHeader,
-    "time after init \u00b7 1 init",
+    "time after init \u00b7 1 sample",
   );
 
   product.latency_stats.sample_init_count = 0;
@@ -891,7 +898,7 @@ test("names the init sample the percentile columns summarise", () => {
   );
 });
 
-test("shows the previous init details while waiting for the next init", () => {
+test("shows the last and upcoming runs while waiting for the next init", () => {
   const product = {
     recent_inits: [
       {
@@ -907,6 +914,7 @@ test("shows the previous init details while waiting for the next init", () => {
       { label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 },
       { label: "3d", p50_s: 2400, p95_s: 3600, p99_s: 4800 },
     ],
+    next_expected_init: "2026-07-26T12:00:00Z",
   };
 
   const details = detailRows(
@@ -915,16 +923,19 @@ test("shows the previous init details while waiting for the next init", () => {
     false,
   );
 
-  assert.equal(details.header, "07-26 06z · previous init");
+  assert.equal(details.lastHeader, "last run · 07-26 06z");
+  assert.equal(details.runHeader, "upcoming run · 07-26 12z");
   assert.deepEqual(
-    details.rows.map(({ status, time, duration }) => ({
-      status,
-      time,
-      duration,
-    })),
+    details.rows.map(({ last, run }) => ({ last, run })),
     [
-      { status: "complete", time: "06:20", duration: "20m" },
-      { status: "complete", time: "06:45", duration: "45m" },
+      {
+        last: { status: "complete", time: "06:20", duration: "20m" },
+        run: { status: "upcoming", time: "ETA 12:30", duration: "—" },
+      },
+      {
+        last: { status: "complete", time: "06:45", duration: "45m" },
+        run: { status: "upcoming", time: "ETA 13:00", duration: "—" },
+      },
     ],
   );
 });
@@ -1012,7 +1023,7 @@ test("local preview fixture carries a source-only group", () => {
   );
   assert.equal(
     detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).statsHeader,
-    "time after init \u00b7 1 init",
+    "time after init \u00b7 1 sample",
   );
 });
 
