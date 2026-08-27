@@ -982,8 +982,16 @@ function statsHeader(sampleInitCount) {
   return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
 }
 
+const NO_RUN = Object.freeze({
+  status: "—",
+  state: null,
+  timing: null,
+  time: "—",
+  duration: "—",
+});
+
 function observedRunDetail(init, live, stats, now, local, active) {
-  if (!init) return { status: "—", time: "—", duration: "—" };
+  if (!init) return NO_RUN;
   const initMs = Date.parse(init.init_time);
   let time = "—";
   let duration = "—";
@@ -1005,17 +1013,21 @@ function observedRunDetail(init, live, stats, now, local, active) {
   }
   return {
     status: statusLabel(live?.status ?? "pending"),
+    state: live?.status ?? "pending",
+    timing: live?.timing ?? null,
     time,
     duration,
   };
 }
 
 function upcomingRunDetail(initTime, stats, local) {
-  if (!initTime) return { status: "—", time: "—", duration: "—" };
+  if (!initTime) return NO_RUN;
   const target =
     stats.p95_s == null ? null : Date.parse(initTime) + stats.p95_s * 1000;
   return {
     status: "upcoming",
+    state: "upcoming",
+    timing: null,
     time:
       target == null
         ? "—"
@@ -1080,9 +1092,24 @@ export function facetRows(product) {
     dimension: facet.dimension,
     label: facet.label,
     status: statusLabel(facet.status),
+    state: facet.status,
     completion: facet.completion_pct,
     count: `${facet.dependencies_available.toLocaleString("en-US")} / ${facet.dependencies_expected.toLocaleString("en-US")} observed`,
   }));
+}
+
+// a status reads in the color its square would take on the grid
+function statusCell(detail) {
+  return element(
+    "td",
+    { "data-status": detail.state, "data-timing": detail.timing },
+    detail.status,
+  );
+}
+
+// every wide table on the site scrolls inside its own .table-container
+function scrollable(table) {
+  return element("div", { class: "table-container" }, [table]);
 }
 
 function buildDetails(product, now, local) {
@@ -1109,10 +1136,10 @@ function buildDetails(product, now, local) {
     body.append(
       element("tr", null, [
         element("td", null, row.label),
-        element("td", null, row.last.status),
+        statusCell(row.last),
         element("td", null, row.last.time),
         element("td", null, row.last.duration),
-        element("td", null, row.run.status),
+        statusCell(row.run),
         element("td", null, row.run.time),
         element("td", null, row.run.duration),
         element("td", null, row.p50),
@@ -1126,7 +1153,7 @@ function buildDetails(product, now, local) {
     body,
   ]);
   const facets = facetRows(product);
-  if (facets.length === 0) return leadTable;
+  if (facets.length === 0) return scrollable(leadTable);
 
   const facetBody = element("tbody");
   for (const facet of facets) {
@@ -1134,7 +1161,7 @@ function buildDetails(product, now, local) {
       element("tr", null, [
         element("td", null, facet.dimension),
         element("td", null, facet.label),
-        element("td", null, facet.status),
+        statusCell(facet),
         element("td", null, facet.count),
         element("td", null, [
           element("progress", {
@@ -1171,7 +1198,7 @@ function buildDetails(product, now, local) {
     ]),
     facetBody,
   ]);
-  return element("div", null, [leadTable, facetTable]);
+  return element("div", null, [scrollable(leadTable), scrollable(facetTable)]);
 }
 
 function hydrateRow(row, product, now, local, available) {

@@ -372,15 +372,25 @@
 
 .pipeline-row-details {
   grid-column: 1 / -1;
-  max-width: 100%;
-  overflow-x: auto;
+  /* each table scrolls in its own container, so the row must not stretch the
+     grid to fit one */
+  min-width: 0;
+}
+
+.pipeline-row-details .table-container + .table-container {
+  margin-top: 1.2rem;
 }
 
 .pipeline-row-details table {
   width: 100%;
-  min-width: 90rem;
   border-collapse: collapse;
   font-size: 1.2rem;
+}
+
+/* nine nowrap measurement columns need more room than the content column has;
+   the facet table's five fit, so it is sized by its content */
+.pipeline-row-details table:not(.pipeline-facets) {
+  min-width: 90rem;
 }
 
 .pipeline-row-details th,
@@ -396,8 +406,27 @@
   text-align: left;
 }
 
-.pipeline-facets {
-  margin-top: 1.2rem;
+/* "horizon" spans both header rows, so the sub-header row starts in column 2 —
+   its first cell is a status column and belongs right with the rest */
+.pipeline-row-details thead:has(th[rowspan]) tr + tr th:first-child {
+  text-align: right;
+}
+
+/* a status wears the color its square wears on the grid: green once a run has
+   landed on time, amber while it is running or running late, red when it failed.
+   pending and unobserved stay uncolored, as their empty squares do. */
+.pipeline-row-details [data-status="complete"],
+.pipeline-row-details [data-status="in_flight"][data-timing="on_time"] {
+  color: var(--pipeline-ok);
+}
+
+.pipeline-row-details [data-status="in_flight"],
+.pipeline-row-details [data-timing="delayed"] {
+  color: var(--pipeline-progress);
+}
+
+.pipeline-row-details [data-status="failed"] {
+  color: var(--pipeline-failed);
 }
 
 /* the bar takes the row's leftover width, and the number beside it is always
