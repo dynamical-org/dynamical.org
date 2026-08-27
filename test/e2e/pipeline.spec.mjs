@@ -432,6 +432,35 @@ test("each details table scrolls itself, under a header that names its column", 
   expect(measured.failed).toBe("rgb(197, 34, 31)");
 });
 
+// The fixture's running init is delayed, which colors both tables amber and so
+// hides a disagreement. On an on-time run the lead table read green while the
+// facet table stayed amber, because a facet reports no timing of its own.
+test("the same status reads the same color in both details tables", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    const running = product.recent_inits.findLast(
+      (init) => init.status === "in_flight",
+    );
+    running.timing = "on_time";
+    for (const group of running.lead_groups) group.timing = "on_time";
+    return payload;
+  });
+  await row.locator('[data-slot="details-button"]').click();
+
+  const colors = await row
+    .locator(".pipeline-row-details")
+    .evaluate((node) =>
+      [...node.querySelectorAll('td[data-status="in_flight"]')].map(
+        (cell) => getComputedStyle(cell).color,
+      ),
+    );
+
+  expect(colors.length).toBeGreaterThan(1);
+  expect(new Set(colors)).toEqual(new Set(["rgb(91, 197, 74)"]));
+});
+
 test("pipeline exposes no history scrubber", async ({ page }) => {
   await openPipeline(page);
   await expect(page.locator("#pipeline-history-toggle")).toHaveCount(0);

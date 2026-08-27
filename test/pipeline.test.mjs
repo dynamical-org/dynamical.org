@@ -1004,6 +1004,7 @@ test("groups component and member readiness for the displayed init", () => {
       label: "pgrb2a",
       status: "processing",
       state: "in_flight",
+      timing: null,
       completion: 0.75,
       count: "3 / 4 observed",
     },
@@ -1012,10 +1013,41 @@ test("groups component and member readiness for the displayed init", () => {
       label: "control",
       status: "complete",
       state: "complete",
+      timing: null,
       completion: 1,
       count: "4 / 4 observed",
     },
   ]);
+});
+
+// A facet reports no timing of its own, so its row inherits the run's — the
+// grid's facet squares already do, and the two must not disagree about whether
+// the same in-flight work is on time.
+test("facet rows take the timing of the run they describe", () => {
+  const product = {
+    recent_inits: [
+      {
+        init_time: "2026-07-26T12:00:00Z",
+        status: "in_flight",
+        timing: "on_time",
+        facets: [
+          {
+            dimension: "component",
+            label: "pgrb2a",
+            status: "in_flight",
+            completion_pct: 0.5,
+            dependencies_available: 2,
+            dependencies_expected: 4,
+          },
+        ],
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    facetRows(product).map(({ status, timing }) => ({ status, timing })),
+    [{ status: "processing", timing: "on_time" }],
+  );
 });
 
 test("local preview fixture exercises dashboard v2 facet rendering", () => {
