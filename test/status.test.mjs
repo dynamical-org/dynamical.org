@@ -696,6 +696,51 @@ test("observation groups render their days as a gap, not an outage", () => {
   });
 });
 
+test("corrected coverage gaps retain their explicit observation incident", () => {
+  const history = {
+    incidents: [],
+    cells: new Map([
+      [
+        "data-product-reads",
+        [{ date: "2026-08-27", state: "nodata" }],
+      ],
+    ]),
+  };
+  const configured = {
+    id: "sentry-cron-gap-20260827-0955",
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description:
+      "Sentry's US Cron Monitoring outage interrupted read-canary telemetry; " +
+      "data product reads were not confirmed down.",
+    started_at: "2026-08-27T09:55:11Z",
+    ended_at: "2026-08-27T10:10:12Z",
+    components: ["data-product-reads"],
+  };
+
+  const grouped = applyIncidentGroups(history, [configured]);
+
+  assert.deepEqual(grouped.incidents, [
+    {
+      id: `incident-group-${configured.id}`,
+      kind: "observation",
+      summary: configured.summary,
+      description: configured.description,
+      components: configured.components,
+      memberIds: [],
+      start: Date.parse(configured.started_at),
+      end: Date.parse(configured.ended_at),
+      ending: "resolved",
+    },
+  ]);
+  assert.deepEqual(grouped.cells.get("data-product-reads")[0], {
+    date: "2026-08-27",
+    state: "nodata",
+    displayState: "observation",
+    incidentIds: [`incident-group-${configured.id}`],
+  });
+});
+
 test("bar descriptions separate monitoring gaps from outages", () => {
   const description = barDescription([
     { state: "down", displayState: "observation" },

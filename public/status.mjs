@@ -243,6 +243,15 @@ export function applyIncidentGroups(history, incidentGroups = []) {
   const grouped = [];
   const aliases = new Map();
   const dayStates = new Map();
+  const observationWindows = [];
+  const dayOverlaps = (cell, start, end) => {
+    const dayStart = Date.parse(`${cell.date}T00:00:00Z`);
+    return (
+      Number.isFinite(dayStart) &&
+      dayStart < end &&
+      start < dayStart + 86_400_000
+    );
+  };
 
   for (const configured of incidentGroups) {
     const windowStart = Date.parse(configured.started_at);
@@ -254,7 +263,38 @@ export function applyIncidentGroups(history, incidentGroups = []) {
         windowStart <= incident.start &&
         incident.start < windowEnd,
     );
-    if (matches.length === 0) continue;
+    if (matches.length === 0) {
+      if (configured.kind !== "observation") continue;
+      const id = `incident-group-${configured.id}`;
+      const componentsWithGaps = configured.components.filter((component) =>
+        (history.cells?.get(component) ?? []).some(
+          (cell) =>
+            cell.state === "nodata" &&
+            dayOverlaps(cell, windowStart, windowEnd),
+        ),
+      );
+      if (componentsWithGaps.length === 0) continue;
+      observationWindows.push({
+        id,
+        start: windowStart,
+        end: windowEnd,
+        components: new Set(componentsWithGaps),
+      });
+      grouped.push({
+        id,
+        kind: configured.kind,
+        summary: configured.summary,
+        ...(configured.description
+          ? { description: configured.description }
+          : {}),
+        components: componentsWithGaps,
+        memberIds: [],
+        start: windowStart,
+        end: windowEnd,
+        ending: "resolved",
+      });
+      continue;
+    }
 
     const matched = new Set(matches);
     ungrouped = ungrouped.filter((incident) => !matched.has(incident));
@@ -292,6 +332,24 @@ export function applyIncidentGroups(history, incidentGroups = []) {
     [...history.cells.entries()].map(([component, componentCells]) => [
       component,
       componentCells.map((cell) => {
+        const standalone = observationWindows.filter(
+          (window) =>
+            cell.state === "nodata" &&
+            window.components.has(component) &&
+            dayOverlaps(cell, window.start, window.end),
+        );
+        if (standalone.length > 0) {
+          return {
+            ...cell,
+            displayState: "observation",
+            incidentIds: [
+              ...new Set([
+                ...(cell.incidentIds ?? []),
+                ...standalone.map((window) => window.id),
+              ]),
+            ],
+          };
+        }
         if (!cell.incidentIds?.length) return { ...cell };
         const incidentIds = [
           ...new Set(cell.incidentIds.map((id) => aliases.get(id) ?? id)),
