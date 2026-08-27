@@ -219,6 +219,46 @@ test("labels a planned down component without changing its health state", () => 
   );
 });
 
+test("labels a degraded component as a live monitoring gap", () => {
+  const entry = {
+    id: "data-product-reads",
+    name: "Data product reads",
+    group: "endpoint",
+    status: "degraded",
+    observation: {
+      kind: "observation",
+      summary: "Sentry Cron Monitoring unavailable",
+    },
+  };
+
+  assert.doesNotThrow(() =>
+    validateStatusData({ ...operationalData, endpoints: [entry] }),
+  );
+  assert.equal(statusLabel(entry), "Monitoring gap");
+  assert.deepEqual(
+    summarizeOverallStatus({ ...operationalData, endpoints: [entry] }),
+    {
+      status: "degraded",
+      incidents: [{ name: "Data product reads", status: "degraded" }],
+    },
+  );
+});
+
+test("rejects malformed live observation metadata", () => {
+  const entry = {
+    id: "data-product-reads",
+    name: "Data product reads",
+    group: "endpoint",
+    status: "degraded",
+    observation: { kind: "observation" },
+  };
+
+  assert.throws(
+    () => validateStatusData({ ...operationalData, endpoints: [entry] }),
+    /invalid status entry/i,
+  );
+});
+
 test("groups explicitly related outages and remaps day links", () => {
   const detection = {
     id: "incident-wxopticon-pipeline-1785960026",

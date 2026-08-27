@@ -28,7 +28,12 @@ export const STALE_MESSAGE = "Stale: status page experiencing delayed updates";
 
 function isStatusEntry(entry) {
   return (
-    entry && typeof entry.id === "string" && typeof entry.name === "string"
+    entry &&
+    typeof entry.id === "string" &&
+    typeof entry.name === "string" &&
+    (entry.observation == null ||
+      (entry.observation.kind === "observation" &&
+        typeof entry.observation.summary === "string"))
   );
 }
 
@@ -148,6 +153,9 @@ export function summarizeOverallStatus(data) {
 }
 
 export function statusLabel(entry) {
+  if (entry.status === "degraded" && entry.observation?.kind === "observation") {
+    return "Monitoring gap";
+  }
   if (
     entry.status === "down" &&
     entry.maintenance?.kind === "planned"
@@ -415,6 +423,7 @@ function renderGroup(list, entries, bars, uptime, emptyCells) {
 
     item.dataset.status = entry.status;
     if (entry.maintenance?.kind) item.dataset.kind = entry.maintenance.kind;
+    if (entry.observation?.kind) item.dataset.kind = entry.observation.kind;
     name.textContent = entry.name;
     state.className = "status-label";
     mark.setAttribute("aria-hidden", "true");
