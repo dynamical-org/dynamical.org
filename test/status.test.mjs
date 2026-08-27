@@ -219,6 +219,46 @@ test("labels a planned down component without changing its health state", () => 
   );
 });
 
+test("labels a degraded component as a live monitoring gap", () => {
+  const entry = {
+    id: "data-product-reads",
+    name: "Data product reads",
+    group: "endpoint",
+    status: "degraded",
+    observation: {
+      kind: "observation",
+      summary: "Sentry Cron Monitoring unavailable",
+    },
+  };
+
+  assert.doesNotThrow(() =>
+    validateStatusData({ ...operationalData, endpoints: [entry] }),
+  );
+  assert.equal(statusLabel(entry), "Monitoring gap");
+  assert.deepEqual(
+    summarizeOverallStatus({ ...operationalData, endpoints: [entry] }),
+    {
+      status: "degraded",
+      incidents: [{ name: "Data product reads", status: "degraded" }],
+    },
+  );
+});
+
+test("rejects malformed live observation metadata", () => {
+  const entry = {
+    id: "data-product-reads",
+    name: "Data product reads",
+    group: "endpoint",
+    status: "degraded",
+    observation: { kind: "observation" },
+  };
+
+  assert.throws(
+    () => validateStatusData({ ...operationalData, endpoints: [entry] }),
+    /invalid status entry/i,
+  );
+});
+
 test("groups explicitly related outages and remaps day links", () => {
   const detection = {
     id: "incident-wxopticon-pipeline-1785960026",
@@ -693,6 +733,51 @@ test("observation groups render their days as a gap, not an outage", () => {
     state: "down",
     displayState: "observation",
     incidentIds: ["incident-group-data-product-read-telemetry-gap"],
+  });
+});
+
+test("corrected coverage gaps retain their explicit observation incident", () => {
+  const history = {
+    incidents: [],
+    cells: new Map([
+      [
+        "data-product-reads",
+        [{ date: "2026-08-27", state: "nodata" }],
+      ],
+    ]),
+  };
+  const configured = {
+    id: "sentry-cron-gap-20260827-0955",
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description:
+      "Sentry's US Cron Monitoring outage interrupted read-canary telemetry; " +
+      "data product reads were not confirmed down.",
+    started_at: "2026-08-27T09:55:11Z",
+    ended_at: "2026-08-27T10:10:12Z",
+    components: ["data-product-reads"],
+  };
+
+  const grouped = applyIncidentGroups(history, [configured]);
+
+  assert.deepEqual(grouped.incidents, [
+    {
+      id: `incident-group-${configured.id}`,
+      kind: "observation",
+      summary: configured.summary,
+      description: configured.description,
+      components: configured.components,
+      memberIds: [],
+      start: Date.parse(configured.started_at),
+      end: Date.parse(configured.ended_at),
+      ending: "resolved",
+    },
+  ]);
+  assert.deepEqual(grouped.cells.get("data-product-reads")[0], {
+    date: "2026-08-27",
+    state: "nodata",
+    displayState: "observation",
+    incidentIds: [`incident-group-${configured.id}`],
   });
 });
 
