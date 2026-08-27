@@ -947,7 +947,7 @@ function renderStructure(app, dashboard, rows) {
 
 function etaTarget(product) {
   const running = product.recent_inits.findLast(
-    (init) => init.status === "in_flight",
+    (init) => init.status === "pending" || init.status === "in_flight",
   );
   if (running) {
     const p95 = product.latency_stats?.p95_s;
@@ -988,49 +988,91 @@ export function etaLineText(target, now, local) {
 // just the runs the grid draws, so the header names the sample they came from.
 function statsHeader(sampleInitCount) {
   if (!sampleInitCount) return "time after init";
-  const inits = sampleInitCount === 1 ? "init" : "inits";
-  return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${inits}`;
+  const samples = sampleInitCount === 1 ? "sample" : "samples";
+  return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
+}
+
+function observedRunDetail(init, live, stats, now, local, active) {
+  if (!init) return { status: "—", time: "—", duration: "—" };
+  const initMs = Date.parse(init.init_time);
+  let time = "—";
+  let duration = "—";
+  if (live?.status === "complete" && live.latency_s != null) {
+    time = clockTime(
+      initMs + live.latency_s * 1000,
+      selectedTimeZone(local),
+    );
+    duration = formatLatency(live.latency_s);
+  } else if (live?.status === "complete") {
+    time = "done";
+  } else if (active && stats.p95_s != null) {
+    const target = initMs + stats.p95_s * 1000;
+    if (target > now) {
+      time = `ETA ${clockTime(target, selectedTimeZone(local))}`;
+    }
+    const elapsed = Math.floor((now - initMs) / 1000);
+    if (elapsed > 0) duration = formatDuration(elapsed);
+  }
+  return {
+    status: statusLabel(live?.status ?? "pending"),
+    time,
+    duration,
+  };
+}
+
+function upcomingRunDetail(initTime, stats, local) {
+  if (!initTime) return { status: "—", time: "—", duration: "—" };
+  const target =
+    stats.p95_s == null ? null : Date.parse(initTime) + stats.p95_s * 1000;
+  return {
+    status: "upcoming",
+    time:
+      target == null
+        ? "—"
+        : `ETA ${clockTime(target, selectedTimeZone(local))}`,
+    duration: "—",
+  };
+}
+
+function labelledRun(label, initTime, local) {
+  return initTime ? `${label} · ${initShort(initTime, local)}` : label;
 }
 
 export function detailRows(product, now, local) {
-  const running = product.recent_inits.findLast(
-    (init) => init.status === "in_flight",
+  const recent = product.recent_inits ?? [];
+  const activeIndex = recent.findLastIndex(
+    (init) => init.status === "pending" || init.status === "in_flight",
   );
-  const displayed = running ?? product.recent_inits.at(-1);
-  const groups = displayed?.lead_groups ?? [];
-  const initMs = displayed ? Date.parse(displayed.init_time) : 0;
+  const active = activeIndex >= 0 ? recent[activeIndex] : null;
+  const last = activeIndex >= 0 ? recent[activeIndex - 1] : recent.at(-1);
+  const upcoming = active ? null : product.next_expected_init;
   return {
-    header: running
-      ? initShort(running.init_time, local)
-      : displayed
-        ? `${initShort(displayed.init_time, local)} · previous init`
-        : "waiting for next init",
+    lastHeader: labelledRun("last run", last?.init_time, local),
+    runHeader: active
+      ? labelledRun("current run", active.init_time, local)
+      : labelledRun("upcoming run", upcoming, local),
     statsHeader: statsHeader(product.latency_stats?.sample_init_count),
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
-      const live = groups[index];
-      let time = "—";
-      let duration = "—";
-      if (live?.status === "complete" && live.latency_s != null) {
-        time = clockTime(
-          initMs + live.latency_s * 1000,
-          selectedTimeZone(local),
-        );
-        duration = formatLatency(live.latency_s);
-      } else if (live?.status === "complete") {
-        time = "done";
-      } else if (running && stats.p95_s != null) {
-        const target = initMs + stats.p95_s * 1000;
-        if (target > now) {
-          time = `ETA ${clockTime(target, selectedTimeZone(local))}`;
-        }
-        const elapsed = Math.floor((now - initMs) / 1000);
-        if (elapsed > 0) duration = formatDuration(elapsed);
-      }
       return {
         label: stats.label,
-        status: statusLabel(live?.status ?? "pending"),
-        time,
-        duration,
+        last: observedRunDetail(
+          last,
+          last?.lead_groups?.[index],
+          stats,
+          now,
+          local,
+          false,
+        ),
+        run: active
+          ? observedRunDetail(
+              active,
+              active.lead_groups?.[index],
+              stats,
+              now,
+              local,
+              true,
+            )
+          : upcomingRunDetail(upcoming, stats, local),
         p50: formatLatency(stats.p50_s),
         p95: formatLatency(stats.p95_s),
         p99: formatLatency(stats.p99_s),
@@ -1056,12 +1098,15 @@ export function facetRows(product) {
 function buildDetails(product, now, local) {
   const details = detailRows(product, now, local);
   const groupHead = element("tr", null, [
-    element("th"),
-    element("th", { colspan: "3" }, details.header),
+    element("th", { rowspan: "2" }, "horizon"),
+    element("th", { colspan: "3" }, details.lastHeader),
+    element("th", { colspan: "3" }, details.runHeader),
     element("th", { colspan: "3" }, details.statsHeader),
   ]);
   const head = element("tr", null, [
-    element("th", null, "horizon"),
+    element("th", null, "status"),
+    element("th", null, "time"),
+    element("th", null, "duration"),
     element("th", null, "status"),
     element("th", null, "time"),
     element("th", null, "duration"),
@@ -1074,9 +1119,12 @@ function buildDetails(product, now, local) {
     body.append(
       element("tr", null, [
         element("td", null, row.label),
-        element("td", null, row.status),
-        element("td", null, row.time),
-        element("td", null, row.duration),
+        element("td", null, row.last.status),
+        element("td", null, row.last.time),
+        element("td", null, row.last.duration),
+        element("td", null, row.run.status),
+        element("td", null, row.run.time),
+        element("td", null, row.run.duration),
         element("td", null, row.p50),
         element("td", null, row.p95),
         element("td", null, row.p99),

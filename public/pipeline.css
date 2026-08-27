@@ -70,9 +70,21 @@
 }
 
 #pipeline-history-panel {
-  position: relative;
-  margin: 2rem 0;
-  padding-top: 2.4rem;
+  position: fixed;
+  z-index: 10;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: min(78rem, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 2.4rem 1rem 1rem;
+  border-top: 1px solid var(--border-muted-color);
+  background: var(--bg-color);
+  box-shadow: 0 -0.4rem 1rem var(--shadow-color);
+}
+
+.pipeline-page:has(#pipeline-history-panel:not([hidden])) {
+  padding-bottom: 8rem;
 }
 
 #pipeline-history-panel > span {
@@ -301,6 +313,10 @@
   border: 1px solid var(--pipeline-unobserved);
 }
 
+.pipeline-cell.g-pending[data-timing="delayed"] {
+  border-color: var(--pipeline-progress);
+}
+
 .pipeline-cell.g-unobserved {
   border: 1px dotted var(--pipeline-unobserved);
   background: repeating-linear-gradient(
@@ -397,7 +413,7 @@
 
 .pipeline-row-details table {
   width: 100%;
-  min-width: 64rem;
+  min-width: 90rem;
   border-collapse: collapse;
   font-size: 1.2rem;
 }

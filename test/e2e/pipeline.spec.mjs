@@ -359,6 +359,64 @@ test("expected-but-absent and never-observed do not look the same", async ({ pag
   expect(pending.background).not.toContain("gradient");
 });
 
+test("scan-confirmed late pending work is visibly delayed", async ({ page }) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    const newest = product.recent_inits.at(-1);
+    newest.status = "pending";
+    newest.timing = "delayed";
+    newest.completion_pct = 0;
+    for (const group of newest.lead_groups ?? []) {
+      group.status = "pending";
+      group.timing = "delayed";
+      group.completion_pct = 0;
+      group.leads_available = 0;
+    }
+    return payload;
+  });
+
+  const cell = row.locator('.pipeline-cell.g-pending[data-timing="delayed"]').first();
+  await expect(cell).toBeVisible();
+  await expect(cell).toHaveCSS("border-color", "rgb(244, 185, 66)");
+  await expect(row.locator('[data-slot="eta-state"]')).toHaveText("pending · delayed");
+  await expect(row.locator('[data-slot="eta-state"]')).toHaveCSS(
+    "color",
+    "rgb(244, 185, 66)",
+  );
+});
+
+test("details distinguish last, current or upcoming, and historical timings", async ({
+  page,
+}) => {
+  const row = await openPipeline(page);
+  await row.locator('[data-slot="details-button"]').click();
+  const headings = await row
+    .locator(".pipeline-row-details table:first-child thead tr:first-child th")
+    .allTextContents();
+
+  expect(headings[0]).toBe("horizon");
+  expect(headings[1]).toMatch(/^last run(?: · |$)/);
+  expect(headings[2]).toMatch(/^(?:current|upcoming) run(?: · |$)/);
+  expect(headings[3]).toMatch(/^time after init · [\d,]+ samples$/);
+});
+
+test("history scrubber stays fixed to the viewport bottom", async ({ page }) => {
+  await openPipeline(page);
+  await page.locator("#pipeline-history-toggle").click();
+  const panel = page.locator("#pipeline-history-panel");
+  await expect(panel).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+  const placement = await panel.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return {
+      position: getComputedStyle(node).position,
+      bottomGap: Math.round(window.innerHeight - rect.bottom),
+    };
+  });
+  expect(placement).toEqual({ position: "fixed", bottomGap: 0 });
+});
+
 test("a run that reported nothing does not empty the field", async ({ page }) => {
   // history snapshots declare no lead groups of their own, so a newest run with
   // none used to leave the axis empty — no bands, and a negative --run-width
