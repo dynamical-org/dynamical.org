@@ -383,13 +383,53 @@ test("details distinguish last, current or upcoming, and historical timings", as
   const row = await openPipeline(page);
   await row.locator('[data-slot="details-button"]').click();
   const headings = await row
-    .locator(".pipeline-row-details table:first-child thead tr:first-child th")
+    .locator(
+      ".pipeline-row-details .table-container:first-child thead tr:first-child th",
+    )
     .allTextContents();
 
   expect(headings[0]).toBe("horizon");
   expect(headings[1]).toMatch(/^last run(?: · |$)/);
   expect(headings[2]).toMatch(/^(?:current|upcoming) run(?: · |$)/);
   expect(headings[3]).toMatch(/^time after init · [\d,]+ samples$/);
+});
+
+test("each details table scrolls itself, under a header that names its column", async ({
+  page,
+}) => {
+  const row = await openPipeline(page);
+  await row.locator('[data-slot="details-button"]').click();
+
+  const measured = await row
+    .locator(".pipeline-row-details")
+    .evaluate((node) => {
+      const [lead, facets] = node.querySelectorAll(".table-container");
+      const subHeader = node.querySelector("thead tr + tr th:first-child");
+      const statusColor = (state) => {
+        const cell = node.querySelector(`td[data-status="${state}"]`);
+        return cell && getComputedStyle(cell).color;
+      };
+      return {
+        leadScrolls: lead.scrollWidth > lead.clientWidth,
+        facetsFit: facets.scrollWidth <= facets.clientWidth,
+        pageFits:
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
+        subHeader: [subHeader.textContent, getComputedStyle(subHeader).textAlign],
+        complete: statusColor("complete"),
+        failed: statusColor("failed"),
+      };
+    });
+
+  // the lead table is wider than the column, so it scrolls in its own container
+  // rather than widening the row or the page; the facet table needs no scroll
+  expect(measured.leadScrolls).toBe(true);
+  expect(measured.facetsFit).toBe(true);
+  expect(measured.pageFits).toBe(true);
+  // "horizon" spans both header rows, so this cell heads the last run's status
+  expect(measured.subHeader).toEqual(["status", "right"]);
+  expect(measured.complete).toBe("rgb(91, 197, 74)");
+  expect(measured.failed).toBe("rgb(197, 34, 31)");
 });
 
 test("pipeline exposes no history scrubber", async ({ page }) => {
