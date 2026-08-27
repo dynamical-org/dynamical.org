@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   applyIncidentGroups,
   barDescription,
+  coalesceIncidentGroups,
   buildHistory,
   incidentDescription,
   groupedIncidentDescription,
@@ -1163,10 +1164,195 @@ test("a coalesced entry counts its windows, not the span between them", () => {
     entry.memberIds,
     incidents.map(({ id }) => id),
   );
-  // 11 minutes per window — the 29 observed minutes between them are not
-  // planned downtime.
+  // Ten recorded minutes per window — neither the 29 observed minutes between
+  // them nor the minute of window padding around each is downtime.
   assert.equal(
     groupedIncidentDescription(entry, new Map([[component, "Pipeline"]]), null),
-    "Planned work affected Pipeline for 22 minutes.",
+    "Planned work affected Pipeline for 20 minutes.",
   );
+});
+
+test("a window with no incident of its own still reframes its days", () => {
+  const component = "data-product-reads";
+  const incident = {
+    id: "incident-data-product-reads-1",
+    component,
+    kind: "outage",
+    start: Date.parse("2026-08-26T23:45:00Z"),
+    end: Date.parse("2026-08-26T23:55:00Z"),
+    ending: "resolved",
+  };
+  const group = (started_at, ended_at) => ({
+    id: `sentry-cron-gap-${started_at}`,
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description: "Telemetry was unavailable; reads were not confirmed down.",
+    started_at,
+    ended_at,
+    components: [component],
+  });
+
+  const grouped = applyIncidentGroups(
+    {
+      incidents: [incident],
+      cells: new Map([
+        [
+          component,
+          [
+            {
+              date: "2026-08-26",
+              state: "down",
+              incidentIds: [incident.id],
+            },
+            { date: "2026-08-27", state: "nodata" },
+          ],
+        ],
+      ]),
+    },
+    [
+      group("2026-08-26T23:45:00Z", "2026-08-26T23:55:00Z"),
+      group("2026-08-27T00:10:00Z", "2026-08-27T00:20:00Z"),
+    ],
+  );
+
+  const id = "incident-group-sentry-cron-gap-2026-08-26T23:45:00Z";
+  const [known, unwatched] = grouped.cells.get(component);
+  assert.equal(known.displayState, "observation");
+  assert.deepEqual(known.incidentIds, [id]);
+  // The second window matched no incident, but its day is still the episode's.
+  assert.equal(unwatched.displayState, "observation");
+  assert.deepEqual(unwatched.incidentIds, [id]);
+});
+
+test("overlapping published windows are counted once", () => {
+  const component = "data-product-reads";
+  const group = (started_at, ended_at) => ({
+    id: `sentry-cron-gap-${started_at}`,
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description: "Telemetry was unavailable; reads were not confirmed down.",
+    started_at,
+    ended_at,
+    components: [component],
+  });
+
+  const [coalesced] = coalesceIncidentGroups([
+    group("2026-08-27T10:00:00Z", "2026-08-27T11:00:00Z"),
+    group("2026-08-27T10:30:00Z", "2026-08-27T11:30:00Z"),
+  ]);
+
+  // One 90-minute gap, not two hours of double-counted overlap.
+  assert.deepEqual(coalesced.windows, [
+    {
+      start: Date.parse("2026-08-27T10:00:00Z"),
+      end: Date.parse("2026-08-27T11:30:00Z"),
+    },
+  ]);
+});
+
+test("an unfinished window keeps a coalesced duration advancing", () => {
+  const component = "wxopticon-pipeline";
+  const group = (started_at, ended_at) => ({
+    id: `hrrr-backfill-${started_at}`,
+    kind: "planned",
+    summary: "HRRR history migration",
+    started_at,
+    ended_at,
+    components: [component],
+  });
+  const incidents = [
+    {
+      id: "incident-1",
+      component,
+      kind: "outage",
+      start: Date.parse("2026-08-05T20:00:00Z"),
+      end: Date.parse("2026-08-05T20:10:00Z"),
+      ending: "resolved",
+    },
+    {
+      id: "incident-2",
+      component,
+      kind: "outage",
+      start: Date.parse("2026-08-05T20:40:00Z"),
+      end: null,
+      ending: null,
+    },
+  ];
+
+  const grouped = applyIncidentGroups(
+    {
+      incidents,
+      cells: new Map([
+        [
+          component,
+          [
+            {
+              date: "2026-08-05",
+              state: "down",
+              incidentIds: incidents.map(({ id }) => id),
+            },
+          ],
+        ],
+      ]),
+    },
+    [
+      group("2026-08-05T19:59:00Z", "2026-08-05T20:10:00Z"),
+      group("2026-08-05T20:39:00Z", "2026-08-05T20:50:00Z"),
+    ],
+  );
+
+  const [entry] = grouped.incidents;
+  assert.equal(entry.end, null);
+  // 10 closed minutes plus 20 still running at 21:00, not a frozen sum.
+  assert.equal(
+    groupedIncidentDescription(
+      entry,
+      new Map([[component, "Pipeline"]]),
+      Date.parse("2026-08-05T21:00:00Z"),
+    ),
+    "Planned work affected Pipeline — ongoing for 30 minutes.",
+  );
+});
+
+test("coincidence is judged against each window, not the span", () => {
+  const asOf = Date.parse("2026-08-27T12:00:00Z");
+  const gap = {
+    id: "incident-group-sentry-cron-gap",
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    components: ["data-product-reads"],
+    start: Date.parse("2026-08-27T09:55:00Z"),
+    end: Date.parse("2026-08-27T11:20:00Z"),
+    windows: [
+      {
+        start: Date.parse("2026-08-27T09:55:00Z"),
+        end: Date.parse("2026-08-27T10:10:00Z"),
+      },
+      {
+        start: Date.parse("2026-08-27T10:55:00Z"),
+        end: Date.parse("2026-08-27T11:20:00Z"),
+      },
+    ],
+  };
+  const between = {
+    id: "incident-scorecard-1",
+    component: "scorecard",
+    kind: "outage",
+    start: Date.parse("2026-08-27T10:20:00Z"),
+    end: Date.parse("2026-08-27T10:40:00Z"),
+    ending: "resolved",
+  };
+  const during = {
+    id: "incident-scorecard-2",
+    component: "scorecard",
+    kind: "outage",
+    start: Date.parse("2026-08-27T11:00:00Z"),
+    end: Date.parse("2026-08-27T11:10:00Z"),
+    ending: "resolved",
+  };
+
+  const entries = [gap, between, during];
+  assert.deepEqual(overlappingEntries(gap, entries, asOf), [during]);
+  assert.deepEqual(overlappingEntries(between, entries, asOf), []);
+  assert.deepEqual(overlappingEntries(during, entries, asOf), [gap]);
 });

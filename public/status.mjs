@@ -270,12 +270,17 @@ export function coalesceIncidentGroups(incidentGroups) {
       end: Date.parse(group.ended_at),
     };
     const previous = coalesced.at(-1);
+    const last = previous?.windows.at(-1);
     if (
       previous &&
       sameEpisode(previous, group) &&
-      window.start - previous.windows.at(-1).end <= NEARBY_GROUP_GAP_MS
+      window.start - last.end <= NEARBY_GROUP_GAP_MS
     ) {
-      previous.windows.push(window);
+      // Sorted by start, so a window that begins before the last one ended
+      // extends it — overlapping windows must not have their overlap counted
+      // twice.
+      if (window.start <= last.end) last.end = Math.max(last.end, window.end);
+      else previous.windows.push(window);
     } else {
       coalesced.push({ ...group, windows: [window] });
     }
@@ -284,14 +289,14 @@ export function coalesceIncidentGroups(incidentGroups) {
 }
 
 // A coalesced entry spans more than it lost: the minutes between its windows
-// were observed. Duration claims count the windows, never the span.
+// were observed. Duration claims count the windows, never the span, and a
+// window still open is measured up to `end` rather than frozen.
 function measuredDuration(entry, end) {
-  return entry.windows
-    ? entry.windows.reduce(
-        (total, window) => total + window.end - window.start,
-        0,
-      )
-    : (entry.end ?? end) - entry.start;
+  const windows = entry.windows ?? [{ start: entry.start, end: entry.end }];
+  return windows.reduce(
+    (total, window) => total + (window.end ?? end) - window.start,
+    0,
+  );
 }
 
 // Explicit publisher metadata, not time overlap alone, determines which events
@@ -329,9 +334,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
 
   for (const configured of coalesceIncidentGroups(incidentGroups)) {
     const windows = configured.windows;
-    const windowStart = windows[0].start;
-    const windowEnd = windows.at(-1).end;
-    const spread = windows.length > 1 ? { windows } : {};
+    const id = `incident-group-${configured.id}`;
     const components = new Set(configured.components);
     // Each window matches on its own: an outage in the observed minutes
     // between two windows is not part of the episode.
@@ -342,18 +345,26 @@ export function applyIncidentGroups(history, incidentGroups = []) {
           ({ start, end }) => start <= incident.start && incident.start < end,
         ),
     );
-    if (matches.length === 0) {
-      if (configured.kind !== "observation") continue;
-      const id = `incident-group-${configured.id}`;
-      const componentsWithGaps = configured.components.filter((component) =>
-        windows.some(({ start, end }) => hasCoverageGap(component, start, end)),
-      );
-      if (componentsWithGaps.length === 0) continue;
+    // Missing coverage is a gap's own evidence, so a window carrying no
+    // incident still reframes its days — even when a sibling window in the
+    // same episode matched one.
+    const componentsWithGaps =
+      configured.kind === "observation"
+        ? configured.components.filter((component) =>
+            windows.some(({ start, end }) =>
+              hasCoverageGap(component, start, end),
+            ),
+          )
+        : [];
+    if (componentsWithGaps.length > 0) {
       observationWindows.push({
         id,
         windows,
         components: new Set(componentsWithGaps),
       });
+    }
+    if (matches.length === 0) {
+      if (componentsWithGaps.length === 0) continue;
       grouped.push({
         id,
         kind: configured.kind,
@@ -363,9 +374,9 @@ export function applyIncidentGroups(history, incidentGroups = []) {
           : {}),
         components: componentsWithGaps,
         memberIds: [],
-        start: windowStart,
-        end: windowEnd,
-        ...spread,
+        start: windows[0].start,
+        end: windows.at(-1).end,
+        ...(windows.length > 1 ? { windows } : {}),
         ending: "resolved",
       });
       continue;
@@ -373,8 +384,23 @@ export function applyIncidentGroups(history, incidentGroups = []) {
 
     const matched = new Set(matches);
     ungrouped = ungrouped.filter((incident) => !matched.has(incident));
-    const id = `incident-group-${configured.id}`;
     const memberIds = matches.map((incident) => incident.id);
+    // What history recorded, not what the publisher bracketed: each window is
+    // measured by the incidents inside it.
+    const measuredWindows = windows
+      .map((window) =>
+        matches.filter(
+          (incident) =>
+            window.start <= incident.start && incident.start < window.end,
+        ),
+      )
+      .filter((inside) => inside.length > 0)
+      .map((inside) => ({
+        start: Math.min(...inside.map((incident) => incident.start)),
+        end: inside.every((incident) => incident.end != null)
+          ? Math.max(...inside.map((incident) => incident.end))
+          : null,
+      }));
     const dayState = GROUP_DAY_STATES[configured.kind];
     for (const memberId of memberIds) {
       aliases.set(memberId, id);
@@ -386,15 +412,17 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       kind: configured.kind,
       summary: configured.summary,
       ...(configured.description ? { description: configured.description } : {}),
-      components: configured.components.filter((component) =>
-        matches.some((incident) => incident.component === component),
+      components: configured.components.filter(
+        (component) =>
+          matches.some((incident) => incident.component === component) ||
+          componentsWithGaps.includes(component),
       ),
       memberIds,
       start: Math.min(...matches.map((incident) => incident.start)),
       end: allEnded
         ? Math.max(...matches.map((incident) => incident.end))
         : null,
-      ...spread,
+      ...(measuredWindows.length > 1 ? { windows: measuredWindows } : {}),
       ending:
         allEnded && matches.every((incident) => incident.ending === "resolved")
           ? "resolved"
@@ -458,13 +486,20 @@ export function applyIncidentGroups(history, incidentGroups = []) {
 // Correlation is the context a status page can derive honestly: it claims two
 // things happened together, never that one caused the other.
 export function overlappingEntries(entry, entries, asOf) {
-  const endOf = (candidate) => candidate.end ?? asOf;
+  // A coalesced entry is its windows, never the observed minutes between them:
+  // trouble in that middle coincided with nothing.
+  const intervals = (candidate) =>
+    (candidate.windows ?? [{ start: candidate.start, end: candidate.end }]).map(
+      ({ start, end }) => ({ start, end: end ?? asOf }),
+    );
+  const ours = intervals(entry);
   return entries.filter(
     (candidate) =>
       candidate !== entry &&
       candidate.component !== entry.component &&
-      candidate.start < endOf(entry) &&
-      entry.start < endOf(candidate),
+      intervals(candidate).some((theirs) =>
+        ours.some((mine) => theirs.start < mine.end && mine.start < theirs.end),
+      ),
   );
 }
 
