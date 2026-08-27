@@ -242,6 +242,58 @@ const IMPACT = {
   },
 };
 
+// A publisher emits one group per window it detects, so a single upstream
+// episode — a cron-monitoring outage flickering for an hour — reaches the page
+// as a run of identical groups minutes apart.
+const NEARBY_GROUP_GAP_MS = 2 * 60 * 60 * 1000;
+
+function sameEpisode(a, b) {
+  return (
+    a.kind === b.kind &&
+    a.summary === b.summary &&
+    a.description === b.description &&
+    a.components.length === b.components.length &&
+    a.components.every((component) => b.components.includes(component))
+  );
+}
+
+// Fold such a run into one entry that keeps every window, so the log reads as
+// one episode while its duration still counts only the windows themselves.
+export function coalesceIncidentGroups(incidentGroups) {
+  const coalesced = [];
+  const sorted = [...incidentGroups].sort(
+    (a, b) => Date.parse(a.started_at) - Date.parse(b.started_at),
+  );
+  for (const group of sorted) {
+    const window = {
+      start: Date.parse(group.started_at),
+      end: Date.parse(group.ended_at),
+    };
+    const previous = coalesced.at(-1);
+    if (
+      previous &&
+      sameEpisode(previous, group) &&
+      window.start - previous.windows.at(-1).end <= NEARBY_GROUP_GAP_MS
+    ) {
+      previous.windows.push(window);
+    } else {
+      coalesced.push({ ...group, windows: [window] });
+    }
+  }
+  return coalesced;
+}
+
+// A coalesced entry spans more than it lost: the minutes between its windows
+// were observed. Duration claims count the windows, never the span.
+function measuredDuration(entry, end) {
+  return entry.windows
+    ? entry.windows.reduce(
+        (total, window) => total + window.end - window.start,
+        0,
+      )
+    : (entry.end ?? end) - entry.start;
+}
+
 // Explicit publisher metadata, not time overlap alone, determines which events
 // share an incident.
 export function applyIncidentGroups(history, incidentGroups = []) {
@@ -275,27 +327,31 @@ export function applyIncidentGroups(history, incidentGroups = []) {
     return observed < end - start;
   };
 
-  for (const configured of incidentGroups) {
-    const windowStart = Date.parse(configured.started_at);
-    const windowEnd = Date.parse(configured.ended_at);
+  for (const configured of coalesceIncidentGroups(incidentGroups)) {
+    const windows = configured.windows;
+    const windowStart = windows[0].start;
+    const windowEnd = windows.at(-1).end;
+    const spread = windows.length > 1 ? { windows } : {};
     const components = new Set(configured.components);
+    // Each window matches on its own: an outage in the observed minutes
+    // between two windows is not part of the episode.
     const matches = ungrouped.filter(
       (incident) =>
         components.has(incident.component) &&
-        windowStart <= incident.start &&
-        incident.start < windowEnd,
+        windows.some(
+          ({ start, end }) => start <= incident.start && incident.start < end,
+        ),
     );
     if (matches.length === 0) {
       if (configured.kind !== "observation") continue;
       const id = `incident-group-${configured.id}`;
       const componentsWithGaps = configured.components.filter((component) =>
-        hasCoverageGap(component, windowStart, windowEnd),
+        windows.some(({ start, end }) => hasCoverageGap(component, start, end)),
       );
       if (componentsWithGaps.length === 0) continue;
       observationWindows.push({
         id,
-        start: windowStart,
-        end: windowEnd,
+        windows,
         components: new Set(componentsWithGaps),
       });
       grouped.push({
@@ -309,6 +365,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
         memberIds: [],
         start: windowStart,
         end: windowEnd,
+        ...spread,
         ending: "resolved",
       });
       continue;
@@ -337,6 +394,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       end: allEnded
         ? Math.max(...matches.map((incident) => incident.end))
         : null,
+      ...spread,
       ending:
         allEnded && matches.every((incident) => incident.ending === "resolved")
           ? "resolved"
@@ -351,10 +409,10 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       component,
       componentCells.map((cell) => {
         const standalone = observationWindows.filter(
-          (window) =>
+          (gap) =>
             ["operational", "nodata"].includes(cell.state) &&
-            window.components.has(component) &&
-            dayOverlaps(cell, window.start, window.end),
+            gap.components.has(component) &&
+            gap.windows.some(({ start, end }) => dayOverlaps(cell, start, end)),
         );
         if (standalone.length > 0) {
           return {
@@ -363,7 +421,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
             incidentIds: [
               ...new Set([
                 ...(cell.incidentIds ?? []),
-                ...standalone.map((window) => window.id),
+                ...standalone.map((gap) => gap.id),
               ]),
             ],
           };
@@ -671,9 +729,10 @@ export function groupedIncidentDescription(incident, names, end) {
     incident.kind === "planned"
       ? `Planned work affected ${affected}`
       : `Related outages affected ${affected}`;
+  const measured = formatDuration(0, measuredDuration(incident, end));
   return incident.end
-    ? `${impact} for ${formatDuration(incident.start, incident.end)}.`
-    : `${impact} — ongoing for ${formatDuration(incident.start, end)}.`;
+    ? `${impact} for ${measured}.`
+    : `${impact} — ongoing for ${measured}.`;
 }
 
 function renderIncidentLog(root, history, data, local) {
@@ -708,13 +767,17 @@ function renderIncidentLog(root, history, data, local) {
     const summary = document.createElement("p");
     const timing = document.createElement("p");
     const kind = incident.kind ?? "outage";
-    const label =
+    const kindLabel =
       kind === "planned"
         ? "planned outage"
         : kind === "observation"
           ? "observation gap"
           : kind;
+    // A coalesced entry stands for several windows, so it says so twice over:
+    // a plural state line, and a timing line that counts them.
+    const label = incident.windows ? `${kindLabel}s` : kindLabel;
     const end = incident.end ?? history.asOf.getTime();
+    const measured = formatDuration(0, measuredDuration(incident, end));
 
     item.id = incident.id;
     item.className = "status-incident";
@@ -753,12 +816,15 @@ function renderIncidentLog(root, history, data, local) {
       });
       summary.append(".");
     }
+    const spent = incident.windows
+      ? `${incident.windows.length} ${label} totaling ${measured}`
+      : measured;
     timing.textContent =
       incident.ending === "observation-ended"
-        ? `${formatTimestamp(incident.start, local)} – ${formatTimestamp(incident.end, local)} · ${formatDuration(incident.start, end)}. Recovery was not witnessed.`
+        ? `${formatTimestamp(incident.start, local)} – ${formatTimestamp(incident.end, local)} · ${spent}. Recovery was not witnessed.`
         : `${formatTimestamp(incident.start, local)} – ${
             incident.end ? formatTimestamp(incident.end, local) : "ongoing"
-          } · ${formatDuration(incident.start, end)}.`;
+          } · ${spent}.`;
     header.append(name, state);
     item.append(header, summary, timing);
     list.append(item);

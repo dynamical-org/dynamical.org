@@ -947,3 +947,226 @@ test("the hatch tile the status bars mark gaps with is a shared token", () => {
   assert.match(declaration(light), /fill='white'/);
   assert.match(declaration(dark), /fill='black'/);
 });
+
+test("a run of identical nearby gaps coalesces into one entry", () => {
+  const component = "data-product-reads";
+  const windows = [
+    ["2026-08-27T09:55:11Z", "2026-08-27T10:10:12Z"],
+    ["2026-08-27T10:35:10Z", "2026-08-27T10:40:12Z"],
+    ["2026-08-27T10:55:11Z", "2026-08-27T11:20:12Z"],
+  ];
+  const groups = windows.map(([started_at, ended_at]) => ({
+    id: `sentry-cron-gap-${started_at}`,
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description:
+      "Sentry's US Cron Monitoring outage interrupted read-canary telemetry; " +
+      "data product reads were not confirmed down.",
+    started_at,
+    ended_at,
+    components: [component],
+  }));
+  const history = {
+    incidents: [],
+    cells: new Map([[component, [{ date: "2026-08-27", state: "nodata" }]]]),
+  };
+
+  const grouped = applyIncidentGroups(history, groups);
+
+  assert.deepEqual(grouped.incidents, [
+    {
+      id: `incident-group-${groups[0].id}`,
+      kind: "observation",
+      summary: groups[0].summary,
+      description: groups[0].description,
+      components: [component],
+      memberIds: [],
+      start: Date.parse(windows[0][0]),
+      end: Date.parse(windows.at(-1)[1]),
+      windows: windows.map(([start, end]) => ({
+        start: Date.parse(start),
+        end: Date.parse(end),
+      })),
+      ending: "resolved",
+    },
+  ]);
+  assert.deepEqual(grouped.cells.get(component)[0].incidentIds, [
+    `incident-group-${groups[0].id}`,
+  ]);
+});
+
+test("gaps further apart than the coalescing window stay separate", () => {
+  const component = "data-product-reads";
+  const group = (started_at, ended_at) => ({
+    id: `sentry-cron-gap-${started_at}`,
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description: "Telemetry was unavailable; reads were not confirmed down.",
+    started_at,
+    ended_at,
+    components: [component],
+  });
+  const history = {
+    incidents: [],
+    cells: new Map([
+      [
+        component,
+        [
+          { date: "2026-08-26", state: "nodata" },
+          { date: "2026-08-27", state: "nodata" },
+        ],
+      ],
+    ]),
+  };
+
+  const sameDay = applyIncidentGroups(history, [
+    group("2026-08-27T04:00:00Z", "2026-08-27T04:10:00Z"),
+    group("2026-08-27T09:00:00Z", "2026-08-27T09:10:00Z"),
+  ]);
+  assert.equal(sameDay.incidents.length, 2);
+
+  // A different explanation is a different episode however close it lands.
+  const unlike = applyIncidentGroups(history, [
+    group("2026-08-27T09:55:11Z", "2026-08-27T10:10:12Z"),
+    {
+      ...group("2026-08-27T10:35:10Z", "2026-08-27T10:40:12Z"),
+      description: "A separate publisher outage interrupted telemetry.",
+    },
+  ]);
+  assert.equal(unlike.incidents.length, 2);
+});
+
+test("an outage between coalesced windows stays its own incident", () => {
+  const component = "data-product-reads";
+  const events = [
+    {
+      ts: "2026-08-27T00:00:00Z",
+      kind: "coverage",
+      component,
+      monitored: true,
+      state: "operational",
+    },
+    {
+      ts: "2026-08-27T09:55:11Z",
+      kind: "coverage",
+      component,
+      monitored: false,
+    },
+    {
+      ts: "2026-08-27T10:10:12Z",
+      kind: "coverage",
+      component,
+      monitored: true,
+      state: "operational",
+    },
+    { ts: "2026-08-27T10:30:00Z", kind: "transition", component, to: "down" },
+    {
+      ts: "2026-08-27T10:40:00Z",
+      kind: "transition",
+      component,
+      to: "operational",
+    },
+    {
+      ts: "2026-08-27T10:55:11Z",
+      kind: "coverage",
+      component,
+      monitored: false,
+    },
+    {
+      ts: "2026-08-27T11:20:12Z",
+      kind: "coverage",
+      component,
+      monitored: true,
+      state: "operational",
+    },
+  ]
+    .map(JSON.stringify)
+    .join("\n");
+  const history = buildHistory(
+    events,
+    JSON.stringify({
+      v: 2,
+      reconciled_at: "2026-08-27T12:00:00Z",
+      events_count: 7,
+    }),
+  );
+  const group = (started_at, ended_at) => ({
+    id: `sentry-cron-gap-${started_at}`,
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description: "Telemetry was unavailable; reads were not confirmed down.",
+    started_at,
+    ended_at,
+    components: [component],
+  });
+
+  const grouped = applyIncidentGroups(history, [
+    group("2026-08-27T09:55:11Z", "2026-08-27T10:10:12Z"),
+    group("2026-08-27T10:55:11Z", "2026-08-27T11:20:12Z"),
+  ]);
+
+  const gap = grouped.incidents.find(({ kind }) => kind === "observation");
+  const outage = grouped.incidents.find(({ kind }) => kind === "outage");
+  assert.equal(grouped.incidents.length, 2);
+  assert.equal(gap.windows.length, 2);
+  assert.equal(outage.component, component);
+  assert.equal(outage.start, Date.parse("2026-08-27T10:30:00Z"));
+});
+
+test("a coalesced entry counts its windows, not the span between them", () => {
+  const component = "wxopticon-pipeline";
+  const incident = (start, end) => ({
+    id: `incident-${component}-${start}`,
+    component,
+    kind: "outage",
+    start: Date.parse(start),
+    end: Date.parse(end),
+    ending: "resolved",
+  });
+  const group = (started_at, ended_at) => ({
+    id: `hrrr-backfill-${started_at}`,
+    kind: "planned",
+    summary: "HRRR history migration",
+    started_at,
+    ended_at,
+    components: [component],
+  });
+  const incidents = [
+    incident("2026-08-05T20:00:00Z", "2026-08-05T20:10:00Z"),
+    incident("2026-08-05T20:40:00Z", "2026-08-05T20:50:00Z"),
+  ];
+
+  const grouped = applyIncidentGroups(
+    {
+      incidents,
+      cells: new Map([
+        [
+          component,
+          [
+            {
+              date: "2026-08-05",
+              state: "down",
+              incidentIds: incidents.map(({ id }) => id),
+            },
+          ],
+        ],
+      ]),
+    },
+    [
+      group("2026-08-05T19:59:00Z", "2026-08-05T20:10:00Z"),
+      group("2026-08-05T20:39:00Z", "2026-08-05T20:50:00Z"),
+    ],
+  );
+
+  const [entry] = grouped.incidents;
+  assert.deepEqual(
+    entry.memberIds,
+    incidents.map(({ id }) => id),
+  );
+  // 11 minutes per window — the 29 observed minutes between them are not
+  // planned downtime.
+  assert.equal(
+    groupedIncidentDescription(entry, new Map([[component, "Pipeline"]]), null),
+    "Planned work affected Pipeline for 22 minutes.",
+  );
+});
