@@ -781,6 +781,130 @@ test("corrected coverage gaps retain their explicit observation incident", () =>
   });
 });
 
+test("partial-day corrected gaps override an otherwise operational day", () => {
+  const component = "data-product-reads";
+  const events = [
+    {
+      ts: "2026-08-27T00:00:00Z",
+      kind: "coverage",
+      component,
+      monitored: true,
+      state: "operational",
+    },
+    {
+      ts: "2026-08-27T09:55:11Z",
+      kind: "coverage",
+      component,
+      monitored: false,
+    },
+    {
+      ts: "2026-08-27T10:10:12Z",
+      kind: "coverage",
+      component,
+      monitored: true,
+      state: "operational",
+    },
+  ]
+    .map(JSON.stringify)
+    .join("\n");
+  const history = buildHistory(
+    events,
+    JSON.stringify({
+      v: 2,
+      reconciled_at: "2026-08-27T12:00:00Z",
+      events_count: 3,
+    }),
+  );
+  const configured = {
+    id: "sentry-cron-gap-20260827-0955",
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description:
+      "Sentry's US Cron Monitoring outage interrupted read-canary telemetry; " +
+      "data product reads were not confirmed down.",
+    started_at: "2026-08-27T09:55:11Z",
+    ended_at: "2026-08-27T10:10:12Z",
+    components: [component],
+  };
+
+  const grouped = applyIncidentGroups(history, [configured]);
+  const cell = grouped.cells
+    .get(component)
+    .find(({ date }) => date === "2026-08-27");
+
+  assert.equal(cell.state, "operational");
+  assert.equal(cell.displayState, "observation");
+  assert.deepEqual(cell.incidentIds, [`incident-group-${configured.id}`]);
+  assert.equal(grouped.incidents[0].id, `incident-group-${configured.id}`);
+});
+
+test("partial-day gaps do not soften known trouble elsewhere that day", () => {
+  const component = "data-product-reads";
+  const configured = {
+    id: "sentry-cron-gap-20260827-0955",
+    kind: "observation",
+    summary: "Data product read monitoring telemetry",
+    description: "Telemetry was unavailable; reads were not confirmed down.",
+    started_at: "2026-08-27T09:55:11Z",
+    ended_at: "2026-08-27T10:10:12Z",
+    components: [component],
+  };
+
+  for (const state of ["degraded", "down"]) {
+    const events = [
+      {
+        ts: "2026-08-27T00:00:00Z",
+        kind: "coverage",
+        component,
+        monitored: true,
+        state: "operational",
+      },
+      {
+        ts: configured.started_at,
+        kind: "coverage",
+        component,
+        monitored: false,
+      },
+      {
+        ts: configured.ended_at,
+        kind: "coverage",
+        component,
+        monitored: true,
+        state: "operational",
+      },
+      {
+        ts: "2026-08-27T11:00:00Z",
+        kind: "transition",
+        component,
+        to: state,
+      },
+    ]
+      .map(JSON.stringify)
+      .join("\n");
+    const history = buildHistory(
+      events,
+      JSON.stringify({
+        v: 2,
+        reconciled_at: "2026-08-27T12:00:00Z",
+        events_count: 4,
+      }),
+    );
+
+    const grouped = applyIncidentGroups(history, [configured]);
+    const cell = grouped.cells
+      .get(component)
+      .find(({ date }) => date === "2026-08-27");
+
+    assert.equal(cell.state, state);
+    assert.equal(cell.displayState, undefined);
+    assert.ok(
+      grouped.incidents.some(
+        ({ id }) => id === `incident-group-${configured.id}`,
+      ),
+    );
+  }
+});
+
 test("bar descriptions separate monitoring gaps from outages", () => {
   const description = barDescription([
     { state: "down", displayState: "observation" },
