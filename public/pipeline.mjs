@@ -1093,6 +1093,9 @@ export function facetRows(product) {
     label: facet.label,
     status: statusLabel(facet.status),
     state: facet.status,
+    // a facet reports no timing of its own; its square takes the run's, so the
+    // row must too, or one word reads in two colors across the two tables
+    timing: displayed.timing ?? null,
     completion: facet.completion_pct,
     count: `${facet.dependencies_available.toLocaleString("en-US")} / ${facet.dependencies_expected.toLocaleString("en-US")} observed`,
   }));
