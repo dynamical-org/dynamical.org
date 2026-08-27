@@ -676,24 +676,6 @@ test("rejects a malformed joint the same way as run-level facets", () => {
   );
 });
 
-test("bands a history snapshot, which declares neither list up front", () => {
-  const snapshot = facetedProduct();
-  delete snapshot.lead_groups;
-  delete snapshot.facet_groups;
-  snapshot.lead_group_stats = [
-    { name: "f000", label: "1d" },
-    { name: "f240", label: "10d" },
-  ];
-
-  assert.deepEqual(
-    bandsOf(snapshot).map((band) => `${band.kind}:${band.label}`),
-    ["lead:10d", "lead:1d"],
-  );
-  // and still measures, rather than rendering an empty field
-  const [longest] = bandsOf(snapshot);
-  assert.equal(cellOf(longest, snapshot.recent_inits[0]).state, "in_flight");
-});
-
 test("measures a lead band by its own share, not the cumulative count", () => {
   const product = facetedProduct();
   const [longest] = bandsOf(product);
@@ -1062,6 +1044,13 @@ test("preview pipeline route exposes only allowlisted staging JSON", async () =>
   });
   assert.equal(denied.status, 404);
   assert.deepEqual(requested, ["wxopticon/dashboard.json"]);
+
+  const history = await onRequestGet({
+    env: { WXOPTICON_STAGING: bucket },
+    params: { path: ["wxopticon", "history", "index.json"] },
+  });
+  assert.equal(history.status, 404);
+  assert.deepEqual(requested, ["wxopticon/dashboard.json"]);
 });
 
 test("preview branches select the private staging route", () => {
@@ -1073,15 +1062,14 @@ test("preview branches select the private staging route", () => {
   assert.match(source, /\/pipeline-staging\/wxopticon/);
 });
 
-test("a resize re-fits without re-timing a scrubbed snapshot", () => {
+test("a resize re-fits the live dashboard at the current time", () => {
   const script = readFileSync("public/pipeline.mjs", "utf8");
   const handler = script.slice(
     script.indexOf('window.addEventListener("resize"'),
     script.indexOf("function setTimeMode"),
   );
-  assert.match(handler, /displaySnapshot\(/);
-  assert.match(handler, /mode === "live" \? Date\.now\(\) : displayedAt/);
-  assert.doesNotMatch(handler, /displaySnapshot\(\s*displayedSnapshot,\s*Date\.now\(\)/);
+  assert.match(handler, /displayDashboard\(displayedDashboard, Date\.now\(\)\)/);
+  assert.doesNotMatch(handler, /mode|displayedAt/);
 });
 
 test("status pages share the uptime, pipeline, and pipeline webhooks subnav", () => {
@@ -1126,12 +1114,19 @@ test("status pages share the uptime, pipeline, and pipeline webhooks subnav", ()
   assert.match(subnav, /data-slot="agency-health"/);
   assert.match(subnav, /upstream forecast sources/);
   assert.doesNotMatch(subnav, /weather agencies/);
-  assert.match(subnav, /statusSection == "pipeline"/);
-  assert.match(subnav, /pipeline-history-toggle/);
+  assert.doesNotMatch(subnav, /pipeline-history-toggle|pipeline-history-panel/);
   assert.doesNotMatch(subnav, /pipeline-controls-actions/);
   assert.match(status, /id="status-time-toggle"/);
   assert.match(pipeline, /id="status-time-toggle"/);
   assert.equal((base.match(/href="\/status\/"/g) ?? []).length, 2);
+});
+
+test("pipeline exposes no time-travel history controls or requests", () => {
+  const script = readFileSync("public/pipeline.mjs", "utf8");
+  const template = readFileSync("content/status-pipeline.njk", "utf8");
+
+  assert.doesNotMatch(script, /history\/index|historyIndex|showSnapshot|openHistory/);
+  assert.doesNotMatch(template, /pipeline-history|scrub-label|return-live/);
 });
 
 test("primary navigation styles the current section like the status subnav", () => {

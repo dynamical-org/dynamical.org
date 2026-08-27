@@ -1,14 +1,7 @@
 const DASHBOARD_KEY = "wxopticon/dashboard.json";
-const HISTORY_INDEX_KEY = "wxopticon/history/index.json";
-const HISTORY_SNAPSHOT_KEY =
-  /^wxopticon\/history\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.json$/;
 
 function isAllowed(key) {
-  return (
-    key === DASHBOARD_KEY ||
-    key === HISTORY_INDEX_KEY ||
-    HISTORY_SNAPSHOT_KEY.test(key)
-  );
+  return key === DASHBOARD_KEY;
 }
 
 export async function onRequestGet(context) {
