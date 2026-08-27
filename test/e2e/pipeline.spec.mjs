@@ -42,22 +42,14 @@ async function stubPipeline(page, mutate = (payload) => payload) {
       body: JSON.stringify(payload),
     }),
   );
-  // the shared health strip and the history index are separate feeds; stub them
-  // so the spec neither waits on the network nor reports their failures as ours
+  // the shared health strip is a separate feed; stub it so the spec neither
+  // waits on the network nor reports its failures as ours
   await page.route("**/status.json", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
       headers: JSON_HEADERS,
       body: JSON.stringify({ endpoints: [{ status: "operational" }] }),
-    }),
-  );
-  await page.route("**/history/index.json", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: JSON_HEADERS,
-      body: "[]",
     }),
   );
 }
@@ -400,30 +392,17 @@ test("details distinguish last, current or upcoming, and historical timings", as
   expect(headings[3]).toMatch(/^time after init · [\d,]+ samples$/);
 });
 
-test("history scrubber stays fixed to the viewport bottom", async ({ page }) => {
+test("pipeline exposes no history scrubber", async ({ page }) => {
   await openPipeline(page);
-  await page.locator("#pipeline-history-toggle").click();
-  const panel = page.locator("#pipeline-history-panel");
-  await expect(panel).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-
-  const placement = await panel.evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    return {
-      position: getComputedStyle(node).position,
-      bottomGap: Math.round(window.innerHeight - rect.bottom),
-    };
-  });
-  expect(placement).toEqual({ position: "fixed", bottomGap: 0 });
+  await expect(page.locator("#pipeline-history-toggle")).toHaveCount(0);
+  await expect(page.locator("#pipeline-history-panel")).toHaveCount(0);
 });
 
 test("a run that reported nothing does not empty the field", async ({ page }) => {
-  // history snapshots declare no lead groups of their own, so a newest run with
-  // none used to leave the axis empty — no bands, and a negative --run-width
-  // reaching CSS — while the runs beside it carried full data
+  // a newest run can report no lead groups while the product and runs beside it
+  // carry full data; that must not empty the axis or make --run-width negative
   const row = await openPipeline(page, (payload) => {
     const product = payload.groups[0].products[0];
-    delete product.lead_groups;
     const newest = product.recent_inits.at(-1);
     newest.status = "unobserved";
     delete newest.lead_groups;

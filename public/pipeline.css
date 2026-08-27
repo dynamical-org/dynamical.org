@@ -69,41 +69,6 @@
   border-color: var(--pipeline-failed);
 }
 
-#pipeline-history-panel {
-  position: fixed;
-  z-index: 10;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: min(78rem, calc(100vw - 2rem));
-  margin: 0 auto;
-  padding: 2.4rem 1rem 1rem;
-  border-top: 1px solid var(--border-muted-color);
-  background: var(--bg-color);
-  box-shadow: 0 -0.4rem 1rem var(--shadow-color);
-}
-
-.pipeline-page:has(#pipeline-history-panel:not([hidden])) {
-  padding-bottom: 8rem;
-}
-
-#pipeline-history-panel > span {
-  position: absolute;
-  top: 0;
-  left: var(--thumb-pct, 50%);
-  transform: translateX(-50%);
-  font-size: 1.2rem;
-  white-space: nowrap;
-}
-
-#pipeline-history-range {
-  width: 100%;
-}
-
-#pipeline-history-panel [data-slot="return-live"] {
-  float: right;
-}
-
 .pipeline-advisories {
   margin: 1.5rem 0;
 }

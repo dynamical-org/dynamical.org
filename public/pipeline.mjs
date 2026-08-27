@@ -130,9 +130,8 @@ export function displaySource(source) {
   return source?.replace(/^https?:\/\//, "") ?? "—";
 }
 
-function productsOf(snapshot) {
-  if (Array.isArray(snapshot.products)) return snapshot.products;
-  return (snapshot.groups ?? []).flatMap((group) => group.products ?? []);
+function productsOf(dashboard) {
+  return dashboard.groups.flatMap((group) => group.products);
 }
 
 function element(tag, attrs, children) {
@@ -209,7 +208,7 @@ export function initParts(timestamp, timeZone = "UTC") {
     date: `${part("month")}-${part("day")}`,
     time: timeZone === "UTC" ? `${hour}z` : `${hour} ${part("timeZoneName")}`,
   };
-  // scrubbing through history would otherwise grow this without bound
+  // the rolling init window would otherwise grow this without bound
   if (initPartCache.size >= INIT_PART_CACHE_MAX) initPartCache.clear();
   initPartCache.set(key, value);
   return value;
@@ -314,22 +313,13 @@ function leadSlices(groups) {
 }
 
 /* The lead groups a product measures, shortest horizon first — the order the
-   payload declares them in. History snapshots declare neither list up front,
-   so both fall back to the newest run's own. */
+   dashboard payload declares them in. */
 
 export function leadAxis(product) {
   const labelOf = new Map(
     (product.lead_group_stats ?? []).map((stats) => [stats.name, stats.label]),
   );
-  // a snapshot's newest run can be unobserved and carry no groups at all, while
-  // the runs beside it carry full data — so take the newest that reported any
-  const reported = [...(product.recent_inits ?? [])]
-    .reverse()
-    .find((init) => init.lead_groups?.length);
-  const declared = product.lead_groups?.length
-    ? product.lead_groups
-    : (reported?.lead_groups ?? []);
-  return declared.map((group) => ({
+  return (product.lead_groups ?? []).map((group) => ({
     kind: "lead",
     key: group.name,
     label: group.label ?? labelOf.get(group.name) ?? group.name,
@@ -1307,17 +1297,17 @@ function renderAdvisories(app, advisories, rows) {
   slot.append(container);
 }
 
-function renderSnapshot(app, snapshot, rows, now) {
+function renderDashboard(app, dashboard, rows, now) {
   const local = document.body.classList.contains("pipeline-time-local");
   app.querySelector('[data-slot="time-control"]').hidden = false;
   app
     .querySelector('[data-slot="generated-at"]')
-    .replaceChildren(timeNode(snapshot.generated_at));
+    .replaceChildren(timeNode(dashboard.generated_at));
   // measure every row before writing any of them: the row body is a 1fr grid
   // column, so its width does not depend on the field it holds, and reading all
   // the widths first costs one layout instead of one per product
   const pending = [];
-  for (const product of productsOf(snapshot)) {
+  for (const product of productsOf(dashboard)) {
     const row = rows.get(product.id);
     if (!row) continue;
     const body = row.querySelector(".pipeline-row-body");
@@ -1326,45 +1316,27 @@ function renderSnapshot(app, snapshot, rows, now) {
   for (const [row, product, available] of pending) {
     hydrateRow(row, product, now, local, available);
   }
-  renderAdvisories(app, snapshot.advisories ?? [], rows);
-}
-
-function historyTimestamp(value) {
-  return value.replace(
-    /T(\d{2})-(\d{2})-(\d{2})Z$/,
-    "T$1:$2:$3Z",
-  );
+  renderAdvisories(app, dashboard.advisories ?? [], rows);
 }
 
 function start(app) {
   const base = app.dataset.assetsBase.replace(/\/$/, "");
   const dashboardUrl = `${base}/dashboard.json`;
-  const historyIndexUrl = `${base}/history/index.json`;
   const rows = new Map();
   const ribbon = app.querySelector('[data-slot="ribbon"]');
   const banners = app.querySelector('[data-slot="banners"]');
   const timeToggle = app.querySelector("#status-time-toggle");
-  const historyButton = app.querySelector("#pipeline-history-toggle");
-  const historyPanel = app.querySelector("#pipeline-history-panel");
-  const historyRange = app.querySelector("#pipeline-history-range");
-  const scrubLabel = app.querySelector('[data-slot="scrub-label"]');
-  const scrubError = app.querySelector('[data-slot="scrub-error"]');
-  const returnLive = app.querySelector('[data-slot="return-live"]');
   const statusUrl = app.querySelector(".status-health").dataset.statusUrl;
 
   let latest = null;
-  let mode = "live";
-  let historyIndex = null;
   let pollTimer = null;
   let countdownTimer = null;
   let structureSignature = null;
-  let displayedSnapshot = null;
-  let displayedAt = null;
+  let displayedDashboard = null;
 
-  function displaySnapshot(snapshot, now) {
-    displayedSnapshot = snapshot;
-    displayedAt = now;
-    renderSnapshot(app, snapshot, rows, now);
+  function displayDashboard(dashboard, now) {
+    displayedDashboard = dashboard;
+    renderDashboard(app, dashboard, rows, now);
   }
 
   /* Clicking a product's field cycles its rows: lead time, then one grid per
@@ -1372,8 +1344,8 @@ function start(app) {
      survives every re-render, and the view index lives on the row. */
 
   function cycleView(row) {
-    if (!row || !displayedSnapshot) return;
-    const product = productsOf(displayedSnapshot).find(
+    if (!row || !displayedDashboard) return;
+    const product = productsOf(displayedDashboard).find(
       (entry) => entry.id === row.dataset.productId,
     );
     if (!product || viewsOf(product).length < 2) return;
@@ -1382,7 +1354,7 @@ function start(app) {
     hydrateRow(
       row,
       product,
-      displayedAt ?? Date.now(),
+      Date.now(),
       document.body.classList.contains("pipeline-time-local"),
       body?.getBoundingClientRect().width ?? 0,
     );
@@ -1407,27 +1379,17 @@ function start(app) {
   window.addEventListener("resize", () => {
     clearTimeout(refitTimer);
     refitTimer = setTimeout(() => {
-      if (!displayedSnapshot) return;
-      // a scrubbed snapshot keeps the time it was displayed at, exactly as the
-      // time-mode handler does — re-timing it to now invents latencies
-      displaySnapshot(
-        displayedSnapshot,
-        mode === "live" ? Date.now() : displayedAt,
-      );
+      if (!displayedDashboard) return;
+      displayDashboard(displayedDashboard, Date.now());
     }, 150);
   });
 
   function setTimeMode(local) {
     document.body.classList.toggle("pipeline-time-local", local);
     timeToggle.value = local ? "local" : "utc";
-    if (displayedSnapshot) {
-      displaySnapshot(
-        displayedSnapshot,
-        mode === "live" ? Date.now() : displayedAt,
-      );
+    if (displayedDashboard) {
+      displayDashboard(displayedDashboard, Date.now());
     }
-    const selected = mode === "scrub" ? selectedTimestamp() : null;
-    if (selected) updateScrubLabel(selected);
   }
 
   function showError(message) {
@@ -1447,7 +1409,7 @@ function start(app) {
     banners.replaceChildren();
     ribbon.hidden =
       Date.now() - Date.parse(latest.generated_at) <= STALE_AFTER_MS;
-    displaySnapshot(latest, Date.now());
+    displayDashboard(latest, Date.now());
   }
 
   async function fetchJson(url, cache = "default") {
@@ -1461,12 +1423,10 @@ function start(app) {
   }
 
   async function tick() {
-    if (mode !== "live") return;
     try {
       const dashboard = validateDashboard(
         await fetchJson(dashboardUrl, "no-cache"),
       );
-      if (mode !== "live") return;
       latest = dashboard;
       applyLive();
     } catch (error) {
@@ -1491,77 +1451,8 @@ function start(app) {
     }
   }
 
-  function selectedTimestamp() {
-    if (!historyIndex?.length) return null;
-    return historyIndex[historyIndex.length - 1 - Number(historyRange.value)];
-  }
-
-  function updateScrubLabel(timestamp) {
-    const date = historyTimestamp(timestamp);
-    scrubLabel.textContent = formatTime(
-      date,
-      document.body.classList.contains("pipeline-time-local"),
-    );
-    historyRange.setAttribute("aria-valuetext", scrubLabel.textContent);
-    const max = Number(historyRange.max);
-    const percent = max ? (Number(historyRange.value) / max) * 100 : 50;
-    scrubLabel.style.setProperty("--thumb-pct", `${percent}%`);
-    historyPanel.style.setProperty("--thumb-pct", `${percent}%`);
-  }
-
-  async function showSnapshot(timestamp) {
-    try {
-      const snapshot = await fetchJson(
-        `${base}/history/${timestamp}.json`,
-        "no-cache",
-      );
-      if (mode !== "scrub") return;
-      displaySnapshot(snapshot, Date.parse(snapshot.generated_at));
-      scrubError.hidden = true;
-    } catch (error) {
-      scrubError.hidden = false;
-      scrubError.textContent = `Snapshot unavailable (${error.message}).`;
-    }
-  }
-
-  async function openHistory() {
-    historyPanel.hidden = false;
-    historyButton.setAttribute("aria-expanded", "true");
-    if (!historyIndex) {
-      try {
-        historyIndex = await fetchJson(historyIndexUrl, "no-cache");
-        if (!Array.isArray(historyIndex) || historyIndex.length === 0) {
-          throw new Error("empty history");
-        }
-      } catch (error) {
-        scrubError.hidden = false;
-        scrubError.textContent = `History unavailable (${error.message}).`;
-        return;
-      }
-    }
-    historyRange.max = historyIndex.length - 1;
-    historyRange.value = historyIndex.length - 1;
-    historyRange.disabled = false;
-    updateScrubLabel(selectedTimestamp());
-  }
-
-  function resumeLive(close = false) {
-    mode = "live";
-    returnLive.hidden = true;
-    ribbon.hidden = false;
-    if (close) {
-      historyPanel.hidden = true;
-      historyButton.setAttribute("aria-expanded", "false");
-    }
-    tick();
-    if (pollTimer == null) pollTimer = setInterval(tick, POLL_INTERVAL_MS);
-    if (countdownTimer == null) {
-      countdownTimer = setInterval(updateLiveCountdowns, 1000);
-    }
-  }
-
   function updateLiveCountdowns() {
-    if (mode !== "live" || !latest) return;
+    if (!latest) return;
     const local = document.body.classList.contains("pipeline-time-local");
     const now = Date.now();
     for (const product of productsOf(latest)) {
@@ -1575,33 +1466,6 @@ function start(app) {
     }
   }
 
-  historyButton.addEventListener("click", () => {
-    if (historyPanel.hidden) openHistory();
-    else if (mode === "scrub") resumeLive(true);
-    else {
-      historyPanel.hidden = true;
-      historyButton.setAttribute("aria-expanded", "false");
-    }
-  });
-  historyRange.addEventListener("input", () => {
-    const timestamp = selectedTimestamp();
-    if (!timestamp) return;
-    updateScrubLabel(timestamp);
-    if (Number(historyRange.value) === Number(historyRange.max)) {
-      resumeLive();
-      return;
-    }
-    mode = "scrub";
-    clearInterval(pollTimer);
-    pollTimer = null;
-    clearInterval(countdownTimer);
-    countdownTimer = null;
-    ribbon.hidden = true;
-    banners.replaceChildren();
-    returnLive.hidden = false;
-    showSnapshot(timestamp);
-  });
-  returnLive.addEventListener("click", () => resumeLive(true));
   app.addEventListener("click", (event) => {
     const button = event.target.closest('[data-slot="details-button"]');
     if (!button) return;
@@ -1618,7 +1482,7 @@ function start(app) {
       pollTimer = null;
       clearInterval(countdownTimer);
       countdownTimer = null;
-    } else if (mode === "live") {
+    } else {
       tick();
       pollTimer ??= setInterval(tick, POLL_INTERVAL_MS);
       countdownTimer ??= setInterval(updateLiveCountdowns, 1000);

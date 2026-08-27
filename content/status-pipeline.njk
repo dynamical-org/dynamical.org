@@ -63,14 +63,6 @@ pageStylesheet: /pipeline.css
     <span>one cell per measurement · hover a cell for what it measured</span>
   </div>
 
-  <div id="pipeline-history-panel" hidden>
-    <span data-slot="scrub-label" aria-hidden="true">—</span>
-    <input type="range" id="pipeline-history-range" min="0" max="0" value="0"
-      step="1" aria-label="Pipeline history" aria-valuetext="live" disabled>
-    <p data-slot="scrub-error" hidden></p>
-    <button type="button" data-slot="return-live" hidden>return to live</button>
-  </div>
-
   <div data-slot="advisories"></div>
   <div data-slot="groups" aria-live="polite">
     <p data-slot="loading">Loading pipeline status…</p>
