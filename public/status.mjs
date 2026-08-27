@@ -260,6 +260,20 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       start < dayStart + 86_400_000
     );
   };
+  const hasCoverageGap = (component, start, end) => {
+    const spans = history.spans?.get(component);
+    if (!spans) {
+      return (history.cells?.get(component) ?? []).some(
+        (cell) => cell.state === "nodata" && dayOverlaps(cell, start, end),
+      );
+    }
+    const observed = spans.reduce(
+      (total, span) =>
+        total + Math.max(0, Math.min(span.end, end) - Math.max(span.start, start)),
+      0,
+    );
+    return observed < end - start;
+  };
 
   for (const configured of incidentGroups) {
     const windowStart = Date.parse(configured.started_at);
@@ -275,11 +289,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       if (configured.kind !== "observation") continue;
       const id = `incident-group-${configured.id}`;
       const componentsWithGaps = configured.components.filter((component) =>
-        (history.cells?.get(component) ?? []).some(
-          (cell) =>
-            cell.state === "nodata" &&
-            dayOverlaps(cell, windowStart, windowEnd),
-        ),
+        hasCoverageGap(component, windowStart, windowEnd),
       );
       if (componentsWithGaps.length === 0) continue;
       observationWindows.push({
@@ -342,7 +352,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       componentCells.map((cell) => {
         const standalone = observationWindows.filter(
           (window) =>
-            cell.state === "nodata" &&
+            ["operational", "nodata"].includes(cell.state) &&
             window.components.has(component) &&
             dayOverlaps(cell, window.start, window.end),
         );
@@ -522,6 +532,7 @@ export function buildHistory(eventsText, metaText) {
   const spans = componentSpans(events, { asOf });
   return {
     asOf,
+    spans,
     cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
     incidents: incidentLog(events),
     uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
