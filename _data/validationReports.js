@@ -8,6 +8,9 @@ const STAC_BASE_URL =
   (process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_BRANCH !== "main"
     ? "https://stac-staging.dynamical.org"
     : "https://stac.dynamical.org");
+// dynamical-stac asserts every published dataset has a report at this host under
+// `{id}/latest/validation_summary.md` (tests/test_validation_reports.py). Change
+// either and that check still passes while this build 404s — update it there too.
 const VALIDATION_BASE_URL =
   process.env.VALIDATION_REPORTS_BASE_URL ||
   "https://dataset-validation-reports.dynamical.org";
