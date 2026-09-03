@@ -1926,6 +1926,192 @@
           ],
           "next_expected_init": "2026-07-25T18:00:00Z",
           "next_expected_completion_at": "2026-07-25T19:30:00Z"
+        },
+        {
+          "id": "noaa-gfs-forecast-virtual",
+          "label": "NOAA GFS forecast, virtual",
+          "source": "s3://dynamical-noaa-gfs/noaa-gfs-forecast-virtual",
+          "source_label": null,
+          "row_label": "dynamical.org · virtual",
+          "cadence_hours": 6,
+          "init_hours": [
+            "00",
+            "06",
+            "12",
+            "18"
+          ],
+          "lead_groups": [
+            {
+              "name": "forecast",
+              "label": "fc",
+              "leads_in_group": 1,
+              "center_pct": 50
+            }
+          ],
+          "latency_stats": {
+            "p50_s": 4100,
+            "p95_s": 5000,
+            "p99_s": 6100,
+            "sample_init_count": 24
+          },
+          "lead_group_stats": [
+            {
+              "name": "forecast",
+              "label": "fc",
+              "leads_in_group": 1,
+              "p50_s": 4100,
+              "p95_s": 5000,
+              "p99_s": 6100
+            }
+          ],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-23T06:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 4020,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 4020,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-23T12:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 4050,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 4050,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-23T18:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 4140,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 4140,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T00:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 4030,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 4030,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T06:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 4330,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 4330,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T12:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 4100,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 4100,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-24T18:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 4230,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 4230,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 6000,
+              "lead_groups": [
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 6000,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                }
+              ]
+            }
+          ],
+          "next_expected_init": "2026-07-25T06:00:00Z",
+          "next_expected_completion_at": "2026-07-25T07:23:20Z"
         }
       ]
     },

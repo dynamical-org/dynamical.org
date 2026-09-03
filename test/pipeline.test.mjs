@@ -21,6 +21,11 @@ import {
   clockTime,
   detailRows,
   displaySource,
+  isDynamicalRow,
+  lagAt,
+  lagPercentile,
+  lagSeries,
+  sourceRowsOf,
   etaLineText,
   facetRows,
   initColumnPx,
@@ -1047,6 +1052,231 @@ test("facet rows take the timing of the run they describe", () => {
   assert.deepEqual(
     facetRows(product).map(({ status, timing }) => ({ status, timing })),
     [{ status: "processing", timing: "on_time" }],
+  );
+});
+
+/* Ingestion lag. dynamical.org's own rows carry a null `source_label` and sit
+   in the group of the sources they read, so the frontend subtracts: both
+   latencies are seconds after the same init. */
+
+function sourceRow(label, latencies) {
+  return {
+    source_label: label,
+    recent_inits: Object.entries(latencies).map(([init_time, latency_s]) => ({
+      init_time,
+      status: latency_s == null ? "in_flight" : "complete",
+      latency_s,
+      lead_groups: [
+        { status: "complete", latency_s: 900 },
+        { status: latency_s == null ? "in_flight" : "complete", latency_s },
+      ],
+    })),
+  };
+}
+
+function dynamicalRow(latencies) {
+  return {
+    source_label: null,
+    row_label: "dynamical.org · virtual",
+    recent_inits: Object.entries(latencies).map(([init_time, latency_s]) => ({
+      init_time,
+      status: latency_s == null ? "in_flight" : "complete",
+      latency_s,
+      lead_groups: [
+        { status: latency_s == null ? "in_flight" : "complete", latency_s },
+      ],
+    })),
+    lead_group_stats: [{ label: "fc", p50_s: 4100, p95_s: 5000, p99_s: 6100 }],
+    latency_stats: { p50_s: 4100, p95_s: 5000, p99_s: 6100, sample_init_count: 24 },
+  };
+}
+
+test("reads the source rows of a group off the null source label", () => {
+  const aws = sourceRow("AWS", { "2026-07-25T00:00:00Z": 3400 });
+  const virtual = dynamicalRow({ "2026-07-25T00:00:00Z": 4000 });
+
+  assert.deepEqual(sourceRowsOf([aws, virtual]), [aws]);
+  assert.equal(isDynamicalRow(virtual), true);
+  assert.equal(isDynamicalRow(aws), false);
+});
+
+test("splits the HRRR group into its two mirrors and the virtual row", () => {
+  // the shape wxopticon publishes: dynamical's dataset sits in the group of
+  // the sources it reads, and only it carries a null source_label
+  const products = [
+    { id: "external-noaa-hrrr-aws", source_label: "AWS" },
+    { id: "external-noaa-hrrr-ftp", source_label: "NOMADS" },
+    { id: "noaa-hrrr-forecast-48-hour-virtual", source_label: null },
+  ];
+
+  assert.deepEqual(
+    sourceRowsOf(products).map(({ id }) => id),
+    ["external-noaa-hrrr-aws", "external-noaa-hrrr-ftp"],
+  );
+  assert.deepEqual(
+    products.filter(isDynamicalRow).map(({ id }) => id),
+    ["noaa-hrrr-forecast-48-hour-virtual"],
+  );
+});
+
+test("lags a dynamical init behind the earliest source completion", () => {
+  const at = "2026-07-25T00:00:00Z";
+  const aws = sourceRow("AWS", { [at]: 3400 });
+  const nomads = sourceRow("NOMADS", { [at]: 3200 });
+  const [init] = dynamicalRow({ [at]: 4000 }).recent_inits;
+
+  assert.equal(lagAt(init, [aws]), 600);
+  // the earliest publication is the one worth measuring from, so two mirrors
+  // lag from the faster of them
+  assert.equal(lagAt(init, [aws, nomads]), 800);
+  assert.equal(lagAt(init, [nomads, aws]), 800);
+
+  // dynamical can land before a mirror it is not reading
+  const [early] = dynamicalRow({ [at]: 3000 }).recent_inits;
+  assert.equal(lagAt(early, [aws]), -400);
+});
+
+test("has no lag without a completed pair for the init", () => {
+  const at = "2026-07-25T00:00:00Z";
+  const aws = sourceRow("AWS", { [at]: 3400 });
+  const [running] = dynamicalRow({ [at]: null }).recent_inits;
+  const [done] = dynamicalRow({ [at]: 4000 }).recent_inits;
+
+  assert.equal(lagAt(running, [aws]), null); // dynamical still in flight
+  assert.equal(lagAt(done, [sourceRow("AWS", { [at]: null })]), null); // source is
+  assert.equal(lagAt(done, [sourceRow("AWS", { "2026-07-25T06:00:00Z": 3400 })]), null);
+  assert.equal(lagAt(done, []), null);
+  assert.equal(lagAt(null, [aws]), null);
+});
+
+test("takes lag percentiles by nearest rank, and only from a real sample", () => {
+  const lags = [600, 540, 660, 480, 720, 600, 540, 300];
+  assert.equal(lagPercentile(lags, 0.5), 540);
+  assert.equal(lagPercentile(lags, 0.95), 720);
+  assert.equal(lagPercentile(lags, 0.99), 720);
+
+  // one run is a number, not a distribution
+  assert.equal(lagPercentile([600], 0.5), null);
+  assert.equal(lagPercentile([], 0.5), null);
+  assert.equal(lagPercentile([-300, 600], 0.5), -300);
+});
+
+test("details read a dynamical row as lag after its source", () => {
+  const inits = {
+    "2026-07-25T00:00:00Z": 3400,
+    "2026-07-25T06:00:00Z": 3600,
+    "2026-07-25T12:00:00Z": 3500,
+  };
+  const aws = sourceRow("AWS", inits);
+  const virtual = dynamicalRow({
+    "2026-07-25T00:00:00Z": 3400 + 600,
+    "2026-07-25T06:00:00Z": 3600 - 180,
+    "2026-07-25T12:00:00Z": 3500 + 120,
+  });
+  const details = detailRows(
+    virtual,
+    Date.parse("2026-07-25T14:00:00Z"),
+    false,
+    [aws, virtual],
+  );
+
+  assert.equal(details.statsHeader, "lag after source · 3 recent samples");
+  const [row] = details.rows;
+  // the duration column carries the lag; the time beside it still says when
+  // the run finished
+  assert.equal(row.last.duration, "2m");
+  assert.equal(row.last.time, "13:00");
+  assert.equal(lagSeries(virtual, [aws]).length, 3);
+  assert.deepEqual([row.p50, row.p95, row.p99], ["2m", "10m", "10m"]);
+
+  // a single lagged run names its sample in the singular and reports no spread
+  const lone = dynamicalRow({ "2026-07-25T00:00:00Z": 4000 });
+  const only = detailRows(lone, Date.parse("2026-07-25T14:00:00Z"), false, [
+    sourceRow("AWS", { "2026-07-25T00:00:00Z": 3400 }),
+    lone,
+  ]);
+  assert.equal(only.statsHeader, "lag after source · 1 recent sample");
+  assert.deepEqual(
+    [only.rows[0].last.duration, only.rows[0].p50],
+    ["10m", "—"],
+  );
+});
+
+test("renders a negative lag with a sign", () => {
+  const at = "2026-07-25T00:00:00Z";
+  const virtual = dynamicalRow({ [at]: 3220 });
+  const details = detailRows(
+    virtual,
+    Date.parse("2026-07-25T14:00:00Z"),
+    false,
+    [sourceRow("AWS", { [at]: 3400 }), virtual],
+  );
+  assert.equal(details.rows[0].last.duration, "\u22123m");
+});
+
+test("keeps time after init where a row has no source beside it", () => {
+  const at = "2026-07-25T00:00:00Z";
+  const virtual = dynamicalRow({ [at]: 4000 });
+
+  // a dynamical row alone in its group, and the default with no group at all
+  for (const group of [[virtual], undefined]) {
+    const details = detailRows(
+      virtual,
+      Date.parse("2026-07-25T14:00:00Z"),
+      false,
+      group,
+    );
+    assert.equal(details.statsHeader, "time after init · 24 samples");
+    assert.deepEqual(
+      [details.rows[0].last.duration, details.rows[0].p50],
+      ["1h 7m", "1h 8m"],
+    );
+  }
+});
+
+test("leaves an upstream row untouched by a dynamical sibling", () => {
+  const at = "2026-07-25T00:00:00Z";
+  const aws = {
+    ...sourceRow("AWS", { [at]: 3600 }),
+    lead_group_stats: [{ label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 }],
+    latency_stats: { p50_s: 1200, p95_s: 1800, p99_s: 2400, sample_init_count: 30 },
+  };
+  const virtual = dynamicalRow({ [at]: 4000 });
+  const now = Date.parse("2026-07-25T14:00:00Z");
+
+  assert.deepEqual(
+    detailRows(aws, now, false, [aws, virtual]),
+    detailRows(aws, now, false),
+  );
+  assert.equal(
+    detailRows(aws, now, false, [aws, virtual]).statsHeader,
+    "time after init · 30 samples",
+  );
+});
+
+test("local preview fixture carries a dynamical row lagging its source", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  validateDashboard(fixture);
+  const group = fixture.groups.find(({ id }) => id === "noaa-gfs");
+  const product = group.products.find(({ source_label }) => source_label == null);
+  assert.equal(product.row_label, "dynamical.org · virtual");
+
+  const details = detailRows(
+    product,
+    Date.parse("2026-07-25T18:00:00Z"),
+    false,
+    group.products,
+  );
+  assert.equal(details.statsHeader, "lag after source · 8 recent samples");
+  assert.equal(details.rows[0].last.duration, "5m");
+  assert.deepEqual(
+    [details.rows[0].p50, details.rows[0].p95, details.rows[0].p99],
+    ["9m", "12m", "12m"],
   );
 });
 

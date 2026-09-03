@@ -134,6 +134,16 @@ function productsOf(dashboard) {
   return dashboard.groups.flatMap((group) => group.products);
 }
 
+// a dynamical row reads its lag off the sources beside it, so every row needs
+// its group's products; one pass builds the lookup for a whole render
+function groupProductsById(dashboard) {
+  const index = new Map();
+  for (const group of dashboard.groups) {
+    for (const product of group.products) index.set(product.id, group.products);
+  }
+  return index;
+}
+
 function element(tag, attrs, children) {
   const node = document.createElement(tag);
   for (const [name, value] of Object.entries(attrs ?? {})) {
@@ -159,6 +169,16 @@ function formatLatency(seconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.round((seconds % 3600) / 60);
   return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
+// a lag can run either way: the source's completion is wxopticon's stricter
+// one — every component and lead of the run — so dynamical can finish first,
+// and the column has to carry a sign
+function formatSignedLatency(seconds) {
+  if (seconds == null || !Number.isFinite(seconds)) return "—";
+  return seconds < 0
+    ? `−${formatLatency(-seconds)}`
+    : formatLatency(seconds);
 }
 
 function formatDuration(seconds) {
@@ -982,6 +1002,14 @@ function statsHeader(sampleInitCount) {
   return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
 }
 
+// A lag has no published baseline behind it, so its sample is the handful of
+// runs the payload carries — named apart from the upstream rows' own count.
+function lagStatsHeader(sampleCount) {
+  if (!sampleCount) return "lag after source";
+  const samples = sampleCount === 1 ? "recent sample" : "recent samples";
+  return `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+}
+
 const NO_RUN = Object.freeze({
   status: "—",
   state: null,
@@ -1040,7 +1068,67 @@ function labelledRun(label, initTime, local) {
   return initTime ? `${label} · ${initShort(initTime, local)}` : label;
 }
 
-export function detailRows(product, now, local) {
+/* Ingestion lag. dynamical.org's own rows sit in the same group as the upstream
+   sources they read, and their `source_label` is null; what matters for them is
+   not time after init but how long after the source published the dataset
+   landed. Both latencies are seconds after the same init, so the init cancels
+   out of the subtraction. */
+
+export function sourceRowsOf(products) {
+  return (products ?? []).filter(({ source_label }) => source_label != null);
+}
+
+export function isDynamicalRow(product) {
+  return product.source_label == null;
+}
+
+function completedLatency(measured) {
+  return measured?.status === "complete" && Number.isFinite(measured.latency_s)
+    ? measured.latency_s
+    : null;
+}
+
+function initAt(product, initTime) {
+  const at = Date.parse(initTime);
+  return (product.recent_inits ?? []).find(
+    (init) => Date.parse(init.init_time) === at,
+  );
+}
+
+// The earliest source completion is the one to measure from — a mirror that
+// lagged tells us nothing about when the data became available. Only whole
+// runs are subtracted: two rows carrying the same number of lead groups is no
+// evidence that they cut their horizons the same way, so there is no per-group
+// lag to report.
+export function lagAt(init, sources) {
+  if (!init) return null;
+  const mine = completedLatency(init);
+  if (mine == null) return null;
+  let earliest = null;
+  for (const source of sources) {
+    const theirs = completedLatency(initAt(source, init.init_time));
+    if (theirs == null) continue;
+    if (earliest == null || theirs < earliest) earliest = theirs;
+  }
+  return earliest == null ? null : mine - earliest;
+}
+
+export function lagSeries(product, sources) {
+  return (product.recent_inits ?? [])
+    .map((init) => lagAt(init, sources))
+    .filter((lag) => lag != null);
+}
+
+// Nearest rank over the runs the payload carries: no baseline is published for
+// a lag, so the columns summarise the sample on screen. Two runs is the least
+// that reads as a distribution rather than a single number three times.
+export function lagPercentile(lags, fraction) {
+  if (lags.length < 2) return null;
+  const sorted = [...lags].sort((a, b) => a - b);
+  return sorted[Math.max(1, Math.ceil(fraction * sorted.length)) - 1];
+}
+
+export function detailRows(product, now, local, groupProducts = []) {
   const recent = product.recent_inits ?? [];
   const activeIndex = recent.findLastIndex(
     (init) => init.status === "pending" || init.status === "in_flight",
@@ -1048,39 +1136,69 @@ export function detailRows(product, now, local) {
   const active = activeIndex >= 0 ? recent[activeIndex] : null;
   const last = activeIndex >= 0 ? recent[activeIndex - 1] : recent.at(-1);
   const upcoming = active ? null : product.next_expected_init;
+  const sources = isDynamicalRow(product) ? sourceRowsOf(groupProducts) : [];
+  const lagged = sources.length > 0;
+  // the lag is a property of the whole run, so every lead-group row of a
+  // lagged product reports the same series
+  const lags = lagged ? lagSeries(product, sources) : null;
+  const lastLag = lagAt(last, sources);
+  const runLag = lagAt(active, sources);
   return {
     lastHeader: labelledRun("last run", last?.init_time, local),
     runHeader: active
       ? labelledRun("current run", active.init_time, local)
       : labelledRun("upcoming run", upcoming, local),
-    statsHeader: statsHeader(product.latency_stats?.sample_init_count),
+    statsHeader: lagged
+      ? lagStatsHeader(lags.length)
+      : statsHeader(product.latency_stats?.sample_init_count),
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
       return {
         label: stats.label,
-        last: observedRunDetail(
-          last,
-          last?.lead_groups?.[index],
-          stats,
-          now,
-          local,
-          false,
+        last: withLag(
+          observedRunDetail(
+            last,
+            last?.lead_groups?.[index],
+            stats,
+            now,
+            local,
+            false,
+          ),
+          lagged,
+          lastLag,
         ),
-        run: active
-          ? observedRunDetail(
-              active,
-              active.lead_groups?.[index],
-              stats,
-              now,
-              local,
-              true,
-            )
-          : upcomingRunDetail(upcoming, stats, local),
-        p50: formatLatency(stats.p50_s),
-        p95: formatLatency(stats.p95_s),
-        p99: formatLatency(stats.p99_s),
+        run: withLag(
+          active
+            ? observedRunDetail(
+                active,
+                active.lead_groups?.[index],
+                stats,
+                now,
+                local,
+                true,
+              )
+            : upcomingRunDetail(upcoming, stats, local),
+          lagged,
+          runLag,
+        ),
+        p50: lags
+          ? formatSignedLatency(lagPercentile(lags, 0.5))
+          : formatLatency(stats.p50_s),
+        p95: lags
+          ? formatSignedLatency(lagPercentile(lags, 0.95))
+          : formatLatency(stats.p95_s),
+        p99: lags
+          ? formatSignedLatency(lagPercentile(lags, 0.99))
+          : formatLatency(stats.p99_s),
       };
     }),
   };
+}
+
+// On a lagged row the lag replaces the duration column outright — the
+// wall-clock time beside it still says when the run finished, and a lag of
+// null (no completed pair for that init) reads as "—".
+function withLag(detail, lagged, lag) {
+  return lagged ? { ...detail, duration: formatSignedLatency(lag) } : detail;
 }
 
 export function facetRows(product) {
@@ -1115,8 +1233,8 @@ function scrollable(table) {
   return element("div", { class: "table-container" }, [table]);
 }
 
-function buildDetails(product, now, local) {
-  const details = detailRows(product, now, local);
+function buildDetails(product, now, local, groupProducts) {
+  const details = detailRows(product, now, local, groupProducts);
   const groupHead = element("tr", null, [
     element("th", { rowspan: "2" }, "horizon"),
     element("th", { colspan: "3" }, details.lastHeader),
@@ -1204,7 +1322,7 @@ function buildDetails(product, now, local) {
   return element("div", null, [scrollable(leadTable), scrollable(facetTable)]);
 }
 
-function hydrateRow(row, product, now, local, available) {
+function hydrateRow(row, product, now, local, available, groupProducts) {
   // the lead grid is the view a row opens on; the facet grids are a click away
   const views = viewsOf(product);
   const index = wrapIndex(Number(row.dataset.view ?? 0), views.length);
@@ -1245,7 +1363,7 @@ function hydrateRow(row, product, now, local, available) {
   const details = row.querySelector('[data-slot="details"]');
   if (product.lead_group_stats?.length || facetRows(product).length) {
     button.hidden = false;
-    details.replaceChildren(buildDetails(product, now, local));
+    details.replaceChildren(buildDetails(product, now, local, groupProducts));
   } else {
     button.hidden = true;
     details.hidden = true;
@@ -1337,6 +1455,7 @@ function renderDashboard(app, dashboard, rows, now) {
   // column, so its width does not depend on the field it holds, and reading all
   // the widths first costs one layout instead of one per product
   const pending = [];
+  const siblings = groupProductsById(dashboard);
   for (const product of productsOf(dashboard)) {
     const row = rows.get(product.id);
     if (!row) continue;
@@ -1344,7 +1463,7 @@ function renderDashboard(app, dashboard, rows, now) {
     pending.push([row, product, body?.getBoundingClientRect().width ?? 0]);
   }
   for (const [row, product, available] of pending) {
-    hydrateRow(row, product, now, local, available);
+    hydrateRow(row, product, now, local, available, siblings.get(product.id));
   }
   renderAdvisories(app, dashboard.advisories ?? [], rows);
 }
@@ -1387,6 +1506,7 @@ function start(app) {
       Date.now(),
       document.body.classList.contains("pipeline-time-local"),
       body?.getBoundingClientRect().width ?? 0,
+      groupProductsById(displayedDashboard).get(product.id),
     );
   }
 
@@ -1485,13 +1605,16 @@ function start(app) {
     if (!latest) return;
     const local = document.body.classList.contains("pipeline-time-local");
     const now = Date.now();
+    const siblings = groupProductsById(latest);
     for (const product of productsOf(latest)) {
       const row = rows.get(product.id);
       if (!row) continue;
       hydrateEta(row, product, now, local);
       const details = row.querySelector('[data-slot="details"]');
       if (!details.hidden) {
-        details.replaceChildren(buildDetails(product, now, local));
+        details.replaceChildren(
+          buildDetails(product, now, local, siblings.get(product.id)),
+        );
       }
     }
   }

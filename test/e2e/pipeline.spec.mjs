@@ -394,6 +394,26 @@ test("details distinguish last, current or upcoming, and historical timings", as
   expect(headings[3]).toMatch(/^time after init · [\d,]+ samples$/);
 });
 
+test("a dynamical row reports lag after its source, not time after init", async ({
+  page,
+}) => {
+  await openPipeline(page);
+  const row = page
+    .locator(".pipeline-row")
+    .filter({ hasText: "dynamical.org · virtual" });
+  await row.locator('[data-slot="details-button"]').click();
+  const table = row.locator(".pipeline-row-details .table-container").first();
+
+  await expect(table.locator("thead tr:first-child th").nth(3)).toHaveText(
+    "lag after source · 8 recent samples",
+  );
+  // the lag replaces the duration column; the time beside it stays wall-clock
+  const cells = table.locator("tbody tr:first-child td");
+  await expect(cells.nth(2)).toHaveText(/^\d{2}:\d{2}$/);
+  await expect(cells.nth(3)).toHaveText("5m");
+  await expect(cells.nth(7)).toHaveText("9m");
+});
+
 test("each details table scrolls itself, under a header that names its column", async ({
   page,
 }) => {
