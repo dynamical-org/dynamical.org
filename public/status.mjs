@@ -216,14 +216,20 @@ export function uptimeDescription(measured, days) {
   return measured.delayed > 0 ? `${window} (${measured.delayed}% degraded)` : window;
 }
 
-// What an entry means for a reader, keyed by component id. The impact language
-// is the page's job, not the log's: the log records states; this says what the
-// state did to the thing you use. A component the publisher adds before this
-// page learns it falls back to generic phrasing rather than rendering nothing.
+// Row labels that say what a state means for a particular component, keyed by
+// component id then status. The scorecard updater is a cron whose late or failed
+// run leaves dynamical.org/scorecard serving stale data: a delay, not a
+// degradation of the page. Colour and data-status stay with the state.
 const LABELS = {
   scorecard: { degraded: "Delayed" },
 };
 
+// What an entry means for a reader, keyed by component id. The impact language
+// is the page's job, not the log's: the log records states; this says what the
+// state did to the thing you use. A component the publisher adds before this
+// page learns it falls back to generic phrasing rather than rendering nothing.
+// An `<kind>Ongoing` variant replaces the generic "— ongoing." for an open entry
+// where forward-looking copy is more useful than a dash.
 const IMPACT = {
   "dynamical-org": { outage: "The status page was unreachable" },
   "scorecard-site": { outage: "The scorecard page was unreachable" },
