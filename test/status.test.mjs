@@ -244,15 +244,20 @@ test("labels a degraded component as a live monitoring gap", () => {
   );
 });
 
-test("labels a degraded scorecard updater as delayed", () => {
+test("labels a degraded updater as delayed only when the publisher attests a delay", () => {
+  // The publisher marks a late or failed run; a degraded row without the mark
+  // may be missing telemetry, which is not evidence that a refresh was missed.
+  const row = {
+    id: "scorecard",
+    name: "scorecard updater",
+    group: "tool",
+    status: "degraded",
+  };
+  assert.equal(statusLabel({ ...row, delay: { kind: "delay" } }), "Delayed");
+  assert.equal(statusLabel(row), "Degraded");
   assert.equal(
-    statusLabel({
-      id: "scorecard",
-      name: "scorecard updater",
-      group: "tool",
-      status: "degraded",
-    }),
-    "Delayed",
+    statusLabel({ ...row, status: "operational", delay: { kind: "delay" } }),
+    "Operational",
   );
 });
 
@@ -564,11 +569,11 @@ test("incident descriptions distinguish scorecard delays from page outages", () 
   };
   assert.equal(
     incidentDescription(scorecardDelay, "scorecard updater"),
-    "The scorecard updater missed a refresh, leaving its data stale for 10 minutes.",
+    "The scorecard updater did not complete a refresh, so its data may have been stale for 10 minutes.",
   );
   assert.equal(
     incidentDescription({ ...scorecardDelay, end: null }, "scorecard updater"),
-    "The scorecard updater missed a refresh; data will be delayed until the next successful run.",
+    "The scorecard updater did not complete a refresh; its data may be stale until the next successful run.",
   );
   assert.equal(
     incidentDescription(

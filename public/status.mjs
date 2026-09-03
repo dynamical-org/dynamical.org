@@ -162,8 +162,9 @@ export function statusLabel(entry) {
   ) {
     return "Planned outage";
   }
-  const componentLabel = LABELS[entry.id]?.[entry.status];
-  if (componentLabel) return componentLabel;
+  if (entry.status === "degraded" && entry.delay?.kind === "delay") {
+    return "Delayed";
+  }
   return {
     operational: "Operational",
     degraded: "Degraded",
@@ -216,14 +217,6 @@ export function uptimeDescription(measured, days) {
   return measured.delayed > 0 ? `${window} (${measured.delayed}% degraded)` : window;
 }
 
-// Row labels that say what a state means for a particular component, keyed by
-// component id then status. The scorecard updater is a cron whose late or failed
-// run leaves dynamical.org/scorecard serving stale data: a delay, not a
-// degradation of the page. Colour and data-status stay with the state.
-const LABELS = {
-  scorecard: { degraded: "Delayed" },
-};
-
 // What an entry means for a reader, keyed by component id. The impact language
 // is the page's job, not the log's: the log records states; this says what the
 // state did to the thing you use. A component the publisher adds before this
@@ -251,9 +244,12 @@ const IMPACT = {
   },
   scorecard: {
     outage: "The scorecard stopped refreshing",
-    delay: "The scorecard updater missed a refresh, leaving its data stale",
+    // "Did not complete" and "may be stale" are what the check-in can attest to:
+    // it covers a missed, timed-out, or failed run alike, and a run that fails
+    // after uploading has already refreshed the page's data.
+    delay: "The scorecard updater did not complete a refresh, so its data may have been stale",
     delayOngoing:
-      "The scorecard updater missed a refresh; data will be delayed until the next successful run",
+      "The scorecard updater did not complete a refresh; its data may be stale until the next successful run",
   },
 };
 
