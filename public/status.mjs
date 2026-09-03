@@ -162,6 +162,8 @@ export function statusLabel(entry) {
   ) {
     return "Planned outage";
   }
+  const componentLabel = LABELS[entry.id]?.[entry.status];
+  if (componentLabel) return componentLabel;
   return {
     operational: "Operational",
     degraded: "Degraded",
@@ -214,12 +216,23 @@ export function uptimeDescription(measured, days) {
   return measured.delayed > 0 ? `${window} (${measured.delayed}% degraded)` : window;
 }
 
+// Row labels that say what a state means for a particular component, keyed by
+// component id then status. The scorecard updater is a cron whose late or failed
+// run leaves dynamical.org/scorecard serving stale data: a delay, not a
+// degradation of the page. Colour and data-status stay with the state.
+const LABELS = {
+  scorecard: { degraded: "Delayed" },
+};
+
 // What an entry means for a reader, keyed by component id. The impact language
 // is the page's job, not the log's: the log records states; this says what the
 // state did to the thing you use. A component the publisher adds before this
 // page learns it falls back to generic phrasing rather than rendering nothing.
+// An `<kind>Ongoing` variant replaces the generic "— ongoing." for an open entry
+// where forward-looking copy is more useful than a dash.
 const IMPACT = {
   "dynamical-org": { outage: "The status page was unreachable" },
+  "scorecard-site": { outage: "The scorecard page was unreachable" },
   "stac-catalog": { outage: "The STAC catalog API was unreachable" },
   "data-product-reads": {
     outage: "Reads of dynamical.org data failed their canary checks",
@@ -238,7 +251,9 @@ const IMPACT = {
   },
   scorecard: {
     outage: "The scorecard stopped refreshing",
-    delay: "The scorecard refreshed late",
+    delay: "The scorecard updater missed a refresh, leaving its data stale",
+    delayOngoing:
+      "The scorecard updater missed a refresh; data will be delayed until the next successful run",
   },
 };
 
@@ -473,6 +488,8 @@ export function incidentDescription(entry, name) {
   const impact =
     IMPACT[entry.component]?.[kind] ??
     (kind === "delay" ? `${name} ran behind` : `${name} was down`);
+  const ongoingImpact = IMPACT[entry.component]?.[`${kind}Ongoing`];
+  if (!entry.end && ongoingImpact) return `${ongoingImpact}.`;
   return entry.end
     ? `${impact} for ${formatDuration(entry.start, entry.end)}.`
     : `${impact} — ongoing.`;

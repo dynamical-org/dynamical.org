@@ -244,6 +244,18 @@ test("labels a degraded component as a live monitoring gap", () => {
   );
 });
 
+test("labels a degraded scorecard updater as delayed", () => {
+  assert.equal(
+    statusLabel({
+      id: "scorecard",
+      name: "scorecard updater",
+      group: "tool",
+      status: "degraded",
+    }),
+    "Delayed",
+  );
+});
+
 test("rejects malformed live observation metadata", () => {
   const entry = {
     id: "data-product-reads",
@@ -540,6 +552,30 @@ test("incident descriptions say what the state did to the thing you use", () => 
       "Data product reads",
     ),
     "Reads of dynamical.org data failed their canary checks for 10 minutes.",
+  );
+});
+
+test("incident descriptions distinguish scorecard delays from page outages", () => {
+  const scorecardDelay = {
+    component: "scorecard",
+    kind: "delay",
+    start: Date.parse("2026-07-29T17:10:00Z"),
+    end: Date.parse("2026-07-29T17:20:00Z"),
+  };
+  assert.equal(
+    incidentDescription(scorecardDelay, "scorecard updater"),
+    "The scorecard updater missed a refresh, leaving its data stale for 10 minutes.",
+  );
+  assert.equal(
+    incidentDescription({ ...scorecardDelay, end: null }, "scorecard updater"),
+    "The scorecard updater missed a refresh; data will be delayed until the next successful run.",
+  );
+  assert.equal(
+    incidentDescription(
+      { ...scorecardDelay, component: "scorecard-site", kind: "outage" },
+      "scorecard page",
+    ),
+    "The scorecard page was unreachable for 10 minutes.",
   );
 });
 
