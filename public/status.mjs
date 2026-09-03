@@ -162,6 +162,8 @@ export function statusLabel(entry) {
   ) {
     return "Planned outage";
   }
+  const componentLabel = LABELS[entry.id]?.[entry.status];
+  if (componentLabel) return componentLabel;
   return {
     operational: "Operational",
     degraded: "Degraded",
@@ -218,8 +220,13 @@ export function uptimeDescription(measured, days) {
 // is the page's job, not the log's: the log records states; this says what the
 // state did to the thing you use. A component the publisher adds before this
 // page learns it falls back to generic phrasing rather than rendering nothing.
+const LABELS = {
+  scorecard: { degraded: "Delayed" },
+};
+
 const IMPACT = {
   "dynamical-org": { outage: "The status page was unreachable" },
+  "scorecard-site": { outage: "The scorecard page was unreachable" },
   "stac-catalog": { outage: "The STAC catalog API was unreachable" },
   "data-product-reads": {
     outage: "Reads of dynamical.org data failed their canary checks",
@@ -238,7 +245,9 @@ const IMPACT = {
   },
   scorecard: {
     outage: "The scorecard stopped refreshing",
-    delay: "The scorecard refreshed late",
+    delay: "The scorecard updater missed a refresh, leaving its data stale",
+    delayOngoing:
+      "The scorecard updater missed a refresh; data will be delayed until the next successful run",
   },
 };
 
@@ -473,6 +482,8 @@ export function incidentDescription(entry, name) {
   const impact =
     IMPACT[entry.component]?.[kind] ??
     (kind === "delay" ? `${name} ran behind` : `${name} was down`);
+  const ongoingImpact = IMPACT[entry.component]?.[`${kind}Ongoing`];
+  if (!entry.end && ongoingImpact) return `${ongoingImpact}.`;
   return entry.end
     ? `${impact} for ${formatDuration(entry.start, entry.end)}.`
     : `${impact} — ongoing.`;
