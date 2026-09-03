@@ -11,4 +11,5 @@
 {"ts":"2026-07-19T19:55:00Z","kind":"coverage","component":"scorecard","monitored":true,"state":"operational"}
 {"ts":"2026-07-21T13:55:00Z","kind":"transition","component":"stac-catalog","to":"down"}
 {"ts":"2026-07-21T14:55:00Z","kind":"transition","component":"stac-catalog","to":"operational"}
+{"ts":"2026-07-24T14:55:00Z","kind":"coverage","component":"scorecard-site","monitored":true,"state":"operational"}
 {"ts":"2026-07-24T14:55:00Z","kind":"transition","component":"data-product-reads","to":"down"}

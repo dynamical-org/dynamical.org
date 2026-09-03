@@ -11,6 +11,7 @@ import {
   isHistoryCurrent,
   isStatusDataStale,
   overlappingEntries,
+  statusEntryGroups,
   statusLabel,
   STALE_MESSAGE,
   summarizeOverallStatus,
@@ -59,6 +60,7 @@ test("accepts the published feed shape", () => {
     [
       ["stac-catalog", "endpoint"],
       ["data-product-reads", "endpoint"],
+      ["scorecard-site", "tool"],
       ["scorecard", "tool"],
       ["wxopticon-arrivals", "tool"],
       ["wxopticon-webhooks", "tool"],
@@ -77,12 +79,49 @@ test("keeps the experimental wxopticon components off the page", () => {
   const data = withoutExperimentalComponents(validateStatusData(fixture));
   assert.deepEqual(
     data.endpoints.map((entry) => entry.id),
-    ["stac-catalog", "data-product-reads", "scorecard", "dynamical-org"],
+    [
+      "stac-catalog",
+      "data-product-reads",
+      "scorecard-site",
+      "scorecard",
+      "dynamical-org",
+    ],
   );
   // Dropping them from the component list is what hides their bars and their
   // incident-log entries; the rest of the document stays as published.
   assert.deepEqual(data.datasets, fixture.datasets);
   assert.deepEqual(data.component_aliases, fixture.component_aliases);
+});
+
+test("groups scorecard web and updater rows under one scorecard heading", () => {
+  const web = {
+    id: "scorecard-site",
+    name: "scorecard",
+    group: "tool",
+    status: "operational",
+  };
+  const updater = {
+    id: "scorecard",
+    name: "scorecard updater",
+    group: "tool",
+    status: "degraded",
+  };
+  const statusPage = operationalData.endpoints[0];
+
+  assert.deepEqual(statusEntryGroups([web, updater, statusPage]), [
+    {
+      name: "scorecard",
+      entries: [
+        { ...web, name: "web" },
+        { ...updater, name: "updater" },
+      ],
+    },
+    { entries: [statusPage] },
+  ]);
+  assert.deepEqual(statusEntryGroups([updater, statusPage]), [
+    { entries: [updater] },
+    { entries: [statusPage] },
+  ]);
 });
 
 test("an experimental component's state does not move the rollup", () => {

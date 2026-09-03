@@ -98,8 +98,14 @@
       "status": "down"
     },
     {
-      "id": "scorecard",
+      "id": "scorecard-site",
       "name": "scorecard",
+      "group": "tool",
+      "status": "operational"
+    },
+    {
+      "id": "scorecard",
+      "name": "scorecard updater",
       "group": "tool",
       "status": "operational"
     },

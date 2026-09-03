@@ -495,36 +495,82 @@ export function incidentDescription(entry, name) {
     : `${impact} — ongoing.`;
 }
 
+const SCORECARD_PARTS = [
+  ["scorecard-site", "web"],
+  ["scorecard", "updater"],
+];
+
+export function statusEntryGroups(entries) {
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  if (!SCORECARD_PARTS.every(([id]) => byId.has(id))) {
+    return entries.map((entry) => ({ entries: [entry] }));
+  }
+
+  const groupedIds = new Set(SCORECARD_PARTS.map(([id]) => id));
+  const first = entries.findIndex((entry) => groupedIds.has(entry.id));
+  return entries.flatMap((entry, index) => {
+    if (index === first) {
+      return [
+        {
+          name: "scorecard",
+          entries: SCORECARD_PARTS.map(([id, name]) => ({
+            ...byId.get(id),
+            name,
+          })),
+        },
+      ];
+    }
+    return groupedIds.has(entry.id) ? [] : [{ entries: [entry] }];
+  });
+}
+
+function renderStatusEntry(container, entry, bars, uptime, emptyCells, grouped) {
+  const header = document.createElement("header");
+  const name = document.createElement(grouped ? "span" : "h3");
+  const state = document.createElement("span");
+  // The glyph duplicates the adjacent label, so keep it out of the
+  // accessibility tree instead of announcing "black circle Operational".
+  const mark = document.createElement("span");
+
+  container.dataset.status = entry.status;
+  if (entry.maintenance?.kind) container.dataset.kind = entry.maintenance.kind;
+  if (entry.observation?.kind) container.dataset.kind = entry.observation.kind;
+  name.textContent = entry.name;
+  state.className = "status-label";
+  mark.setAttribute("aria-hidden", "true");
+  mark.textContent = statusMark(entry);
+  state.append(mark, ` ${statusLabel(entry)}`);
+  header.append(name, state);
+  container.append(header);
+
+  const cells = bars?.get(entry.id) ?? emptyCells;
+  const measured = uptime?.get(entry.id);
+  if (cells?.length && measured) {
+    const detail = document.createElement("p");
+    detail.textContent = uptimeDescription(measured, cells.length);
+    container.append(detail);
+  }
+  if (cells?.length) container.append(barStrip(cells));
+}
+
 function renderGroup(list, entries, bars, uptime, emptyCells) {
   list.replaceChildren();
-  for (const entry of entries) {
+  for (const group of statusEntryGroups(entries)) {
     const item = document.createElement("li");
-    const header = document.createElement("header");
-    const name = document.createElement("h3");
-    const state = document.createElement("span");
-    // The glyph duplicates the adjacent label, so keep it out of the
-    // accessibility tree instead of announcing "black circle Operational".
-    const mark = document.createElement("span");
-
-    item.dataset.status = entry.status;
-    if (entry.maintenance?.kind) item.dataset.kind = entry.maintenance.kind;
-    if (entry.observation?.kind) item.dataset.kind = entry.observation.kind;
-    name.textContent = entry.name;
-    state.className = "status-label";
-    mark.setAttribute("aria-hidden", "true");
-    mark.textContent = statusMark(entry);
-    state.append(mark, ` ${statusLabel(entry)}`);
-    header.append(name, state);
-    item.append(header);
-
-    const cells = bars?.get(entry.id) ?? emptyCells;
-    const measured = uptime?.get(entry.id);
-    if (cells?.length && measured) {
-      const detail = document.createElement("p");
-      detail.textContent = uptimeDescription(measured, cells.length);
-      item.append(detail);
+    if (group.name) {
+      const name = document.createElement("h3");
+      name.textContent = group.name;
+      item.className = "status-component-group";
+      item.append(name);
+      for (const entry of group.entries) {
+        const component = document.createElement("div");
+        component.className = "status-component-group-member";
+        renderStatusEntry(component, entry, bars, uptime, emptyCells, true);
+        item.append(component);
+      }
+    } else {
+      renderStatusEntry(item, group.entries[0], bars, uptime, emptyCells, false);
     }
-    if (cells?.length) item.append(barStrip(cells));
     list.append(item);
   }
 }
