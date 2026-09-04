@@ -48,12 +48,12 @@
     <meta name="twitter:image" content="{{ ogImage }}"/>
     <meta name="twitter:image:alt" content="{{ ogImageAlt }}"/>
     <link rel="stylesheet" type="text/css" href="/main.css?v={{ assets.mainCss }}"/>
-    {% if pageStylesheet %}<link rel="stylesheet" type="text/css" href="{{ pageStylesheet }}?v={{ assets.version(pageStylesheet) }}"/>
+    {% if pageStylesheet %}<link rel="stylesheet" type="text/css" href="{{ pageStylesheet }}?v={{ ("public" ~ pageStylesheet) | fileHash }}"/>
     {% endif %}
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-    <link href="/prism-atom-dark.css" rel="stylesheet"/>
+    <link href="/prism-atom-dark.css?v={{ "public/prism-atom-dark.css" | fileHash }}" rel="stylesheet"/>
     <link rel="icon" href="https://assets.dynamical.org/identity/logo/favicon/favicon.svg" type="image/svg+xml"/>
     <link rel="alternate icon" href="https://assets.dynamical.org/identity/logo/favicon/favicon.ico"/>
     <link rel="apple-touch-icon" href="https://assets.dynamical.org/identity/logo/favicon/apple-touch-icon.png"/>

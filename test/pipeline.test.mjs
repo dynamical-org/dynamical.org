@@ -1462,67 +1462,68 @@ test("vendored module imports resolve and cache rules distinguish the shim", () 
     new URL("../public/_headers", import.meta.url),
     "utf8",
   );
-  // a rule's lines are indented; a blank line ends it, so a rule cannot
-  // borrow the next rule's directives
-  const vendorRule = headers.match(
-    /^\/vendor\/\*\n((?:[ \t]+[^\r\n]+\n?)*)/m,
-  )?.[1];
-  assert.ok(vendorRule, "missing cache rule for versioned vendor modules");
-  assert.match(
-    vendorRule,
-    /Cache-Control: public, max-age=31536000, immutable/,
-  );
-  const shimRule = headers.match(
-    /^\/vendor\/preact-htm\.mjs\n((?:[ \t]+[^\r\n]+\n?)*)/m,
-  )?.[1];
-  assert.ok(shimRule, "missing cache rule for the unversioned vendor shim");
-  assert.match(shimRule, /! Cache-Control/);
-  assert.match(
-    shimRule,
-    /Cache-Control: public, max-age=0, must-revalidate/,
-  );
-  assert.doesNotMatch(shimRule, /immutable/);
-  // page modules import their helpers by bare path, which no query string
-  // reaches, so nothing outside /vendor/ may be cached past a revalidation
+  const rule = (path) =>
+    headers.match(
+      new RegExp(`^${path.replace(/[.*]/g, "\\$&")}\n((?:[ \t]+[^\r\n]+\n?)*)`, "m"),
+    )?.[1];
+  // every version-named library is immutable; nothing else in the directory
+  // is, since its name does not change when its contents do
+  for (const name of modules) {
+    const versioned = /-\d+\.\d+\.\d+\.mjs$/.test(name);
+    const cacheRule = rule(`/vendor/${name}`);
+    if (versioned) {
+      assert.match(
+        cacheRule ?? "",
+        /Cache-Control: public, max-age=31536000, immutable/,
+        `${name} is not cached immutably`,
+      );
+    } else {
+      assert.equal(cacheRule, undefined, `${name} must not have a cache rule`);
+    }
+  }
+  assert.doesNotMatch(headers, /^\/vendor\/\*$/m);
   assert.doesNotMatch(headers, /^\/\*\.mjs$/m);
 });
 
-// A deploy must not pair fresh HTML with a stale module or stylesheet, so
-// everything the HTML references directly carries a content hash. What a
-// module imports itself is revalidated on every load instead (see _headers).
-test("the HTML versions the stylesheets and page modules it references", () => {
-  const base = readFileSync(
-    new URL("../_includes/base.njk", import.meta.url),
-    "utf8",
-  );
-  const status = readFileSync(
-    new URL("../content/status.njk", import.meta.url),
-    "utf8",
-  );
-  const pipeline = readFileSync(
-    new URL("../content/status-pipeline.njk", import.meta.url),
-    "utf8",
-  );
-  assert.match(base, /href="\/main\.css\?v=\{\{ assets\.mainCss \}\}"/);
-  assert.match(
-    base,
-    /href="\{\{ pageStylesheet \}\}\?v=\{\{ assets\.version\(pageStylesheet\) \}\}"/,
-  );
-  assert.match(status, /src="\/status\.mjs\?v=\{\{ assets\.version\('\/status\.mjs'\) \}\}"/);
-  assert.match(
-    pipeline,
-    /src="\/pipeline\.mjs\?v=\{\{ assets\.version\('\/pipeline\.mjs'\) \}\}"/,
-  );
-});
+// A deploy must not pair fresh HTML with a stale stylesheet or script, so
+// every first-party .css, .js, or .mjs the templates reference directly
+// carries a content hash in its URL. What a module imports itself is
+// revalidated on every load instead (see public/_headers).
+test("the HTML versions every stylesheet and script it references", () => {
+  const roots = ["content", "_includes"];
+  const templates = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const file = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(file);
+      else if (/\.(?:njk|html|md)$/.test(entry.name)) templates.push(file);
+    }
+  };
+  for (const root of roots) walk(new URL(`../${root}`, import.meta.url).pathname);
 
-test("an asset's version follows its contents", async () => {
-  const { createRequire } = await import("node:module");
-  const assets = createRequire(import.meta.url)("../_data/assets.js");
-  assert.match(assets.version("/pipeline.mjs"), /^[0-9a-f]{8}$/);
-  assert.equal(assets.version("/pipeline.mjs"), assets.version("pipeline.mjs"));
-  assert.notEqual(assets.version("/pipeline.mjs"), assets.version("/status.mjs"));
+  const references = [];
+  for (const file of templates) {
+    const source = readFileSync(file, "utf8");
+    for (const match of source.matchAll(
+      // a versioned query is one Nunjucks expression, which may quote a path
+      /(?:src|href)="(\/[^"?]+\.(?:css|js|mjs))(\?v=\{\{[^}]*\}\}|\?[^"]*)?"/g,
+    )) {
+      references.push({ file, url: match[1], query: match[2] ?? "" });
+    }
+  }
+  assert.ok(references.length >= 5, "expected to find the site's asset tags");
+  for (const { file, url, query } of references) {
+    assert.ok(
+      existsSync(new URL(`../public${url}`, import.meta.url)),
+      `${file} references ${url}, which is not in public/`,
+    );
+    assert.match(
+      query,
+      /^\?v=\{\{ (?:"public\/[^"]+" \| fileHash|assets\.mainCss|\("public" ~ pageStylesheet\) \| fileHash) \}\}$/,
+      `${file} references ${url} without a content hash`,
+    );
+  }
 });
-
 test("a row re-fits its runs whenever its body changes size", () => {
   const script = readFileSync("public/pipeline.mjs", "utf8");
   // each row watches its own body, so a font landing or the toc rail
