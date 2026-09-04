@@ -1335,12 +1335,6 @@ test("local preview fixture carries a source-only group", () => {
 
   const [product] = group.products;
   assert.equal(product.row_label, "MSC Datamart");
-  // one sample is no baseline: the header says so where the percentiles sit,
-  // which is the only place the product explains itself between runs
-  assert.equal(
-    detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).statsHeader,
-    "time after init · 1 sample · insufficient history (1/30 days)",
-  );
   assert.equal(displaySource(product.source), "dd.weather.gc.ca");
   assert.equal(product.facet_groups, undefined);
   assert.equal(viewsOf(product).length, 1);
@@ -1348,9 +1342,11 @@ test("local preview fixture carries a source-only group", () => {
     (product.lead_group_stats ?? []).map(({ label }) => label),
     ["0h", "1d", "2d"],
   );
+  // one sample is no baseline: the header says so where the percentiles sit,
+  // the one place the product explains itself between runs
   assert.equal(
     detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).statsHeader,
-    "time after init \u00b7 1 sample",
+    "time after init \u00b7 1 sample \u00b7 insufficient history (1/30 days)",
   );
 });
 
