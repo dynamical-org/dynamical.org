@@ -475,9 +475,10 @@ test("a dynamical row reports lag after its source, not time after init", async 
   page,
 }) => {
   await openPipeline(page);
-  const row = page
-    .locator(".pipeline-row")
-    .filter({ hasText: "dynamical.org · virtual" });
+  const row = page.locator(
+    '.pipeline-row[data-product-id="noaa-gfs-forecast-virtual"]',
+  );
+  await expect(row.locator("strong").first()).toHaveText("dynamical.org");
   await row.locator('[data-slot="details-button"]').click();
   const table = row.locator(".pipeline-row-details .table-container").first();
 
