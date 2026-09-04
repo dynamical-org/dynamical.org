@@ -1501,25 +1501,44 @@ test("the HTML versions every stylesheet and script it references", () => {
   };
   for (const root of roots) walk(new URL(`../${root}`, import.meta.url).pathname);
 
+  // a page names its own stylesheet in front matter, and the layout links it
+  const pageStylesheets = [];
   const references = [];
   for (const file of templates) {
     const source = readFileSync(file, "utf8");
+    const declared = source.match(/^pageStylesheet:\s*(\S+)$/m)?.[1];
+    if (declared) pageStylesheets.push({ file, url: declared });
     for (const match of source.matchAll(
       // a versioned query is one Nunjucks expression, which may quote a path
-      /(?:src|href)="(\/[^"?]+\.(?:css|js|mjs))(\?v=\{\{[^}]*\}\}|\?[^"]*)?"/g,
+      /(?:src|href)="(\/[^"?]+\.(?:css|js|mjs)|\{\{ pageStylesheet \}\})(\?v=\{\{[^}]*\}\}|\?[^"]*)?"/g,
     )) {
       references.push({ file, url: match[1], query: match[2] ?? "" });
     }
   }
-  assert.ok(references.length >= 5, "expected to find the site's asset tags");
-  for (const { file, url, query } of references) {
+  assert.ok(pageStylesheets.length >= 1, "expected a page with its own stylesheet");
+  for (const { file, url } of pageStylesheets) {
     assert.ok(
       existsSync(new URL(`../public${url}`, import.meta.url)),
-      `${file} references ${url}, which is not in public/`,
+      `${file} declares pageStylesheet ${url}, which is not in public/`,
     );
+  }
+  assert.ok(
+    references.some(({ url }) => url === "{{ pageStylesheet }}"),
+    "expected the layout to link the page stylesheet",
+  );
+  assert.ok(references.length >= 6, "expected to find the site's asset tags");
+  for (const { file, url, query } of references) {
+    if (url.startsWith("/")) {
+      assert.ok(
+        existsSync(new URL(`../public${url}`, import.meta.url)),
+        `${file} references ${url}, which is not in public/`,
+      );
+    }
     assert.match(
       query,
-      /^\?v=\{\{ (?:"public\/[^"]+" \| fileHash|assets\.mainCss|\("public" ~ pageStylesheet\) \| fileHash) \}\}$/,
+      url === "{{ pageStylesheet }}"
+        ? /^\?v=\{\{ \("public" ~ pageStylesheet\) \| fileHash \}\}$/
+        : /^\?v=\{\{ (?:"public\/[^"]+" \| fileHash|assets\.mainCss) \}\}$/,
       `${file} references ${url} without a content hash`,
     );
   }
