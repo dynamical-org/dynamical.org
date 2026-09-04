@@ -1468,7 +1468,6 @@ test("vendored module imports resolve and cache rules distinguish the shim", () 
     /^\/vendor\/\*\n((?:[ \t]+[^\r\n]+\n?)*)/m,
   )?.[1];
   assert.ok(vendorRule, "missing cache rule for versioned vendor modules");
-  assert.match(vendorRule, /! Cache-Control/);
   assert.match(
     vendorRule,
     /Cache-Control: public, max-age=31536000, immutable/,
@@ -1480,9 +1479,48 @@ test("vendored module imports resolve and cache rules distinguish the shim", () 
   assert.match(shimRule, /! Cache-Control/);
   assert.match(
     shimRule,
-    /Cache-Control: public, max-age=14400, must-revalidate/,
+    /Cache-Control: public, max-age=0, must-revalidate/,
   );
   assert.doesNotMatch(shimRule, /immutable/);
+  // page modules import their helpers by bare path, which no query string
+  // reaches, so nothing outside /vendor/ may be cached past a revalidation
+  assert.doesNotMatch(headers, /^\/\*\.mjs$/m);
+});
+
+// A deploy must not pair fresh HTML with a stale module or stylesheet, so
+// everything the HTML references directly carries a content hash. What a
+// module imports itself is revalidated on every load instead (see _headers).
+test("the HTML versions the stylesheets and page modules it references", () => {
+  const base = readFileSync(
+    new URL("../_includes/base.njk", import.meta.url),
+    "utf8",
+  );
+  const status = readFileSync(
+    new URL("../content/status.njk", import.meta.url),
+    "utf8",
+  );
+  const pipeline = readFileSync(
+    new URL("../content/status-pipeline.njk", import.meta.url),
+    "utf8",
+  );
+  assert.match(base, /href="\/main\.css\?v=\{\{ assets\.mainCss \}\}"/);
+  assert.match(
+    base,
+    /href="\{\{ pageStylesheet \}\}\?v=\{\{ assets\.version\(pageStylesheet\) \}\}"/,
+  );
+  assert.match(status, /src="\/status\.mjs\?v=\{\{ assets\.version\('\/status\.mjs'\) \}\}"/);
+  assert.match(
+    pipeline,
+    /src="\/pipeline\.mjs\?v=\{\{ assets\.version\('\/pipeline\.mjs'\) \}\}"/,
+  );
+});
+
+test("an asset's version follows its contents", async () => {
+  const { createRequire } = await import("node:module");
+  const assets = createRequire(import.meta.url)("../_data/assets.js");
+  assert.match(assets.version("/pipeline.mjs"), /^[0-9a-f]{8}$/);
+  assert.equal(assets.version("/pipeline.mjs"), assets.version("pipeline.mjs"));
+  assert.notEqual(assets.version("/pipeline.mjs"), assets.version("/status.mjs"));
 });
 
 test("a row re-fits its runs whenever its body changes size", () => {

@@ -48,7 +48,7 @@
     <meta name="twitter:image" content="{{ ogImage }}"/>
     <meta name="twitter:image:alt" content="{{ ogImageAlt }}"/>
     <link rel="stylesheet" type="text/css" href="/main.css?v={{ assets.mainCss }}"/>
-    {% if pageStylesheet %}<link rel="stylesheet" type="text/css" href="{{ pageStylesheet }}"/>
+    {% if pageStylesheet %}<link rel="stylesheet" type="text/css" href="{{ pageStylesheet }}?v={{ assets.version(pageStylesheet) }}"/>
     {% endif %}
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>

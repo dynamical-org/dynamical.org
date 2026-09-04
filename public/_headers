@@ -1,12 +1,17 @@
-# Cloudflare Pages merges matching rules, so narrower rules detach the broader
-# Cache-Control value before setting their own.
-/*.mjs
-  Cache-Control: public, max-age=14400, must-revalidate
-
+# Cloudflare Pages merges matching rules, so a narrower rule detaches the
+# broader Cache-Control value before setting its own.
+#
+# The vendored libraries are versioned in their file names, so an upgrade is a
+# new URL and the old one can be cached for as long as a browser likes. The
+# shim beside them keeps its name and changes on every upgrade, and page
+# modules import it by bare path — no query string can reach that — so it is
+# revalidated on every load, like the page modules and helpers themselves
+# (Pages' default for .mjs). The HTML references stylesheets and page modules
+# with a content hash in the query string (_data/assets.js), so a deploy is
+# consistent end to end.
 /vendor/*
-  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
 /vendor/preact-htm.mjs
   ! Cache-Control
-  Cache-Control: public, max-age=14400, must-revalidate
+  Cache-Control: public, max-age=0, must-revalidate

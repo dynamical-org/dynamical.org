@@ -73,4 +73,4 @@ pageStylesheet: /pipeline.css
 
 <style>{{ tocCSS | safe }}</style>
 <script>{{ tocJS | safe }}</script>
-<script type="module" src="/pipeline.mjs"></script>
+<script type="module" src="/pipeline.mjs?v={{ assets.version('/pipeline.mjs') }}"></script>
