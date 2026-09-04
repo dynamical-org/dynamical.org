@@ -984,9 +984,9 @@ function statsHeader(sampleInitCount, note = null) {
 // The note beside it is about the row's own arrival baseline, not the lag
 // sample: the lag stays, but without that baseline the run gets no timing.
 function lagStatsHeader(sampleCount, note = null) {
-  if (!sampleCount) return "lag after source";
+  if (!sampleCount) return "lag vs earliest source";
   const samples = sampleCount === 1 ? "recent sample" : "recent samples";
-  const header = `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+  const header = `lag vs earliest source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
   return note ? `${header} · ${note}` : header;
 }
 
@@ -1136,8 +1136,10 @@ export function detailRows(product, now, local, groupProducts = []) {
         ),
     // the run columns' third cell measures from a different point on a lagged
     // row, and the stats header naming it sits a scroll away; the sub-header
-    // names the reference point where the number is
-    durationHeader: lagged ? "after source" : "after init",
+    // names the reference point where the number is, "vs" because the lag is
+    // signed and "earliest" because the comparator is whichever mirror landed
+    // first for that init
+    durationHeader: lagged ? "vs earliest source" : "after init",
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
       return {
         name: stats.name,

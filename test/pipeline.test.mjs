@@ -1215,10 +1215,10 @@ test("details read a dynamical row as lag after its source", () => {
     [aws, virtual],
   );
 
-  assert.equal(details.statsHeader, "lag after source · 3 recent samples");
+  assert.equal(details.statsHeader, "lag vs earliest source · 3 recent samples");
   // the duration column carries the lag and its header says so; the time
   // beside it still says when the run finished
-  assert.equal(details.durationHeader, "after source");
+  assert.equal(details.durationHeader, "vs earliest source");
   const [row] = details.rows;
   assert.equal(row.last.duration, "2m");
   assert.equal(row.last.time, "13:00");
@@ -1231,7 +1231,7 @@ test("details read a dynamical row as lag after its source", () => {
     sourceRow("AWS", { "2026-07-25T00:00:00Z": 3400 }),
     lone,
   ]);
-  assert.equal(only.statsHeader, "lag after source · 1 recent sample");
+  assert.equal(only.statsHeader, "lag vs earliest source · 1 recent sample");
   assert.deepEqual(
     [only.rows[0].last.duration, only.rows[0].p50],
     ["10m", "—"],
@@ -1248,6 +1248,25 @@ test("renders a negative lag with a sign", () => {
     [sourceRow("AWS", { [at]: 3400 }), virtual],
   );
   assert.equal(details.rows[0].last.duration, "\u22123m");
+});
+
+test("a lagged run in flight shows no lag, not its elapsed time", () => {
+  const done = "2026-07-25T00:00:00Z";
+  const running = "2026-07-25T06:00:00Z";
+  const virtual = dynamicalRow({ [done]: 3400 + 600, [running]: null });
+  const details = detailRows(
+    virtual,
+    Date.parse("2026-07-25T06:20:00Z"),
+    false,
+    [sourceRow("AWS", { [done]: 3400, [running]: 3300 }), virtual],
+  );
+
+  // the header says the column is a lag, so the init-relative counter an
+  // ordinary active run would show must not sit beneath it
+  assert.equal(details.durationHeader, "vs earliest source");
+  assert.equal(details.rows[0].last.duration, "10m");
+  assert.equal(details.rows[0].run.status, "processing");
+  assert.equal(details.rows[0].run.duration, "\u2014");
 });
 
 test("keeps time after init where a row has no source beside it", () => {
@@ -1338,7 +1357,7 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
   // the lag stays; the note says why the run beside it carries no timing
   assert.equal(
     details.statsHeader,
-    "lag after source · 8 recent samples · insufficient history (24/30 days)",
+    "lag vs earliest source · 8 recent samples · insufficient history (24/30 days)",
   );
   assert.equal(details.rows[0].last.duration, "5m");
   assert.deepEqual(
