@@ -1,7 +1,7 @@
 // One import for a page: Preact, its hooks, and an `html` tag bound to `h`.
 // See README.md beside this file for the versions and the one local edit.
-import htm from "./htm.mjs";
-import { h } from "./preact.mjs";
+import htm from "./htm-3.1.1.mjs";
+import { h } from "./preact-10.29.8.mjs";
 
 export const html = htm.bind(h);
 export {
@@ -11,7 +11,7 @@ export {
   createRef,
   h,
   render,
-} from "./preact.mjs";
+} from "./preact-10.29.8.mjs";
 export {
   useCallback,
   useContext,
@@ -21,4 +21,4 @@ export {
   useReducer,
   useRef,
   useState,
-} from "./preact-hooks.mjs";
+} from "./preact-hooks-10.29.8.mjs";

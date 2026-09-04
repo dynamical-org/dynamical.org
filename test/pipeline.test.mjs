@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -1432,6 +1432,55 @@ test("preview branches select the private staging route", () => {
   );
   assert.match(source, /process\.env\.CF_PAGES_BRANCH/);
   assert.match(source, /\/pipeline-staging\/wxopticon/);
+});
+
+test("vendored module imports resolve and cache rules distinguish the shim", () => {
+  const vendorDir = new URL("../public/vendor/", import.meta.url);
+  const modules = readdirSync(vendorDir).filter((name) => name.endsWith(".mjs"));
+
+  for (const name of modules) {
+    const moduleUrl = new URL(name, vendorDir);
+    const source = readFileSync(moduleUrl, "utf8");
+    const specifiers = [
+      ...source.matchAll(
+        /\b(?:import|export)\s+(?:[^;]*?\s+from\s*)?["'](\.[^"']+)["']/g,
+      ),
+      ...source.matchAll(
+        /\bimport\s*\(\s*["'](\.[^"']+)["']\s*\)/g,
+      ),
+    ].map((match) => match[1]);
+
+    for (const specifier of specifiers) {
+      assert.ok(
+        existsSync(new URL(specifier, moduleUrl)),
+        `${name} imports missing ${specifier}`,
+      );
+    }
+  }
+
+  const headers = readFileSync(
+    new URL("../public/_headers", import.meta.url),
+    "utf8",
+  );
+  const vendorRule = headers.match(
+    /^\/vendor\/\*\n((?:\s+.+\n?)*)/m,
+  )?.[1];
+  assert.ok(vendorRule, "missing cache rule for versioned vendor modules");
+  assert.match(vendorRule, /! Cache-Control/);
+  assert.match(
+    vendorRule,
+    /Cache-Control: public, max-age=31536000, immutable/,
+  );
+  const shimRule = headers.match(
+    /^\/vendor\/preact-htm\.mjs\n((?:\s+.+\n?)*)/m,
+  )?.[1];
+  assert.ok(shimRule, "missing cache rule for the unversioned vendor shim");
+  assert.match(shimRule, /! Cache-Control/);
+  assert.match(
+    shimRule,
+    /Cache-Control: public, max-age=14400, must-revalidate/,
+  );
+  assert.doesNotMatch(shimRule, /immutable/);
 });
 
 test("a row re-fits its runs whenever its body changes size", () => {
