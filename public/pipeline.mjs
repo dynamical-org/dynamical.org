@@ -809,7 +809,8 @@ function FacetRowsField({ product, local, runCount, dimension }) {
   const runsPerLane = Math.ceil(runs.length / laneCount);
   // older runs occupy the first lane; newer runs continue in the second. The
   // lanes are keyed by that slot, so when the window rolls forward a run keeps
-  // its node unless it crosses from one lane to the other
+  // its node unless it crosses from one lane to the other — the one run per
+  // roll that does is redrawn, since each lane owns its runs' nodes
   const lanes = [];
   for (let start = 0; start < runs.length; start += runsPerLane) {
     lanes.push(runs.slice(start, start + runsPerLane));
@@ -1194,7 +1195,7 @@ function Details({ product, now, local, groupProducts }) {
       </thead>
       <tbody>
         ${details.rows.map(
-          (row) => html`<tr key=${row.name}>
+          (row) => html`<tr key=${row.name ?? row.label}>
             <td>${row.label}</td>
             <${StatusCell} detail=${row.last} />
             <td>${row.last.time}</td>
@@ -1568,9 +1569,15 @@ function start(app) {
 
   const actions = {
     cycleView(product) {
-      if (viewsOf(product).length < 2) return;
+      const count = viewsOf(product).length;
+      if (count < 2) return;
+      // stored wrapped, as the old row attribute was, so the index never
+      // outruns the views and a later change in their number reads the same
       store.update((state) => ({
-        views: { ...state.views, [product.id]: (state.views[product.id] ?? 0) + 1 },
+        views: {
+          ...state.views,
+          [product.id]: wrapIndex((state.views[product.id] ?? 0) + 1, count),
+        },
         now: Date.now(),
       }));
     },

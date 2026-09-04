@@ -659,7 +659,8 @@ test.describe("what the reader has done survives a refresh", () => {
   });
 
   // the window rolls forward one run per cadence; the runs still in it keep
-  // their squares, in both the lead grid and the two-lane facet grid
+  // their squares, in the lead grid and within each lane of the facet grid
+  // (the one run that crosses from the newer lane to the older is redrawn)
   test("a poll that rolls the window forward", async ({ page }) => {
     const roll = (payload) => {
       const product = payload.groups[0].products[0];
@@ -704,30 +705,45 @@ test.describe("what the reader has done survives a refresh", () => {
   });
 
   // a view that the payload stops offering and later offers again does not
-  // reappear on its own: the row stays on the grid it fell back to
+  // reappear on its own: the row stays on the grid it fell back to, and it
+  // falls back the way the old page did — from the view it showed, not from
+  // however many times the field was clicked to get there
   test("a poll that takes a view away and one that brings it back", async ({
     page,
   }) => {
     const row = await openPipeline(page, (payload, served) => {
       if (served === 2) {
+        // only the member dimension goes; component stays, so two views remain
         const product = payload.groups[0].products[0];
         for (const init of product.recent_inits) {
-          for (const group of init.lead_groups ?? []) delete group.facets;
+          for (const group of init.lead_groups ?? []) {
+            group.facets = group.facets?.filter(
+              (facet) => facet.dimension !== "member",
+            );
+          }
         }
       }
       return payload;
     });
-    await row.locator(".pipeline-viz").click();
-    await row.locator(".pipeline-viz").click();
+    // five clicks through three views: one full turn and then two more
+    for (let click = 0; click < 5; click += 1) {
+      await row.locator(".pipeline-viz").click();
+    }
     await expect(row).toHaveAttribute("data-view", "2");
 
     await page.clock.runFor(15_000);
     await expect(row).toHaveAttribute("data-view", "0");
-    await expect(row.locator(".pipeline-viz")).not.toHaveAttribute("role");
+    await expect(row.locator(".pipeline-viz")).toHaveAttribute(
+      "aria-label",
+      /activate for component$/,
+    );
 
     await page.clock.runFor(15_000);
-    await expect(row.locator(".pipeline-viz")).toHaveAttribute("role", "group");
     await expect(row).toHaveAttribute("data-view", "0");
+    await expect(row.locator(".pipeline-viz")).toHaveAttribute(
+      "aria-label",
+      /activate for component$/,
+    );
   });
 
   test("a poll that adds a product above an expanded one", async ({ page }) => {
