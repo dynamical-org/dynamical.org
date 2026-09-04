@@ -184,6 +184,32 @@ test("rejects empty or globally duplicated endpoint ids", () => {
   assert.throws(() => validateStatusData(duplicate), /invalid status entry id/i);
 });
 
+test("rejects same-id incident groups that do not coalesce", () => {
+  const group = {
+    id: "publisher-outage",
+    kind: "outage",
+    summary: "Publisher outage",
+    started_at: "2026-07-21T13:55:00Z",
+    ended_at: "2026-07-21T14:55:00Z",
+    components: ["dynamical-org"],
+  };
+  const duplicate = {
+    ...group,
+    summary: "Separate publisher outage",
+    started_at: "2026-07-22T13:55:00Z",
+    ended_at: "2026-07-22T14:55:00Z",
+  };
+
+  assert.throws(
+    () =>
+      validateStatusData({
+        ...operationalData,
+        incident_groups: [group, duplicate],
+      }),
+    /invalid incident group id/i,
+  );
+});
+
 test("does not require the deferred dataset section", () => {
   assert.doesNotThrow(() =>
     validateStatusData({ ...operationalData, datasets: [] }),
