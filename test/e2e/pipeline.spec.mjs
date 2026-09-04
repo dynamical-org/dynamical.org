@@ -31,17 +31,21 @@ const REPEATED_LEAD_LABELS = Array.from(
    applying — leaving a test asserting against whatever the server happened to
    serve. */
 
-/** Serve the pipeline page its data, optionally reshaped for one test. */
+/** Serve the pipeline page its data, optionally reshaped for one test. The
+ * reshaping sees which request this is, counted from one, so a spec can hand
+ * the poll something different from what the page loaded with. */
 async function stubPipeline(page, mutate = (payload) => payload) {
-  const payload = mutate(structuredClone(FIXTURE));
-  await page.route("**/dashboard.json", (route) =>
-    route.fulfill({
+  let served = 0;
+  await page.route("**/dashboard.json", (route) => {
+    served += 1;
+    const payload = mutate(structuredClone(FIXTURE), served);
+    return route.fulfill({
       status: 200,
       contentType: "application/json",
       headers: JSON_HEADERS,
       body: JSON.stringify(payload),
-    }),
-  );
+    });
+  });
   // the shared health strip is a separate feed; stub it so the spec neither
   // waits on the network nor reports its failures as ours
   await page.route("**/status.json", (route) =>
@@ -51,6 +55,27 @@ async function stubPipeline(page, mutate = (payload) => payload) {
       headers: JSON_HEADERS,
       body: JSON.stringify({ endpoints: [{ status: "operational" }] }),
     }),
+  );
+}
+
+/** Every timestamp in the payload shifted so the running init began `agoMs`
+ * ago. The committed fixture pins its times so tests can assert on them, which
+ * leaves its running init hours old and its elapsed duration reading in whole
+ * minutes; a run twenty minutes old reads "19m 40s" and ticks every second. */
+function withRecentRun(payload, agoMs) {
+  const product = payload.groups[0].products[0];
+  const running = product.recent_inits.findLast(
+    (init) => init.status === "in_flight",
+  );
+  const shift = Date.now() - agoMs - Date.parse(running.init_time);
+  return JSON.parse(
+    JSON.stringify(payload, (_key, value) =>
+      typeof value === "string" &&
+      /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) &&
+      Number.isFinite(Date.parse(value))
+        ? new Date(Date.parse(value) + shift).toISOString()
+        : value,
+    ),
   );
 }
 
@@ -481,32 +506,158 @@ test("the same status reads the same color in both details tables", async ({
   expect(new Set(colors)).toEqual(new Set(["rgb(91, 197, 74)"]));
 });
 
-// Open details are rebuilt once a second so their elapsed durations tick; the
+// Open details re-render once a second so their elapsed durations tick. The
 // rebuild used to recreate each table's scroll box and so snap it back to the
-// left edge every tick, which made a wide table impossible to read.
+// left edge every tick, which made a wide table impossible to read. Now the
+// keyed diff keeps the box, so the check holds on to the node itself: the same
+// element, still connected, still scrolled, after the tick has visibly happened.
 test("details keep their horizontal scroll across the live refresh", async ({
   page,
 }) => {
-  const row = await openPipeline(page);
+  const row = await openPipeline(page, (payload) =>
+    withRecentRun(payload, 20 * 60 * 1000),
+  );
   await row.locator('[data-slot="details-button"]').click();
   const table = row.locator(".pipeline-row-details .table-container").first();
+  const container = await table.elementHandle();
 
-  const scrolled = await table.evaluate((node) => {
+  const scrolled = await container.evaluate((node) => {
     node.scrollLeft = 120;
     return node.scrollLeft;
   });
   expect(scrolled).toBeGreaterThan(0);
-  // wait for the countdown's rebuild to have actually replaced the table,
-  // rather than for the clock, then read the position off its replacement
-  const before = await table.elementHandle();
-  await page.waitForFunction((node) => !node.isConnected, before);
-  await expect(table).toHaveJSProperty("scrollLeft", scrolled);
 
-  // view cycling rebuilds the row through hydrateRow, the path the dashboard
-  // poll, a resize, and the time-zone toggle share
+  // the 3d horizon is the one the current run is still working on, so its
+  // duration counts up from the init: wait for the countdown to have actually
+  // changed it, rather than for the clock
+  const duration = table.locator("tbody tr:last-child td").nth(6);
+  const before = await duration.textContent();
+  expect(before).toMatch(/^\d+m \d+s$/);
+  await expect(duration).not.toHaveText(before);
+  expect(await container.evaluate((node) => node.isConnected)).toBe(true);
+  expect(await container.evaluate((node) => node.scrollLeft)).toBe(scrolled);
+
+  // view cycling re-renders the row through the same path as the dashboard
+  // poll, a resize, and the time-zone toggle
   await row.locator(".pipeline-viz").click();
   await expect(row).toHaveAttribute("data-view", "1");
-  await expect(table).toHaveJSProperty("scrollLeft", scrolled);
+  expect(await container.evaluate((node) => node.isConnected)).toBe(true);
+  expect(await container.evaluate((node) => node.scrollLeft)).toBe(scrolled);
+});
+
+// Every refresh — the countdown each second, the poll every fifteen — used to
+// rebuild subtrees, and whatever the reader had done to them went with the old
+// nodes. These specs hold on to the nodes and check that the same ones are
+// still there afterwards, carrying the same state: nothing restores it by hand.
+test.describe("what the reader has done survives a refresh", () => {
+  // a fake clock makes the refresh happen on demand rather than by waiting
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install();
+  });
+
+  /** Open the first row's details, scroll its table, focus the button that
+   * opened it, and select the row's source line. */
+  async function settleIn(page, row) {
+    await row.locator('[data-slot="details-button"]').click();
+    const table = row.locator(".pipeline-row-details .table-container").first();
+    const container = await table.elementHandle();
+    const scrolled = await container.evaluate((node) => {
+      node.scrollLeft = 120;
+      return node.scrollLeft;
+    });
+    expect(scrolled).toBeGreaterThan(0);
+    const button = await row
+      .locator('[data-slot="details-button"]')
+      .elementHandle();
+    await button.focus();
+    const selected = await row
+      .locator(".pipeline-source-meta > div")
+      .first()
+      .evaluate((node) => {
+        getSelection().selectAllChildren(node);
+        return getSelection().toString();
+      });
+    expect(selected).not.toBe("");
+    return { container, scrolled, button, selected };
+  }
+
+  async function stillSettled(page, row, { container, scrolled, button, selected }) {
+    expect(await container.evaluate((node) => node.isConnected)).toBe(true);
+    expect(await container.evaluate((node) => node.scrollLeft)).toBe(scrolled);
+    expect(
+      await button.evaluate((node) => node === document.activeElement),
+    ).toBe(true);
+    await expect(row.locator('[data-slot="details-button"]')).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    await expect(row.locator('[data-slot="details"]')).toBeVisible();
+    expect(await page.evaluate(() => getSelection().toString())).toBe(selected);
+  }
+
+  test("a countdown tick", async ({ page }) => {
+    const row = await openPipeline(page, (payload) =>
+      withRecentRun(payload, 20 * 60 * 1000),
+    );
+    const settled = await settleIn(page, row);
+    // the 3d horizon is the one the current run is still working on
+    const duration = row
+      .locator(".pipeline-row-details .table-container")
+      .first()
+      .locator("tbody tr:last-child td")
+      .nth(6);
+    const before = await duration.textContent();
+    expect(before).toMatch(/^\d+m \d+s$/);
+
+    await page.clock.runFor(1000);
+
+    await expect(duration).not.toHaveText(before);
+    await stillSettled(page, row, settled);
+  });
+
+  test("a poll that brings new data", async ({ page }) => {
+    const row = await openPipeline(page, (payload, served) => {
+      if (served > 1) payload.groups[0].label = "NOAA GFS forecast · refreshed";
+      return payload;
+    });
+    const settled = await settleIn(page, row);
+
+    await page.clock.runFor(15_000);
+
+    // the second response was rendered, not just requested
+    await expect(page.locator(".pipeline-group h3").first()).toHaveText(
+      "NOAA GFS forecast · refreshed",
+    );
+    await stillSettled(page, row, settled);
+  });
+
+  test("a poll that adds a product above an expanded one", async ({ page }) => {
+    await openPipeline(page, (payload, served) => {
+      if (served > 1) {
+        const [group] = payload.groups;
+        const twin = structuredClone(group.products[0]);
+        twin.id = "external-noaa-gfs-twin";
+        twin.row_label = "twin";
+        group.products.unshift(twin);
+      }
+      return payload;
+    });
+    // by id, not position: the point is that this row is about to move
+    const row = page.locator('.pipeline-row[data-product-id="external-noaa-gfs-aws"]');
+    const settled = await settleIn(page, row);
+
+    await page.clock.runFor(15_000);
+
+    await expect(page.locator(".pipeline-row").first()).toHaveAttribute(
+      "data-product-id",
+      "external-noaa-gfs-twin",
+    );
+    // the row moved down a slot; it is the same row, in the same state
+    await stillSettled(page, row, settled);
+    await expect(
+      page.locator(".pipeline-row").first().locator('[data-slot="details"]'),
+    ).toBeHidden();
+  });
 });
 
 // A product too new for a statistical delayed threshold publishes no timing at

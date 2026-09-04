@@ -1411,9 +1411,12 @@ test("a resize re-fits the live dashboard at the current time", () => {
   const script = readFileSync("public/pipeline.mjs", "utf8");
   const handler = script.slice(
     script.indexOf('window.addEventListener("resize"'),
-    script.indexOf("function setTimeMode"),
+    script.indexOf("async function fetchJson"),
   );
-  assert.match(handler, /displayDashboard\(displayedDashboard, Date\.now\(\)\)/);
+  // a resize bumps the tick every row re-measures on, and stamps the clock so
+  // the countdown text re-fits with the field rather than a second later
+  assert.match(handler, /resizeTick: state\.resizeTick \+ 1/);
+  assert.match(handler, /now: Date\.now\(\)/);
   assert.doesNotMatch(handler, /mode|displayedAt/);
 });
 

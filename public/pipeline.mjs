@@ -1,4 +1,13 @@
 import {
+  html,
+  render,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "./vendor/preact-htm.mjs";
+import {
   agencyHealth,
   renderHealth,
   systemHealth,
@@ -144,24 +153,6 @@ function groupProductsById(dashboard) {
   return index;
 }
 
-function element(tag, attrs, children) {
-  const node = document.createElement(tag);
-  for (const [name, value] of Object.entries(attrs ?? {})) {
-    if (value == null) continue;
-    if (name === "class") node.className = value;
-    else node.setAttribute(name, value);
-  }
-  for (const child of [].concat(children ?? [])) {
-    if (child == null || child === false) continue;
-    node.append(
-      typeof child === "string" || typeof child === "number"
-        ? document.createTextNode(String(child))
-        : child,
-    );
-  }
-  return node;
-}
-
 function formatLatency(seconds) {
   if (seconds == null || !Number.isFinite(seconds)) return "—";
   if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -293,19 +284,13 @@ export function clockTime(timestamp, timeZone = "UTC") {
   }).format(new Date(timestamp));
 }
 
-function timeNode(timestamp) {
-  return element("span", null, [
-    element(
-      "span",
-      { class: "pipeline-time-utc" },
-      formatTime(timestamp, false, false),
-    ),
-    element(
-      "span",
-      { class: "pipeline-time-local-only" },
-      formatTime(timestamp, true, false),
-    ),
-  ]);
+function TimeNode({ timestamp }) {
+  return html`<span>
+    <span class="pipeline-time-utc">${formatTime(timestamp, false, false)}</span>
+    <span class="pipeline-time-local-only">
+      ${formatTime(timestamp, true, false)}
+    </span>
+  </span>`;
 }
 
 /* One square per measurement. Lead-group counts arrive cumulative, so a band's
@@ -395,16 +380,12 @@ export function compactLeadExtents(product) {
   );
 }
 
-function leadLabel(lead, width) {
-  return element(
-    "span",
-    {
-      class: "pipeline-column-label",
-      style: `--cell-w:${width.toFixed(2)}px`,
-      title: `lead ${lead.label}`,
-    },
-    lead.label,
-  );
+function LeadLabel({ lead, width }) {
+  return html`<span
+    class="pipeline-column-label"
+    style=${`--cell-w:${width.toFixed(2)}px`}
+    title=${`lead ${lead.label}`}
+  >${lead.label}</span>`;
 }
 
 /* The bands of the marginal field, top row first: longest horizon down to the
@@ -510,7 +491,7 @@ export function runsThatFitFacetRows(product, availablePx, dimension) {
 
 /* Every band is the same skeleton: a gutter label, then its row of cells. */
 
-function bandNode({
+function Band({
   className = "pipeline-band",
   kind,
   label = "",
@@ -519,14 +500,12 @@ function bandNode({
   style,
   children,
 }) {
-  return element("div", { class: className, "data-kind": kind, style }, [
-    element("span", { class: "pipeline-band-label", title: labelTitle }, label),
-    element(
-      "div",
-      { class: "pipeline-cells", "data-clumped": clumped ? "" : null },
-      children,
-    ),
-  ]);
+  return html`<div class=${className} data-kind=${kind} style=${style}>
+    <span class="pipeline-band-label" title=${labelTitle}>${label}</span>
+    <div class="pipeline-cells" data-clumped=${clumped ? "" : null}>
+      ${children}
+    </div>
+  </div>`;
 }
 
 /* What one run measured for one band. A band the run never reported reads as
@@ -591,22 +570,20 @@ export function cellTitle(band, init, cell, local) {
     .join(" · ");
 }
 
-function renderCell(band, init, local, measured, style) {
+function Cell({ band, init, local, measured, style }) {
   const cell = measured ?? cellOf(band, init);
-  return element(
-    "div",
-    {
-      class: `pipeline-cell g-${cell.state}`,
-      "data-init-time": init?.init_time,
-      "data-timing": cell.timing,
-      title: cellTitle(band, init, cell, local),
-      style,
-    },
-    element("div", {
-      class: "pipeline-cell-fill",
-      style: `--fill:${Math.max(0, Math.min(100, (cell.completion ?? 0) * 100))}%`,
-    }),
-  );
+  return html`<div
+    class=${`pipeline-cell g-${cell.state}`}
+    data-init-time=${init?.init_time}
+    data-timing=${cell.timing}
+    title=${cellTitle(band, init, cell, local)}
+    style=${style}
+  >
+    <div
+      class="pipeline-cell-fill"
+      style=${`--fill:${Math.max(0, Math.min(100, (cell.completion ?? 0) * 100))}%`}
+    ></div>
+  </div>`;
 }
 
 /* The facet-row field spends width on lead-group columns inside every run, so
@@ -688,28 +665,26 @@ export function viewAt(product, index) {
 /* The init axis: the time under every column, then the date only where it turns
    over, so a date lines up with the first timestamp it covers. */
 
-function initTiers(runs, local) {
+function InitTiers({ runs, local }) {
   const zone = selectedTimeZone(local);
   let previousDate = null;
-  return [
-    labelTier({
-      bandClass: "pipeline-band pipeline-band--foot",
-      spanClass: "pipeline-run-label",
-      runs,
-      textOf: (init) => initParts(init.init_time, zone).time,
-      titleOf: (init) => initShort(init.init_time, local),
-    }),
-    labelTier({
-      spanClass: "pipeline-run-date",
-      runs,
-      textOf: (init) => {
+  return html`<${LabelTier}
+      bandClass="pipeline-band pipeline-band--foot"
+      spanClass="pipeline-run-label"
+      runs=${runs}
+      textOf=${(init) => initParts(init.init_time, zone).time}
+      titleOf=${(init) => initShort(init.init_time, local)}
+    />
+    <${LabelTier}
+      spanClass="pipeline-run-date"
+      runs=${runs}
+      textOf=${(init) => {
         const { date } = initParts(init.init_time, zone);
         const turned = date !== previousDate;
         previousDate = date;
         return turned ? date : "";
-      },
-    }),
-  ];
+      }}
+    />`;
 }
 
 /* The joint, indexed once per render: which facets a run reported under a lead
@@ -740,89 +715,88 @@ function jointIndex(product, runs, leads) {
 /* One label tier under the blocks: a span per run, exactly one block wide, so
    every tier centres on the same axis as the squares above it. */
 
-function labelTier({
+function LabelTier({
   bandClass = "pipeline-band",
   spanClass,
   runs,
   textOf,
   titleOf,
 }) {
-  return bandNode({
-    className: bandClass,
-    clumped: true,
-    children: runs.map((init, index) =>
-      element(
-        "span",
-        { class: spanClass, title: titleOf?.(init) },
-        textOf(init, index),
-      ),
-    ),
-  });
+  return html`<${Band} className=${bandClass} clumped>
+    ${runs.map(
+      (init, index) =>
+        html`<span key=${init.init_time} class=${spanClass} title=${titleOf?.(init)}
+        >${textOf(init, index)}</span>`,
+    )}
+  <//>`;
 }
 
 /* The facet-row field: one row per facet, one block per run, one column per
    lead group inside a block. Same squares and same hover labels as the banded
    field — only which dimension owns which axis changes. */
 
-function renderFacetLane(product, local, runs, leads, facets, leadWidth) {
+function FacetLane({ product, local, runs, leads, facets, leadWidth }) {
   const joint = jointIndex(product, runs, leads);
-  const lane = element("div", { class: "pipeline-facet-lane" });
-  lane.append(
-    bandNode({
-      className: "pipeline-band pipeline-band--head",
-      clumped: true,
-      children: runs.map(() =>
-        element(
-          "div",
-          { class: "pipeline-clump" },
-          leads.map((lead) => leadLabel(lead, leadWidth(lead))),
-        ),
-      ),
-    }),
-  );
-  const rowsNode = element("div", { class: "pipeline-rows" });
-  for (const facet of facets) {
-    rowsNode.append(
-      bandNode({
-        kind: "facet",
-        label: facetAxisLabel(facet),
-        labelTitle: `${facet.label} (${facet.dimension})`,
-        clumped: true,
-        children: runs.map((init) =>
-          element(
-            "div",
-            { class: "pipeline-clump" },
-            leads.map((lead) => {
-              const measured = joint.get(init)?.get(lead.key);
-              const facetAt = measured?.facets.get(facet.name);
-              const band = {
-                kind: "facet",
-                key: facet.name,
-                label: facet.label,
-                dimension: facet.dimension,
-                lead: lead.label,
-              };
-              return renderCell(
-                band,
-                init,
-                local,
-                facetAt
-                  ? facetCell(facetAt, init, measured.timing)
-                  : { state: "unobserved" },
-                `--cell-w:${leadWidth(lead).toFixed(2)}px`,
-              );
-            }),
-          ),
-        ),
-      }),
-    );
-  }
-  lane.append(rowsNode);
-  lane.append(...initTiers(runs, local));
-  return lane;
+  return html`<div class="pipeline-facet-lane">
+    <${Band} className="pipeline-band pipeline-band--head" clumped>
+      ${runs.map(
+        (init) =>
+          html`<div key=${init.init_time} class="pipeline-clump">
+            ${leads.map(
+              (lead) =>
+                html`<${LeadLabel}
+                  key=${lead.key}
+                  lead=${lead}
+                  width=${leadWidth(lead)}
+                />`,
+            )}
+          </div>`,
+      )}
+    <//>
+    <div class="pipeline-rows">
+      ${facets.map(
+        (facet) =>
+          html`<${Band}
+            key=${facet.name}
+            kind="facet"
+            label=${facetAxisLabel(facet)}
+            labelTitle=${`${facet.label} (${facet.dimension})`}
+            clumped
+          >
+            ${runs.map(
+              (init) =>
+                html`<div key=${init.init_time} class="pipeline-clump">
+                  ${leads.map((lead) => {
+                    const measured = joint.get(init)?.get(lead.key);
+                    const facetAt = measured?.facets.get(facet.name);
+                    const band = {
+                      kind: "facet",
+                      key: facet.name,
+                      label: facet.label,
+                      dimension: facet.dimension,
+                      lead: lead.label,
+                    };
+                    return html`<${Cell}
+                      key=${lead.key}
+                      band=${band}
+                      init=${init}
+                      local=${local}
+                      measured=${facetAt
+                        ? facetCell(facetAt, init, measured.timing)
+                        : { state: "unobserved" }}
+                      style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
+                    />`;
+                  })}
+                </div>`,
+            )}
+          <//>`,
+      )}
+    </div>
+    <${InitTiers} runs=${runs} local=${local} />
+  </div>`;
 }
 
-function renderFacetRows(product, local, runCount, dimension) {
+function FacetRowsField({ product, local, runCount, dimension }) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
   const leads = leadAxis(product); // shortest horizon first
   const facets = facetRowsOf(product, dimension);
@@ -831,128 +805,64 @@ function renderFacetRows(product, local, runCount, dimension) {
   const runWidth =
     leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
     Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
-  const field = element("div", {
-    class: "pipeline-field",
-    // lead time runs across here, so progress fills across too
-    "data-fill": "side",
-    "data-compact": "",
-    style: `--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px`,
-  });
   const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
   const runsPerLane = Math.ceil(runs.length / laneCount);
   // older runs occupy the first lane; newer runs continue in the second
+  const lanes = [];
   for (let start = 0; start < runs.length; start += runsPerLane) {
-    field.append(
-      renderFacetLane(
-        product,
-        local,
-        runs.slice(start, start + runsPerLane),
-        leads,
-        facets,
-        leadWidth,
-      ),
-    );
+    lanes.push(runs.slice(start, start + runsPerLane));
   }
-  return field;
+  return html`<div
+    class="pipeline-field"
+    data-fill="side"
+    data-compact=""
+    style=${`--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
+  >
+    ${lanes.map(
+      (lane) =>
+        html`<${FacetLane}
+          key=${lane[0].init_time}
+          product=${product}
+          local=${local}
+          runs=${lane}
+          leads=${leads}
+          facets=${facets}
+          leadWidth=${leadWidth}
+        />`,
+    )}
+  </div>`;
 }
 
-function renderField(product, local, runCount) {
+function LeadField({ product, local, runCount }) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
   const extents = leadExtents(product);
   const column = initColumnPx(product, selectedTimeZone(local));
-  const field = element("div", {
-    class: "pipeline-field",
-    // a cell is as wide as its init label; the lead axis keeps its own scale
-    style: `--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px`,
-  });
-  for (const band of bandsOf(product)) {
-    field.append(
-      bandNode({
-        kind: band.kind,
-        label: band.label,
-        labelTitle: band.label,
-        // a lead band is as tall as its share of the run; a facet band is a cell
-        style: `--cell-h:${(band.kind === "lead" ? (extents.get(band.key) ?? CELL_PX) : CELL_PX).toFixed(2)}px`,
-        children: runs.map((init) => renderCell(band, init, local)),
-      }),
-    );
-  }
-
-  // every column is wide enough to name itself, so the axis is per column
-  field.append(...initTiers(runs, local));
-  return field;
-}
-
-function renderStructure(app, dashboard, rows) {
-  const groupsSlot = app.querySelector('[data-slot="groups"]');
-  const tocRail = app.querySelector('[data-slot="pipeline-toc-rail"]');
-  const tocTree = app.querySelector('[data-slot="pipeline-toc-tree"]');
-  groupsSlot.replaceChildren();
-  tocTree.replaceChildren();
-  rows.clear();
-
-  for (const group of dashboard.groups) {
-    const groupId = `pipeline-group-${group.id}`;
-    const section = element("section", { class: "pipeline-group" }, [
-      element("h3", { id: groupId }, group.label),
-    ]);
-    tocTree.append(
-      element("li", { class: "toc-h2" }, [
-        element("a", { href: `#${groupId}` }, group.label),
-      ]),
-    );
-    for (const product of group.products) {
-      const advisory = element("div", {
-        class: "pipeline-row-advisory",
-        "data-slot": "row-advisory",
-        hidden: "",
-      });
-      const row = element(
-        "section",
-        { class: "pipeline-row", "data-product-id": product.id },
-        [
-          element("div", null, [
-            element("strong", null, product.row_label),
-            element("div", { class: "pipeline-source-meta" }, [
-              element("div", null, displaySource(product.source)),
-              element("div", null, `${product.cadence_hours ?? "—"}h init cadence`),
-              element("div", null, `${product.init_hours?.join("/") || "—"}z`),
-              advisory,
-            ]),
-          ]),
-          element("div", { class: "pipeline-row-body" }, [
-            element("div", { class: "pipeline-viz", "data-slot": "field" }),
-          ]),
-          element("div", { class: "pipeline-stats" }, [
-            element("strong", { "data-slot": "eta-init" }, "—"),
-            element("span", { "data-slot": "eta-state", hidden: "" }),
-            element("span", { "data-slot": "eta-line", hidden: "" }),
-            element(
-              "button",
-              {
-                type: "button",
-                class: "pipeline-details-button",
-                "data-slot": "details-button",
-                "aria-expanded": "false",
-                hidden: "",
-              },
-              "more details",
-            ),
-          ]),
-          element("div", {
-            class: "pipeline-row-details",
-            "data-slot": "details",
-            hidden: "",
-          }),
-        ],
-      );
-      rows.set(product.id, row);
-      section.append(row);
-    }
-    groupsSlot.append(section);
-  }
-  tocRail.hidden = false;
-  document.dispatchEvent(new Event("md-toc:refresh"));
+  return html`<div
+    class="pipeline-field"
+    style=${`--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
+  >
+    ${bandsOf(product).map(
+      (band) =>
+        html`<${Band}
+          key=${band.key}
+          kind=${band.kind}
+          label=${band.label}
+          labelTitle=${band.label}
+          style=${`--cell-h:${(band.kind === "lead" ? (extents.get(band.key) ?? CELL_PX) : CELL_PX).toFixed(2)}px`}
+        >
+          ${runs.map(
+            (init) =>
+              html`<${Cell}
+                key=${init.init_time}
+                band=${band}
+                init=${init}
+                local=${local}
+              />`,
+          )}
+        <//>`,
+    )}
+    <${InitTiers} runs=${runs} local=${local} />
+  </div>`;
 }
 
 function etaTarget(product) {
@@ -1228,33 +1138,13 @@ export function facetRows(product) {
 }
 
 // a status reads in the color its square would take on the grid
-function statusCell(detail) {
-  return element(
-    "td",
-    { "data-status": detail.state, "data-timing": detail.timing },
-    detail.status,
-  );
+// a status reads in the color its square would take on the grid
+function StatusCell({ detail }) {
+  return html`<td data-status=${detail.state} data-timing=${detail.timing}>
+    ${detail.status}
+  </td>`;
 }
 
-// every wide table on the site scrolls inside its own .table-container
-function scrollable(table) {
-  return element("div", { class: "table-container" }, [table]);
-}
-
-// open details are rebuilt once a second so their durations tick; each rebuild
-// would otherwise hand the reader a fresh scroll box parked at the left edge
-function replaceDetails(details, node) {
-  const offsets = [...details.querySelectorAll(".table-container")].map(
-    (container) => container.scrollLeft,
-  );
-  details.replaceChildren(node);
-  details.querySelectorAll(".table-container").forEach((container, index) => {
-    if (offsets[index]) container.scrollLeft = offsets[index];
-  });
-}
-
-// a product too new for a statistical delayed threshold publishes no timing;
-// its state line says why, so the silence does not read as on time
 export function timingBaselineNote(product) {
   const baseline = product.timing_baseline;
   if (
@@ -1268,336 +1158,432 @@ export function timingBaselineNote(product) {
   return `insufficient history (${days}/${required} days)`;
 }
 
-function buildDetails(product, now, local, groupProducts) {
+/* The details tables. Open details re-render once a second so their durations
+   tick; the keyed diff keeps every node, so a table's own scroll box — and the
+   reader's place in it — survives the tick. Every wide table on the site scrolls
+   inside its own .table-container. */
+
+function Details({ product, now, local, groupProducts }) {
   const details = detailRows(product, now, local, groupProducts);
-  const groupHead = element("tr", null, [
-    element("th", { rowspan: "2" }, "horizon"),
-    element("th", { colspan: "3" }, details.lastHeader),
-    element("th", { colspan: "3" }, details.runHeader),
-    element("th", { colspan: "3" }, details.statsHeader),
-  ]);
-  const head = element("tr", null, [
-    element("th", null, "status"),
-    element("th", null, "time"),
-    element("th", null, "duration"),
-    element("th", null, "status"),
-    element("th", null, "time"),
-    element("th", null, "duration"),
-    element("th", null, "p50"),
-    element("th", null, "p95"),
-    element("th", null, "p99"),
-  ]);
-  const body = element("tbody");
-  for (const row of details.rows) {
-    body.append(
-      element("tr", null, [
-        element("td", null, row.label),
-        statusCell(row.last),
-        element("td", null, row.last.time),
-        element("td", null, row.last.duration),
-        statusCell(row.run),
-        element("td", null, row.run.time),
-        element("td", null, row.run.duration),
-        element("td", null, row.p50),
-        element("td", null, row.p95),
-        element("td", null, row.p99),
-      ]),
-    );
-  }
-  const leadTable = element("table", null, [
-    element("thead", null, [groupHead, head]),
-    body,
-  ]);
+  const leadTable = html`<div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2">horizon</th>
+          <th colspan="3">${details.lastHeader}</th>
+          <th colspan="3">${details.runHeader}</th>
+          <th colspan="3">${details.statsHeader}</th>
+        </tr>
+        <tr>
+          <th>status</th>
+          <th>time</th>
+          <th>duration</th>
+          <th>status</th>
+          <th>time</th>
+          <th>duration</th>
+          <th>p50</th>
+          <th>p95</th>
+          <th>p99</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${details.rows.map(
+          (row) => html`<tr key=${row.label}>
+            <td>${row.label}</td>
+            <${StatusCell} detail=${row.last} />
+            <td>${row.last.time}</td>
+            <td>${row.last.duration}</td>
+            <${StatusCell} detail=${row.run} />
+            <td>${row.run.time}</td>
+            <td>${row.run.duration}</td>
+            <td>${row.p50}</td>
+            <td>${row.p95}</td>
+            <td>${row.p99}</td>
+          </tr>`,
+        )}
+      </tbody>
+    </table>
+  </div>`;
   const facets = facetRows(product);
-  if (facets.length === 0) return scrollable(leadTable);
+  if (facets.length === 0) return leadTable;
 
-  const facetBody = element("tbody");
-  for (const facet of facets) {
-    facetBody.append(
-      element("tr", null, [
-        element("td", null, facet.dimension),
-        element("td", null, facet.label),
-        statusCell(facet),
-        element("td", null, facet.count),
-        element("td", null, [
-          element("progress", {
-            max: "1",
-            value: String(facet.completion),
-            "aria-label": `${Math.round(facet.completion * 100)}% complete`,
-          }),
-          // the number holds three characters whatever it is — "5", "62", "100" —
-          // so every bar ends in the same place, with the sign kept against it
-          element("span", { class: "pipeline-facet-pct" }, [
-            element(
-              "span",
-              { class: "pipeline-facet-num" },
-              String(Math.round(facet.completion * 100)),
-            ),
-            "%",
-          ]),
-        ]),
-      ]),
-    );
-  }
-  const facetTable = element("table", { class: "pipeline-facets" }, [
-    element("thead", null, [
-      element("tr", null, [
-        element("th", { colspan: "5" }, "arrival facets"),
-      ]),
-      element("tr", null, [
-        element("th", null, "dimension"),
-        element("th", null, "group"),
-        element("th", null, "status"),
-        element("th", null, "files"),
-        element("th", null, "complete"),
-      ]),
-    ]),
-    facetBody,
-  ]);
-  return element("div", null, [scrollable(leadTable), scrollable(facetTable)]);
+  return html`<div>
+    ${leadTable}
+    <div class="table-container">
+      <table class="pipeline-facets">
+        <thead>
+          <tr>
+            <th colspan="5">arrival facets</th>
+          </tr>
+          <tr>
+            <th>dimension</th>
+            <th>group</th>
+            <th>status</th>
+            <th>files</th>
+            <th>complete</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${facets.map(
+            (facet) => html`<tr key=${`${facet.dimension}/${facet.label}`}>
+              <td>${facet.dimension}</td>
+              <td>${facet.label}</td>
+              <${StatusCell} detail=${facet} />
+              <td>${facet.count}</td>
+              <td>
+                <progress
+                  max="1"
+                  value=${String(facet.completion)}
+                  aria-label=${`${Math.round(facet.completion * 100)}% complete`}
+                ></progress>
+                <span class="pipeline-facet-pct"><span class="pipeline-facet-num">${String(Math.round(facet.completion * 100))}</span>%</span>
+              </td>
+            </tr>`,
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
 }
 
-function hydrateRow(row, product, now, local, available, groupProducts) {
-  // the lead grid is the view a row opens on; the facet grids are a click away
-  const views = viewsOf(product);
-  const index = wrapIndex(Number(row.dataset.view ?? 0), views.length);
-  const view = views[index];
-  row.dataset.view = String(index);
+/* A row's summary column: the init it is waiting on, its state, and the ETA.
+   These are the nodes the countdown owns, so they read `now`. */
 
-  const field = view.dimension
-    ? renderFacetRows(
-        product,
-        local,
-        runsThatFitFacetRows(product, available, view.dimension),
-        view.dimension,
-      )
-    : renderField(product, local, runsThatFit(product, available, local));
-
-  const viz = row.querySelector('[data-slot="field"]');
-  viz.replaceChildren(field);
-  // the cycle is only reachable, and only worth announcing, when a product has
-  // more than the one view
-  if (views.length > 1) {
-    const next = views[(index + 1) % views.length];
-    // a group, not a button: role="button" would collapse the field into one
-    // node and hide every cell's own label from assistive tech
-    viz.setAttribute("role", "group");
-    viz.setAttribute("tabindex", "0");
-    viz.setAttribute(
-      "aria-label",
-      `${view.rows} by ${view.dimension ? "lead group" : "init"}; activate for ${next.rows}`,
-    );
-  } else {
-    viz.removeAttribute("role");
-    viz.removeAttribute("tabindex");
-    viz.removeAttribute("aria-label");
-  }
-  hydrateEta(row, product, now, local);
-
-  const button = row.querySelector('[data-slot="details-button"]');
-  const details = row.querySelector('[data-slot="details"]');
-  if (product.lead_group_stats?.length || facetRows(product).length) {
-    button.hidden = false;
-    replaceDetails(details, buildDetails(product, now, local, groupProducts));
-  } else {
-    button.hidden = true;
-    details.hidden = true;
-  }
-}
-
-function hydrateEta(row, product, now, local) {
-  const initSlot = row.querySelector('[data-slot="eta-init"]');
-  const stateSlot = row.querySelector('[data-slot="eta-state"]');
-  const lineSlot = row.querySelector('[data-slot="eta-line"]');
+function Eta({ product, now, local }) {
   const target = etaTarget(product);
   if (!target) {
-    initSlot.textContent = "—";
-    stateSlot.hidden = true;
-    lineSlot.hidden = true;
-  } else {
-    initSlot.textContent = initShort(target.initTime, local);
-    stateSlot.hidden = false;
-    if (target.running) {
-      const observed = (target.init?.completion_pct ?? 0) > 0;
-      stateSlot.textContent = observed ? "processing" : "pending";
-      if (target.init?.timing) {
-        stateSlot.textContent += ` · ${target.init.timing.replace("_", " ")}`;
-        stateSlot.dataset.timing = target.init.timing;
-      } else {
-        delete stateSlot.dataset.timing;
-        const note = timingBaselineNote(product);
-        if (note) stateSlot.textContent += ` · ${note}`;
-      }
+    return html`<strong data-slot="eta-init">—</strong>
+      <span data-slot="eta-state" hidden></span>
+      <span data-slot="eta-line" hidden></span>`;
+  }
+  let state;
+  let timing = null;
+  if (target.running) {
+    const observed = (target.init?.completion_pct ?? 0) > 0;
+    state = observed ? "processing" : "pending";
+    if (target.init?.timing) {
+      state += ` · ${target.init.timing.replace("_", " ")}`;
+      timing = target.init.timing;
     } else {
-      const seconds = Math.floor((Date.parse(target.initTime) - now) / 1000);
-      stateSlot.textContent =
-        seconds <= 0 ? "processing" : `init in ${formatDuration(seconds)}`;
+      const note = timingBaselineNote(product);
+      if (note) state += ` · ${note}`;
     }
-    lineSlot.hidden = !target.target;
-    if (target.target) {
-      lineSlot.textContent = etaLineText(target.target, now, local);
-    }
+  } else {
+    const seconds = Math.floor((Date.parse(target.initTime) - now) / 1000);
+    state = seconds <= 0 ? "processing" : `init in ${formatDuration(seconds)}`;
   }
+  return html`<strong data-slot="eta-init">${initShort(target.initTime, local)}</strong>
+    <span data-slot="eta-state" data-timing=${timing}>${state}</span>
+    <span data-slot="eta-line" hidden=${!target.target}>${target.target ? etaLineText(target.target, now, local) : ""}</span>`;
 }
 
-function renderAdvisories(app, advisories, rows) {
-  renderHealth(app, "agency-health", agencyHealth(advisories));
+/* One product. The field is memoised on what it draws from — the product, the
+   time mode, the measured width, and the view — so the countdown's `now` never
+   touches it; only the ETA and any open details re-render each second. */
 
-  for (const row of rows.values()) {
-    const marker = row.querySelector('[data-slot="row-advisory"]');
-    marker.hidden = true;
-    marker.replaceChildren();
-  }
-  const slot = app.querySelector('[data-slot="advisories"]');
-  slot.replaceChildren();
-  if (advisories.length === 0) return;
+function Row({
+  product,
+  groupProducts,
+  advisory,
+  local,
+  now,
+  viewIndex,
+  expanded,
+  resizeTick,
+  onCycle,
+  onToggle,
+}) {
+  // the run count comes from the measured row body: a 1fr grid column, so its
+  // width does not depend on the field it holds. Measured after mount and
+  // again after every resize, and the field waits for the measurement.
+  const body = useRef(null);
+  const [width, setWidth] = useState(null);
+  useLayoutEffect(() => {
+    setWidth(body.current?.getBoundingClientRect().width ?? 0);
+  }, [resizeTick]);
 
-  const container = element("div", { class: "pipeline-advisories" }, [
-    element(
-      "strong",
-      null,
-      `${advisories.length} active upstream dissemination advisor${advisories.length === 1 ? "y" : "ies"}`,
-    ),
-  ]);
-  for (const advisory of advisories) {
-    const description = `${advisory.agency.toUpperCase()} — ${advisory.title}`;
-    container.append(
-      element(
-        "p",
-        null,
-        advisory.url
-          ? element("a", { href: advisory.url }, description)
-          : description,
-      ),
-    );
-    for (const productId of advisory.product_ids ?? []) {
-      const marker = rows
-        .get(productId)
-        ?.querySelector('[data-slot="row-advisory"]');
-      if (!marker) continue;
-      marker.hidden = false;
-      marker.textContent = `⚠ ${advisory.agency.toUpperCase()} advisory`;
-    }
-  }
-  slot.append(container);
+  // the lead grid is the view a row opens on; the facet grids are a click away
+  const views = viewsOf(product);
+  const index = wrapIndex(viewIndex, views.length);
+  const view = views[index];
+  const field = useMemo(() => {
+    if (width == null) return null;
+    return view.dimension
+      ? html`<${FacetRowsField}
+          product=${product}
+          local=${local}
+          runCount=${runsThatFitFacetRows(product, width, view.dimension)}
+          dimension=${view.dimension}
+        />`
+      : html`<${LeadField}
+          product=${product}
+          local=${local}
+          runCount=${runsThatFit(product, width, local)}
+        />`;
+  }, [product, local, width, index]);
+
+  // the cycle is only reachable, and only worth announcing, when a product has
+  // more than the one view
+  const cycles = views.length > 1;
+  const next = views[(index + 1) % views.length];
+  const hasDetails = Boolean(
+    product.lead_group_stats?.length || facetRows(product).length,
+  );
+  const open = hasDetails && expanded;
+
+  return html`<section
+    class="pipeline-row"
+    data-product-id=${product.id}
+    data-view=${String(index)}
+  >
+    <div>
+      <strong>${product.row_label}</strong>
+      <div class="pipeline-source-meta">
+        <div>${displaySource(product.source)}</div>
+        <div>${`${product.cadence_hours ?? "—"}h init cadence`}</div>
+        <div>${`${product.init_hours?.join("/") || "—"}z`}</div>
+        <div
+          class="pipeline-row-advisory"
+          data-slot="row-advisory"
+          hidden=${!advisory}
+        >${advisory ? `⚠ ${advisory.agency.toUpperCase()} advisory` : ""}</div>
+      </div>
+    </div>
+    <div class="pipeline-row-body" ref=${body}>
+      <div
+        class="pipeline-viz"
+        data-slot="field"
+        role=${cycles ? "group" : null}
+        tabindex=${cycles ? "0" : null}
+        aria-label=${cycles
+          ? `${view.rows} by ${view.dimension ? "lead group" : "init"}; activate for ${next.rows}`
+          : null}
+        onClick=${(event) => {
+          // the details button and any link keep their own behaviour
+          if (event.target.closest("button, a, summary")) return;
+          onCycle();
+        }}
+        onKeyDown=${(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          onCycle();
+        }}
+      >${field}</div>
+    </div>
+    <div class="pipeline-stats">
+      <${Eta} product=${product} now=${now} local=${local} />
+      <button
+        type="button"
+        class="pipeline-details-button"
+        data-slot="details-button"
+        aria-expanded=${String(open)}
+        hidden=${!hasDetails}
+        onClick=${onToggle}
+      >${open ? "less" : "more details"}</button>
+    </div>
+    <div class="pipeline-row-details" data-slot="details" hidden=${!open}>
+      ${open
+        ? html`<${Details}
+            product=${product}
+            now=${now}
+            local=${local}
+            groupProducts=${groupProducts}
+          />`
+        : null}
+    </div>
+  </section>`;
 }
 
-function renderDashboard(app, dashboard, rows, now) {
-  const local = document.body.classList.contains("pipeline-time-local");
-  app.querySelector('[data-slot="time-control"]').hidden = false;
-  app
-    .querySelector('[data-slot="generated-at"]')
-    .replaceChildren(timeNode(dashboard.generated_at));
-  // measure every row before writing any of them: the row body is a 1fr grid
-  // column, so its width does not depend on the field it holds, and reading all
-  // the widths first costs one layout instead of one per product
-  const pending = [];
+function Advisories({ advisories }) {
+  if (advisories.length === 0) return null;
+  return html`<div class="pipeline-advisories">
+    <strong>${`${advisories.length} active upstream dissemination advisor${advisories.length === 1 ? "y" : "ies"}`}</strong>
+    ${advisories.map((advisory, index) => {
+      const description = `${advisory.agency.toUpperCase()} — ${advisory.title}`;
+      return html`<p key=${advisory.incident_id ?? index}>
+        ${advisory.url
+          ? html`<a href=${advisory.url}>${description}</a>`
+          : description}
+      </p>`;
+    })}
+  </div>`;
+}
+
+function TocTree({ groups }) {
+  return groups.map(
+    (group) => html`<li key=${group.id} class="toc-h2">
+      <a href=${`#pipeline-group-${group.id}`}>${group.label}</a>
+    </li>`,
+  );
+}
+
+/* The groups and their rows, keyed by id so a poll that reorders or adds a
+   product moves nodes rather than rebuilding them. */
+
+function Groups({ state, actions }) {
+  const { dashboard } = state;
+  const signature = dashboard
+    ? dashboard.groups
+        .flatMap((group) => [group.id, ...group.products.map(({ id }) => id)])
+        .join("\n")
+    : null;
+  // the toc script reads the headings after they exist, and again whenever
+  // the set of groups changes
+  useEffect(() => {
+    if (signature === null) return;
+    document.dispatchEvent(new Event("md-toc:refresh"));
+  }, [signature]);
+
+  if (!dashboard) {
+    return html`<p data-slot="loading">Loading pipeline status…</p>`;
+  }
   const siblings = groupProductsById(dashboard);
-  for (const product of productsOf(dashboard)) {
-    const row = rows.get(product.id);
-    if (!row) continue;
-    const body = row.querySelector(".pipeline-row-body");
-    pending.push([row, product, body?.getBoundingClientRect().width ?? 0]);
-  }
-  for (const [row, product, available] of pending) {
-    hydrateRow(row, product, now, local, available, siblings.get(product.id));
-  }
-  renderAdvisories(app, dashboard.advisories ?? [], rows);
+  const advisories = dashboard.advisories ?? [];
+  return dashboard.groups.map(
+    (group) => html`<section key=${group.id} class="pipeline-group">
+      <h3 id=${`pipeline-group-${group.id}`}>${group.label}</h3>
+      ${group.products.map(
+        (product) => html`<${Row}
+          key=${product.id}
+          product=${product}
+          groupProducts=${siblings.get(product.id)}
+          advisory=${advisories.findLast((advisory) =>
+            advisory.product_ids?.includes(product.id),
+          )}
+          local=${state.local}
+          now=${state.now}
+          viewIndex=${state.views[product.id] ?? 0}
+          expanded=${state.expanded[product.id] ?? false}
+          resizeTick=${state.resizeTick}
+          onCycle=${() => actions.cycleView(product)}
+          onToggle=${() => actions.toggleDetails(product.id)}
+        />`,
+      )}
+    </section>`,
+  );
+}
+
+/* The page's one state object. The poll writes the dashboard and any error,
+   the countdown writes only `now`, user actions write the view and expanded
+   maps, and a resize bumps a tick that makes every row re-measure. Every
+   change repaints from the whole state; Preact's keyed diff decides what the
+   DOM needs. */
+
+function createStore(initial, paint) {
+  let state = initial;
+  let queued = false;
+  return {
+    get: () => state,
+    update(patch) {
+      state = {
+        ...state,
+        ...(typeof patch === "function" ? patch(state) : patch),
+      };
+      if (queued) return;
+      queued = true;
+      // one paint per task, however many updates it made
+      queueMicrotask(() => {
+        queued = false;
+        paint(state);
+      });
+    },
+  };
 }
 
 function start(app) {
   const base = app.dataset.assetsBase.replace(/\/$/, "");
   const dashboardUrl = `${base}/dashboard.json`;
-  const rows = new Map();
   const ribbon = app.querySelector('[data-slot="ribbon"]');
-  const banners = app.querySelector('[data-slot="banners"]');
+  const timeControl = app.querySelector('[data-slot="time-control"]');
+  const tocRail = app.querySelector('[data-slot="pipeline-toc-rail"]');
   const timeToggle = app.querySelector("#status-time-toggle");
   const statusUrl = app.querySelector(".status-health").dataset.statusUrl;
+  const slots = {
+    generatedAt: app.querySelector('[data-slot="generated-at"]'),
+    banners: app.querySelector('[data-slot="banners"]'),
+    advisories: app.querySelector('[data-slot="advisories"]'),
+    groups: app.querySelector('[data-slot="groups"]'),
+    tocTree: app.querySelector('[data-slot="pipeline-toc-tree"]'),
+  };
 
-  let latest = null;
-  let pollTimer = null;
-  let countdownTimer = null;
-  let structureSignature = null;
-  let displayedDashboard = null;
-
-  function displayDashboard(dashboard, now) {
-    displayedDashboard = dashboard;
-    renderDashboard(app, dashboard, rows, now);
+  function paint(state) {
+    const { dashboard } = state;
+    document.body.classList.toggle("pipeline-time-local", state.local);
+    timeToggle.value = state.local ? "local" : "utc";
+    timeControl.hidden = !dashboard;
+    tocRail.hidden = !dashboard;
+    ribbon.hidden =
+      !dashboard ||
+      state.now - Date.parse(dashboard.generated_at) <= STALE_AFTER_MS;
+    render(
+      dashboard ? html`<${TimeNode} timestamp=${dashboard.generated_at} />` : "—",
+      slots.generatedAt,
+    );
+    render(
+      state.error
+        ? html`<div class="pipeline-banner pipeline-banner--error">
+            ${state.error}
+          </div>`
+        : null,
+      slots.banners,
+    );
+    render(
+      html`<${Advisories} advisories=${dashboard?.advisories ?? []} />`,
+      slots.advisories,
+    );
+    render(html`<${TocTree} groups=${dashboard?.groups ?? []} />`, slots.tocTree);
+    render(html`<${Groups} state=${state} actions=${actions} />`, slots.groups);
+    if (dashboard) {
+      renderHealth(app, "agency-health", agencyHealth(dashboard.advisories));
+    }
+    if (state.systemHealth) {
+      renderHealth(app, "system-health", state.systemHealth);
+    }
   }
+
+  const store = createStore(
+    {
+      dashboard: null,
+      error: null,
+      systemHealth: null,
+      local: false,
+      now: Date.now(),
+      views: {},
+      expanded: {},
+      resizeTick: 0,
+    },
+    paint,
+  );
 
   /* Clicking a product's field cycles its rows: lead time, then one grid per
-     facet dimension. The listener is delegated to the group container so it
-     survives every re-render, and the view index lives on the row. */
+     facet dimension. The view index lives in the state, keyed by product. */
 
-  function cycleView(row) {
-    if (!row || !displayedDashboard) return;
-    const product = productsOf(displayedDashboard).find(
-      (entry) => entry.id === row.dataset.productId,
-    );
-    if (!product || viewsOf(product).length < 2) return;
-    row.dataset.view = String(Number(row.dataset.view ?? 0) + 1);
-    const body = row.querySelector(".pipeline-row-body");
-    hydrateRow(
-      row,
-      product,
-      Date.now(),
-      document.body.classList.contains("pipeline-time-local"),
-      body?.getBoundingClientRect().width ?? 0,
-      groupProductsById(displayedDashboard).get(product.id),
-    );
-  }
-
-  const groupsSlot = app.querySelector('[data-slot="groups"]');
-  groupsSlot.addEventListener("click", (event) => {
-    // the details button and any link keep their own behaviour
-    if (event.target.closest("button, a, summary")) return;
-    cycleView(event.target.closest(".pipeline-viz")?.closest(".pipeline-row"));
-  });
-  groupsSlot.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    const viz = event.target.closest?.(".pipeline-viz");
-    if (!viz) return;
-    event.preventDefault();
-    cycleView(viz.closest(".pipeline-row"));
-  });
+  const actions = {
+    cycleView(product) {
+      if (viewsOf(product).length < 2) return;
+      store.update((state) => ({
+        views: { ...state.views, [product.id]: (state.views[product.id] ?? 0) + 1 },
+        now: Date.now(),
+      }));
+    },
+    toggleDetails(productId) {
+      store.update((state) => ({
+        expanded: { ...state.expanded, [productId]: !state.expanded[productId] },
+      }));
+    },
+  };
 
   // the run count comes from the measured row, so a resize has to re-fit
   let refitTimer = null;
   window.addEventListener("resize", () => {
     clearTimeout(refitTimer);
     refitTimer = setTimeout(() => {
-      if (!displayedDashboard) return;
-      displayDashboard(displayedDashboard, Date.now());
+      store.update((state) => ({
+        resizeTick: state.resizeTick + 1,
+        now: Date.now(),
+      }));
     }, 150);
   });
-
-  function setTimeMode(local) {
-    document.body.classList.toggle("pipeline-time-local", local);
-    timeToggle.value = local ? "local" : "utc";
-    if (displayedDashboard) {
-      displayDashboard(displayedDashboard, Date.now());
-    }
-  }
-
-  function showError(message) {
-    banners.replaceChildren(
-      element("div", { class: "pipeline-banner pipeline-banner--error" }, message),
-    );
-  }
-
-  function applyLive() {
-    const nextSignature = latest.groups
-      .flatMap((group) => [group.id, ...group.products.map(({ id }) => id)])
-      .join("\n");
-    if (nextSignature !== structureSignature) {
-      renderStructure(app, latest, rows);
-      structureSignature = nextSignature;
-    }
-    banners.replaceChildren();
-    ribbon.hidden =
-      Date.now() - Date.parse(latest.generated_at) <= STALE_AFTER_MS;
-    displayDashboard(latest, Date.now());
-  }
 
   async function fetchJson(url, cache = "default") {
     const response = await fetch(url, {
@@ -1614,59 +1600,34 @@ function start(app) {
       const dashboard = validateDashboard(
         await fetchJson(dashboardUrl, "no-cache"),
       );
-      latest = dashboard;
-      applyLive();
+      store.update({ dashboard, error: null, now: Date.now() });
     } catch (error) {
-      if (latest) {
-        applyLive();
-        showError(`Couldn't refresh pipeline status (${error.message}). Showing last-known state.`);
-      } else {
-        showError(`Couldn't load pipeline status (${error.message}).`);
-      }
+      store.update((state) => ({
+        error: state.dashboard
+          ? `Couldn't refresh pipeline status (${error.message}). Showing last-known state.`
+          : `Couldn't load pipeline status (${error.message}).`,
+        now: Date.now(),
+      }));
     }
   }
 
   async function loadSystemHealth() {
+    let health;
     try {
-      renderHealth(
-        app,
-        "system-health",
-        systemHealth(await fetchJson(statusUrl, "no-cache")),
-      );
+      health = systemHealth(await fetchJson(statusUrl, "no-cache"));
     } catch {
-      renderHealth(app, "system-health", systemHealth(null));
+      health = systemHealth(null);
     }
+    store.update({ systemHealth: health });
   }
 
   function updateLiveCountdowns() {
-    if (!latest) return;
-    const local = document.body.classList.contains("pipeline-time-local");
-    const now = Date.now();
-    const siblings = groupProductsById(latest);
-    for (const product of productsOf(latest)) {
-      const row = rows.get(product.id);
-      if (!row) continue;
-      hydrateEta(row, product, now, local);
-      const details = row.querySelector('[data-slot="details"]');
-      if (!details.hidden) {
-        replaceDetails(
-          details,
-          buildDetails(product, now, local, siblings.get(product.id)),
-        );
-      }
-    }
+    if (!store.get().dashboard) return;
+    store.update({ now: Date.now() });
   }
 
-  app.addEventListener("click", (event) => {
-    const button = event.target.closest('[data-slot="details-button"]');
-    if (!button) return;
-    const details = button
-      .closest(".pipeline-row")
-      .querySelector('[data-slot="details"]');
-    details.hidden = !details.hidden;
-    button.textContent = details.hidden ? "more details" : "less";
-    button.setAttribute("aria-expanded", String(!details.hidden));
-  });
+  let pollTimer = null;
+  let countdownTimer = null;
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       clearInterval(pollTimer);
@@ -1680,7 +1641,11 @@ function start(app) {
     }
   });
 
-  setTimeMode(setupTimeToggle(timeToggle, setTimeMode));
+  store.update({
+    local: setupTimeToggle(timeToggle, (local) =>
+      store.update({ local, now: Date.now() }),
+    ),
+  });
   loadSystemHealth();
   tick();
   setInterval(loadSystemHealth, HEALTH_REFRESH_INTERVAL_MS);
