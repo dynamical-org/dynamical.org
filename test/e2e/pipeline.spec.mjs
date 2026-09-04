@@ -481,6 +481,53 @@ test("the same status reads the same color in both details tables", async ({
   expect(new Set(colors)).toEqual(new Set(["rgb(91, 197, 74)"]));
 });
 
+// Open details are rebuilt once a second so their elapsed durations tick; the
+// rebuild used to recreate each table's scroll box and so snap it back to the
+// left edge every tick, which made a wide table impossible to read.
+test("details keep their horizontal scroll across the live refresh", async ({
+  page,
+}) => {
+  const row = await openPipeline(page);
+  await row.locator('[data-slot="details-button"]').click();
+  const table = row.locator(".pipeline-row-details .table-container").first();
+
+  const scrolled = await table.evaluate((node) => {
+    node.scrollLeft = 120;
+    return node.scrollLeft;
+  });
+  expect(scrolled).toBeGreaterThan(0);
+  // long enough for the countdown to rebuild the details more than once
+  await page.waitForTimeout(2500);
+  await expect(table).toHaveJSProperty("scrollLeft", scrolled);
+});
+
+// A product too new for a statistical delayed threshold publishes no timing at
+// all; the state line says why rather than reading as if the run were on time.
+test("a product without enough history says so instead of a timing", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    product.timing_baseline = {
+      status: "insufficient_history",
+      history_days: 23,
+      required_history_days: 30,
+    };
+    const running = product.recent_inits.findLast(
+      (init) => init.status === "in_flight",
+    );
+    delete running.timing;
+    for (const group of running.lead_groups ?? []) delete group.timing;
+    return payload;
+  });
+
+  const state = row.locator('[data-slot="eta-state"]');
+  await expect(state).toHaveText(
+    "processing · insufficient history (23/30 days)",
+  );
+  await expect(state).not.toHaveAttribute("data-timing");
+});
+
 test("pipeline exposes no history scrubber", async ({ page }) => {
   await openPipeline(page);
   await expect(page.locator("#pipeline-history-toggle")).toHaveCount(0);

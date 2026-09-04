@@ -1233,6 +1233,26 @@ function scrollable(table) {
   return element("div", { class: "table-container" }, [table]);
 }
 
+// open details are rebuilt once a second so their durations tick; each rebuild
+// would otherwise hand the reader a fresh scroll box parked at the left edge
+function replaceDetails(details, node) {
+  const offsets = [...details.querySelectorAll(".table-container")].map(
+    (container) => container.scrollLeft,
+  );
+  details.replaceChildren(node);
+  details.querySelectorAll(".table-container").forEach((container, index) => {
+    if (offsets[index]) container.scrollLeft = offsets[index];
+  });
+}
+
+// a product too new for a statistical delayed threshold publishes no timing;
+// its state line says why, so the silence does not read as on time
+export function timingBaselineNote(product) {
+  const baseline = product.timing_baseline;
+  if (baseline?.status !== "insufficient_history") return null;
+  return `insufficient history (${baseline.history_days}/${baseline.required_history_days} days)`;
+}
+
 function buildDetails(product, now, local, groupProducts) {
   const details = detailRows(product, now, local, groupProducts);
   const groupHead = element("tr", null, [
@@ -1363,7 +1383,7 @@ function hydrateRow(row, product, now, local, available, groupProducts) {
   const details = row.querySelector('[data-slot="details"]');
   if (product.lead_group_stats?.length || facetRows(product).length) {
     button.hidden = false;
-    details.replaceChildren(buildDetails(product, now, local, groupProducts));
+    replaceDetails(details, buildDetails(product, now, local, groupProducts));
   } else {
     button.hidden = true;
     details.hidden = true;
@@ -1390,6 +1410,8 @@ function hydrateEta(row, product, now, local) {
         stateSlot.dataset.timing = target.init.timing;
       } else {
         delete stateSlot.dataset.timing;
+        const note = timingBaselineNote(product);
+        if (note) stateSlot.textContent += ` · ${note}`;
       }
     } else {
       const seconds = Math.floor((Date.parse(target.initTime) - now) / 1000);
@@ -1612,7 +1634,8 @@ function start(app) {
       hydrateEta(row, product, now, local);
       const details = row.querySelector('[data-slot="details"]');
       if (!details.hidden) {
-        details.replaceChildren(
+        replaceDetails(
+          details,
           buildDetails(product, now, local, siblings.get(product.id)),
         );
       }

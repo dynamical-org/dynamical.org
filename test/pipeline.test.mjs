@@ -31,6 +31,7 @@ import {
   initColumnPx,
   initParts,
   selectedTimeZone,
+  timingBaselineNote,
   validateDashboard,
 } from "../public/pipeline.mjs";
 import { onRequestGet } from "../functions/pipeline-staging/[[path]].js";
@@ -1252,6 +1253,27 @@ test("leaves an upstream row untouched by a dynamical sibling", () => {
     detailRows(aws, now, false, [aws, virtual]).statsHeader,
     "time after init · 30 samples",
   );
+});
+
+test("a product without enough history says so, and an established one says nothing", () => {
+  assert.equal(
+    timingBaselineNote({
+      timing_baseline: {
+        status: "insufficient_history",
+        history_days: 23,
+        required_history_days: 30,
+      },
+    }),
+    "insufficient history (23/30 days)",
+  );
+  assert.equal(
+    timingBaselineNote({
+      timing_baseline: { status: "established", history_days: 41, required_history_days: 30 },
+    }),
+    null,
+  );
+  // a payload from before the baseline was published
+  assert.equal(timingBaselineNote({}), null);
 });
 
 test("local preview fixture carries a dynamical row lagging its source", () => {
