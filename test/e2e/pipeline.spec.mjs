@@ -499,6 +499,11 @@ test("details keep their horizontal scroll across the live refresh", async ({
   // long enough for the countdown to rebuild the details more than once
   await page.waitForTimeout(2500);
   await expect(table).toHaveJSProperty("scrollLeft", scrolled);
+
+  // the poll and view cycling rebuild the row through another path
+  await row.locator(".pipeline-viz").click();
+  await expect(row).toHaveAttribute("data-view", "1");
+  await expect(table).toHaveJSProperty("scrollLeft", scrolled);
 });
 
 // A product too new for a statistical delayed threshold publishes no timing at

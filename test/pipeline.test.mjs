@@ -1272,8 +1272,13 @@ test("a product without enough history says so, and an established one says noth
     }),
     null,
   );
-  // a payload from before the baseline was published
+  // a payload from before the baseline was published, or a malformed one,
+  // renders as it always has rather than as "undefined/undefined days"
   assert.equal(timingBaselineNote({}), null);
+  assert.equal(
+    timingBaselineNote({ timing_baseline: { status: "insufficient_history" } }),
+    null,
+  );
 });
 
 test("local preview fixture carries a dynamical row lagging its source", () => {

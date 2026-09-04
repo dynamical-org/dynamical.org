@@ -1249,8 +1249,15 @@ function replaceDetails(details, node) {
 // its state line says why, so the silence does not read as on time
 export function timingBaselineNote(product) {
   const baseline = product.timing_baseline;
-  if (baseline?.status !== "insufficient_history") return null;
-  return `insufficient history (${baseline.history_days}/${baseline.required_history_days} days)`;
+  if (
+    baseline?.status !== "insufficient_history" ||
+    !Number.isInteger(baseline.history_days) ||
+    !Number.isInteger(baseline.required_history_days)
+  ) {
+    return null;
+  }
+  const { history_days: days, required_history_days: required } = baseline;
+  return `insufficient history (${days}/${required} days)`;
 }
 
 function buildDetails(product, now, local, groupProducts) {
