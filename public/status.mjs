@@ -1,3 +1,4 @@
+import { html, render, useMemo } from "./vendor/preact-htm.mjs";
 import {
   componentSpans,
   dailyBars,
@@ -96,6 +97,13 @@ export function validateStatusData(data) {
   }
   if (![...data.datasets, ...data.endpoints].every(isStatusEntry)) {
     throw new TypeError("Invalid status entry");
+  }
+  const endpointIds = data.endpoints.map(({ id }) => id);
+  if (
+    endpointIds.some((id) => id.length === 0) ||
+    new Set(endpointIds).size !== endpointIds.length
+  ) {
+    throw new TypeError("Invalid status entry id");
   }
   if (
     data.component_aliases != null &&
@@ -495,40 +503,6 @@ export function incidentDescription(entry, name) {
     : `${impact} — ongoing.`;
 }
 
-function renderGroup(list, entries, bars, uptime, emptyCells) {
-  list.replaceChildren();
-  for (const entry of entries) {
-    const item = document.createElement("li");
-    const header = document.createElement("header");
-    const name = document.createElement("h3");
-    const state = document.createElement("span");
-    // The glyph duplicates the adjacent label, so keep it out of the
-    // accessibility tree instead of announcing "black circle Operational".
-    const mark = document.createElement("span");
-
-    item.dataset.status = entry.status;
-    if (entry.maintenance?.kind) item.dataset.kind = entry.maintenance.kind;
-    if (entry.observation?.kind) item.dataset.kind = entry.observation.kind;
-    name.textContent = entry.name;
-    state.className = "status-label";
-    mark.setAttribute("aria-hidden", "true");
-    mark.textContent = statusMark(entry);
-    state.append(mark, ` ${statusLabel(entry)}`);
-    header.append(name, state);
-    item.append(header);
-
-    const cells = bars?.get(entry.id) ?? emptyCells;
-    const measured = uptime?.get(entry.id);
-    if (cells?.length && measured) {
-      const detail = document.createElement("p");
-      detail.textContent = uptimeDescription(measured, cells.length);
-      item.append(detail);
-    }
-    if (cells?.length) item.append(barStrip(cells));
-    list.append(item);
-  }
-}
-
 export function barDescription(cells) {
   const planned = cells.filter(
     (cell) => cell.displayState === "planned",
@@ -565,30 +539,66 @@ const DAY_LABELS = {
   planned: "planned outage",
 };
 
-function barStrip(cells) {
-  const strip = document.createElement("div");
-  strip.className = "status-bars";
-  strip.setAttribute("role", "group");
-  strip.setAttribute("aria-label", barDescription(cells));
-  for (const cell of cells) {
-    const anchor = cell.incidentIds?.[0] ?? cell.delayIds?.[0];
-    const dayState = cell.displayState ?? cell.state;
-    const dayLabel = DAY_LABELS[dayState] ?? dayState;
-    const day = document.createElement(anchor ? "a" : "span");
-    day.dataset.day = dayState;
-    day.title = `${cell.date}: ${dayLabel}`;
-    if (anchor) {
-      day.href = `#${anchor}`;
-      day.setAttribute(
-        "aria-label",
-        `${cell.date}: ${dayLabel}; view details`,
-      );
-    } else {
-      day.setAttribute("aria-hidden", "true");
-    }
-    strip.append(day);
-  }
-  return strip;
+function Day({ cell }) {
+  const anchor = cell.incidentIds?.[0] ?? cell.delayIds?.[0];
+  const dayState = cell.displayState ?? cell.state;
+  const dayLabel = DAY_LABELS[dayState] ?? dayState;
+  const Tag = anchor ? "a" : "span";
+  return html`<${Tag}
+    data-day=${dayState}
+    title=${`${cell.date}: ${dayLabel}`}
+    href=${anchor ? `#${anchor}` : null}
+    aria-label=${anchor
+      ? `${cell.date}: ${dayLabel}; view details`
+      : null}
+    aria-hidden=${anchor ? null : "true"}
+  />`;
+}
+
+function BarStrip({ cells }) {
+  return html`<div
+    class="status-bars"
+    role="group"
+    aria-label=${barDescription(cells)}
+  >
+    ${cells.map((cell) => html`<${Day} key=${cell.date} cell=${cell} />`)}
+  </div>`;
+}
+
+function StatusRow({ entry, bars, uptime, emptyCells }) {
+  const cells = bars?.get(entry.id) ?? emptyCells;
+  const measured = uptime?.get(entry.id);
+  const strip = useMemo(
+    () => (cells?.length ? html`<${BarStrip} cells=${cells} />` : null),
+    [cells],
+  );
+  return html`<li
+    data-status=${entry.status}
+    data-kind=${entry.observation?.kind ?? entry.maintenance?.kind ?? null}
+  >
+    <header>
+      <h3>${entry.name}</h3>
+      <span class="status-label">
+        <span aria-hidden="true">${statusMark(entry)}</span>${` ${statusLabel(entry)}`}
+      </span>
+    </header>
+    ${cells?.length && measured
+      ? html`<p>${uptimeDescription(measured, cells.length)}</p>`
+      : null}
+    ${strip}
+  </li>`;
+}
+
+function StatusGroup({ entries, bars, uptime, emptyCells }) {
+  return entries.map(
+    (entry) => html`<${StatusRow}
+      key=${entry.id}
+      entry=${entry}
+      bars=${bars}
+      uptime=${uptime}
+      emptyCells=${emptyCells}
+    />`,
+  );
 }
 
 export function buildHistory(eventsText, metaText) {
@@ -645,82 +655,13 @@ async function loadHistory(root) {
   }
 }
 
-function renderStatus(root, data, loadedHistory, local) {
-  const overallPanel = root.querySelector("#status-overall");
-  const asOf = root.querySelector("#status-as-of");
-  const updated = asOf.querySelector('[data-slot="status-updated"]');
-  const timeControl = asOf.querySelector('[data-slot="time-control"]');
-  const historyNotice = root.querySelector("#status-history");
-  const groups = root.querySelector("#status-groups");
-
-  renderHealth(root, "system-health", systemHealth(data));
-  overallPanel.hidden = true;
-
-  const stale = isStatusDataStale(data.generated_at);
-  asOf.classList.toggle("status-stale", stale);
-  timeControl.hidden = stale;
+function Updated({ data, local, stale }) {
+  if (!data) return "As of —";
   if (stale) {
-    const icon = document.createElement("span");
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = "⚠";
-    const label = document.createElement("strong");
-    label.textContent = "Stale:";
-    updated.replaceChildren(
-      icon,
-      " ",
-      label,
-      STALE_MESSAGE.slice("Stale:".length),
-    );
-  } else {
-    const generatedTime = document.createElement("time");
-    generatedTime.dateTime = data.generated_at;
-    generatedTime.textContent = formatTimestamp(
-      data.generated_at,
-      local,
-      false,
-    );
-    updated.replaceChildren("As of ", generatedTime);
+    return html`<span aria-hidden="true">⚠</span>${" "}<strong>Stale:</strong>${STALE_MESSAGE.slice("Stale:".length)}`;
   }
-  const currentHistory =
-    loadedHistory && isHistoryCurrent(loadedHistory.asOf, data.generated_at)
-      ? loadedHistory
-      : null;
-  const history = applyIncidentGroups(
-    currentHistory,
-    data.incident_groups ?? [],
-  );
-  const emptyCells = dailyBars(new Map([["", []]]), {
-    asOf: history?.asOf ?? new Date(data.generated_at),
-    days: BAR_DAYS,
-  }).get("");
-  setHistoryNotice(
-    historyNotice,
-    history
-      ? null
-      : loadedHistory
-        ? "Uptime history is stale and has been hidden."
-        : "Uptime history is temporarily unavailable.",
-  );
-  groups.hidden = false;
-  // Datasets remain in the feed for a later page-side section.
-  for (const [selector, group] of [
-    ["#status-endpoints", "endpoint"],
-    ["#status-tools", "tool"],
-  ]) {
-    renderGroup(
-      root.querySelector(selector),
-      data.endpoints.filter((entry) => entry.group === group),
-      history?.cells,
-      history?.uptime,
-      emptyCells,
-    );
-  }
-  renderIncidentLog(root, history, data, local);
-}
-
-function setHistoryNotice(element, message) {
-  element.hidden = message === null;
-  element.textContent = message ?? "";
+  return html`${"As of "}<time datetime=${data.generated_at}
+    >${formatTimestamp(data.generated_at, local, false)}</time>`;
 }
 
 function sentenceList(items) {
@@ -752,7 +693,10 @@ export function groupedIncidentDescription(incident, names, end) {
     : `${impact} — ongoing for ${measured}.`;
 }
 
-function renderIncidentLog(root, history, data, local) {
+// PR #225 replaces this final imperative view with a keyed component. Keeping
+// the adapter called only from paint gives that PR one clean seam without
+// hiding incident-node restoration in this service-list port.
+function renderIncidentLogAdapter(root, history, data, local) {
   const list = root.querySelector("#status-incident-log");
   const empty = root.querySelector("#status-incident-empty");
   list.replaceChildren();
@@ -858,23 +802,7 @@ function renderIncidentLog(root, history, data, local) {
   }
 }
 
-function renderUnavailable(root) {
-  const overallPanel = root.querySelector("#status-overall");
-  overallPanel.hidden = false;
-  root.querySelector("#status-summary").textContent =
-    "The status feed could not be loaded. Try again shortly.";
-  root.querySelector("#status-incidents").hidden = true;
-  setHistoryNotice(root.querySelector("#status-history"), null);
-  root.querySelector("#status-groups").hidden = true;
-  renderIncidentLog(root, null, { endpoints: [] }, true);
-  const asOf = root.querySelector("#status-as-of");
-  asOf.classList.remove("status-stale");
-  asOf.querySelector('[data-slot="status-updated"]').textContent = "As of —";
-  asOf.querySelector('[data-slot="time-control"]').hidden = true;
-  renderHealth(root, "system-health", systemHealth(null));
-}
-
-async function loadStatus(root, render) {
+async function loadStatus(root, update) {
   const history = loadHistory(root);
   try {
     const response = await fetch(root.dataset.statusUrl, {
@@ -888,15 +816,36 @@ async function loadStatus(root, render) {
     const data = withoutExperimentalComponents(
       validateStatusData(await response.json()),
     );
-    render(data, await history);
+    const loadedHistory = await history;
+    const currentHistory =
+      loadedHistory && isHistoryCurrent(loadedHistory.asOf, data.generated_at)
+        ? loadedHistory
+        : null;
+    update({
+      data,
+      loadedHistory,
+      history: applyIncidentGroups(currentHistory, data.incident_groups ?? []),
+      error: null,
+      unavailable: false,
+      loaded: true,
+    });
   } catch (error) {
     console.error("Unable to load public status", error);
-    render(null, null);
+    update({
+      data: null,
+      loadedHistory: null,
+      history: null,
+      error,
+      unavailable: true,
+      loaded: true,
+      overallSummary: "The status feed could not be loaded. Try again shortly.",
+    });
   }
 }
 
-async function loadAgencyHealth(root) {
+async function loadAgencyHealth(root, update) {
   const url = root.querySelector(".status-health").dataset.pipelineUrl;
+  let health;
   try {
     const response = await fetch(url, {
       cache: "no-store",
@@ -905,34 +854,130 @@ async function loadAgencyHealth(root) {
     });
     if (!response.ok) throw new Error(`Agency request failed: ${response.status}`);
     const data = await response.json();
-    renderHealth(root, "agency-health", agencyHealth(data.advisories));
+    health = agencyHealth(data.advisories);
   } catch {
-    renderHealth(root, "agency-health", agencyHealth(null));
+    health = agencyHealth(null);
   }
+  update({ agencyHealth: health });
+}
+
+function createStore(initial, paint) {
+  let state = initial;
+  let queued = false;
+  return {
+    update(patch) {
+      state = {
+        ...state,
+        ...(typeof patch === "function" ? patch(state) : patch),
+      };
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        paint(state);
+      });
+    },
+  };
+}
+
+function start(root) {
+  const asOf = root.querySelector("#status-as-of");
+  const overallPanel = root.querySelector("#status-overall");
+  const timeControl = asOf.querySelector('[data-slot="time-control"]');
+  const timeToggle = root.querySelector("#status-time-toggle");
+  const groups = root.querySelector("#status-groups");
+  const slots = {
+    updated: asOf.querySelector('[data-slot="status-updated"]'),
+    summary: root.querySelector("#status-summary"),
+    incidents: root.querySelector("#status-incidents"),
+    historyNotice: root.querySelector("#status-history"),
+    endpoints: root.querySelector("#status-endpoints"),
+    tools: root.querySelector("#status-tools"),
+  };
+
+  function paint(state) {
+    timeToggle.value = state.local ? "local" : "utc";
+    if (state.agencyHealth) {
+      renderHealth(root, "agency-health", state.agencyHealth);
+    }
+    if (!state.loaded) return;
+
+    const { data, history, loadedHistory } = state;
+    const stale = data ? isStatusDataStale(data.generated_at) : false;
+    asOf.classList.toggle("status-stale", stale);
+    timeControl.hidden = !data || stale;
+    overallPanel.hidden = !state.unavailable;
+    slots.incidents.hidden = true;
+    groups.hidden = !data;
+    render(state.overallSummary, slots.summary);
+    render(null, slots.incidents);
+    render(
+      html`<${Updated} data=${data} local=${state.local} stale=${stale} />`,
+      slots.updated,
+    );
+    renderHealth(root, "system-health", systemHealth(data));
+
+    const historyMessage = state.unavailable
+      ? null
+      : history
+        ? null
+        : loadedHistory
+          ? "Uptime history is stale and has been hidden."
+          : "Uptime history is temporarily unavailable.";
+    slots.historyNotice.hidden = historyMessage === null;
+    render(historyMessage ?? "", slots.historyNotice);
+
+    if (data) {
+      const emptyCells = dailyBars(new Map([["", []]]), {
+        asOf: history?.asOf ?? new Date(data.generated_at),
+        days: BAR_DAYS,
+      }).get("");
+      for (const [slot, group] of [
+        [slots.endpoints, "endpoint"],
+        [slots.tools, "tool"],
+      ]) {
+        render(
+          html`<${StatusGroup}
+            entries=${data.endpoints.filter((entry) => entry.group === group)}
+            bars=${history?.cells}
+            uptime=${history?.uptime}
+            emptyCells=${emptyCells}
+          />`,
+          slot,
+        );
+      }
+      renderIncidentLogAdapter(root, history, data, state.local);
+    } else {
+      renderIncidentLogAdapter(root, null, { endpoints: [] }, true);
+    }
+  }
+
+  const store = createStore(
+    {
+      data: null,
+      loadedHistory: null,
+      history: null,
+      error: null,
+      unavailable: false,
+      loaded: false,
+      local: true,
+      agencyHealth: null,
+      overallSummary: "Loading the latest monitor results.",
+    },
+    paint,
+  );
+  const update = (patch) => store.update(patch);
+
+  store.update({
+    local: setupTimeToggle(timeToggle, (local) => store.update({ local })),
+  });
+  loadStatus(root, update);
+  loadAgencyHealth(root, update);
+  setInterval(() => loadStatus(root, update), REFRESH_INTERVAL_MS);
+  setInterval(() => loadAgencyHealth(root, update), REFRESH_INTERVAL_MS);
 }
 
 if (typeof document !== "undefined") {
   const root = document.querySelector("[data-status-page]");
-  if (root) {
-    let data = null;
-    let history = null;
-    let local = true;
-    const render = (nextData, nextHistory) => {
-      data = nextData;
-      history = nextHistory;
-      if (data) renderStatus(root, data, history, local);
-      else renderUnavailable(root);
-    };
-    local = setupTimeToggle(
-      root.querySelector("#status-time-toggle"),
-      (nextLocal) => {
-        local = nextLocal;
-        if (data) renderStatus(root, data, history, local);
-      },
-    );
-    loadStatus(root, render);
-    loadAgencyHealth(root);
-    setInterval(() => loadStatus(root, render), REFRESH_INTERVAL_MS);
-    setInterval(() => loadAgencyHealth(root), REFRESH_INTERVAL_MS);
-  }
+  if (root) start(root);
 }

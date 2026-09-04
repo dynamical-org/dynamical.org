@@ -170,6 +170,20 @@ test("refuses a contentless document instead of reporting all clear", () => {
   );
 });
 
+test("rejects empty or globally duplicated endpoint ids", () => {
+  const empty = structuredClone(operationalData);
+  empty.endpoints[0].id = "";
+  assert.throws(() => validateStatusData(empty), /invalid status entry id/i);
+
+  const duplicate = structuredClone(operationalData);
+  duplicate.endpoints.push({
+    ...duplicate.endpoints[0],
+    name: "duplicate status page",
+    group: "endpoint",
+  });
+  assert.throws(() => validateStatusData(duplicate), /invalid status entry id/i);
+});
+
 test("does not require the deferred dataset section", () => {
   assert.doesNotThrow(() =>
     validateStatusData({ ...operationalData, datasets: [] }),
@@ -712,7 +726,7 @@ test("status page passes its timestamp into the shared subnav row", () => {
     template,
     /\.status-incident\[data-kind="planned"\][^}]*var\(--pill-degraded-bg\)/s,
   );
-  assert.doesNotMatch(script, /textContent = "Today"|day.*ago/);
+  assert.doesNotMatch(script, /\bToday\b|\bday.*ago/);
   assert.doesNotMatch(
     template,
     /Current health of dynamical\.org public endpoints, tools, and resources\./,
