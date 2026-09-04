@@ -1,4 +1,11 @@
-import { html, render, useMemo } from "./vendor/preact-htm.mjs";
+import {
+  Fragment,
+  html,
+  render,
+  useEffect,
+  useMemo,
+  useRef,
+} from "./vendor/preact-htm.mjs";
 import {
   componentSpans,
   dailyBars,
@@ -120,6 +127,11 @@ export function validateStatusData(data) {
       !data.incident_groups.every(isIncidentGroup))
   ) {
     throw new TypeError("Invalid incident group");
+  }
+  const incidentGroupIds =
+    data.incident_groups?.map(({ id }) => id) ?? [];
+  if (new Set(incidentGroupIds).size !== incidentGroupIds.length) {
+    throw new TypeError("Invalid incident group id");
   }
   return {
     ...data,
@@ -693,17 +705,13 @@ export function groupedIncidentDescription(incident, names, end) {
     : `${impact} — ongoing for ${measured}.`;
 }
 
-// PR #225 replaces this final imperative view with a keyed component. Keeping
-// the adapter called only from paint gives that PR one clean seam without
-// hiding incident-node restoration in this service-list port.
-function renderIncidentLogAdapter(root, history, data, local) {
-  const list = root.querySelector("#status-incident-log");
-  const empty = root.querySelector("#status-incident-empty");
-  list.replaceChildren();
+function incidentView(history, data) {
   if (!history) {
-    empty.textContent = "Incident history is temporarily unavailable.";
-    empty.hidden = false;
-    return;
+    return {
+      empty: "Incident history is temporarily unavailable.",
+      names: new Map(),
+      visible: [],
+    };
   }
 
   const names = new Map(data.endpoints.map(({ id, name }) => [id, name]));
@@ -717,89 +725,110 @@ function renderIncidentLogAdapter(root, history, data, local) {
         : names.has(incident.component),
     )
     .reverse();
-  empty.textContent = "No incidents or delays recorded.";
-  empty.hidden = visible.length > 0;
+  return {
+    empty: "No incidents or delays recorded.",
+    names,
+    visible,
+  };
+}
 
-  for (const incident of visible) {
-    const item = document.createElement("li");
-    const header = document.createElement("header");
-    const name = document.createElement("h3");
-    const state = document.createElement("strong");
-    const summary = document.createElement("p");
-    const timing = document.createElement("p");
-    const kind = incident.kind ?? "outage";
-    const kindLabel =
-      kind === "planned"
-        ? "planned outage"
-        : kind === "observation"
-          ? "observation gap"
-          : kind;
-    // A coalesced entry stands for several windows, so it says so twice over:
-    // a plural state line, and a timing line that counts them.
-    const label = incident.windows ? `${kindLabel}s` : kindLabel;
-    const end = incident.end ?? history.asOf.getTime();
-    const measured = formatDuration(0, measuredDuration(incident, end));
+function Incident({ incident, visible, names, asOf, local }) {
+  const kind = incident.kind ?? "outage";
+  const kindLabel =
+    kind === "planned"
+      ? "planned outage"
+      : kind === "observation"
+        ? "observation gap"
+        : kind;
+  // A coalesced entry stands for several windows, so it says so twice over:
+  // a plural state line, and a timing line that counts them.
+  const label = incident.windows ? `${kindLabel}s` : kindLabel;
+  const end = incident.end ?? asOf;
+  const measured = formatDuration(0, measuredDuration(incident, end));
+  const description = incident.components
+    ? groupedIncidentDescription(incident, names, end)
+    : incidentDescription(incident, names.get(incident.component));
+  const overlapping = overlappingEntries(incident, visible, asOf);
+  const spent = incident.windows
+    ? `${incident.windows.length} ${label} totaling ${measured}`
+    : measured;
+  const timing =
+    incident.ending === "observation-ended"
+      ? `${formatTimestamp(incident.start, local)} – ${formatTimestamp(incident.end, local)} · ${spent}. Recovery was not witnessed.`
+      : `${formatTimestamp(incident.start, local)} – ${incident.end ? formatTimestamp(incident.end, local) : "ongoing"} · ${spent}.`;
 
-    item.id = incident.id;
-    item.className = "status-incident";
-    item.dataset.kind = kind;
-    // The name wears a <mark> that stays invisible until this entry is the
-    // :target — arriving from a day cell lights up the header rather than
-    // boxing the whole entry.
-    const highlight = document.createElement("mark");
-    highlight.textContent = incidentName(incident, names);
-    name.append(highlight);
-    state.textContent = `${label} · ${
-      incident.ending === "resolved"
-        ? "resolved"
-        : incident.ending === "observation-ended"
-          ? "observation ended"
-          : "ongoing"
-    }`;
-    summary.textContent = incident.components
-      ? groupedIncidentDescription(incident, names, end)
-      : incidentDescription(incident, names.get(incident.component));
-    const overlapping = overlappingEntries(
-      incident,
-      visible,
-      history.asOf.getTime(),
-    );
-    if (overlapping.length) {
-      summary.append(" Coincided with ");
-      overlapping.forEach((other, index) => {
-        const link = document.createElement("a");
-        link.href = `#${other.id}`;
-        const otherKind =
-          other.kind === "planned" ? "planned outage" : other.kind ?? "outage";
-        link.textContent = `the ${incidentName(other, names)} ${otherKind}`;
-        if (index > 0) summary.append(", ");
-        summary.append(link);
-      });
-      summary.append(".");
-    }
-    const spent = incident.windows
-      ? `${incident.windows.length} ${label} totaling ${measured}`
-      : measured;
-    timing.textContent =
-      incident.ending === "observation-ended"
-        ? `${formatTimestamp(incident.start, local)} – ${formatTimestamp(incident.end, local)} · ${spent}. Recovery was not witnessed.`
-        : `${formatTimestamp(incident.start, local)} – ${
-            incident.end ? formatTimestamp(incident.end, local) : "ongoing"
-          } · ${spent}.`;
-    header.append(name, state);
-    item.append(header, summary, timing);
-    list.append(item);
-  }
-  if (typeof location !== "undefined" && location.hash) {
-    const target = document.getElementById(
-      decodeURIComponent(location.hash.slice(1)),
-    );
-    // Re-run the fragment navigation rather than scrollIntoView: the entry
-    // rendered after the page navigated, so :target never matched and the
-    // header's <mark> would stay dormant on a shared link. replace() scrolls
-    // and re-evaluates :target without adding a history entry.
-    if (target) requestAnimationFrame(() => location.replace(location.hash));
-  }
+  return html`<li
+    id=${incident.id}
+    class="status-incident"
+    data-kind=${kind}
+  >
+    <header>
+      <h3><mark>${incidentName(incident, names)}</mark></h3>
+      <strong>${`${label} · ${
+        incident.ending === "resolved"
+          ? "resolved"
+          : incident.ending === "observation-ended"
+            ? "observation ended"
+            : "ongoing"
+      }`}</strong>
+    </header>
+    <p>
+      ${description}${overlapping.length
+        ? html`${" Coincided with "}${overlapping.map((other, index) => {
+            const otherKind =
+              other.kind === "planned"
+                ? "planned outage"
+                : other.kind ?? "outage";
+            return html`<${Fragment} key=${other.id}
+              >${index > 0 ? ", " : null}<a
+                href=${`#${other.id}`}
+              >${`the ${incidentName(other, names)} ${otherKind}`}</a><//>`;
+          })}${"."}`
+        : null}
+    </p>
+    <p>${timing}</p>
+  </li>`;
+}
+
+function IncidentLog({ visible, names, asOf, local }) {
+  const handledHash = useRef(null);
+  const signature = visible.map(({ id }) => id).join("\n");
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = location.hash;
+      if (!hash) {
+        handledHash.current = hash;
+        return;
+      }
+      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+      handledHash.current = target ? hash : null;
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    const hash = location.hash;
+    if (!hash || handledHash.current === hash) return;
+    const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    if (!target) return;
+    // Record before replace: its hashchange, when a browser emits one for the
+    // same fragment, must not leave this navigation pending again.
+    handledHash.current = hash;
+    requestAnimationFrame(() => location.replace(hash));
+  }, [signature]);
+
+  return visible.map(
+    (incident) => html`<${Incident}
+      key=${incident.id}
+      incident=${incident}
+      visible=${visible}
+      names=${names}
+      asOf=${asOf}
+      local=${local}
+    />`,
+  );
 }
 
 async function loadStatus(root, update) {
@@ -893,6 +922,8 @@ function start(root) {
     historyNotice: root.querySelector("#status-history"),
     endpoints: root.querySelector("#status-endpoints"),
     tools: root.querySelector("#status-tools"),
+    incidentEmpty: root.querySelector("#status-incident-empty"),
+    incidentLog: root.querySelector("#status-incident-log"),
   };
 
   function paint(state) {
@@ -946,10 +977,20 @@ function start(root) {
           slot,
         );
       }
-      renderIncidentLogAdapter(root, history, data, state.local);
-    } else {
-      renderIncidentLogAdapter(root, null, { endpoints: [] }, true);
     }
+
+    const incidents = incidentView(history, data ?? { endpoints: [] });
+    slots.incidentEmpty.hidden = incidents.visible.length > 0;
+    render(incidents.empty, slots.incidentEmpty);
+    render(
+      html`<${IncidentLog}
+        visible=${incidents.visible}
+        names=${incidents.names}
+        asOf=${history?.asOf.getTime()}
+        local=${data ? state.local : true}
+      />`,
+      slots.incidentLog,
+    );
   }
 
   const store = createStore(
