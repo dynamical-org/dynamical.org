@@ -405,7 +405,7 @@ test("a dynamical row reports lag after its source, not time after init", async 
   const table = row.locator(".pipeline-row-details .table-container").first();
 
   await expect(table.locator("thead tr:first-child th").nth(3)).toHaveText(
-    "lag after source · 8 recent samples",
+    "lag after source · 8 recent samples · insufficient history (24/30 days)",
   );
   // the lag replaces the duration column; the time beside it stays wall-clock
   const cells = table.locator("tbody tr:first-child td");
@@ -479,6 +479,61 @@ test("the same status reads the same color in both details tables", async ({
 
   expect(colors.length).toBeGreaterThan(1);
   expect(new Set(colors)).toEqual(new Set(["rgb(91, 197, 74)"]));
+});
+
+// Open details are rebuilt once a second so their elapsed durations tick; the
+// rebuild used to recreate each table's scroll box and so snap it back to the
+// left edge every tick, which made a wide table impossible to read.
+test("details keep their horizontal scroll across the live refresh", async ({
+  page,
+}) => {
+  const row = await openPipeline(page);
+  await row.locator('[data-slot="details-button"]').click();
+  const table = row.locator(".pipeline-row-details .table-container").first();
+
+  const scrolled = await table.evaluate((node) => {
+    node.scrollLeft = 120;
+    return node.scrollLeft;
+  });
+  expect(scrolled).toBeGreaterThan(0);
+  // wait for the countdown's rebuild to have actually replaced the table,
+  // rather than for the clock, then read the position off its replacement
+  const before = await table.elementHandle();
+  await page.waitForFunction((node) => !node.isConnected, before);
+  await expect(table).toHaveJSProperty("scrollLeft", scrolled);
+
+  // view cycling rebuilds the row through hydrateRow, the path the dashboard
+  // poll, a resize, and the time-zone toggle share
+  await row.locator(".pipeline-viz").click();
+  await expect(row).toHaveAttribute("data-view", "1");
+  await expect(table).toHaveJSProperty("scrollLeft", scrolled);
+});
+
+// A product too new for a statistical delayed threshold publishes no timing at
+// all; the state line says why rather than reading as if the run were on time.
+test("a product without enough history says so instead of a timing", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    product.timing_baseline = {
+      status: "insufficient_history",
+      history_days: 23,
+      required_history_days: 30,
+    };
+    const running = product.recent_inits.findLast(
+      (init) => init.status === "in_flight",
+    );
+    delete running.timing;
+    for (const group of running.lead_groups ?? []) delete group.timing;
+    return payload;
+  });
+
+  const state = row.locator('[data-slot="eta-state"]');
+  await expect(state).toHaveText(
+    "processing · insufficient history (23/30 days)",
+  );
+  await expect(state).not.toHaveAttribute("data-timing");
 });
 
 test("pipeline exposes no history scrubber", async ({ page }) => {

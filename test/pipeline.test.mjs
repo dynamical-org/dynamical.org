@@ -31,6 +31,7 @@ import {
   initColumnPx,
   initParts,
   selectedTimeZone,
+  timingBaselineNote,
   validateDashboard,
 } from "../public/pipeline.mjs";
 import { onRequestGet } from "../functions/pipeline-staging/[[path]].js";
@@ -1254,6 +1255,32 @@ test("leaves an upstream row untouched by a dynamical sibling", () => {
   );
 });
 
+test("a product without enough history says so, and an established one says nothing", () => {
+  assert.equal(
+    timingBaselineNote({
+      timing_baseline: {
+        status: "insufficient_history",
+        history_days: 23,
+        required_history_days: 30,
+      },
+    }),
+    "insufficient history (23/30 days)",
+  );
+  assert.equal(
+    timingBaselineNote({
+      timing_baseline: { status: "established", history_days: 41, required_history_days: 30 },
+    }),
+    null,
+  );
+  // a payload from before the baseline was published, or a malformed one,
+  // renders as it always has rather than as "undefined/undefined days"
+  assert.equal(timingBaselineNote({}), null);
+  assert.equal(
+    timingBaselineNote({ timing_baseline: { status: "insufficient_history" } }),
+    null,
+  );
+});
+
 test("local preview fixture carries a dynamical row lagging its source", () => {
   const fixture = JSON.parse(
     readFileSync(
@@ -1272,7 +1299,11 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
     false,
     group.products,
   );
-  assert.equal(details.statsHeader, "lag after source · 8 recent samples");
+  // the lag stays; the note says why the run beside it carries no timing
+  assert.equal(
+    details.statsHeader,
+    "lag after source · 8 recent samples · insufficient history (24/30 days)",
+  );
   assert.equal(details.rows[0].last.duration, "5m");
   assert.deepEqual(
     [details.rows[0].p50, details.rows[0].p95, details.rows[0].p99],
@@ -1315,9 +1346,11 @@ test("local preview fixture carries a source-only group", () => {
     (product.lead_group_stats ?? []).map(({ label }) => label),
     ["0h", "1d", "2d"],
   );
+  // one sample is no baseline: the header says so where the percentiles sit,
+  // the one place the product explains itself between runs
   assert.equal(
     detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).statsHeader,
-    "time after init \u00b7 1 sample",
+    "time after init \u00b7 1 sample \u00b7 insufficient history (1/30 days)",
   );
 });
 

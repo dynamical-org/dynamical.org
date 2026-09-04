@@ -996,18 +996,23 @@ export function etaLineText(target, now, local) {
 
 // The percentile columns summarise every init in the historical baseline, not
 // just the runs the grid draws, so the header names the sample they came from.
-function statsHeader(sampleInitCount) {
+function statsHeader(sampleInitCount, note = null) {
   if (!sampleInitCount) return "time after init";
   const samples = sampleInitCount === 1 ? "sample" : "samples";
-  return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
+  const header = `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
+  // the sample is thin, so the columns beside it come with no timing verdict
+  return note ? `${header} · ${note}` : header;
 }
 
 // A lag has no published baseline behind it, so its sample is the handful of
 // runs the payload carries — named apart from the upstream rows' own count.
-function lagStatsHeader(sampleCount) {
+// The note beside it is about the row's own arrival baseline, not the lag
+// sample: the lag stays, but without that baseline the run gets no timing.
+function lagStatsHeader(sampleCount, note = null) {
   if (!sampleCount) return "lag after source";
   const samples = sampleCount === 1 ? "recent sample" : "recent samples";
-  return `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+  const header = `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+  return note ? `${header} · ${note}` : header;
 }
 
 const NO_RUN = Object.freeze({
@@ -1149,8 +1154,11 @@ export function detailRows(product, now, local, groupProducts = []) {
       ? labelledRun("current run", active.init_time, local)
       : labelledRun("upcoming run", upcoming, local),
     statsHeader: lagged
-      ? lagStatsHeader(lags.length)
-      : statsHeader(product.latency_stats?.sample_init_count),
+      ? lagStatsHeader(lags.length, timingBaselineNote(product))
+      : statsHeader(
+          product.latency_stats?.sample_init_count,
+          timingBaselineNote(product),
+        ),
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
       return {
         label: stats.label,
@@ -1231,6 +1239,33 @@ function statusCell(detail) {
 // every wide table on the site scrolls inside its own .table-container
 function scrollable(table) {
   return element("div", { class: "table-container" }, [table]);
+}
+
+// open details are rebuilt once a second so their durations tick; each rebuild
+// would otherwise hand the reader a fresh scroll box parked at the left edge
+function replaceDetails(details, node) {
+  const offsets = [...details.querySelectorAll(".table-container")].map(
+    (container) => container.scrollLeft,
+  );
+  details.replaceChildren(node);
+  details.querySelectorAll(".table-container").forEach((container, index) => {
+    if (offsets[index]) container.scrollLeft = offsets[index];
+  });
+}
+
+// a product too new for a statistical delayed threshold publishes no timing;
+// its state line says why, so the silence does not read as on time
+export function timingBaselineNote(product) {
+  const baseline = product.timing_baseline;
+  if (
+    baseline?.status !== "insufficient_history" ||
+    !Number.isInteger(baseline.history_days) ||
+    !Number.isInteger(baseline.required_history_days)
+  ) {
+    return null;
+  }
+  const { history_days: days, required_history_days: required } = baseline;
+  return `insufficient history (${days}/${required} days)`;
 }
 
 function buildDetails(product, now, local, groupProducts) {
@@ -1363,7 +1398,7 @@ function hydrateRow(row, product, now, local, available, groupProducts) {
   const details = row.querySelector('[data-slot="details"]');
   if (product.lead_group_stats?.length || facetRows(product).length) {
     button.hidden = false;
-    details.replaceChildren(buildDetails(product, now, local, groupProducts));
+    replaceDetails(details, buildDetails(product, now, local, groupProducts));
   } else {
     button.hidden = true;
     details.hidden = true;
@@ -1390,6 +1425,8 @@ function hydrateEta(row, product, now, local) {
         stateSlot.dataset.timing = target.init.timing;
       } else {
         delete stateSlot.dataset.timing;
+        const note = timingBaselineNote(product);
+        if (note) stateSlot.textContent += ` · ${note}`;
       }
     } else {
       const seconds = Math.floor((Date.parse(target.initTime) - now) / 1000);
@@ -1612,7 +1649,8 @@ function start(app) {
       hydrateEta(row, product, now, local);
       const details = row.querySelector('[data-slot="details"]');
       if (!details.hidden) {
-        details.replaceChildren(
+        replaceDetails(
+          details,
           buildDetails(product, now, local, siblings.get(product.id)),
         );
       }
