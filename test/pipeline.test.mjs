@@ -1299,7 +1299,11 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
     false,
     group.products,
   );
-  assert.equal(details.statsHeader, "lag after source · 8 recent samples");
+  // the lag stays; the note says why the run beside it carries no timing
+  assert.equal(
+    details.statsHeader,
+    "lag after source · 8 recent samples · insufficient history (24/30 days)",
+  );
   assert.equal(details.rows[0].last.duration, "5m");
   assert.deepEqual(
     [details.rows[0].p50, details.rows[0].p95, details.rows[0].p99],

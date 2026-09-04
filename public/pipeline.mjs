@@ -1006,10 +1006,13 @@ function statsHeader(sampleInitCount, note = null) {
 
 // A lag has no published baseline behind it, so its sample is the handful of
 // runs the payload carries — named apart from the upstream rows' own count.
-function lagStatsHeader(sampleCount) {
+// The note beside it is about the row's own arrival baseline, not the lag
+// sample: the lag stays, but without that baseline the run gets no timing.
+function lagStatsHeader(sampleCount, note = null) {
   if (!sampleCount) return "lag after source";
   const samples = sampleCount === 1 ? "recent sample" : "recent samples";
-  return `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+  const header = `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+  return note ? `${header} · ${note}` : header;
 }
 
 const NO_RUN = Object.freeze({
@@ -1151,7 +1154,7 @@ export function detailRows(product, now, local, groupProducts = []) {
       ? labelledRun("current run", active.init_time, local)
       : labelledRun("upcoming run", upcoming, local),
     statsHeader: lagged
-      ? lagStatsHeader(lags.length)
+      ? lagStatsHeader(lags.length, timingBaselineNote(product))
       : statsHeader(
           product.latency_stats?.sample_init_count,
           timingBaselineNote(product),

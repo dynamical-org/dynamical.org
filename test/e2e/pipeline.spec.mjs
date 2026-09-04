@@ -405,7 +405,7 @@ test("a dynamical row reports lag after its source, not time after init", async 
   const table = row.locator(".pipeline-row-details .table-container").first();
 
   await expect(table.locator("thead tr:first-child th").nth(3)).toHaveText(
-    "lag after source · 8 recent samples",
+    "lag after source · 8 recent samples · insufficient history (24/30 days)",
   );
   // the lag replaces the duration column; the time beside it stays wall-clock
   const cells = table.locator("tbody tr:first-child td");
