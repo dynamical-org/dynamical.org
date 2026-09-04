@@ -1,3 +1,5 @@
+import { html, render } from "./vendor/preact-htm.mjs";
+
 function unavailable(label) {
   return { state: "unavailable", label, value: "unavailable" };
 }
@@ -45,6 +47,9 @@ export function renderHealth(root, slot, health) {
   const item = root.querySelector(`[data-slot="${slot}"]`);
   if (!item) return;
   item.dataset.state = health.state;
-  item.querySelector("[data-health-label]").textContent = health.label;
-  item.querySelector("strong").textContent = health.value;
+  render(
+    html`<span aria-hidden="true"></span>
+      <span data-health-label="">${health.label}</span> <strong>${health.value}</strong>`,
+    item,
+  );
 }

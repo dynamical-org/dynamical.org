@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -130,6 +130,29 @@ test("rejects empty, unknown, and oversized dashboards", () => {
   assert.throws(
     () => validateDashboard(malformedFacet),
     /invalid pipeline facet/i,
+  );
+});
+
+
+// the details rows are keyed on these names, so a payload that omits or
+// repeats one cannot be rendered with stable rows
+test("rejects lead group stats without a unique name", () => {
+  const unnamed = dashboard();
+  unnamed.groups[0].products[0].lead_group_stats = [
+    { label: "0h", p50_s: 1, p95_s: 2, p99_s: 3 },
+  ];
+  assert.throws(
+    () => validateDashboard(unnamed),
+    /invalid pipeline lead group stats/i,
+  );
+  const repeated = dashboard();
+  repeated.groups[0].products[0].lead_group_stats = [
+    { name: "f000", label: "0h", p50_s: 1, p95_s: 2, p99_s: 3 },
+    { name: "f000", label: "1d", p50_s: 1, p95_s: 2, p99_s: 3 },
+  ];
+  assert.throws(
+    () => validateDashboard(repeated),
+    /invalid pipeline lead group stats/i,
   );
 });
 
@@ -798,8 +821,8 @@ test("retains live horizon status, time, and duration in details", () => {
       },
     ],
     lead_group_stats: [
-      { label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 },
-      { label: "3d", p50_s: 2400, p95_s: 3600, p99_s: 4800 },
+      { name: "f024", label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 },
+      { name: "f072", label: "3d", p50_s: 2400, p95_s: 3600, p99_s: 4800 },
     ],
   };
   assert.deepEqual(
@@ -810,6 +833,7 @@ test("retains live horizon status, time, and duration in details", () => {
       statsHeader: "time after init",
       rows: [
         {
+          name: "f024",
           label: "1d",
           last: {
             status: "complete",
@@ -830,6 +854,7 @@ test("retains live horizon status, time, and duration in details", () => {
           p99: "40m",
         },
         {
+          name: "f072",
           label: "3d",
           last: {
             status: "complete",
@@ -1006,6 +1031,7 @@ test("groups component and member readiness for the displayed init", () => {
 
   assert.deepEqual(facetRows(product), [
     {
+      name: undefined,
       dimension: "component",
       label: "pgrb2a",
       status: "processing",
@@ -1015,6 +1041,7 @@ test("groups component and member readiness for the displayed init", () => {
       count: "3 / 4 observed",
     },
     {
+      name: undefined,
       dimension: "member",
       label: "control",
       status: "complete",
@@ -1407,14 +1434,128 @@ test("preview branches select the private staging route", () => {
   assert.match(source, /\/pipeline-staging\/wxopticon/);
 });
 
-test("a resize re-fits the live dashboard at the current time", () => {
-  const script = readFileSync("public/pipeline.mjs", "utf8");
-  const handler = script.slice(
-    script.indexOf('window.addEventListener("resize"'),
-    script.indexOf("function setTimeMode"),
+test("vendored module imports resolve and cache rules distinguish the shim", () => {
+  const vendorDir = new URL("../public/vendor/", import.meta.url);
+  const modules = readdirSync(vendorDir).filter((name) => name.endsWith(".mjs"));
+
+  for (const name of modules) {
+    const moduleUrl = new URL(name, vendorDir);
+    const source = readFileSync(moduleUrl, "utf8");
+    const specifiers = [
+      ...source.matchAll(
+        /\b(?:import|export)\s+(?:[^;]*?\s+from\s*)?["'](\.[^"']+)["']/g,
+      ),
+      ...source.matchAll(
+        /\bimport\s*\(\s*["'](\.[^"']+)["']\s*\)/g,
+      ),
+    ].map((match) => match[1]);
+
+    for (const specifier of specifiers) {
+      assert.ok(
+        existsSync(new URL(specifier, moduleUrl)),
+        `${name} imports missing ${specifier}`,
+      );
+    }
+  }
+
+  const headers = readFileSync(
+    new URL("../public/_headers", import.meta.url),
+    "utf8",
   );
-  assert.match(handler, /displayDashboard\(displayedDashboard, Date\.now\(\)\)/);
-  assert.doesNotMatch(handler, /mode|displayedAt/);
+  // a rule is a path line followed by its indented directives; a blank line
+  // ends it, so a rule cannot borrow the next rule's directives
+  const rules = new Map(
+    headers
+      .split(/\n\s*\n/)
+      .map((block) => block.split("\n").filter((line) => !line.startsWith("#")))
+      .filter((lines) => lines.length > 0)
+      .map(([path, ...directives]) => [path.trim(), directives.join("\n")]),
+  );
+  const rule = (path) => rules.get(path);
+  // every version-named library is immutable; nothing else in the directory
+  // is, since its name does not change when its contents do
+  for (const name of modules) {
+    const versioned = /-\d+\.\d+\.\d+\.mjs$/.test(name);
+    const cacheRule = rule(`/vendor/${name}`);
+    if (versioned) {
+      assert.match(
+        cacheRule ?? "",
+        /Cache-Control: public, max-age=31536000, immutable/,
+        `${name} is not cached immutably`,
+      );
+    } else {
+      assert.equal(cacheRule, undefined, `${name} must not have a cache rule`);
+    }
+  }
+  assert.doesNotMatch(headers, /^\/vendor\/\*$/m);
+  assert.doesNotMatch(headers, /^\/\*\.mjs$/m);
+});
+
+// A deploy must not pair fresh HTML with a stale stylesheet or script, so
+// every first-party .css, .js, or .mjs the templates reference directly
+// carries a content hash in its URL. What a module imports itself is
+// revalidated on every load instead (see public/_headers).
+test("the HTML versions every stylesheet and script it references", () => {
+  const roots = ["content", "_includes"];
+  const templates = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const file = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(file);
+      else if (/\.(?:njk|html|md)$/.test(entry.name)) templates.push(file);
+    }
+  };
+  for (const root of roots) walk(new URL(`../${root}`, import.meta.url).pathname);
+
+  // a page names its own stylesheet in front matter, and the layout links it
+  const pageStylesheets = [];
+  const references = [];
+  for (const file of templates) {
+    const source = readFileSync(file, "utf8");
+    const declared = source.match(/^pageStylesheet:\s*(\S+)$/m)?.[1];
+    if (declared) pageStylesheets.push({ file, url: declared });
+    for (const match of source.matchAll(
+      // a versioned query is one Nunjucks expression, which may quote a path
+      /(?:src|href)="(\/[^"?]+\.(?:css|js|mjs)|\{\{ pageStylesheet \}\})(\?v=\{\{[^}]*\}\}|\?[^"]*)?"/g,
+    )) {
+      references.push({ file, url: match[1], query: match[2] ?? "" });
+    }
+  }
+  assert.ok(pageStylesheets.length >= 1, "expected a page with its own stylesheet");
+  for (const { file, url } of pageStylesheets) {
+    assert.ok(
+      existsSync(new URL(`../public${url}`, import.meta.url)),
+      `${file} declares pageStylesheet ${url}, which is not in public/`,
+    );
+  }
+  assert.ok(
+    references.some(({ url }) => url === "{{ pageStylesheet }}"),
+    "expected the layout to link the page stylesheet",
+  );
+  assert.ok(references.length >= 6, "expected to find the site's asset tags");
+  for (const { file, url, query } of references) {
+    if (url.startsWith("/")) {
+      assert.ok(
+        existsSync(new URL(`../public${url}`, import.meta.url)),
+        `${file} references ${url}, which is not in public/`,
+      );
+    }
+    assert.match(
+      query,
+      url === "{{ pageStylesheet }}"
+        ? /^\?v=\{\{ \("public" ~ pageStylesheet\) \| fileHash \}\}$/
+        : /^\?v=\{\{ (?:"public\/[^"]+" \| fileHash|assets\.mainCss) \}\}$/,
+      `${file} references ${url} without a content hash`,
+    );
+  }
+});
+test("a row re-fits its runs whenever its body changes size", () => {
+  const script = readFileSync("public/pipeline.mjs", "utf8");
+  // each row watches its own body, so a font landing or the toc rail
+  // appearing re-fits it as a window resize does
+  assert.match(script, /new ResizeObserver\(measure\)/);
+  assert.match(script, /observer\.disconnect\(\)/);
+  assert.doesNotMatch(script, /addEventListener\("resize"/);
 });
 
 test("status pages share the uptime, pipeline, and pipeline webhooks subnav", () => {
