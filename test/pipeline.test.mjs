@@ -20,6 +20,7 @@ import {
   runsThatFitFacetRows,
   clockTime,
   detailRows,
+  displayRowLabel,
   displaySource,
   isDynamicalRow,
   lagAt,
@@ -65,6 +66,11 @@ function dashboard() {
 
 test("accepts the granular dashboard contract", () => {
   assert.equal(validateDashboard(dashboard()).groups[0].id, "noaa-gfs");
+});
+
+test("labels dynamical.org virtual datasets without the implementation detail", () => {
+  assert.equal(displayRowLabel("dynamical.org · virtual"), "dynamical.org");
+  assert.equal(displayRowLabel("AWS"), "AWS");
 });
 
 test("rejects the lead-only schema it replaced", () => {

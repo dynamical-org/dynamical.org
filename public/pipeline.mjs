@@ -156,6 +156,10 @@ export function displaySource(source) {
   return source?.replace(/^https?:\/\//, "") ?? "—";
 }
 
+export function displayRowLabel(label) {
+  return label === "dynamical.org · virtual" ? "dynamical.org" : label;
+}
+
 function productsOf(dashboard) {
   return dashboard.groups.flatMap((group) => group.products);
 }
@@ -1406,7 +1410,7 @@ function Row({
     data-view=${String(index)}
   >
     <div>
-      <strong>${product.row_label}</strong>
+      <strong>${displayRowLabel(product.row_label)}</strong>
       <div class="pipeline-source-meta">
         <div>${displaySource(product.source)}</div>
         <div>${`${product.cadence_hours ?? "—"}h init cadence`}</div>
