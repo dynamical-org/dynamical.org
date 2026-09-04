@@ -712,7 +712,7 @@ test("status page passes its timestamp into the shared subnav row", () => {
     template,
     /\.status-incident\[data-kind="planned"\][^}]*var\(--pill-degraded-bg\)/s,
   );
-  assert.doesNotMatch(script, /textContent = "Today"|day.*ago/);
+  assert.doesNotMatch(script, /\bToday\b|\bday.*ago/);
   assert.doesNotMatch(
     template,
     /Current health of dynamical\.org public endpoints, tools, and resources\./,
