@@ -807,7 +807,9 @@ function FacetRowsField({ product, local, runCount, dimension }) {
     Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
   const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
   const runsPerLane = Math.ceil(runs.length / laneCount);
-  // older runs occupy the first lane; newer runs continue in the second
+  // older runs occupy the first lane; newer runs continue in the second. The
+  // lanes are keyed by that slot, so when the window rolls forward a run keeps
+  // its node unless it crosses from one lane to the other
   const lanes = [];
   for (let start = 0; start < runs.length; start += runsPerLane) {
     lanes.push(runs.slice(start, start + runsPerLane));
@@ -819,9 +821,9 @@ function FacetRowsField({ product, local, runCount, dimension }) {
     style=${`--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
   >
     ${lanes.map(
-      (lane) =>
+      (lane, slot) =>
         html`<${FacetLane}
-          key=${lane[0].init_time}
+          key=${slot}
           product=${product}
           local=${local}
           runs=${lane}
@@ -1071,6 +1073,7 @@ export function detailRows(product, now, local, groupProducts = []) {
         ),
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
       return {
+        name: stats.name,
         label: stats.label,
         last: withLag(
           observedRunDetail(
@@ -1125,6 +1128,7 @@ export function facetRows(product) {
   );
   const displayed = running ?? product.recent_inits.at(-1);
   return (displayed?.facets ?? []).map((facet) => ({
+    name: facet.name,
     dimension: facet.dimension,
     label: facet.label,
     status: statusLabel(facet.status),
@@ -1165,7 +1169,9 @@ export function timingBaselineNote(product) {
 
 function Details({ product, now, local, groupProducts }) {
   const details = detailRows(product, now, local, groupProducts);
-  const leadTable = html`<div class="table-container">
+  // two keyed siblings, no wrapper: a facet table that arrives or leaves with
+  // a later run must not change what node the lead table scrolls in
+  const leadTable = html`<div key="lead" class="table-container">
     <table>
       <thead>
         <tr>
@@ -1188,7 +1194,7 @@ function Details({ product, now, local, groupProducts }) {
       </thead>
       <tbody>
         ${details.rows.map(
-          (row) => html`<tr key=${row.label}>
+          (row) => html`<tr key=${row.name}>
             <td>${row.label}</td>
             <${StatusCell} detail=${row.last} />
             <td>${row.last.time}</td>
@@ -1207,9 +1213,8 @@ function Details({ product, now, local, groupProducts }) {
   const facets = facetRows(product);
   if (facets.length === 0) return leadTable;
 
-  return html`<div>
-    ${leadTable}
-    <div class="table-container">
+  return html`${leadTable}
+    <div key="facets" class="table-container">
       <table class="pipeline-facets">
         <thead>
           <tr>
@@ -1225,7 +1230,7 @@ function Details({ product, now, local, groupProducts }) {
         </thead>
         <tbody>
           ${facets.map(
-            (facet) => html`<tr key=${`${facet.dimension}/${facet.label}`}>
+            (facet) => html`<tr key=${`${facet.dimension}/${facet.name}`}>
               <td>${facet.dimension}</td>
               <td>${facet.label}</td>
               <${StatusCell} detail=${facet} />
@@ -1242,8 +1247,7 @@ function Details({ product, now, local, groupProducts }) {
           )}
         </tbody>
       </table>
-    </div>
-  </div>`;
+    </div>`;
 }
 
 /* A row's summary column: the init it is waiting on, its state, and the ETA.
@@ -1599,12 +1603,32 @@ function start(app) {
     return response.json();
   }
 
+  // the DOM shows the index wrapped to the views a product offers; store the
+  // wrapped value, or a view that went away and came back would jump the row
+  // from the lead grid it had settled on straight to the returned view
+  function wrappedViews(views, dashboard) {
+    const wrapped = {};
+    for (const product of productsOf(dashboard)) {
+      if (!(product.id in views)) continue;
+      wrapped[product.id] = wrapIndex(
+        views[product.id],
+        viewsOf(product).length,
+      );
+    }
+    return wrapped;
+  }
+
   async function tick() {
     try {
       const dashboard = validateDashboard(
         await fetchJson(dashboardUrl, "no-cache"),
       );
-      store.update({ dashboard, error: null, now: Date.now() });
+      store.update((state) => ({
+        dashboard,
+        views: wrappedViews(state.views, dashboard),
+        error: null,
+        now: Date.now(),
+      }));
     } catch (error) {
       store.update((state) => ({
         error: state.dashboard

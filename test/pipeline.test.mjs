@@ -798,8 +798,8 @@ test("retains live horizon status, time, and duration in details", () => {
       },
     ],
     lead_group_stats: [
-      { label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 },
-      { label: "3d", p50_s: 2400, p95_s: 3600, p99_s: 4800 },
+      { name: "f024", label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 },
+      { name: "f072", label: "3d", p50_s: 2400, p95_s: 3600, p99_s: 4800 },
     ],
   };
   assert.deepEqual(
@@ -810,6 +810,7 @@ test("retains live horizon status, time, and duration in details", () => {
       statsHeader: "time after init",
       rows: [
         {
+          name: "f024",
           label: "1d",
           last: {
             status: "complete",
@@ -830,6 +831,7 @@ test("retains live horizon status, time, and duration in details", () => {
           p99: "40m",
         },
         {
+          name: "f072",
           label: "3d",
           last: {
             status: "complete",
@@ -1006,6 +1008,7 @@ test("groups component and member readiness for the displayed init", () => {
 
   assert.deepEqual(facetRows(product), [
     {
+      name: undefined,
       dimension: "component",
       label: "pgrb2a",
       status: "processing",
@@ -1015,6 +1018,7 @@ test("groups component and member readiness for the displayed init", () => {
       count: "3 / 4 observed",
     },
     {
+      name: undefined,
       dimension: "member",
       label: "control",
       status: "complete",

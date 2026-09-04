@@ -631,6 +631,105 @@ test.describe("what the reader has done survives a refresh", () => {
     await stillSettled(page, row, settled);
   });
 
+  // the facet table comes and goes with the run that is showing: a run that
+  // has reported no facets yet, then does, must not hand the lead table a new
+  // scroll box
+  test("a poll whose run starts reporting facets", async ({ page }) => {
+    const row = await openPipeline(page, (payload, served) => {
+      if (served === 1) {
+        const product = payload.groups[0].products[0];
+        for (const init of product.recent_inits) delete init.facets;
+      }
+      return payload;
+    });
+    await expect(row.locator(".pipeline-row-details table")).toHaveCount(0);
+    const settled = await settleIn(page, row);
+    await expect(row.locator(".pipeline-row-details table")).toHaveCount(1);
+
+    await page.clock.runFor(15_000);
+
+    await expect(row.locator(".pipeline-row-details table")).toHaveCount(2);
+    // the held box is still the one the lead table scrolls in
+    expect(
+      await settled.container.evaluate((node) =>
+        node.contains(node.parentNode.querySelector("table:not(.pipeline-facets)")),
+      ),
+    ).toBe(true);
+    await stillSettled(page, row, settled);
+  });
+
+  // the window rolls forward one run per cadence; the runs still in it keep
+  // their squares, in both the lead grid and the two-lane facet grid
+  test("a poll that rolls the window forward", async ({ page }) => {
+    const roll = (payload) => {
+      const product = payload.groups[0].products[0];
+      const [, ...rest] = product.recent_inits;
+      const newest = structuredClone(rest.at(-1));
+      newest.init_time = new Date(
+        Date.parse(newest.init_time) + 6 * 3600 * 1000,
+      ).toISOString();
+      newest.status = "pending";
+      product.recent_inits = [...rest, newest];
+      return payload;
+    };
+    // each poll rolls one run further than the one before it
+    const row = await openPipeline(page, (payload, served) => {
+      for (let turn = 1; turn < served; turn += 1) roll(payload);
+      return payload;
+    });
+    const running = FIXTURE.groups[0].products[0].recent_inits.findLast(
+      (init) => init.status === "in_flight",
+    ).init_time;
+    const square = (lane) =>
+      row
+        .locator(`${lane} .pipeline-cell[data-init-time="${running}"]`)
+        .first()
+        .elementHandle();
+    const labels = () => row.locator(".pipeline-run-label").allTextContents();
+
+    const leadCell = await square(".pipeline-field");
+    const before = await labels();
+    await page.clock.runFor(15_000);
+    // the window moved on, and the held square is the same node
+    await expect.poll(labels).not.toEqual(before);
+    expect(await leadCell.evaluate((node) => node.isConnected)).toBe(true);
+
+    await row.locator(".pipeline-viz").click();
+    await expect(row).toHaveAttribute("data-view", "1");
+    const facetCell = await square(".pipeline-facet-lane:last-child");
+    const between = await labels();
+    await page.clock.runFor(15_000);
+    await expect.poll(labels).not.toEqual(between);
+    expect(await facetCell.evaluate((node) => node.isConnected)).toBe(true);
+  });
+
+  // a view that the payload stops offering and later offers again does not
+  // reappear on its own: the row stays on the grid it fell back to
+  test("a poll that takes a view away and one that brings it back", async ({
+    page,
+  }) => {
+    const row = await openPipeline(page, (payload, served) => {
+      if (served === 2) {
+        const product = payload.groups[0].products[0];
+        for (const init of product.recent_inits) {
+          for (const group of init.lead_groups ?? []) delete group.facets;
+        }
+      }
+      return payload;
+    });
+    await row.locator(".pipeline-viz").click();
+    await row.locator(".pipeline-viz").click();
+    await expect(row).toHaveAttribute("data-view", "2");
+
+    await page.clock.runFor(15_000);
+    await expect(row).toHaveAttribute("data-view", "0");
+    await expect(row.locator(".pipeline-viz")).not.toHaveAttribute("role");
+
+    await page.clock.runFor(15_000);
+    await expect(row.locator(".pipeline-viz")).toHaveAttribute("role", "group");
+    await expect(row).toHaveAttribute("data-view", "0");
+  });
+
   test("a poll that adds a product above an expanded one", async ({ page }) => {
     await openPipeline(page, (payload, served) => {
       if (served > 1) {
