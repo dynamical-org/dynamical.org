@@ -1398,9 +1398,9 @@ function Advisories({ advisories }) {
   if (advisories.length === 0) return null;
   return html`<div class="pipeline-advisories">
     <strong>${`${advisories.length} active upstream dissemination advisor${advisories.length === 1 ? "y" : "ies"}`}</strong>
-    ${advisories.map((advisory, index) => {
+    ${advisories.map((advisory) => {
       const description = `${advisory.agency.toUpperCase()} — ${advisory.title}`;
-      return html`<p key=${advisory.incident_id ?? index}>
+      return html`<p key=${advisory.incident_id ?? `${advisory.agency}\n${advisory.title}`}>
         ${advisory.url
           ? html`<a href=${advisory.url}>${description}</a>`
           : description}
@@ -1422,13 +1422,12 @@ function TocTree({ groups }) {
 
 function Groups({ state, actions }) {
   const { dashboard } = state;
+  // the toc script caches the group headings and their links, so it is told
+  // when they first exist and whenever the set of groups changes — nothing
+  // below a group is its business
   const signature = dashboard
-    ? dashboard.groups
-        .flatMap((group) => [group.id, ...group.products.map(({ id }) => id)])
-        .join("\n")
+    ? dashboard.groups.map((group) => group.id).join("\n")
     : null;
-  // the toc script reads the headings after they exist, and again whenever
-  // the set of groups changes
   useEffect(() => {
     if (signature === null) return;
     document.dispatchEvent(new Event("md-toc:refresh"));
@@ -1506,6 +1505,8 @@ function start(app) {
     tocTree: app.querySelector('[data-slot="pipeline-toc-tree"]'),
   };
 
+  // what the last paint drew, for the writes that should not repeat
+  let painted = {};
   function paint(state) {
     const { dashboard } = state;
     document.body.classList.toggle("pipeline-time-local", state.local);
@@ -1533,12 +1534,15 @@ function start(app) {
     );
     render(html`<${TocTree} groups=${dashboard?.groups ?? []} />`, slots.tocTree);
     render(html`<${Groups} state=${state} actions=${actions} />`, slots.groups);
-    if (dashboard) {
+    // the health strip is a polite live region outside any root; it is written
+    // only when what it says can have changed, not on every countdown tick
+    if (dashboard && dashboard !== painted.dashboard) {
       renderHealth(app, "agency-health", agencyHealth(dashboard.advisories));
     }
-    if (state.systemHealth) {
+    if (state.systemHealth && state.systemHealth !== painted.systemHealth) {
       renderHealth(app, "system-health", state.systemHealth);
     }
+    painted = state;
   }
 
   const store = createStore(
