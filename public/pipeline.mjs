@@ -752,81 +752,13 @@ function LabelTier({
    lead group inside a block. Same squares and same hover labels as the banded
    field — only which dimension owns which axis changes.
 
-   Every node a run owns — its lead labels, its squares for every facet, its
-   time and date labels — lives under one element per run, and CSS grid places
-   them. Runs are split across two lanes so more fit, but a lane is a set of
-   grid rows, not a subtree: when the window rolls forward and a run moves from
-   the newer lane to the older, it keeps its nodes and only its grid area
-   changes. */
-
-function Run({
-  product,
-  init,
-  leads,
-  facets,
-  leadWidth,
-  joint,
-  local,
-  lane,
-  column,
-  rowOf,
-  date,
-}) {
-  const area = (row) => `grid-area:${rowOf(lane, row)} / ${column}`;
-  return html`<div
-    class="pipeline-run"
-    data-init-time=${init.init_time}
-    data-lane=${String(lane)}
-  >
-    <div class="pipeline-clump" style=${area(0)}>
-      ${leads.map(
-        (lead) =>
-          html`<${LeadLabel}
-            key=${lead.key}
-            lead=${lead}
-            width=${leadWidth(lead)}
-          />`,
-      )}
-    </div>
-    ${facets.map(
-      (facet, index) =>
-        html`<div
-          key=${facet.name}
-          class="pipeline-clump"
-          data-facet=${facet.name}
-          style=${area(index + 1)}
-        >
-          ${leads.map((lead) => {
-            const measured = joint.get(init)?.get(lead.key);
-            const facetAt = measured?.facets.get(facet.name);
-            const band = {
-              kind: "facet",
-              key: facet.name,
-              label: facet.label,
-              dimension: facet.dimension,
-              lead: lead.label,
-            };
-            return html`<${Cell}
-              key=${lead.key}
-              band=${band}
-              init=${init}
-              local=${local}
-              measured=${facetAt
-                ? facetCell(facetAt, init, measured.timing)
-                : { state: "unobserved" }}
-              style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
-            />`;
-          })}
-        </div>`,
-    )}
-    <span
-      class="pipeline-run-label"
-      style=${area(facets.length + 1)}
-      title=${initShort(init.init_time, local)}
-    >${initParts(init.init_time, selectedTimeZone(local)).time}</span>
-    <span class="pipeline-run-date" style=${area(facets.length + 2)}>${date}</span>
-  </div>`;
-}
+   One grid per field, and every node a direct child of it, emitted in the
+   order the eye reads: a lane's lead labels, then each facet's gutter label
+   followed by that facet's squares run by run, then the times, then the
+   dates. So a screen reader or a text selection follows the picture. Each
+   node is keyed by what it belongs to — the run's init and the facet — so
+   when the window rolls forward and a run moves from the newer lane up into
+   the older, its squares keep their nodes and only their grid areas change. */
 
 function FacetRowsField({ product, local, runCount, dimension }) {
   const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
@@ -838,65 +770,127 @@ function FacetRowsField({ product, local, runCount, dimension }) {
     leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
     Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
   const joint = jointIndex(product, runs, leads);
+  const zone = selectedTimeZone(local);
   // older runs occupy the first lane; newer runs continue in the second
   const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
   const runsPerLane = Math.ceil(runs.length / laneCount);
-  const laneOf = (index) => Math.floor(index / runsPerLane);
   // a lane is a head row, a row per facet, a time row and a date row, with
   // a spacer row before every lane but the first
   const rowsPerLane = facets.length + 3;
   const rowOf = (lane, row) => lane * (rowsPerLane + 1) + row + 1;
-  const zone = selectedTimeZone(local);
-  // the date shows where it turns over, counted afresh in each lane so a
-  // lane always opens with one
-  let previousDate = null;
-  const dates = runs.map((init, index) => {
-    if (index % runsPerLane === 0) previousDate = null;
-    const { date } = initParts(init.init_time, zone);
-    const turned = date !== previousDate;
-    previousDate = date;
-    return turned ? date : "";
-  });
   const laneRows = `calc(var(--label-h) + 0.2rem) repeat(${facets.length}, var(--sq)) calc(var(--label-h) + 0.3rem) var(--label-h)`;
   const templateRows = Array.from({ length: laneCount }, () => laneRows).join(
     " calc(var(--lane-gap) - 2 * var(--band-gap)) ",
   );
+
+  const children = [];
+  for (let lane = 0; lane < laneCount; lane += 1) {
+    const laneRuns = runs.slice(lane * runsPerLane, (lane + 1) * runsPerLane);
+    const at = (row, column) =>
+      `grid-area:${rowOf(lane, row)} / ${column + 2}`;
+    const owned = (init) => ({
+      "data-lane": String(lane),
+      "data-init-time": init.init_time,
+    });
+    laneRuns.forEach((init, column) => {
+      children.push(
+        html`<div
+          key=${`head/${init.init_time}`}
+          class="pipeline-clump pipeline-run-head"
+          ...${owned(init)}
+          style=${at(0, column)}
+        >
+          ${leads.map(
+            (lead) =>
+              html`<${LeadLabel}
+                key=${lead.key}
+                lead=${lead}
+                width=${leadWidth(lead)}
+              />`,
+          )}
+        </div>`,
+      );
+    });
+    facets.forEach((facet, index) => {
+      children.push(
+        html`<span
+          key=${`${lane}/${facet.name}`}
+          class="pipeline-band-label"
+          data-kind="facet"
+          data-lane=${String(lane)}
+          title=${`${facet.label} (${facet.dimension})`}
+          style=${`grid-area:${rowOf(lane, index + 1)} / 1`}
+        >${facetAxisLabel(facet)}</span>`,
+      );
+      laneRuns.forEach((init, column) => {
+        children.push(
+          html`<div
+            key=${`${facet.name}/${init.init_time}`}
+            class="pipeline-clump"
+            data-facet=${facet.name}
+            ...${owned(init)}
+            style=${at(index + 1, column)}
+          >
+            ${leads.map((lead) => {
+              const measured = joint.get(init)?.get(lead.key);
+              const facetAt = measured?.facets.get(facet.name);
+              const band = {
+                kind: "facet",
+                key: facet.name,
+                label: facet.label,
+                dimension: facet.dimension,
+                lead: lead.label,
+              };
+              return html`<${Cell}
+                key=${lead.key}
+                band=${band}
+                init=${init}
+                local=${local}
+                measured=${facetAt
+                  ? facetCell(facetAt, init, measured.timing)
+                  : { state: "unobserved" }}
+                style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
+              />`;
+            })}
+          </div>`,
+        );
+      });
+    });
+    laneRuns.forEach((init, column) => {
+      children.push(
+        html`<span
+          key=${`time/${init.init_time}`}
+          class="pipeline-run-label"
+          ...${owned(init)}
+          style=${at(facets.length + 1, column)}
+          title=${initShort(init.init_time, local)}
+        >${initParts(init.init_time, zone).time}</span>`,
+      );
+    });
+    // the date shows where it turns over, counted afresh in each lane so a
+    // lane always opens with one
+    let previousDate = null;
+    laneRuns.forEach((init, column) => {
+      const { date } = initParts(init.init_time, zone);
+      const turned = date !== previousDate;
+      previousDate = date;
+      children.push(
+        html`<span
+          key=${`date/${init.init_time}`}
+          class="pipeline-run-date"
+          ...${owned(init)}
+          style=${at(facets.length + 2, column)}
+        >${turned ? date : ""}</span>`,
+      );
+    });
+  }
+
   return html`<div
     class="pipeline-field pipeline-field--runs"
     data-fill="side"
-    data-compact=""
     style=${`--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px;grid-template-columns:var(--band-gutter) repeat(${runsPerLane}, var(--run-width));grid-template-rows:${templateRows}`}
   >
-    ${Array.from({ length: laneCount }, (_, lane) =>
-      facets.map(
-        (facet, index) =>
-          html`<span
-            key=${`${lane}/${facet.name}`}
-            class="pipeline-band-label"
-            data-kind="facet"
-            data-lane=${String(lane)}
-            title=${`${facet.label} (${facet.dimension})`}
-            style=${`grid-area:${rowOf(lane, index + 1)} / 1`}
-          >${facetAxisLabel(facet)}</span>`,
-      ),
-    )}
-    ${runs.map(
-      (init, index) =>
-        html`<${Run}
-          key=${init.init_time}
-          product=${product}
-          init=${init}
-          leads=${leads}
-          facets=${facets}
-          leadWidth=${leadWidth}
-          joint=${joint}
-          local=${local}
-          lane=${laneOf(index)}
-          column=${(index % runsPerLane) + 2}
-          rowOf=${rowOf}
-          date=${dates[index]}
-        />`,
-    )}
+    ${children}
   </div>`;
 }
 

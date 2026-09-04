@@ -1462,8 +1462,10 @@ test("vendored module imports resolve and cache rules distinguish the shim", () 
     new URL("../public/_headers", import.meta.url),
     "utf8",
   );
+  // a rule's lines are indented; a blank line ends it, so a rule cannot
+  // borrow the next rule's directives
   const vendorRule = headers.match(
-    /^\/vendor\/\*\n((?:\s+.+\n?)*)/m,
+    /^\/vendor\/\*\n((?:[ \t]+[^\r\n]+\n?)*)/m,
   )?.[1];
   assert.ok(vendorRule, "missing cache rule for versioned vendor modules");
   assert.match(vendorRule, /! Cache-Control/);
@@ -1472,7 +1474,7 @@ test("vendored module imports resolve and cache rules distinguish the shim", () 
     /Cache-Control: public, max-age=31536000, immutable/,
   );
   const shimRule = headers.match(
-    /^\/vendor\/preact-htm\.mjs\n((?:\s+.+\n?)*)/m,
+    /^\/vendor\/preact-htm\.mjs\n((?:[ \t]+[^\r\n]+\n?)*)/m,
   )?.[1];
   assert.ok(shimRule, "missing cache rule for the unversioned vendor shim");
   assert.match(shimRule, /! Cache-Control/);

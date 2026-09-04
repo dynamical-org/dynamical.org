@@ -142,11 +142,11 @@
 }
 
 /* The facet-row field is one grid: a gutter column of facet labels, then a
-   column per run. Each run's nodes sit under one element that places them
-   into its column by grid area, so a run keeps its nodes when the window
-   rolls it from the newer lane into the older — a lane is a set of rows, not
-   a subtree. The row and column templates come from the script, which knows
-   the facet and run counts. */
+   column per run. Every node is a direct child placed by grid area, in
+   reading order, so a run keeps its nodes when the window rolls it from the
+   newer lane into the older — a lane is a set of rows, not a subtree. The
+   row and column templates come from the script, which knows the facet and
+   run counts. */
 
 .pipeline-field--runs {
   display: grid;
@@ -154,16 +154,9 @@
   align-items: center;
 }
 
-.pipeline-run {
-  display: contents;
-}
-
 /* the lead labels sit on the squares below them, the times on the squares
    above them; the tracks carry the breathing room */
-.pipeline-field--runs > .pipeline-run > .pipeline-clump:first-child {
-  align-self: end;
-}
-
+.pipeline-run-head,
 .pipeline-field--runs .pipeline-run-label {
   align-self: end;
 }
@@ -292,10 +285,6 @@
   font-size: 0.9rem;
   line-height: var(--label-h);
   text-align: center;
-}
-
-.pipeline-band--head {
-  margin-bottom: 0.2rem;
 }
 
 .pipeline-band--foot {

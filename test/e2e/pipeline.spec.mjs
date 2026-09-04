@@ -95,13 +95,17 @@ async function openPipeline(page, mutate) {
 function bandGeometry(row) {
   return row.evaluate((node) => {
     const fieldNode = node.querySelector(".pipeline-field");
+    const firstInit = fieldNode
+      .querySelector(".pipeline-run-head")
+      ?.getAttribute("data-init-time");
     const rows = fieldNode.classList.contains("pipeline-field--runs")
       ? [...fieldNode.querySelectorAll('.pipeline-band-label[data-lane="0"]')].map(
           (label, index) => ({
             label,
             cell: fieldNode
-              .querySelector(".pipeline-run")
-              .querySelectorAll(".pipeline-clump[data-facet]")[index]
+              .querySelectorAll(
+                `.pipeline-clump[data-facet][data-init-time="${firstInit}"]`,
+              )[index]
               .querySelector(".pipeline-cell"),
           }),
         )
@@ -241,7 +245,7 @@ test("clicking cycles the rows through content-height facet dimensions", async (
   // lead time owns the columns in a facet view, so each lane names it there
   const columnLabels = (
     await row
-      .locator('.pipeline-run[data-lane="0"] .pipeline-column-label')
+      .locator('.pipeline-run-head[data-lane="0"] .pipeline-column-label')
       .allTextContents()
   ).filter(Boolean);
   expect(columnLabels).toEqual(REPEATED_LEAD_LABELS);
@@ -275,30 +279,57 @@ test("facet views use two compact lanes and show every available init", async ({
         .locator(`.pipeline-band-label[data-kind="facet"][data-lane="${lane}"]`)
         .allTextContents(),
     ).toEqual(["pgrb2a", "pgrb2b", "pgrb2s"]);
-    const runs = row.locator(`.pipeline-run[data-lane="${lane}"]`);
-    await expect(runs).toHaveCount(5);
+    const heads = row.locator(`.pipeline-run-head[data-lane="${lane}"]`);
+    await expect(heads).toHaveCount(5);
     const leadLabels = (
-      await runs.locator(".pipeline-column-label").allTextContents()
+      await heads.locator(".pipeline-column-label").allTextContents()
     ).filter(Boolean);
     expect(leadLabels).toEqual(REPEATED_LEAD_LABELS);
-    await expect(runs.locator(".pipeline-run-label")).toHaveCount(5);
+    await expect(
+      row.locator(`.pipeline-run-label[data-lane="${lane}"]`),
+    ).toHaveCount(5);
   }
   // the second lane sits below the first, not beside it
   const laneTops = await row.evaluate((node) =>
     ["0", "1"].map(
       (lane) =>
         node
-          .querySelector(`.pipeline-run[data-lane="${lane}"] .pipeline-cell`)
+          .querySelector(`.pipeline-clump[data-facet][data-lane="${lane}"] .pipeline-cell`)
           .getBoundingClientRect().top,
     ),
   );
   expect(laneTops[1]).toBeGreaterThan(laneTops[0] + 8);
-  const rowGaps = await row.locator(".pipeline-run").first().evaluate((run) => {
-    const cells = [...run.querySelectorAll(".pipeline-clump[data-facet]")].map(
-      (clump) => clump.querySelector(".pipeline-cell").getBoundingClientRect(),
-    );
+  const rowGaps = await row.evaluate((node) => {
+    const init = node
+      .querySelector(".pipeline-run-head")
+      .getAttribute("data-init-time");
+    const cells = [
+      ...node.querySelectorAll(
+        `.pipeline-clump[data-facet][data-init-time="${init}"]`,
+      ),
+    ].map((clump) => clump.querySelector(".pipeline-cell").getBoundingClientRect());
     return cells.slice(1).map((cell, index) => cell.top - cells[index].bottom);
   });
+  // the DOM reads the way the picture does: a lane's lead labels, then each
+  // facet's label followed by its squares, then the times, then the dates
+  const order = await row.evaluate((node) =>
+    [...node.querySelector(".pipeline-field").children].map((child) =>
+      child.classList.contains("pipeline-run-head")
+        ? "head"
+        : child.classList.contains("pipeline-band-label")
+          ? `label:${child.textContent}`
+          : child.dataset.facet
+            ? `cells:${child.dataset.facet}`
+            : child.className,
+    ),
+  );
+  const lane = order.slice(0, order.length / 2);
+  expect(lane.slice(0, 5)).toEqual(Array(5).fill("head"));
+  expect(lane[5]).toBe("label:pgrb2a");
+  expect(lane.slice(6, 11).every((item) => item.startsWith("cells:"))).toBe(true);
+  expect(lane.slice(-10, -5)).toEqual(Array(5).fill("pipeline-run-label"));
+  expect(lane.slice(-5)).toEqual(Array(5).fill("pipeline-run-date"));
+  expect(order.slice(order.length / 2)).toEqual(lane);
   expect(rowGaps.length).toBeGreaterThan(0);
   for (const gap of rowGaps) expect(gap).toBeGreaterThanOrEqual(4);
 
@@ -718,39 +749,48 @@ test.describe("what the reader has done survives a refresh", () => {
 
     await row.locator(".pipeline-viz").click();
     await expect(row).toHaveAttribute("data-view", "1");
-    const facetCell = await square('.pipeline-run[data-lane="1"]');
-    // the run that opens the newer lane is the one the next roll moves up
+    const facetCell = await square('.pipeline-clump[data-lane="1"]');
+    // the run that opens the newer lane is the one the next roll moves up:
+    // hold one of its squares, not just a container
+    const crossingInit = await row
+      .locator('.pipeline-run-head[data-lane="1"]')
+      .first()
+      .getAttribute("data-init-time");
     const crossing = await row
-      .locator('.pipeline-run[data-lane="1"]')
+      .locator(`.pipeline-clump[data-facet][data-init-time="${crossingInit}"] .pipeline-cell`)
       .first()
       .elementHandle();
-    const crossingInit = await crossing.getAttribute("data-init-time");
     const between = await labels();
     await page.clock.runFor(15_000);
     await expect.poll(labels).not.toEqual(between);
     expect(await facetCell.evaluate((node) => node.isConnected)).toBe(true);
     expect(await crossing.evaluate((node) => node.isConnected)).toBe(true);
-    expect(await crossing.getAttribute("data-lane")).toBe("0");
+    expect(
+      await crossing.evaluate((node) => node.parentNode.dataset.lane),
+    ).toBe("0");
     await expect(
-      row.locator('.pipeline-run[data-lane="0"]').last(),
+      row.locator('.pipeline-run-head[data-lane="0"]').last(),
     ).toHaveAttribute("data-init-time", crossingInit);
   });
 
   // the run count is fitted to the measured row body, which is watched by a
-  // ResizeObserver. Below 900px the row stacks and the body gets the whole
-  // width, so the narrower window fits more runs, not fewer: what matters is
-  // that the count follows the body and nothing overflows.
+  // ResizeObserver: the body alone gets narrower here, with no window resize
+  // for a resize listener to hear
   test("a column that changes width re-fits the runs", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const row = await openPipeline(page);
     const before = await row.locator(".pipeline-run-label").count();
     expect(before).toBeGreaterThan(3);
 
-    await page.setViewportSize({ width: 640, height: 900 });
+    await row
+      .locator(".pipeline-row-body")
+      .evaluate((node) => {
+        node.style.maxWidth = "240px";
+      });
 
     await expect
       .poll(() => row.locator(".pipeline-run-label").count())
-      .not.toBe(before);
+      .toBeLessThan(before);
     expect((await bandGeometry(row)).overflowsColumn).toBe(false);
   });
 
