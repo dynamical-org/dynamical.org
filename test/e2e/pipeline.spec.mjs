@@ -469,6 +469,23 @@ test("details distinguish last, current or upcoming, and historical timings", as
   expect(headings[1]).toMatch(/^last run(?: · |$)/);
   expect(headings[2]).toMatch(/^(?:current|upcoming) run(?: · |$)/);
   expect(headings[3]).toMatch(/^time after init · [\d,]+ samples$/);
+  // the run columns name the same reference point the stats do
+  const subheadings = await row
+    .locator(
+      ".pipeline-row-details .table-container:first-child thead tr:last-child th",
+    )
+    .allTextContents();
+  expect(subheadings).toEqual([
+    "status",
+    "time",
+    "after init",
+    "status",
+    "time",
+    "after init",
+    "p50",
+    "p95",
+    "p99",
+  ]);
 });
 
 test("a dynamical row reports lag after its source, not time after init", async ({
@@ -485,7 +502,14 @@ test("a dynamical row reports lag after its source, not time after init", async 
   await expect(table.locator("thead tr:first-child th").nth(3)).toHaveText(
     "lag after source · 8 recent samples · insufficient history (24/30 days)",
   );
-  // the lag replaces the duration column; the time beside it stays wall-clock
+  // the lag replaces the duration column under a header that says so; the
+  // time beside it stays wall-clock
+  await expect(table.locator("thead tr:last-child th").nth(2)).toHaveText(
+    "after source",
+  );
+  await expect(table.locator("thead tr:last-child th").nth(5)).toHaveText(
+    "after source",
+  );
   const cells = table.locator("tbody tr:first-child td");
   await expect(cells.nth(2)).toHaveText(/^\d{2}:\d{2}$/);
   await expect(cells.nth(3)).toHaveText("5m");

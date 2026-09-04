@@ -1134,6 +1134,10 @@ export function detailRows(product, now, local, groupProducts = []) {
           product.latency_stats?.sample_init_count,
           timingBaselineNote(product),
         ),
+    // the run columns' third cell measures from a different point on a lagged
+    // row, and the stats header naming it sits a scroll away; the sub-header
+    // names the reference point where the number is
+    durationHeader: lagged ? "after source" : "after init",
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
       return {
         name: stats.name,
@@ -1246,10 +1250,10 @@ function Details({ product, now, local, groupProducts }) {
         <tr>
           <th>status</th>
           <th>time</th>
-          <th>duration</th>
+          <th>${details.durationHeader}</th>
           <th>status</th>
           <th>time</th>
-          <th>duration</th>
+          <th>${details.durationHeader}</th>
           <th>p50</th>
           <th>p95</th>
           <th>p99</th>

@@ -837,6 +837,7 @@ test("retains live horizon status, time, and duration in details", () => {
       lastHeader: "last run · 07-26 06z",
       runHeader: "current run · 07-26 12z",
       statsHeader: "time after init",
+      durationHeader: "after init",
       rows: [
         {
           name: "f024",
@@ -1215,9 +1216,10 @@ test("details read a dynamical row as lag after its source", () => {
   );
 
   assert.equal(details.statsHeader, "lag after source · 3 recent samples");
+  // the duration column carries the lag and its header says so; the time
+  // beside it still says when the run finished
+  assert.equal(details.durationHeader, "after source");
   const [row] = details.rows;
-  // the duration column carries the lag; the time beside it still says when
-  // the run finished
   assert.equal(row.last.duration, "2m");
   assert.equal(row.last.time, "13:00");
   assert.equal(lagSeries(virtual, [aws]).length, 3);
@@ -1261,6 +1263,7 @@ test("keeps time after init where a row has no source beside it", () => {
       group,
     );
     assert.equal(details.statsHeader, "time after init · 24 samples");
+    assert.equal(details.durationHeader, "after init");
     assert.deepEqual(
       [details.rows[0].last.duration, details.rows[0].p50],
       ["1h 7m", "1h 8m"],
