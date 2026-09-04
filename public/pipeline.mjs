@@ -99,6 +99,23 @@ export function validateDashboard(data) {
       ) {
         throw new TypeError("Invalid pipeline product");
       }
+      // the details table keys its rows on these names, so a product's
+      // stats must each carry one, and no two the same
+      if (product.lead_group_stats != null) {
+        const names = new Set();
+        if (
+          !Array.isArray(product.lead_group_stats) ||
+          !product.lead_group_stats.every(
+            (stats) =>
+              typeof stats.name === "string" &&
+              stats.name !== "" &&
+              !names.has(stats.name) &&
+              names.add(stats.name),
+          )
+        ) {
+          throw new TypeError("Invalid pipeline lead group stats");
+        }
+      }
       if (product.facet_groups != null) {
         if (
           !Array.isArray(product.facet_groups) ||
@@ -1195,7 +1212,7 @@ function Details({ product, now, local, groupProducts }) {
       </thead>
       <tbody>
         ${details.rows.map(
-          (row) => html`<tr key=${row.name ?? row.label}>
+          (row) => html`<tr key=${row.name}>
             <td>${row.label}</td>
             <${StatusCell} detail=${row.last} />
             <td>${row.last.time}</td>

@@ -133,6 +133,29 @@ test("rejects empty, unknown, and oversized dashboards", () => {
   );
 });
 
+
+// the details rows are keyed on these names, so a payload that omits or
+// repeats one cannot be rendered with stable rows
+test("rejects lead group stats without a unique name", () => {
+  const unnamed = dashboard();
+  unnamed.groups[0].products[0].lead_group_stats = [
+    { label: "0h", p50_s: 1, p95_s: 2, p99_s: 3 },
+  ];
+  assert.throws(
+    () => validateDashboard(unnamed),
+    /invalid pipeline lead group stats/i,
+  );
+  const repeated = dashboard();
+  repeated.groups[0].products[0].lead_group_stats = [
+    { name: "f000", label: "0h", p50_s: 1, p95_s: 2, p99_s: 3 },
+    { name: "f000", label: "1d", p50_s: 1, p95_s: 2, p99_s: 3 },
+  ];
+  assert.throws(
+    () => validateDashboard(repeated),
+    /invalid pipeline lead group stats/i,
+  );
+});
+
 test("summarizes upstream agency advisories without changing pipeline state", () => {
   assert.deepEqual(agencySummary([]), {
     state: "nominal",
