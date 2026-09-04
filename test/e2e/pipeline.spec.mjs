@@ -496,11 +496,14 @@ test("details keep their horizontal scroll across the live refresh", async ({
     return node.scrollLeft;
   });
   expect(scrolled).toBeGreaterThan(0);
-  // long enough for the countdown to rebuild the details more than once
-  await page.waitForTimeout(2500);
+  // wait for the countdown's rebuild to have actually replaced the table,
+  // rather than for the clock, then read the position off its replacement
+  const before = await table.elementHandle();
+  await page.waitForFunction((node) => !node.isConnected, before);
   await expect(table).toHaveJSProperty("scrollLeft", scrolled);
 
-  // the poll and view cycling rebuild the row through another path
+  // view cycling rebuilds the row through hydrateRow, the path the dashboard
+  // poll, a resize, and the time-zone toggle share
   await row.locator(".pipeline-viz").click();
   await expect(row).toHaveAttribute("data-view", "1");
   await expect(table).toHaveJSProperty("scrollLeft", scrolled);

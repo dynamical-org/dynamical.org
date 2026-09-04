@@ -996,10 +996,12 @@ export function etaLineText(target, now, local) {
 
 // The percentile columns summarise every init in the historical baseline, not
 // just the runs the grid draws, so the header names the sample they came from.
-function statsHeader(sampleInitCount) {
+function statsHeader(sampleInitCount, note = null) {
   if (!sampleInitCount) return "time after init";
   const samples = sampleInitCount === 1 ? "sample" : "samples";
-  return `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
+  const header = `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
+  // the sample is thin, so the columns beside it come with no timing verdict
+  return note ? `${header} · ${note}` : header;
 }
 
 // A lag has no published baseline behind it, so its sample is the handful of
@@ -1150,7 +1152,10 @@ export function detailRows(product, now, local, groupProducts = []) {
       : labelledRun("upcoming run", upcoming, local),
     statsHeader: lagged
       ? lagStatsHeader(lags.length)
-      : statsHeader(product.latency_stats?.sample_init_count),
+      : statsHeader(
+          product.latency_stats?.sample_init_count,
+          timingBaselineNote(product),
+        ),
     rows: (product.lead_group_stats ?? []).map((stats, index) => {
       return {
         label: stats.label,
