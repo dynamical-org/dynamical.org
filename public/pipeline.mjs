@@ -750,66 +750,81 @@ function LabelTier({
 
 /* The facet-row field: one row per facet, one block per run, one column per
    lead group inside a block. Same squares and same hover labels as the banded
-   field — only which dimension owns which axis changes. */
+   field — only which dimension owns which axis changes.
 
-function FacetLane({ product, local, runs, leads, facets, leadWidth }) {
-  const joint = jointIndex(product, runs, leads);
-  return html`<div class="pipeline-facet-lane">
-    <${Band} className="pipeline-band pipeline-band--head" clumped>
-      ${runs.map(
-        (init) =>
-          html`<div key=${init.init_time} class="pipeline-clump">
-            ${leads.map(
-              (lead) =>
-                html`<${LeadLabel}
-                  key=${lead.key}
-                  lead=${lead}
-                  width=${leadWidth(lead)}
-                />`,
-            )}
-          </div>`,
-      )}
-    <//>
-    <div class="pipeline-rows">
-      ${facets.map(
-        (facet) =>
-          html`<${Band}
-            key=${facet.name}
-            kind="facet"
-            label=${facetAxisLabel(facet)}
-            labelTitle=${`${facet.label} (${facet.dimension})`}
-            clumped
-          >
-            ${runs.map(
-              (init) =>
-                html`<div key=${init.init_time} class="pipeline-clump">
-                  ${leads.map((lead) => {
-                    const measured = joint.get(init)?.get(lead.key);
-                    const facetAt = measured?.facets.get(facet.name);
-                    const band = {
-                      kind: "facet",
-                      key: facet.name,
-                      label: facet.label,
-                      dimension: facet.dimension,
-                      lead: lead.label,
-                    };
-                    return html`<${Cell}
-                      key=${lead.key}
-                      band=${band}
-                      init=${init}
-                      local=${local}
-                      measured=${facetAt
-                        ? facetCell(facetAt, init, measured.timing)
-                        : { state: "unobserved" }}
-                      style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
-                    />`;
-                  })}
-                </div>`,
-            )}
-          <//>`,
+   Every node a run owns — its lead labels, its squares for every facet, its
+   time and date labels — lives under one element per run, and CSS grid places
+   them. Runs are split across two lanes so more fit, but a lane is a set of
+   grid rows, not a subtree: when the window rolls forward and a run moves from
+   the newer lane to the older, it keeps its nodes and only its grid area
+   changes. */
+
+function Run({
+  product,
+  init,
+  leads,
+  facets,
+  leadWidth,
+  joint,
+  local,
+  lane,
+  column,
+  rowOf,
+  date,
+}) {
+  const area = (row) => `grid-area:${rowOf(lane, row)} / ${column}`;
+  return html`<div
+    class="pipeline-run"
+    data-init-time=${init.init_time}
+    data-lane=${String(lane)}
+  >
+    <div class="pipeline-clump" style=${area(0)}>
+      ${leads.map(
+        (lead) =>
+          html`<${LeadLabel}
+            key=${lead.key}
+            lead=${lead}
+            width=${leadWidth(lead)}
+          />`,
       )}
     </div>
-    <${InitTiers} runs=${runs} local=${local} />
+    ${facets.map(
+      (facet, index) =>
+        html`<div
+          key=${facet.name}
+          class="pipeline-clump"
+          data-facet=${facet.name}
+          style=${area(index + 1)}
+        >
+          ${leads.map((lead) => {
+            const measured = joint.get(init)?.get(lead.key);
+            const facetAt = measured?.facets.get(facet.name);
+            const band = {
+              kind: "facet",
+              key: facet.name,
+              label: facet.label,
+              dimension: facet.dimension,
+              lead: lead.label,
+            };
+            return html`<${Cell}
+              key=${lead.key}
+              band=${band}
+              init=${init}
+              local=${local}
+              measured=${facetAt
+                ? facetCell(facetAt, init, measured.timing)
+                : { state: "unobserved" }}
+              style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
+            />`;
+          })}
+        </div>`,
+    )}
+    <span
+      class="pipeline-run-label"
+      style=${area(facets.length + 1)}
+      title=${initShort(init.init_time, local)}
+    >${initParts(init.init_time, selectedTimeZone(local)).time}</span>
+    <span class="pipeline-run-date" style=${area(facets.length + 2)}>${date}</span>
   </div>`;
 }
 
@@ -822,32 +837,64 @@ function FacetRowsField({ product, local, runCount, dimension }) {
   const runWidth =
     leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
     Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
+  const joint = jointIndex(product, runs, leads);
+  // older runs occupy the first lane; newer runs continue in the second
   const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
   const runsPerLane = Math.ceil(runs.length / laneCount);
-  // older runs occupy the first lane; newer runs continue in the second. The
-  // lanes are keyed by that slot, so when the window rolls forward a run keeps
-  // its node unless it crosses from one lane to the other — the one run per
-  // roll that does is redrawn, since each lane owns its runs' nodes
-  const lanes = [];
-  for (let start = 0; start < runs.length; start += runsPerLane) {
-    lanes.push(runs.slice(start, start + runsPerLane));
-  }
+  const laneOf = (index) => Math.floor(index / runsPerLane);
+  // a lane is a head row, a row per facet, a time row and a date row, with
+  // a spacer row before every lane but the first
+  const rowsPerLane = facets.length + 3;
+  const rowOf = (lane, row) => lane * (rowsPerLane + 1) + row + 1;
+  const zone = selectedTimeZone(local);
+  // the date shows where it turns over, counted afresh in each lane so a
+  // lane always opens with one
+  let previousDate = null;
+  const dates = runs.map((init, index) => {
+    if (index % runsPerLane === 0) previousDate = null;
+    const { date } = initParts(init.init_time, zone);
+    const turned = date !== previousDate;
+    previousDate = date;
+    return turned ? date : "";
+  });
+  const laneRows = `calc(var(--label-h) + 0.2rem) repeat(${facets.length}, var(--sq)) calc(var(--label-h) + 0.3rem) var(--label-h)`;
+  const templateRows = Array.from({ length: laneCount }, () => laneRows).join(
+    " calc(var(--lane-gap) - 2 * var(--band-gap)) ",
+  );
   return html`<div
-    class="pipeline-field"
+    class="pipeline-field pipeline-field--runs"
     data-fill="side"
     data-compact=""
-    style=${`--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
+    style=${`--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px;grid-template-columns:var(--band-gutter) repeat(${runsPerLane}, var(--run-width));grid-template-rows:${templateRows}`}
   >
-    ${lanes.map(
-      (lane, slot) =>
-        html`<${FacetLane}
-          key=${slot}
+    ${Array.from({ length: laneCount }, (_, lane) =>
+      facets.map(
+        (facet, index) =>
+          html`<span
+            key=${`${lane}/${facet.name}`}
+            class="pipeline-band-label"
+            data-kind="facet"
+            data-lane=${String(lane)}
+            title=${`${facet.label} (${facet.dimension})`}
+            style=${`grid-area:${rowOf(lane, index + 1)} / 1`}
+          >${facetAxisLabel(facet)}</span>`,
+      ),
+    )}
+    ${runs.map(
+      (init, index) =>
+        html`<${Run}
+          key=${init.init_time}
           product=${product}
-          local=${local}
-          runs=${lane}
+          init=${init}
           leads=${leads}
           facets=${facets}
           leadWidth=${leadWidth}
+          joint=${joint}
+          local=${local}
+          lane=${laneOf(index)}
+          column=${(index % runsPerLane) + 2}
+          rowOf=${rowOf}
+          date=${dates[index]}
         />`,
     )}
   </div>`;
@@ -1311,18 +1358,24 @@ function Row({
   now,
   viewIndex,
   expanded,
-  resizeTick,
   onCycle,
   onToggle,
 }) {
   // the run count comes from the measured row body: a 1fr grid column, so its
-  // width does not depend on the field it holds. Measured after mount and
-  // again after every resize, and the field waits for the measurement.
+  // width does not depend on the field it holds. Measured once the row is in
+  // the DOM and again whenever the body changes size — a window resize, a
+  // font landing, the toc rail appearing — and the field waits for it.
   const body = useRef(null);
   const [width, setWidth] = useState(null);
   useLayoutEffect(() => {
-    setWidth(body.current?.getBoundingClientRect().width ?? 0);
-  }, [resizeTick]);
+    const node = body.current;
+    if (!node) return undefined;
+    const measure = () => setWidth(node.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   // the lead grid is the view a row opens on; the facet grids are a click away
   const views = viewsOf(product);
@@ -1475,7 +1528,6 @@ function Groups({ state, actions }) {
           now=${state.now}
           viewIndex=${state.views[product.id] ?? 0}
           expanded=${state.expanded[product.id] ?? false}
-          resizeTick=${state.resizeTick}
           onCycle=${() => actions.cycleView(product)}
           onToggle=${() => actions.toggleDetails(product.id)}
         />`,
@@ -1485,10 +1537,9 @@ function Groups({ state, actions }) {
 }
 
 /* The page's one state object. The poll writes the dashboard and any error,
-   the countdown writes only `now`, user actions write the view and expanded
-   maps, and a resize bumps a tick that makes every row re-measure. Every
-   change repaints from the whole state; Preact's keyed diff decides what the
-   DOM needs. */
+   the countdown writes only `now`, and user actions write the view and
+   expanded maps. Every change repaints from the whole state; Preact's keyed
+   diff decides what the DOM needs. */
 
 function createStore(initial, paint) {
   let state = initial;
@@ -1576,7 +1627,6 @@ function start(app) {
       now: Date.now(),
       views: {},
       expanded: {},
-      resizeTick: 0,
     },
     paint,
   );
@@ -1604,18 +1654,6 @@ function start(app) {
       }));
     },
   };
-
-  // the run count comes from the measured row, so a resize has to re-fit
-  let refitTimer = null;
-  window.addEventListener("resize", () => {
-    clearTimeout(refitTimer);
-    refitTimer = setTimeout(() => {
-      store.update((state) => ({
-        resizeTick: state.resizeTick + 1,
-        now: Date.now(),
-      }));
-    }, 150);
-  });
 
   async function fetchJson(url, cache = "default") {
     const response = await fetch(url, {

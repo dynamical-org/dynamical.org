@@ -141,47 +141,31 @@
   min-width: 0;
 }
 
-.pipeline-rows {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--band-gap);
-  justify-content: center;
-  min-height: 0;
+/* The facet-row field is one grid: a gutter column of facet labels, then a
+   column per run. Each run's nodes sit under one element that places them
+   into its column by grid area, so a run keeps its nodes when the window
+   rolls it from the newer lane into the older — a lane is a set of rows, not
+   a subtree. The row and column templates come from the script, which knows
+   the facet and run counts. */
+
+.pipeline-field--runs {
+  display: grid;
+  gap: var(--band-gap) var(--clumped-run-gap);
+  align-items: center;
 }
 
-.pipeline-rows > .pipeline-band {
-  flex: 1;
-  max-height: calc(3 * var(--sq));
+.pipeline-run {
+  display: contents;
 }
 
-.pipeline-rows .pipeline-cells,
-.pipeline-rows .pipeline-clump {
-  align-self: stretch;
-  height: 100%;
+/* the lead labels sit on the squares below them, the times on the squares
+   above them; the tracks carry the breathing room */
+.pipeline-field--runs > .pipeline-run > .pipeline-clump:first-child {
+  align-self: end;
 }
 
-.pipeline-rows .pipeline-cell {
-  height: auto;
-}
-
-.pipeline-field[data-compact] .pipeline-rows {
-  flex: none;
-}
-
-.pipeline-field[data-compact] .pipeline-rows > .pipeline-band {
-  flex: none;
-  height: var(--sq);
-}
-
-.pipeline-field[data-compact] {
-  gap: var(--lane-gap);
-}
-
-.pipeline-facet-lane {
-  display: flex;
-  flex-direction: column;
-  gap: var(--band-gap);
+.pipeline-field--runs .pipeline-run-label {
+  align-self: end;
 }
 
 .pipeline-band {

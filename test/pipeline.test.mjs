@@ -1434,17 +1434,13 @@ test("preview branches select the private staging route", () => {
   assert.match(source, /\/pipeline-staging\/wxopticon/);
 });
 
-test("a resize re-fits the live dashboard at the current time", () => {
+test("a row re-fits its runs whenever its body changes size", () => {
   const script = readFileSync("public/pipeline.mjs", "utf8");
-  const handler = script.slice(
-    script.indexOf('window.addEventListener("resize"'),
-    script.indexOf("async function fetchJson"),
-  );
-  // a resize bumps the tick every row re-measures on, and stamps the clock so
-  // the countdown text re-fits with the field rather than a second later
-  assert.match(handler, /resizeTick: state\.resizeTick \+ 1/);
-  assert.match(handler, /now: Date\.now\(\)/);
-  assert.doesNotMatch(handler, /mode|displayedAt/);
+  // each row watches its own body, so a font landing or the toc rail
+  // appearing re-fits it as a window resize does
+  assert.match(script, /new ResizeObserver\(measure\)/);
+  assert.match(script, /observer\.disconnect\(\)/);
+  assert.doesNotMatch(script, /addEventListener\("resize"/);
 });
 
 test("status pages share the uptime, pipeline, and pipeline webhooks subnav", () => {

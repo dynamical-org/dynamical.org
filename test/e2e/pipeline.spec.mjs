@@ -89,24 +89,35 @@ async function openPipeline(page, mutate) {
   return page.locator(".pipeline-row").first();
 }
 
-/** What one band's cells actually measure, in the row's first band. */
+/** What each row of the field measures: its label, and its first cell's size.
+ * In the lead grid a row is a band; in a facet grid the labels sit in a gutter
+ * column and the cells in each run's clump for that facet. */
 function bandGeometry(row) {
   return row.evaluate((node) => {
     const fieldNode = node.querySelector(".pipeline-field");
-    const geometryRoot =
-      fieldNode.querySelector(".pipeline-facet-lane") ?? fieldNode;
-    const bands = [...geometryRoot.querySelectorAll(".pipeline-band[data-kind]")];
+    const rows = fieldNode.classList.contains("pipeline-field--runs")
+      ? [...fieldNode.querySelectorAll('.pipeline-band-label[data-lane="0"]')].map(
+          (label, index) => ({
+            label,
+            cell: fieldNode
+              .querySelector(".pipeline-run")
+              .querySelectorAll(".pipeline-clump[data-facet]")[index]
+              .querySelector(".pipeline-cell"),
+          }),
+        )
+      : [...fieldNode.querySelectorAll(".pipeline-band[data-kind]")].map((band) => ({
+          label: band.querySelector(".pipeline-band-label"),
+          cell: band.querySelector(".pipeline-cell"),
+        }));
     const field = fieldNode.getBoundingClientRect();
     const body = node.querySelector(".pipeline-row-body").getBoundingClientRect();
     return {
-      labels: bands.map(
-        (band) => band.querySelector(".pipeline-band-label").textContent,
+      labels: rows.map(({ label }) => label.textContent),
+      cellHeights: rows.map(
+        ({ cell }) => +cell.getBoundingClientRect().height.toFixed(1),
       ),
-      cellHeights: bands.map(
-        (band) => +band.querySelector(".pipeline-cell").getBoundingClientRect().height.toFixed(1),
-      ),
-      cellWidths: bands.map(
-        (band) => +band.querySelector(".pipeline-cell").getBoundingClientRect().width.toFixed(1),
+      cellWidths: rows.map(
+        ({ cell }) => +cell.getBoundingClientRect().width.toFixed(1),
       ),
       fieldHeight: Math.round(field.height),
       reserve: getComputedStyle(fieldNode).getPropertyValue("--reserve").trim(),
@@ -228,9 +239,10 @@ test("clicking cycles the rows through content-height facet dimensions", async (
   expect(member.labels).toEqual(["ctl", "pert"]);
 
   // lead time owns the columns in a facet view, so each lane names it there
-  const firstLane = row.locator(".pipeline-facet-lane").first();
   const columnLabels = (
-    await firstLane.locator(".pipeline-column-label").allTextContents()
+    await row
+      .locator('.pipeline-run[data-lane="0"] .pipeline-column-label')
+      .allTextContents()
   ).filter(Boolean);
   expect(columnLabels).toEqual(REPEATED_LEAD_LABELS);
 
@@ -256,25 +268,34 @@ test("facet views use two compact lanes and show every available init", async ({
   const row = await openPipeline(page);
   await row.locator(".pipeline-viz").click();
 
-  const lanes = row.locator(".pipeline-facet-lane");
-  await expect(lanes).toHaveCount(2);
-  for (const lane of await lanes.all()) {
+  // a lane is a set of grid rows the runs are placed into, not a subtree
+  for (const lane of ["0", "1"]) {
     expect(
-      await lane
-        .locator(".pipeline-band[data-kind='facet'] .pipeline-band-label")
+      await row
+        .locator(`.pipeline-band-label[data-kind="facet"][data-lane="${lane}"]`)
         .allTextContents(),
     ).toEqual(["pgrb2a", "pgrb2b", "pgrb2s"]);
+    const runs = row.locator(`.pipeline-run[data-lane="${lane}"]`);
+    await expect(runs).toHaveCount(5);
     const leadLabels = (
-      await lane.locator(".pipeline-column-label").allTextContents()
+      await runs.locator(".pipeline-column-label").allTextContents()
     ).filter(Boolean);
     expect(leadLabels).toEqual(REPEATED_LEAD_LABELS);
-    await expect(lane.locator(".pipeline-run-label")).toHaveCount(5);
+    await expect(runs.locator(".pipeline-run-label")).toHaveCount(5);
   }
-  const rowGaps = await lanes.first().evaluate((lane) => {
-    const cells = [
-      ...lane.querySelectorAll(".pipeline-band[data-kind='facet']"),
-    ].map((band) =>
-      band.querySelector(".pipeline-cell").getBoundingClientRect(),
+  // the second lane sits below the first, not beside it
+  const laneTops = await row.evaluate((node) =>
+    ["0", "1"].map(
+      (lane) =>
+        node
+          .querySelector(`.pipeline-run[data-lane="${lane}"] .pipeline-cell`)
+          .getBoundingClientRect().top,
+    ),
+  );
+  expect(laneTops[1]).toBeGreaterThan(laneTops[0] + 8);
+  const rowGaps = await row.locator(".pipeline-run").first().evaluate((run) => {
+    const cells = [...run.querySelectorAll(".pipeline-clump[data-facet]")].map(
+      (clump) => clump.querySelector(".pipeline-cell").getBoundingClientRect(),
     );
     return cells.slice(1).map((cell, index) => cell.top - cells[index].bottom);
   });
@@ -658,9 +679,9 @@ test.describe("what the reader has done survives a refresh", () => {
     await stillSettled(page, row, settled);
   });
 
-  // the window rolls forward one run per cadence; the runs still in it keep
-  // their squares, in the lead grid and within each lane of the facet grid
-  // (the one run that crosses from the newer lane to the older is redrawn)
+  // the window rolls forward one run per cadence; every run still in it keeps
+  // its squares — in the lead grid, and in the facet grid even for the run
+  // that moves from the newer lane up into the older one
   test("a poll that rolls the window forward", async ({ page }) => {
     const roll = (payload) => {
       const product = payload.groups[0].products[0];
@@ -697,11 +718,40 @@ test.describe("what the reader has done survives a refresh", () => {
 
     await row.locator(".pipeline-viz").click();
     await expect(row).toHaveAttribute("data-view", "1");
-    const facetCell = await square(".pipeline-facet-lane:last-child");
+    const facetCell = await square('.pipeline-run[data-lane="1"]');
+    // the run that opens the newer lane is the one the next roll moves up
+    const crossing = await row
+      .locator('.pipeline-run[data-lane="1"]')
+      .first()
+      .elementHandle();
+    const crossingInit = await crossing.getAttribute("data-init-time");
     const between = await labels();
     await page.clock.runFor(15_000);
     await expect.poll(labels).not.toEqual(between);
     expect(await facetCell.evaluate((node) => node.isConnected)).toBe(true);
+    expect(await crossing.evaluate((node) => node.isConnected)).toBe(true);
+    expect(await crossing.getAttribute("data-lane")).toBe("0");
+    await expect(
+      row.locator('.pipeline-run[data-lane="0"]').last(),
+    ).toHaveAttribute("data-init-time", crossingInit);
+  });
+
+  // the run count is fitted to the measured row body, which is watched by a
+  // ResizeObserver. Below 900px the row stacks and the body gets the whole
+  // width, so the narrower window fits more runs, not fewer: what matters is
+  // that the count follows the body and nothing overflows.
+  test("a column that changes width re-fits the runs", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const row = await openPipeline(page);
+    const before = await row.locator(".pipeline-run-label").count();
+    expect(before).toBeGreaterThan(3);
+
+    await page.setViewportSize({ width: 640, height: 900 });
+
+    await expect
+      .poll(() => row.locator(".pipeline-run-label").count())
+      .not.toBe(before);
+    expect((await bandGeometry(row)).overflowsColumn).toBe(false);
   });
 
   // a view that the payload stops offering and later offers again does not
