@@ -1462,10 +1462,16 @@ test("vendored module imports resolve and cache rules distinguish the shim", () 
     new URL("../public/_headers", import.meta.url),
     "utf8",
   );
-  const rule = (path) =>
-    headers.match(
-      new RegExp(`^${path.replace(/[.*]/g, "\\$&")}\n((?:[ \t]+[^\r\n]+\n?)*)`, "m"),
-    )?.[1];
+  // a rule is a path line followed by its indented directives; a blank line
+  // ends it, so a rule cannot borrow the next rule's directives
+  const rules = new Map(
+    headers
+      .split(/\n\s*\n/)
+      .map((block) => block.split("\n").filter((line) => !line.startsWith("#")))
+      .filter((lines) => lines.length > 0)
+      .map(([path, ...directives]) => [path.trim(), directives.join("\n")]),
+  );
+  const rule = (path) => rules.get(path);
   // every version-named library is immutable; nothing else in the directory
   // is, since its name does not change when its contents do
   for (const name of modules) {
