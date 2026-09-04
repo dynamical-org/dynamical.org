@@ -170,6 +170,20 @@ test("refuses a contentless document instead of reporting all clear", () => {
   );
 });
 
+test("rejects empty or globally duplicated endpoint ids", () => {
+  const empty = structuredClone(operationalData);
+  empty.endpoints[0].id = "";
+  assert.throws(() => validateStatusData(empty), /invalid status entry id/i);
+
+  const duplicate = structuredClone(operationalData);
+  duplicate.endpoints.push({
+    ...duplicate.endpoints[0],
+    name: "duplicate status page",
+    group: "endpoint",
+  });
+  assert.throws(() => validateStatusData(duplicate), /invalid status entry id/i);
+});
+
 test("does not require the deferred dataset section", () => {
   assert.doesNotThrow(() =>
     validateStatusData({ ...operationalData, datasets: [] }),

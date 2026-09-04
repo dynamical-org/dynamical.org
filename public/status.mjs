@@ -98,6 +98,13 @@ export function validateStatusData(data) {
   if (![...data.datasets, ...data.endpoints].every(isStatusEntry)) {
     throw new TypeError("Invalid status entry");
   }
+  const endpointIds = data.endpoints.map(({ id }) => id);
+  if (
+    endpointIds.some((id) => id.length === 0) ||
+    new Set(endpointIds).size !== endpointIds.length
+  ) {
+    throw new TypeError("Invalid status entry id");
+  }
   if (
     data.component_aliases != null &&
     !isComponentAliases(data.component_aliases)

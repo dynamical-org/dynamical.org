@@ -145,25 +145,32 @@ test.describe("service-list state survives a refresh", () => {
   });
 });
 
-test("the time-zone action reformats time without replacing service nodes", async ({
-  page,
-}) => {
-  await page.clock.install({
-    time: new Date(Date.parse(STATUS.generated_at) + 2 * 60 * 1000),
+test.describe("in a non-UTC time zone", () => {
+  test.use({ timezoneId: "America/Chicago", locale: "en-US" });
+
+  test("the time-zone action reformats time without replacing service nodes", async ({
+    page,
+  }) => {
+    await page.clock.install({
+      time: new Date(Date.parse(STATUS.generated_at) + 2 * 60 * 1000),
+    });
+    await page.addInitScript(() =>
+      localStorage.setItem("wxopticon:time-mode", "utc"),
+    );
+    await stubStatus(page);
+    await page.goto(PATH);
+    const row = componentRow(page, "STAC catalog");
+    const endpoint = await row.elementHandle();
+    const day = await row.locator(".status-bars > *").last().elementHandle();
+    const updated = page.locator('[data-slot="status-updated"]');
+    await expect(updated).toHaveText("As of Jul 24, 2026, 7:55 PM");
+
+    await page.selectOption("#status-time-toggle", "local");
+
+    await expect(updated).toHaveText("As of Jul 24, 2026, 2:55 PM");
+    expect(await endpoint.evaluate((node) => node.isConnected)).toBe(true);
+    expect(await day.evaluate((node) => node.isConnected)).toBe(true);
   });
-  await page.addInitScript(() => localStorage.setItem("wxopticon:time-mode", "utc"));
-  await stubStatus(page);
-  await page.goto(PATH);
-  const row = componentRow(page, "STAC catalog");
-  const endpoint = await row.elementHandle();
-  const day = await row.locator(".status-bars > *").last().elementHandle();
-  const before = await page.locator('[data-slot="status-updated"]').textContent();
-
-  await page.selectOption("#status-time-toggle", "local");
-
-  await expect(page.locator('[data-slot="status-updated"]')).not.toHaveText(before);
-  expect(await endpoint.evaluate((node) => node.isConnected)).toBe(true);
-  expect(await day.evaluate((node) => node.isConnected)).toBe(true);
 });
 
 test("an unavailable status feed renders the established fallback", async ({ page }) => {
