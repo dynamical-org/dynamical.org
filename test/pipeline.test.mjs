@@ -837,7 +837,6 @@ test("retains live horizon status, time, and duration in details", () => {
       lastHeader: "last run · 07-26 06z",
       runHeader: "current run · 07-26 12z",
       statsHeader: "time after init",
-      durationHeader: "after init",
       rows: [
         {
           name: "f024",
@@ -882,6 +881,7 @@ test("retains live horizon status, time, and duration in details", () => {
           p99: "1h 20m",
         },
       ],
+      lag: null,
     },
   );
 });
@@ -1215,15 +1215,21 @@ test("details read a dynamical row as lag after its source", () => {
     [aws, virtual],
   );
 
-  assert.equal(details.statsHeader, "lag vs earliest source · 3 recent samples");
-  // the duration column carries the lag and its header says so; the time
-  // beside it still says when the run finished
-  assert.equal(details.durationHeader, "vs earliest source");
+  // the lead rows keep the row's own time after init; the lag is a row of
+  // its own beneath them
+  assert.equal(details.statsHeader, "time after init · 24 samples");
   const [row] = details.rows;
-  assert.equal(row.last.duration, "2m");
+  assert.equal(row.last.duration, "1h");
   assert.equal(row.last.time, "13:00");
+  assert.deepEqual([row.p50, row.p95, row.p99], ["1h 8m", "1h 23m", "1h 42m"]);
   assert.equal(lagSeries(virtual, [aws]).length, 3);
-  assert.deepEqual([row.p50, row.p95, row.p99], ["2m", "10m", "10m"]);
+  assert.deepEqual(details.lag, {
+    header: "lag after source · 3 recent samples",
+    last: "2m",
+    p50: "2m",
+    p95: "10m",
+    p99: "10m",
+  });
 
   // a single lagged run names its sample in the singular and reports no spread
   const lone = dynamicalRow({ "2026-07-25T00:00:00Z": 4000 });
@@ -1231,11 +1237,8 @@ test("details read a dynamical row as lag after its source", () => {
     sourceRow("AWS", { "2026-07-25T00:00:00Z": 3400 }),
     lone,
   ]);
-  assert.equal(only.statsHeader, "lag vs earliest source · 1 recent sample");
-  assert.deepEqual(
-    [only.rows[0].last.duration, only.rows[0].p50],
-    ["10m", "—"],
-  );
+  assert.equal(only.lag.header, "lag after source · 1 recent sample");
+  assert.deepEqual([only.lag.last, only.lag.p50], ["10m", "—"]);
 });
 
 test("renders a negative lag with a sign", () => {
@@ -1247,10 +1250,10 @@ test("renders a negative lag with a sign", () => {
     false,
     [sourceRow("AWS", { [at]: 3400 }), virtual],
   );
-  assert.equal(details.rows[0].last.duration, "\u22123m");
+  assert.equal(details.lag.last, "\u22123m");
 });
 
-test("a lagged run in flight shows no lag, not its elapsed time", () => {
+test("a lagged run in flight counts up after init and has no lag yet", () => {
   const done = "2026-07-25T00:00:00Z";
   const running = "2026-07-25T06:00:00Z";
   const virtual = dynamicalRow({ [done]: 3400 + 600, [running]: null });
@@ -1261,12 +1264,11 @@ test("a lagged run in flight shows no lag, not its elapsed time", () => {
     [sourceRow("AWS", { [done]: 3400, [running]: 3300 }), virtual],
   );
 
-  // the header says the column is a lag, so the init-relative counter an
-  // ordinary active run would show must not sit beneath it
-  assert.equal(details.durationHeader, "vs earliest source");
-  assert.equal(details.rows[0].last.duration, "10m");
   assert.equal(details.rows[0].run.status, "processing");
-  assert.equal(details.rows[0].run.duration, "\u2014");
+  assert.equal(details.rows[0].run.duration, "20m 0s");
+  // a lag needs both sides complete, so only the last run carries one
+  assert.equal(details.lag.last, "10m");
+  assert.equal("run" in details.lag, false);
 });
 
 test("keeps time after init where a row has no source beside it", () => {
@@ -1282,7 +1284,7 @@ test("keeps time after init where a row has no source beside it", () => {
       group,
     );
     assert.equal(details.statsHeader, "time after init · 24 samples");
-    assert.equal(details.durationHeader, "after init");
+    assert.equal(details.lag, null);
     assert.deepEqual(
       [details.rows[0].last.duration, details.rows[0].p50],
       ["1h 7m", "1h 8m"],
@@ -1354,16 +1356,18 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
     false,
     group.products,
   );
-  // the lag stays; the note says why the run beside it carries no timing
+  // the note sits on the baseline it describes, not on the lag sample
   assert.equal(
     details.statsHeader,
-    "lag vs earliest source · 8 recent samples · insufficient history (24/30 days)",
+    "time after init · 24 samples · insufficient history (24/30 days)",
   );
-  assert.equal(details.rows[0].last.duration, "5m");
-  assert.deepEqual(
-    [details.rows[0].p50, details.rows[0].p95, details.rows[0].p99],
-    ["9m", "12m", "12m"],
-  );
+  assert.deepEqual(details.lag, {
+    header: "lag after source · 8 recent samples",
+    last: "5m",
+    p50: "9m",
+    p95: "12m",
+    p99: "12m",
+  });
 });
 
 test("local preview fixture exercises dashboard v2 facet rendering", () => {

@@ -488,7 +488,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
   ]);
 });
 
-test("a dynamical row reports lag after its source, not time after init", async ({
+test("a dynamical row reports its lag after the source beneath its time after init", async ({
   page,
 }) => {
   await openPipeline(page);
@@ -497,23 +497,34 @@ test("a dynamical row reports lag after its source, not time after init", async 
   );
   await expect(row.locator("strong").first()).toHaveText("dynamical.org");
   await row.locator('[data-slot="details-button"]').click();
-  const table = row.locator(".pipeline-row-details .table-container").first();
+  const tables = row.locator(".pipeline-row-details .table-container");
+  await expect(tables).toHaveCount(2);
 
-  await expect(table.locator("thead tr:first-child th").nth(3)).toHaveText(
-    "lag vs earliest source · 8 recent samples · insufficient history (24/30 days)",
+  // the lead table reads like any other row's, note included
+  const lead = tables.first();
+  await expect(lead.locator("thead tr:first-child th").nth(3)).toHaveText(
+    "time after init · 24 samples · insufficient history (24/30 days)",
   );
-  // the lag replaces the duration column under a header that says so; the
-  // time beside it stays wall-clock
-  await expect(table.locator("thead tr:last-child th").nth(2)).toHaveText(
-    "vs earliest source",
+  await expect(lead.locator("thead tr:last-child th").nth(2)).toHaveText(
+    "after init",
   );
-  await expect(table.locator("thead tr:last-child th").nth(5)).toHaveText(
-    "vs earliest source",
+  await expect(lead.locator("tbody tr:first-child td").nth(3)).toHaveText(
+    "1h 40m",
   );
-  const cells = table.locator("tbody tr:first-child td");
-  await expect(cells.nth(2)).toHaveText(/^\d{2}:\d{2}$/);
-  await expect(cells.nth(3)).toHaveText("5m");
-  await expect(cells.nth(7)).toHaveText("9m");
+
+  // the lag is one row under the same run headers, with its own sample
+  const lag = tables.nth(1);
+  await expect(lag.locator("thead tr:first-child th")).toHaveText(
+    "lag after source · 8 recent samples",
+  );
+  const heads = lag.locator("thead tr:last-child th");
+  await expect(heads.nth(0)).toHaveText(/^last run · /);
+  await expect(heads.nth(1)).toHaveText("p50");
+  const cells = lag.locator("tbody tr td");
+  await expect(cells).toHaveCount(4);
+  await expect(cells.nth(0)).toHaveText("5m");
+  await expect(cells.nth(1)).toHaveText("9m");
+  await expect(cells.nth(2)).toHaveText("12m");
 });
 
 test("each details table scrolls itself, under a header that names its column", async ({
