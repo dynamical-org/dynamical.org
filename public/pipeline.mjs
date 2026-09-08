@@ -981,13 +981,10 @@ function statsHeader(sampleInitCount, note = null) {
 
 // A lag has no published baseline behind it, so its sample is the handful of
 // runs the payload carries — named apart from the upstream rows' own count.
-// The note beside it is about the row's own arrival baseline, not the lag
-// sample: the lag stays, but without that baseline the run gets no timing.
-function lagStatsHeader(sampleCount, note = null) {
+function lagStatsHeader(sampleCount) {
   if (!sampleCount) return "lag after source";
   const samples = sampleCount === 1 ? "recent sample" : "recent samples";
-  const header = `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
-  return note ? `${header} · ${note}` : header;
+  return `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
 }
 
 const NO_RUN = Object.freeze({
@@ -1049,10 +1046,10 @@ function labelledRun(label, initTime, local) {
 }
 
 /* Ingestion lag. dynamical.org's own rows sit in the same group as the upstream
-   sources they read, and their `source_label` is null; what matters for them is
-   not time after init but how long after the source published the dataset
-   landed. Both latencies are seconds after the same init, so the init cancels
-   out of the subtraction. */
+   sources they read, and their `source_label` is null; beside their time after
+   init, what matters for them is how long after the source published the
+   dataset landed. Both latencies are seconds after the same init, so the init
+   cancels out of the subtraction. */
 
 export function sourceRowsOf(products) {
   return (products ?? []).filter(({ source_label }) => source_label != null);
@@ -1117,72 +1114,58 @@ export function detailRows(product, now, local, groupProducts = []) {
   const last = activeIndex >= 0 ? recent[activeIndex - 1] : recent.at(-1);
   const upcoming = active ? null : product.next_expected_init;
   const sources = isDynamicalRow(product) ? sourceRowsOf(groupProducts) : [];
-  const lagged = sources.length > 0;
-  // the lag is a property of the whole run, so every lead-group row of a
-  // lagged product reports the same series
-  const lags = lagged ? lagSeries(product, sources) : null;
-  const lastLag = lagAt(last, sources);
-  const runLag = lagAt(active, sources);
   return {
     lastHeader: labelledRun("last run", last?.init_time, local),
     runHeader: active
       ? labelledRun("current run", active.init_time, local)
       : labelledRun("upcoming run", upcoming, local),
-    statsHeader: lagged
-      ? lagStatsHeader(lags.length, timingBaselineNote(product))
-      : statsHeader(
-          product.latency_stats?.sample_init_count,
-          timingBaselineNote(product),
-        ),
-    rows: (product.lead_group_stats ?? []).map((stats, index) => {
-      return {
-        name: stats.name,
-        label: stats.label,
-        last: withLag(
-          observedRunDetail(
-            last,
-            last?.lead_groups?.[index],
+    statsHeader: statsHeader(
+      product.latency_stats?.sample_init_count,
+      timingBaselineNote(product),
+    ),
+    rows: (product.lead_group_stats ?? []).map((stats, index) => ({
+      name: stats.name,
+      label: stats.label,
+      last: observedRunDetail(
+        last,
+        last?.lead_groups?.[index],
+        stats,
+        now,
+        local,
+        false,
+      ),
+      run: active
+        ? observedRunDetail(
+            active,
+            active.lead_groups?.[index],
             stats,
             now,
             local,
-            false,
-          ),
-          lagged,
-          lastLag,
-        ),
-        run: withLag(
-          active
-            ? observedRunDetail(
-                active,
-                active.lead_groups?.[index],
-                stats,
-                now,
-                local,
-                true,
-              )
-            : upcomingRunDetail(upcoming, stats, local),
-          lagged,
-          runLag,
-        ),
-        p50: lags
-          ? formatSignedLatency(lagPercentile(lags, 0.5))
-          : formatLatency(stats.p50_s),
-        p95: lags
-          ? formatSignedLatency(lagPercentile(lags, 0.95))
-          : formatLatency(stats.p95_s),
-        p99: lags
-          ? formatSignedLatency(lagPercentile(lags, 0.99))
-          : formatLatency(stats.p99_s),
-      };
-    }),
+            true,
+          )
+        : upcomingRunDetail(upcoming, stats, local),
+      p50: formatLatency(stats.p50_s),
+      p95: formatLatency(stats.p95_s),
+      p99: formatLatency(stats.p99_s),
+    })),
+    lag: sources.length > 0 ? lagRow(product, sources, last) : null,
   };
 }
 
-// On a lagged row the lag replaces the duration column outright — the
-// wall-clock time beside it still says when the run finished, and a lag of
-// null (no completed pair for that init) reads as "—".
-function withLag(detail, lagged, lag) {
-  return lagged ? { ...detail, duration: formatSignedLatency(lag) } : detail;
+// The lag is a property of the whole run, not of a horizon, so it gets one
+// row of its own beneath the lead table rather than a column repeated down
+// it. Only the last run has one: the current run is by definition not
+// complete, and a lag needs both sides landed — a last run whose source is
+// still out reads "—".
+function lagRow(product, sources, last) {
+  const lags = lagSeries(product, sources);
+  return {
+    header: lagStatsHeader(lags.length),
+    last: formatSignedLatency(lagAt(last, sources)),
+    p50: formatSignedLatency(lagPercentile(lags, 0.5)),
+    p95: formatSignedLatency(lagPercentile(lags, 0.95)),
+    p99: formatSignedLatency(lagPercentile(lags, 0.99)),
+  };
 }
 
 export function facetRows(product) {
@@ -1232,8 +1215,8 @@ export function timingBaselineNote(product) {
 
 function Details({ product, now, local, groupProducts }) {
   const details = detailRows(product, now, local, groupProducts);
-  // two keyed siblings, no wrapper: a facet table that arrives or leaves with
-  // a later run must not change what node the lead table scrolls in
+  // keyed siblings, no wrapper: a lag or facet table that arrives or leaves
+  // with a later run must not change what node the lead table scrolls in
   const leadTable = html`<div key="lead" class="table-container">
     <table>
       <thead>
@@ -1246,10 +1229,10 @@ function Details({ product, now, local, groupProducts }) {
         <tr>
           <th>status</th>
           <th>time</th>
-          <th>duration</th>
+          <th>after init</th>
           <th>status</th>
           <th>time</th>
-          <th>duration</th>
+          <th>after init</th>
           <th>p50</th>
           <th>p95</th>
           <th>p99</th>
@@ -1273,10 +1256,36 @@ function Details({ product, now, local, groupProducts }) {
       </tbody>
     </table>
   </div>`;
+  // the lag table names the same last run the lead table does, one number
+  const lagTable =
+    details.lag &&
+    html`<div key="lag" class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th colspan="4">${details.lag.header}</th>
+          </tr>
+          <tr>
+            <th>${details.lastHeader}</th>
+            <th>p50</th>
+            <th>p95</th>
+            <th>p99</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${details.lag.last}</td>
+            <td>${details.lag.p50}</td>
+            <td>${details.lag.p95}</td>
+            <td>${details.lag.p99}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
   const facets = facetRows(product);
-  if (facets.length === 0) return leadTable;
+  if (facets.length === 0) return html`${leadTable}${lagTable}`;
 
-  return html`${leadTable}
+  return html`${leadTable}${lagTable}
     <div key="facets" class="table-container">
       <table class="pipeline-facets">
         <thead>
