@@ -1091,6 +1091,45 @@ test("a product without a delayed threshold draws its runs and no line", async (
   ).toHaveText(["—"]);
 });
 
+// The committed fixture's running init is weeks old by now, which is what a
+// stalled feed looks like — and what the preview build reads from staging. The
+// landed runs keep the axis; the stale run is pinned to the top edge.
+test("a run in flight for weeks does not flatten the landed runs", async ({
+  page,
+}) => {
+  const row = await openPipeline(page);
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-row-details .pipeline-runs");
+  const geometry = await chart.evaluate((node) => {
+    const cy = (circle) => +circle.getAttribute("cy");
+    const pinned = node.querySelector("circle[data-pinned]");
+    return {
+      pinned: pinned && {
+        cy: cy(pinned),
+        title: pinned.querySelector("title").textContent,
+      },
+      lineY: +node.querySelector('[data-threshold="run"] line').getAttribute("y1"),
+      delayed: [...node.querySelectorAll('circle[data-timing="delayed"]:not([data-elapsed])')].map(cy),
+      onTime: [...node.querySelectorAll('circle[data-timing="on_time"]')].map(cy),
+      baselineY: +node.querySelector('line[data-axis="x"]').getAttribute("y1"),
+      ticks: [...node.querySelectorAll('[data-axis="y"] text')].map((t) => t.textContent),
+    };
+  });
+  expect(geometry.pinned).not.toBeNull();
+  expect(geometry.pinned.title).toContain("off the chart");
+  // the stale run sits at the very top; the landed runs still spread beneath
+  // it, the delayed one above the line and the on-time ones well off the floor
+  for (const y of [...geometry.delayed, ...geometry.onTime]) {
+    expect(y).toBeGreaterThan(geometry.pinned.cy);
+  }
+  expect(geometry.delayed[0]).toBeLessThan(geometry.lineY);
+  for (const y of geometry.onTime) {
+    expect(y).toBeGreaterThan(geometry.lineY);
+    expect(geometry.baselineY - y).toBeGreaterThan(10);
+  }
+  expect(geometry.ticks).not.toContain("0s");
+});
+
 // What production renders until wxopticon's projection carries the field: an
 // established baseline with no threshold published.
 test("a feed that omits the threshold says so and draws no line", async ({

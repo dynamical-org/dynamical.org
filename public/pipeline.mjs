@@ -1229,6 +1229,11 @@ const CHART_MARGIN = { top: 16, right: 8, bottom: 30, left: 50 };
 const CHART_TICK_STEPS_S = [
   60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800,
 ];
+// how far past the landed runs and the line a run still arriving may pull the
+// axis before it is pinned to the top edge instead: a run that has waited
+// weeks — a stalled feed, a stuck init — would otherwise flatten every landed
+// run onto the baseline, where they read as zero
+const CHART_ELAPSED_HEADROOM = 1.5;
 
 /* The line is drawn only when the product has a verdict to make: one still
    short of history publishes no threshold, and a feed that omits the field
@@ -1292,16 +1297,31 @@ function niceTicks(lo, hi) {
 
 /* The scales. Latency is zoomed to the runs and the line rather than drawn
    from zero: a threshold sits a few percent above the median, and from zero
-   that gap would be a pixel. Every plotted value is inside the domain, so a
-   run that has waited days flattens the rest — that is the picture. Time is
-   proportional, so a missed init leaves a gap rather than closing up. */
+   that gap would be a pixel. The landed runs and the line own the domain; a
+   run still arriving joins it while it is within reach of them, and past
+   that it is pinned to the top edge, where "still going, well past the line"
+   is all it has to say. Time is proportional, so a missed init leaves a gap
+   rather than closing up. */
 
 export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3) {
   const plotWidth = width - CHART_MARGIN.left - CHART_MARGIN.right;
   const plotHeight = CHART_HEIGHT_PX - CHART_MARGIN.top - CHART_MARGIN.bottom;
 
-  const values = series.runs.map((run) => run.seconds);
-  if (series.threshold != null) values.push(series.threshold);
+  const landed = series.runs
+    .filter((run) => !run.elapsed)
+    .map((run) => run.seconds);
+  if (series.threshold != null) landed.push(series.threshold);
+  // with nothing landed there is nothing to flatten, so the elapsed times
+  // take the axis themselves
+  const reach = landed.length
+    ? Math.max(...landed) * CHART_ELAPSED_HEADROOM
+    : Infinity;
+  const values = [
+    ...landed,
+    ...series.runs
+      .filter((run) => run.elapsed && run.seconds <= reach)
+      .map((run) => run.seconds),
+  ];
   const lo = values.length ? Math.min(...values) : 0;
   const hi = values.length ? Math.max(...values) : 1;
   // two runs a second apart are not a spread worth filling the plot with:
@@ -1335,7 +1355,11 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
     bottom: CHART_MARGIN.top + plotHeight,
     x: (ms) => CHART_MARGIN.left + ((ms - xMin) / (xMax - xMin)) * plotWidth,
     y: (seconds) =>
-      CHART_MARGIN.top + plotHeight - ((seconds - yMin) / (yMax - yMin)) * plotHeight,
+      CHART_MARGIN.top +
+      plotHeight -
+      ((Math.min(Math.max(seconds, yMin), yMax) - yMin) / (yMax - yMin)) *
+        plotHeight,
+    pinned: (seconds) => seconds > yMax,
     yTicks: niceTicks(yMin, yMax),
     // every run names itself when the label fits between neighbours; otherwise
     // every other one, or every third — measured on the closest pair, since
@@ -1349,13 +1373,14 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
   };
 }
 
-function runTitle(run, local) {
+function runTitle(run, local, pinned = false) {
   const how = run.elapsed
     ? `${formatLatency(run.seconds)} elapsed`
     : `${formatLatency(run.seconds)} after init`;
   return [
     initShort(run.init.init_time, local),
     how,
+    pinned ? "off the chart" : null,
     statusLabel(run.status),
     run.timing?.replaceAll("_", " "),
   ]
@@ -1468,17 +1493,19 @@ function RunChart({ product, now, local, windowDays }) {
             <line x1=${scale.left} x2=${scale.right} y1=${scale.y(series.threshold)} y2=${scale.y(series.threshold)} />
             <text x=${scale.right} y=${scale.y(series.threshold) - 4} text-anchor="end">delayed past ${formatLatency(series.threshold)}</text>
           </g>`}
-      ${series.runs.map(
-        (run) => html`<circle
+      ${series.runs.map((run) => {
+        const pinned = run.elapsed && scale.pinned(run.seconds);
+        return html`<circle
           key=${run.init.init_time}
           data-status=${run.status}
           data-timing=${run.timing}
           data-elapsed=${run.elapsed ? "" : null}
+          data-pinned=${pinned ? "" : null}
           cx=${scale.x(run.ms)}
           cy=${scale.y(run.seconds)}
           r=${CHART_MARK_R}
-        ><title>${runTitle(run, local)}</title></circle>`,
-      )}
+        ><title>${runTitle(run, local, pinned)}</title></circle>`;
+      })}
     </svg>`;
   }
 

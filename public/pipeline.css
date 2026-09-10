@@ -400,6 +400,11 @@
   stroke-width: 1.5;
 }
 
+/* a run pinned to the top edge is beyond the axis, not on it */
+.pipeline-runs circle[data-pinned] {
+  stroke-dasharray: 2 2;
+}
+
 .pipeline-runs [data-threshold="run"] line {
   stroke: var(--pipeline-progress);
 }

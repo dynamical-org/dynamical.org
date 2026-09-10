@@ -1958,13 +1958,53 @@ test("run chart scales: a spread of seconds does not fill the plot, and weeks do
     chartProduct({
       latency_stats: {},
       recent_inits: [
-        { init_time: "2026-06-01T00:00:00Z", status: "complete", latency_s: 3600 },
+        { init_time: "2026-06-01T00:00:00Z", status: "in_flight" },
         { init_time: "2026-06-08T00:00:00Z", status: "in_flight" },
       ],
     }),
     now,
   );
   assert.ok(runChartScales(stale, 600, 24).yTicks.length <= 5);
+});
+
+// A feed that has stalled, or an init that is stuck, leaves a run in flight for
+// days; the landed runs must not be flattened onto the baseline for it.
+test("run chart scales: a run in flight for weeks is pinned to the top, not given the axis", () => {
+  const now = Date.parse("2026-08-14T12:00:00Z");
+  const product = chartProduct({
+    recent_inits: [
+      { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+      { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "delayed", latency_s: 7500 },
+      { init_time: "2026-07-25T00:00:00Z", status: "in_flight", timing: "delayed" },
+    ],
+  });
+  const series = runChartSeries(product, now);
+  const scale = runChartScales(series, 600, 6);
+  const [onTime, delayed, running] = series.runs;
+  assert.equal(running.seconds, 20.5 * 86400);
+  assert.ok(scale.pinned(running.seconds));
+  assert.equal(scale.y(running.seconds), scale.top);
+  // the landed runs still spread over the plot, either side of the line
+  const line = scale.y(series.threshold);
+  assert.ok(scale.y(onTime.seconds) - line > 20, "on-time run well below the line");
+  assert.ok(line - scale.y(delayed.seconds) > 2, "delayed run above the line");
+  assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
+  assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
+  // a run within reach of the landed ones still joins the axis
+  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")), 600, 6);
+  const nearRun = runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")).runs[2];
+  assert.equal(nearRun.seconds, 9000);
+  assert.ok(!near.pinned(9000));
+  assert.ok(near.y(9000) > near.top);
+  // with nothing landed, the elapsed times take the axis themselves
+  const only = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [{ init_time: "2026-07-25T00:00:00Z", status: "pending" }],
+    }),
+    now,
+  );
+  assert.ok(!runChartScales(only, 600, 6).pinned(only.runs[0].seconds));
 });
 
 test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {
