@@ -461,7 +461,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
   await row.locator('[data-slot="details-button"]').click();
   const headings = await row
     .locator(
-      ".pipeline-row-details .table-container:first-child thead tr:first-child th",
+      ".pipeline-row-details .table-container:first-of-type thead tr:first-child th",
     )
     .allTextContents();
 
@@ -472,7 +472,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
   // the run columns name the same reference point the stats do
   const subheadings = await row
     .locator(
-      ".pipeline-row-details .table-container:first-child thead tr:last-child th",
+      ".pipeline-row-details .table-container:first-of-type thead tr:last-child th",
     )
     .allTextContents();
   expect(subheadings).toEqual([
@@ -485,6 +485,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
     "p50",
     "p95",
     "p99",
+    "delayed past",
   ]);
 });
 
@@ -987,4 +988,104 @@ test.describe("in a timezone rendered as a GMT offset", () => {
     expect(labels.widthMatchesColumn).toBe(true);
     expect((await bandGeometry(row)).overflowsColumn).toBe(false);
   });
+});
+
+// The run chart is the one place the delayed threshold is drawn, and "visible"
+// is a geometric claim: the line has to be there, labelled with its value, and
+// the run judged delayed has to sit above it. The fixture's running init is
+// hours old, so the payload is shifted to make it twenty minutes old — an
+// elapsed marker of forty-seven days would flatten every landed run.
+test("details open on a run chart with the delayed threshold drawn", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) =>
+    withRecentRun(payload, 20 * 60 * 1000),
+  );
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-row-details .pipeline-runs");
+  await expect(chart.locator("svg")).toBeVisible();
+
+  // a horizontal line has no height, so to Playwright it is never "visible";
+  // its label is, and the geometry below checks the line itself
+  await expect(chart.locator('[data-threshold="run"] line')).toHaveCount(1);
+  await expect(chart.locator('[data-threshold="run"] text')).toBeVisible();
+  await expect(chart.locator('[data-threshold="run"] text')).toHaveText(
+    "delayed past 2h",
+  );
+  await expect(chart.locator("figcaption")).toContainText(
+    "Current delayed threshold: 2h = p95 + max(p95 − p50, 15 min), using available history within the trailing 90-day window",
+  );
+  await expect(chart.locator("figcaption a")).toHaveAttribute(
+    "href",
+    "/research/when-the-forecast-is-ready/",
+  );
+  await expect(chart.locator("figcaption")).toContainText("Up to 10 recent runs");
+  // the failed run is named, not plotted
+  await expect(chart.locator("figcaption")).toContainText(
+    "Failed, with no completion time:",
+  );
+
+  const geometry = await chart.evaluate((node) => {
+    const at = (selector) => [...node.querySelectorAll(selector)];
+    const lineY = +node.querySelector('[data-threshold="run"] line').getAttribute("y1");
+    const cy = (circle) => +circle.getAttribute("cy");
+    const svg = node.querySelector("svg").getBoundingClientRect();
+    return {
+      lineY,
+      delayed: at('circle[data-status="complete"][data-timing="delayed"]').map(cy),
+      onTime: at('circle[data-status="complete"][data-timing="on_time"]').map(cy),
+      elapsed: at("circle[data-elapsed]").map((circle) => ({
+        status: circle.getAttribute("data-status"),
+        timing: circle.getAttribute("data-timing"),
+        hollow: getComputedStyle(circle).fill,
+      })),
+      landedFill: getComputedStyle(
+        node.querySelector('circle[data-timing="delayed"]:not([data-elapsed])'),
+      ).fill,
+      lineColor: getComputedStyle(node.querySelector('[data-threshold="run"] line')).stroke,
+      fits: svg.width <= node.getBoundingClientRect().width + 0.5,
+      pageFits:
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  });
+  // one run landed late, above the line; every on-time run below it
+  expect(geometry.delayed).toHaveLength(1);
+  expect(geometry.delayed[0]).toBeLessThan(geometry.lineY);
+  expect(geometry.onTime.length).toBeGreaterThan(5);
+  for (const y of geometry.onTime) expect(y).toBeGreaterThan(geometry.lineY);
+  // the running init is hollow, and reads in the amber its cell reads in
+  expect(geometry.elapsed).toEqual([
+    { status: "in_flight", timing: "delayed", hollow: "rgb(255, 255, 255)" },
+  ]);
+  expect(geometry.landedFill).toBe("rgb(244, 185, 66)");
+  expect(geometry.lineColor).toBe("rgb(244, 185, 66)");
+  expect(geometry.fits).toBe(true);
+  expect(geometry.pageFits).toBe(true);
+
+  // the lead table names each group's own cutoff beside its percentiles
+  const thresholds = row.locator(
+    ".pipeline-row-details .table-container:first-of-type tbody tr td:last-child",
+  );
+  await expect(thresholds).toHaveText(["35m", "55m", "2h"]);
+});
+
+test("a product without a delayed threshold draws its runs and no line", async ({
+  page,
+}) => {
+  await openPipeline(page);
+  const row = page.locator(
+    '.pipeline-row[data-product-id="noaa-gfs-forecast-virtual"]',
+  );
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-row-details .pipeline-runs");
+  await expect(chart.locator("circle")).toHaveCount(8);
+  await expect(chart.locator("[data-threshold]")).toHaveCount(0);
+  await expect(chart.locator("figcaption")).toContainText(
+    "No delayed threshold yet: insufficient history (24/30 days).",
+  );
+  await expect(
+    row.locator(
+      ".pipeline-row-details .table-container:first-of-type tbody td:last-child",
+    ),
+  ).toHaveText(["—"]);
 });
