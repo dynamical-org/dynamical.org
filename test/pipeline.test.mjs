@@ -1784,8 +1784,8 @@ test("uptime uses light section headings without subtitles or rules", () => {
   assert.doesNotMatch(template, /\.status-groups section > header/);
 });
 
-/* The run chart draws what the summarizer published: a point per run, the
-   threshold its timing was judged by. */
+/* The run chart draws what the summarizer published: a point per run, and
+   the current delayed threshold. */
 
 function chartProduct(overrides = {}) {
   return {
@@ -1919,9 +1919,65 @@ test("run chart scales: one run, or runs all alike, still draw", () => {
   assert.ok(Number.isFinite(x) && Number.isFinite(y));
   assert.ok(y >= scale.top && y <= scale.bottom);
   assert.ok(Math.abs(x - (scale.left + scale.right) / 2) < 1e-9);
-  // ten runs in a narrow column label every other init
-  const narrow = runChartScales(runChartSeries(chartProduct(), now), 160, 6);
-  assert.ok(narrow.labelEvery >= 1);
+});
+
+test("run chart scales: labels thin to what fits between the closest inits", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const [product] = fixture.groups[0].products;
+  const series = runChartSeries(product, Date.parse(fixture.generated_at));
+  const labelPx = initColumnPx(product, "UTC");
+  assert.equal(labelPx, 30);
+  // ten six-hourly runs: every init names itself across a row, every other
+  // one in a phone column
+  assert.equal(runChartScales(series, 600, 6, labelPx).labelEvery, 1);
+  assert.equal(runChartScales(series, 300, 6, labelPx).labelEvery, 2);
+});
+
+test("run chart scales: a spread of seconds does not fill the plot, and weeks do not flood the axis", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const tight = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [
+        { init_time: "2026-07-25T00:00:00Z", status: "complete", latency_s: 3600 },
+        { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3601 },
+      ],
+    }),
+    now,
+  );
+  const scale = runChartScales(tight, 600, 6);
+  // a second apart reads as a second apart, on an axis that still has ticks
+  assert.ok(Math.abs(scale.y(3600) - scale.y(3601)) < 1);
+  assert.ok(scale.yTicks.length >= 2);
+  const stale = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [
+        { init_time: "2026-06-01T00:00:00Z", status: "complete", latency_s: 3600 },
+        { init_time: "2026-06-08T00:00:00Z", status: "in_flight" },
+      ],
+    }),
+    now,
+  );
+  assert.ok(runChartScales(stale, 600, 24).yTicks.length <= 5);
+});
+
+test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const one = { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3600 };
+  // a repeated timestamp is one point, not two on the same x with the same key
+  const twice = runChartSeries(chartProduct({ recent_inits: [one, { ...one }] }), now);
+  assert.equal(twice.runs.length, 1);
+  for (const cadence of [0, null, undefined, -6]) {
+    const scale = runChartScales(twice, 600, cadence);
+    assert.ok(Number.isFinite(scale.x(twice.runs[0].ms)), `cadence ${cadence}`);
+    assert.ok(Number.isFinite(scale.labelEvery) && scale.labelEvery >= 1);
+  }
 });
 
 test("details name each group's own delayed threshold beside its percentiles", () => {

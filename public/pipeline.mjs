@@ -1244,9 +1244,13 @@ export function runChartSeries(product, now) {
   const runs = [];
   const failed = [];
   const unmeasured = [];
+  const seen = new Set();
   for (const init of product.recent_inits ?? []) {
     const ms = Date.parse(init.init_time);
     if (!Number.isFinite(ms) || init.status === "unobserved") continue;
+    // one point per init: a repeated timestamp would share a key and an x
+    if (seen.has(ms)) continue;
+    seen.add(ms);
     const run = {
       init,
       ms,
@@ -1274,9 +1278,11 @@ export function runChartSeries(product, now) {
 }
 
 function niceTicks(lo, hi) {
-  const step =
+  let step =
     CHART_TICK_STEPS_S.find((candidate) => (hi - lo) / candidate <= 5) ??
     CHART_TICK_STEPS_S.at(-1);
+  // a run that has waited weeks spans further than the steps go
+  while ((hi - lo) / step > 5) step *= 2;
   const ticks = [];
   for (let tick = Math.ceil(lo / step) * step; tick <= hi; tick += step) {
     ticks.push(tick);
@@ -1298,7 +1304,9 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
   if (series.threshold != null) values.push(series.threshold);
   const lo = values.length ? Math.min(...values) : 0;
   const hi = values.length ? Math.max(...values) : 1;
-  const spread = hi - lo || Math.max(hi * 0.2, 60);
+  // two runs a second apart are not a spread worth filling the plot with:
+  // the floor is the spreadf floor, fifteen minutes
+  const spread = Math.max(hi - lo, 900);
   const yMin = Math.max(0, lo - spread * 0.15);
   const yMax = hi + spread * 0.15;
 
@@ -1307,11 +1315,14 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
   const last = times.length ? Math.max(...times) : 0;
   const gaps = [...times]
     .sort((a, b) => a - b)
-    .map((ms, index, sorted) => (index ? ms - sorted[index - 1] : Infinity))
-    .filter(Number.isFinite);
-  const pad = gaps.length
-    ? Math.min(...gaps) / 2
-    : ((cadenceHours ?? 6) * 3600 * 1000) / 2;
+    .map((ms, index, sorted) => (index ? ms - sorted[index - 1] : 0))
+    .filter((gap) => gap > 0);
+  // a lone run is padded by its cadence, so the axis has an extent
+  const cadenceMs =
+    (Number.isFinite(cadenceHours) && cadenceHours > 0 ? cadenceHours : 6) *
+    3600 *
+    1000;
+  const pad = (gaps.length ? Math.min(...gaps) : cadenceMs) / 2;
   const xMin = first - pad;
   const xMax = last + pad;
 
@@ -1332,7 +1343,7 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
     labelEvery: Math.max(
       1,
       Math.ceil(
-        (labelPx + 6) / ((gaps.length ? Math.min(...gaps) : Infinity) * (plotWidth / (xMax - xMin))),
+        (labelPx + 6) / ((gaps.length ? Math.min(...gaps) : cadenceMs) * (plotWidth / (xMax - xMin))),
       ),
     ),
   };
@@ -1385,6 +1396,11 @@ function namedRuns(inits, local) {
 function RunChart({ product, now, local, windowDays }) {
   const box = useRef(null);
   const [width, setWidth] = useState(null);
+  const count = product.recent_inits.length;
+  // the figure exists only while there are runs, so the measurement follows
+  // it: a product that gains its first run while the details are open is
+  // measured then, not on a later reopen
+  const mounted = count > 0;
   useLayoutEffect(() => {
     const node = box.current;
     if (!node) return undefined;
@@ -1393,11 +1409,10 @@ function RunChart({ product, now, local, windowDays }) {
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [mounted]);
 
+  if (!mounted) return null;
   const series = runChartSeries(product, now);
-  const count = product.recent_inits.length;
-  if (count === 0) return null;
   const zone = selectedTimeZone(local);
   const failedCopy = series.failed.length
     ? ` Failed, with no completion time: ${namedRuns(series.failed, local)}.`
@@ -1421,7 +1436,7 @@ function RunChart({ product, now, local, windowDays }) {
       width=${width}
       height=${scale.height}
       role="img"
-      aria-label=${`Completion time after init for the last ${count} runs${series.threshold == null ? "" : `, against the current delayed threshold of ${formatLatency(series.threshold)}`}`}
+      aria-label=${`Completion time after init for ${series.runs.length} of the last ${count} runs${series.threshold == null ? "" : `, against the current delayed threshold of ${formatLatency(series.threshold)}`}`}
     >
       <text x=${scale.left} y=${scale.top - 6}>time after init</text>
       ${scale.yTicks.map(

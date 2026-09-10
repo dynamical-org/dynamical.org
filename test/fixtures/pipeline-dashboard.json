@@ -1,7 +1,7 @@
 {
   "v": 2,
   "generated_at": "2026-07-25T18:00:00Z",
-  "window_days": 90,
+  "window_days": 365,
   "advisories": [
     {
       "incident_id": "noaa:fixture-delay",

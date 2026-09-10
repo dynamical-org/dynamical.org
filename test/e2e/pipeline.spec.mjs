@@ -993,13 +993,14 @@ test.describe("in a timezone rendered as a GMT offset", () => {
 // The run chart is the one place the delayed threshold is drawn, and "visible"
 // is a geometric claim: the line has to be there, labelled with its value, and
 // the run judged delayed has to sit above it. The fixture's running init is
-// hours old, so the payload is shifted to make it twenty minutes old — an
-// elapsed marker of forty-seven days would flatten every landed run.
+// hours old, so the payload is shifted to make it an hour old — an elapsed
+// marker of forty-seven days would flatten every landed run, and an hour is
+// past the 1d group's cutoff, so the run's bubbled delay is a state it can be in.
 test("details open on a run chart with the delayed threshold drawn", async ({
   page,
 }) => {
   const row = await openPipeline(page, (payload) =>
-    withRecentRun(payload, 20 * 60 * 1000),
+    withRecentRun(payload, 60 * 60 * 1000),
   );
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
@@ -1013,7 +1014,7 @@ test("details open on a run chart with the delayed threshold drawn", async ({
     "delayed past 2h",
   );
   await expect(chart.locator("figcaption")).toContainText(
-    "Current delayed threshold: 2h = p95 + max(p95 − p50, 15 min), using available history within the trailing 90-day window",
+    "Current delayed threshold: 2h = p95 + max(p95 − p50, 15 min), using available history within the trailing 365-day window",
   );
   await expect(chart.locator("figcaption a")).toHaveAttribute(
     "href",
@@ -1088,4 +1089,72 @@ test("a product without a delayed threshold draws its runs and no line", async (
       ".pipeline-row-details .table-container:first-of-type tbody td:last-child",
     ),
   ).toHaveText(["—"]);
+});
+
+// What production renders until wxopticon's projection carries the field: an
+// established baseline with no threshold published.
+test("a feed that omits the threshold says so and draws no line", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    delete product.latency_stats.delayed_threshold_s;
+    for (const stats of product.lead_group_stats) delete stats.delayed_threshold_s;
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-row-details .pipeline-runs");
+  await expect(chart.locator("circle")).toHaveCount(9);
+  await expect(chart.locator("[data-threshold]")).toHaveCount(0);
+  await expect(chart.locator("figcaption")).toContainText(
+    "No delayed threshold published for this product.",
+  );
+  await expect(chart.locator("figcaption a")).toHaveCount(0);
+  await expect(
+    row.locator(
+      ".pipeline-row-details .table-container:first-of-type tbody tr td:last-child",
+    ),
+  ).toHaveText(["—", "—", "—"]);
+});
+
+test("a manual threshold is drawn and named as one, without the method link", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) => {
+    payload.groups[0].products[0].timing_baseline.method = "manual";
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-row-details .pipeline-runs");
+  await expect(chart.locator('[data-threshold="run"] text')).toHaveText(
+    "delayed past 2h",
+  );
+  await expect(chart.locator("figcaption")).toContainText(
+    "Current delayed threshold: 2h, set manually for this product.",
+  );
+  await expect(chart.locator("figcaption a")).toHaveCount(0);
+});
+
+// The figure exists only while the product has runs, and the chart's width is
+// measured from the figure. A product whose first run arrives by poll while
+// its details are open must get its chart then — not on a later reopen.
+test("a product that gains its first run while its details are open draws its chart", async ({
+  page,
+}) => {
+  // a fake clock makes the poll happen on demand
+  await page.clock.install();
+  await openPipeline(page, (payload, served) => {
+    const shifted = withRecentRun(payload, 20 * 60 * 1000);
+    if (served === 1) shifted.groups[0].products[0].recent_inits = [];
+    return shifted;
+  });
+  const row = page.locator(".pipeline-row").first();
+  await row.locator('[data-slot="details-button"]').click();
+  await expect(row.locator(".pipeline-row-details table")).toHaveCount(1);
+  await expect(row.locator(".pipeline-runs")).toHaveCount(0);
+
+  // the next poll brings the runs, and the chart with them
+  await page.clock.runFor(15_000);
+  await expect(row.locator(".pipeline-runs svg")).toBeVisible();
+  await expect(row.locator(".pipeline-runs circle")).toHaveCount(9);
 });
