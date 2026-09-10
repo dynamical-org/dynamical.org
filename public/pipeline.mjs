@@ -1147,6 +1147,13 @@ export function detailRows(product, now, local, groupProducts = []) {
       p50: formatLatency(stats.p50_s),
       p95: formatLatency(stats.p95_s),
       p99: formatLatency(stats.p99_s),
+      // the group's own current cutoff, the one an in-flight run's bubbled
+      // delay names
+      threshold: formatLatency(
+        product.timing_baseline?.status === "insufficient_history"
+          ? null
+          : stats.delayed_threshold_s,
+      ),
     })),
     lag: sources.length > 0 ? lagRow(product, sources, last) : null,
   };
@@ -1208,13 +1215,324 @@ export function timingBaselineNote(product) {
   return `insufficient history (${days}/${required} days)`;
 }
 
+/* The run chart. One point per run the payload carries: its completion time
+   after init, or the time elapsed so far for a run still arriving, against the
+   product's current delayed threshold. The timings are the summarizer's
+   verdicts, each made against the threshold of its day; the line is today's,
+   so the chart draws both and judges neither. */
+
+const CHART_HEIGHT_PX = 160;
+const CHART_MARK_R = 3.5;
+// room for the widest tick label ("12h 30m") in the chart's own 10px monospace,
+// and for the threshold label to clear the right edge
+const CHART_MARGIN = { top: 16, right: 8, bottom: 30, left: 50 };
+const CHART_TICK_STEPS_S = [
+  60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800,
+];
+// how far past the landed runs and the line a run still arriving may pull the
+// axis before it is pinned to the top edge instead: a run that has waited
+// weeks — a stalled feed, a stuck init — would otherwise flatten every landed
+// run onto the baseline, where they read as zero
+const CHART_ELAPSED_HEADROOM = 1.5;
+
+/* The line is drawn only when the product has a verdict to make: one still
+   short of history publishes no threshold, and a feed that omits the field
+   draws the points alone. */
+
+export function runChartThreshold(product) {
+  if (product.timing_baseline?.status === "insufficient_history") return null;
+  const threshold = product.latency_stats?.delayed_threshold_s;
+  return Number.isFinite(threshold) && threshold > 0 ? threshold : null;
+}
+
+export function runChartSeries(product, now) {
+  const runs = [];
+  const failed = [];
+  const unmeasured = [];
+  const seen = new Set();
+  for (const init of product.recent_inits ?? []) {
+    const ms = Date.parse(init.init_time);
+    if (!Number.isFinite(ms) || init.status === "unobserved") continue;
+    // one point per init: a repeated timestamp would share a key and an x
+    if (seen.has(ms)) continue;
+    seen.add(ms);
+    const run = {
+      init,
+      ms,
+      status: init.status,
+      timing: init.timing ?? null,
+      seconds: null,
+      elapsed: false,
+    };
+    // the marker follows the status: a run still arriving is hollow at its
+    // elapsed time whatever else it reports
+    if (init.status === "pending" || init.status === "in_flight") {
+      run.seconds = Math.max(0, (now - ms) / 1000);
+      run.elapsed = true;
+    } else if (Number.isFinite(init.latency_s)) {
+      run.seconds = init.latency_s;
+    } else {
+      // no completion time, so no place on the axis; the caption names the
+      // run so it is not simply missing
+      (init.status === "failed" ? failed : unmeasured).push(init);
+      continue;
+    }
+    runs.push(run);
+  }
+  return { runs, failed, unmeasured, threshold: runChartThreshold(product) };
+}
+
+function niceTicks(lo, hi) {
+  let step =
+    CHART_TICK_STEPS_S.find((candidate) => (hi - lo) / candidate <= 5) ??
+    CHART_TICK_STEPS_S.at(-1);
+  // a run that has waited weeks spans further than the steps go
+  while ((hi - lo) / step > 5) step *= 2;
+  const ticks = [];
+  for (let tick = Math.ceil(lo / step) * step; tick <= hi; tick += step) {
+    ticks.push(tick);
+  }
+  return ticks;
+}
+
+/* The scales. Latency is zoomed to the runs and the line rather than drawn
+   from zero: a threshold sits a few percent above the median, and from zero
+   that gap would be a pixel. The landed runs and the line own the domain; a
+   run still arriving joins it while it is within reach of them, and past
+   that it is pinned to the top edge, where "still going, well past the line"
+   is all it has to say. Time is proportional, so a missed init leaves a gap
+   rather than closing up. */
+
+export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3) {
+  const plotWidth = width - CHART_MARGIN.left - CHART_MARGIN.right;
+  const plotHeight = CHART_HEIGHT_PX - CHART_MARGIN.top - CHART_MARGIN.bottom;
+
+  const landed = series.runs
+    .filter((run) => !run.elapsed)
+    .map((run) => run.seconds);
+  if (series.threshold != null) landed.push(series.threshold);
+  // with nothing landed there is nothing to flatten, so the elapsed times
+  // take the axis themselves
+  const reach = landed.length
+    ? Math.max(...landed) * CHART_ELAPSED_HEADROOM
+    : Infinity;
+  const values = [
+    ...landed,
+    ...series.runs
+      .filter((run) => run.elapsed && run.seconds <= reach)
+      .map((run) => run.seconds),
+  ];
+  const lo = values.length ? Math.min(...values) : 0;
+  const hi = values.length ? Math.max(...values) : 1;
+  // two runs a second apart are not a spread worth filling the plot with:
+  // the floor is the spreadf floor, fifteen minutes
+  const spread = Math.max(hi - lo, 900);
+  const yMin = Math.max(0, lo - spread * 0.15);
+  const yMax = hi + spread * 0.15;
+
+  const times = series.runs.map((run) => run.ms);
+  const first = times.length ? Math.min(...times) : 0;
+  const last = times.length ? Math.max(...times) : 0;
+  const gaps = [...times]
+    .sort((a, b) => a - b)
+    .map((ms, index, sorted) => (index ? ms - sorted[index - 1] : 0))
+    .filter((gap) => gap > 0);
+  // a lone run is padded by its cadence, so the axis has an extent
+  const cadenceMs =
+    (Number.isFinite(cadenceHours) && cadenceHours > 0 ? cadenceHours : 6) *
+    3600 *
+    1000;
+  const pad = (gaps.length ? Math.min(...gaps) : cadenceMs) / 2;
+  const xMin = first - pad;
+  const xMax = last + pad;
+
+  return {
+    width,
+    height: CHART_HEIGHT_PX,
+    left: CHART_MARGIN.left,
+    right: CHART_MARGIN.left + plotWidth,
+    top: CHART_MARGIN.top,
+    bottom: CHART_MARGIN.top + plotHeight,
+    x: (ms) => CHART_MARGIN.left + ((ms - xMin) / (xMax - xMin)) * plotWidth,
+    y: (seconds) =>
+      CHART_MARGIN.top +
+      plotHeight -
+      ((Math.min(Math.max(seconds, yMin), yMax) - yMin) / (yMax - yMin)) *
+        plotHeight,
+    pinned: (seconds) => seconds > yMax,
+    yTicks: niceTicks(yMin, yMax),
+    // every run names itself when the label fits between neighbours; otherwise
+    // every other one, or every third — measured on the closest pair, since
+    // time is proportional and a gap elsewhere does not make room here
+    labelEvery: Math.max(
+      1,
+      Math.ceil(
+        (labelPx + 6) / ((gaps.length ? Math.min(...gaps) : cadenceMs) * (plotWidth / (xMax - xMin))),
+      ),
+    ),
+  };
+}
+
+function runTitle(run, local, pinned = false) {
+  const how = run.elapsed
+    ? `${formatLatency(run.seconds)} elapsed`
+    : `${formatLatency(run.seconds)} after init`;
+  return [
+    initShort(run.init.init_time, local),
+    how,
+    pinned ? "off the chart" : null,
+    statusLabel(run.status),
+    run.timing?.replaceAll("_", " "),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/* The caption defines what the line is, in the words the research post uses,
+   and says how the feed arrived at it — a manual threshold is a policy, not a
+   percentile, and the post does not explain it. */
+
+function thresholdCopy(product, threshold, windowDays) {
+  if (threshold == null) {
+    const note = timingBaselineNote(product);
+    return note
+      ? `No delayed threshold yet: ${note}.`
+      : "No delayed threshold published for this product.";
+  }
+  const value = formatLatency(threshold);
+  if (product.timing_baseline?.method === "manual") {
+    return `Current delayed threshold: ${value}, set manually for this product.`;
+  }
+  const window = Number.isFinite(windowDays)
+    ? ` within the trailing ${windowDays}-day window`
+    : "";
+  return html`Current delayed threshold: ${value} = p95 + max(p95 − p50, 15 min),
+    using available history${window}${" "}
+    (<a href="/research/when-the-forecast-is-ready/">method</a>).`;
+}
+
+function namedRuns(inits, local) {
+  return inits.map((init) => initShort(init.init_time, local)).join(", ");
+}
+
+/* The chart's own width is measured, as the field's is: the details span the
+   whole row, and an SVG scaled through a viewBox would scale its text too. */
+
+function RunChart({ product, now, local, windowDays }) {
+  const box = useRef(null);
+  const [width, setWidth] = useState(null);
+  const count = product.recent_inits.length;
+  // the figure exists only while there are runs, so the measurement follows
+  // it: a product that gains its first run while the details are open is
+  // measured then, not on a later reopen
+  const mounted = count > 0;
+  useLayoutEffect(() => {
+    const node = box.current;
+    if (!node) return undefined;
+    const measure = () => setWidth(node.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [mounted]);
+
+  if (!mounted) return null;
+  const series = runChartSeries(product, now);
+  const zone = selectedTimeZone(local);
+  const failedCopy = series.failed.length
+    ? ` Failed, with no completion time: ${namedRuns(series.failed, local)}.`
+    : "";
+  const unmeasuredCopy = series.unmeasured.length
+    ? ` No completion time recorded: ${namedRuns(series.unmeasured, local)}.`
+    : "";
+
+  let chart = null;
+  if (series.runs.length > 0 && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
+    const scale = runChartScales(
+      series,
+      width,
+      product.cadence_hours,
+      initColumnPx(product, zone),
+    );
+    // the date shows where it turns over among the labelled runs, so a day
+    // that begins at a run thinned out of the labels is still named
+    let previousDate = null;
+    chart = html`<svg
+      width=${width}
+      height=${scale.height}
+      role="img"
+      aria-label=${`Completion time after init for ${series.runs.length} of the last ${count} runs${series.threshold == null ? "" : `, against the current delayed threshold of ${formatLatency(series.threshold)}`}`}
+    >
+      <text x=${scale.left} y=${scale.top - 6}>time after init</text>
+      ${scale.yTicks.map(
+        (tick) => html`<g key=${`y/${tick}`} data-axis="y">
+          <line x1=${scale.left} x2=${scale.right} y1=${scale.y(tick)} y2=${scale.y(tick)} />
+          <text x=${scale.left - 6} y=${scale.y(tick)} dy="0.35em" text-anchor="end">${formatLatency(tick)}</text>
+        </g>`,
+      )}
+      <line data-axis="x" x1=${scale.left} x2=${scale.right} y1=${scale.bottom} y2=${scale.bottom} />
+      ${series.runs.map((run, index) => {
+        const { date, time } = initParts(run.init.init_time, zone);
+        const x = scale.x(run.ms);
+        const labelled = index % scale.labelEvery === 0;
+        const turned = labelled && date !== previousDate;
+        if (labelled) previousDate = date;
+        return html`<g key=${`x/${run.init.init_time}`} data-axis="x">
+          <line x1=${x} x2=${x} y1=${scale.bottom} y2=${scale.bottom + 3} />
+          ${labelled
+            ? html`<text x=${x} y=${scale.bottom + 13} text-anchor="middle">${time}</text>`
+            : null}
+          ${turned
+            ? html`<text x=${x} y=${scale.bottom + 25} text-anchor="middle">${date}</text>`
+            : null}
+        </g>`;
+      })}
+      ${series.threshold == null
+        ? null
+        : html`<g data-threshold="run">
+            <line x1=${scale.left} x2=${scale.right} y1=${scale.y(series.threshold)} y2=${scale.y(series.threshold)} />
+            <text x=${scale.right} y=${scale.y(series.threshold) - 4} text-anchor="end">delayed past ${formatLatency(series.threshold)}</text>
+          </g>`}
+      ${series.runs.map((run) => {
+        const pinned = run.elapsed && scale.pinned(run.seconds);
+        return html`<circle
+          key=${run.init.init_time}
+          data-status=${run.status}
+          data-timing=${run.timing}
+          data-elapsed=${run.elapsed ? "" : null}
+          data-pinned=${pinned ? "" : null}
+          cx=${scale.x(run.ms)}
+          cy=${scale.y(run.seconds)}
+          r=${CHART_MARK_R}
+        ><title>${runTitle(run, local, pinned)}</title></circle>`;
+      })}
+    </svg>`;
+  }
+
+  return html`<figure class="pipeline-runs" ref=${box}>
+    ${chart}
+    <figcaption>
+      Up to ${RUNS_MAX} recent runs; hollow points show elapsed time so
+      far.${failedCopy}${unmeasuredCopy}${" "}
+      ${thresholdCopy(product, series.threshold, windowDays)}
+    </figcaption>
+  </figure>`;
+}
+
 /* The details tables. Open details re-render once a second so their durations
    tick; the keyed diff keeps every node, so a table's own scroll box — and the
    reader's place in it — survives the tick. Every wide table on the site scrolls
    inside its own .table-container. */
 
-function Details({ product, now, local, groupProducts }) {
+function Details({ product, now, local, groupProducts, windowDays }) {
   const details = detailRows(product, now, local, groupProducts);
+  const chart = html`<${RunChart}
+    key="chart"
+    product=${product}
+    now=${now}
+    local=${local}
+    windowDays=${windowDays}
+  />`;
   // keyed siblings, no wrapper: a lag or facet table that arrives or leaves
   // with a later run must not change what node the lead table scrolls in
   const leadTable = html`<div key="lead" class="table-container">
@@ -1224,7 +1542,7 @@ function Details({ product, now, local, groupProducts }) {
           <th rowspan="2">horizon</th>
           <th colspan="3">${details.lastHeader}</th>
           <th colspan="3">${details.runHeader}</th>
-          <th colspan="3">${details.statsHeader}</th>
+          <th colspan="4">${details.statsHeader}</th>
         </tr>
         <tr>
           <th>status</th>
@@ -1236,6 +1554,7 @@ function Details({ product, now, local, groupProducts }) {
           <th>p50</th>
           <th>p95</th>
           <th>p99</th>
+          <th>delayed past</th>
         </tr>
       </thead>
       <tbody>
@@ -1251,6 +1570,7 @@ function Details({ product, now, local, groupProducts }) {
             <td>${row.p50}</td>
             <td>${row.p95}</td>
             <td>${row.p99}</td>
+            <td>${row.threshold}</td>
           </tr>`,
         )}
       </tbody>
@@ -1283,9 +1603,9 @@ function Details({ product, now, local, groupProducts }) {
       </table>
     </div>`;
   const facets = facetRows(product);
-  if (facets.length === 0) return html`${leadTable}${lagTable}`;
+  if (facets.length === 0) return html`${chart}${leadTable}${lagTable}`;
 
-  return html`${leadTable}${lagTable}
+  return html`${chart}${leadTable}${lagTable}
     <div key="facets" class="table-container">
       <table class="pipeline-facets">
         <thead>
@@ -1363,6 +1683,7 @@ function Row({
   advisory,
   local,
   now,
+  windowDays,
   viewIndex,
   expanded,
   onCycle,
@@ -1470,6 +1791,7 @@ function Row({
             now=${now}
             local=${local}
             groupProducts=${groupProducts}
+            windowDays=${windowDays}
           />`
         : null}
     </div>
@@ -1533,6 +1855,7 @@ function Groups({ state, actions }) {
           )}
           local=${state.local}
           now=${state.now}
+          windowDays=${dashboard.window_days}
           viewIndex=${state.views[product.id] ?? 0}
           expanded=${state.expanded[product.id] ?? false}
           onCycle=${() => actions.cycleView(product)}

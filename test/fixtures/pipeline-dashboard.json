@@ -1,7 +1,7 @@
 {
   "v": 2,
   "generated_at": "2026-07-25T18:00:00Z",
-  "window_days": 90,
+  "window_days": 365,
   "advisories": [
     {
       "incident_id": "noaa:fixture-delay",
@@ -84,7 +84,8 @@
             "p95_s": 5400,
             "p99_s": 6000,
             "sample_init_count": 30,
-            "sample_day_count": 30
+            "sample_day_count": 30,
+            "delayed_threshold_s": 7200
           },
           "timing_baseline": {
             "status": "established",
@@ -98,7 +99,8 @@
               "leads_in_group": 1,
               "p50_s": 900,
               "p95_s": 1200,
-              "p99_s": 1500
+              "p99_s": 1500,
+              "delayed_threshold_s": 2100
             },
             {
               "name": "f024",
@@ -106,7 +108,8 @@
               "leads_in_group": 5,
               "p50_s": 1800,
               "p95_s": 2400,
-              "p99_s": 2700
+              "p99_s": 2700,
+              "delayed_threshold_s": 3300
             },
             {
               "name": "f072",
@@ -114,7 +117,8 @@
               "leads_in_group": 13,
               "p50_s": 3600,
               "p95_s": 5400,
-              "p99_s": 6000
+              "p99_s": 6000,
+              "delayed_threshold_s": 7200
             }
           ],
           "recent_inits": [
@@ -1183,9 +1187,9 @@
             {
               "init_time": "2026-07-24T18:00:00Z",
               "status": "complete",
-              "timing": "on_time",
+              "timing": "delayed",
               "completion_pct": 1,
-              "latency_s": 3690,
+              "latency_s": 7500,
               "lead_groups": [
                 {
                   "name": "f000",
@@ -1302,9 +1306,9 @@
                 {
                   "name": "f072",
                   "status": "complete",
-                  "timing": "on_time",
+                  "timing": "delayed",
                   "completion_pct": 1,
-                  "latency_s": 3690,
+                  "latency_s": 7500,
                   "leads_available": 13,
                   "leads_expected": 13,
                   "facets": [
@@ -1360,7 +1364,7 @@
             {
               "init_time": "2026-07-25T00:00:00Z",
               "status": "complete",
-              "timing": "delayed",
+              "timing": "on_time",
               "completion_pct": 1,
               "latency_s": 5700,
               "lead_groups": [
@@ -1479,7 +1483,7 @@
                 {
                   "name": "f072",
                   "status": "complete",
-                  "timing": "delayed",
+                  "timing": "on_time",
                   "completion_pct": 1,
                   "latency_s": 5700,
                   "leads_available": 13,
@@ -1600,7 +1604,7 @@
                   "status": "complete",
                   "timing": "delayed",
                   "completion_pct": 1,
-                  "latency_s": 3000,
+                  "latency_s": 3400,
                   "leads_available": 5,
                   "leads_expected": 5,
                   "facets": [
@@ -1774,7 +1778,7 @@
                   "status": "complete",
                   "timing": "delayed",
                   "completion_pct": 1,
-                  "latency_s": 3100,
+                  "latency_s": 3500,
                   "leads_available": 5,
                   "leads_expected": 5,
                   "facets": [
@@ -1959,7 +1963,8 @@
             "p95_s": 5000,
             "p99_s": 6100,
             "sample_init_count": 24,
-            "sample_day_count": 24
+            "sample_day_count": 24,
+            "delayed_threshold_s": null
           },
           "timing_baseline": {
             "status": "insufficient_history",
@@ -1973,7 +1978,8 @@
               "leads_in_group": 1,
               "p50_s": 4100,
               "p95_s": 5000,
-              "p99_s": 6100
+              "p99_s": 6100,
+              "delayed_threshold_s": null
             }
           ],
           "recent_inits": [
@@ -2153,7 +2159,8 @@
             "p95_s": 13440,
             "p99_s": 13440,
             "sample_init_count": 1,
-            "sample_day_count": 1
+            "sample_day_count": 1,
+            "delayed_threshold_s": null
           },
           "timing_baseline": {
             "status": "insufficient_history",
@@ -2167,7 +2174,8 @@
               "leads_in_group": 1,
               "p50_s": 13200,
               "p95_s": 13200,
-              "p99_s": 13200
+              "p99_s": 13200,
+              "delayed_threshold_s": null
             },
             {
               "name": "f024",
@@ -2175,7 +2183,8 @@
               "leads_in_group": 25,
               "p50_s": 13200,
               "p95_s": 13200,
-              "p99_s": 13200
+              "p99_s": 13200,
+              "delayed_threshold_s": null
             },
             {
               "name": "f048",
@@ -2183,7 +2192,8 @@
               "leads_in_group": 49,
               "p50_s": 13440,
               "p95_s": 13440,
-              "p99_s": 13440
+              "p99_s": 13440,
+              "delayed_threshold_s": null
             }
           ],
           "recent_inits": [

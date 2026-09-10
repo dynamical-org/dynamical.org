@@ -16,6 +16,9 @@ import {
   viewsOf,
   facetsAt,
   gutterPx,
+  runChartScales,
+  runChartSeries,
+  runChartThreshold,
   runsThatFit,
   runsThatFitFacetRows,
   clockTime,
@@ -858,6 +861,7 @@ test("retains live horizon status, time, and duration in details", () => {
           p50: "20m",
           p95: "30m",
           p99: "40m",
+          threshold: "—",
         },
         {
           name: "f072",
@@ -879,6 +883,7 @@ test("retains live horizon status, time, and duration in details", () => {
           p50: "40m",
           p95: "1h",
           p99: "1h 20m",
+          threshold: "—",
         },
       ],
       lag: null,
@@ -1777,4 +1782,293 @@ test("uptime uses light section headings without subtitles or rules", () => {
   assert.doesNotMatch(template, /Built on top of the data/);
   assert.doesNotMatch(template, /The data-serving path/);
   assert.doesNotMatch(template, /\.status-groups section > header/);
+});
+
+/* The run chart draws what the summarizer published: a point per run, and
+   the current delayed threshold. */
+
+function chartProduct(overrides = {}) {
+  return {
+    cadence_hours: 6,
+    latency_stats: { p50_s: 3600, p95_s: 5400, delayed_threshold_s: 7200 },
+    timing_baseline: { status: "established", history_days: 40, required_history_days: 30 },
+    lead_group_stats: [
+      { name: "f000", label: "0h", p50_s: 900, p95_s: 1200, delayed_threshold_s: 2100 },
+      { name: "f072", label: "3d", p50_s: 3600, p95_s: 5400, delayed_threshold_s: 7200 },
+    ],
+    recent_inits: [
+      { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+      { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "delayed", latency_s: 7500 },
+      { init_time: "2026-07-25T00:00:00Z", status: "failed" },
+      { init_time: "2026-07-25T06:00:00Z", status: "unobserved" },
+      { init_time: "2026-07-25T12:00:00Z", status: "in_flight", timing: "delayed" },
+    ],
+    ...overrides,
+  };
+}
+
+test("run chart series: a point per landed run, elapsed for the run still arriving", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const series = runChartSeries(chartProduct(), now);
+  assert.equal(series.threshold, 7200);
+  assert.deepEqual(
+    series.runs.map(({ init, seconds, elapsed, timing, status }) => ({
+      init: init.init_time,
+      seconds,
+      elapsed,
+      timing,
+      status,
+    })),
+    [
+      { init: "2026-07-24T12:00:00Z", seconds: 3500, elapsed: false, timing: "on_time", status: "complete" },
+      { init: "2026-07-24T18:00:00Z", seconds: 7500, elapsed: false, timing: "delayed", status: "complete" },
+      // two and a half hours into the run, drawn as elapsed time
+      { init: "2026-07-25T12:00:00Z", seconds: 9000, elapsed: true, timing: "delayed", status: "in_flight" },
+    ],
+  );
+  // a failure has no completion time: named, not plotted; the unobserved run
+  // is neither
+  assert.deepEqual(series.failed.map((init) => init.init_time), ["2026-07-25T00:00:00Z"]);
+  assert.deepEqual(series.unmeasured, []);
+});
+
+test("run chart series: the marker follows the status, and a landed run without a time is named", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const series = runChartSeries(
+    chartProduct({
+      recent_inits: [
+        // a run still arriving is hollow at its elapsed time, whatever it reports
+        { init_time: "2026-07-25T12:00:00Z", status: "in_flight", latency_s: 600 },
+        { init_time: "2026-07-25T06:00:00Z", status: "complete" },
+      ],
+    }),
+    now,
+  );
+  assert.deepEqual(
+    series.runs.map(({ seconds, elapsed }) => ({ seconds, elapsed })),
+    [{ seconds: 9000, elapsed: true }],
+  );
+  assert.deepEqual(series.failed, []);
+  assert.deepEqual(series.unmeasured.map((init) => init.init_time), ["2026-07-25T06:00:00Z"]);
+});
+
+test("run chart threshold: none without history, none when the feed omits it", () => {
+  assert.equal(runChartThreshold(chartProduct()), 7200);
+  assert.equal(
+    runChartThreshold(
+      chartProduct({
+        timing_baseline: { status: "insufficient_history", history_days: 12, required_history_days: 30 },
+      }),
+    ),
+    null,
+  );
+  assert.equal(
+    runChartThreshold(chartProduct({ latency_stats: { p50_s: 3600, p95_s: 5400 } })),
+    null,
+  );
+  assert.equal(
+    runChartThreshold(chartProduct({ latency_stats: { delayed_threshold_s: null } })),
+    null,
+  );
+  // the series still carries the points, so the chart draws without its line
+  const series = runChartSeries(chartProduct({ latency_stats: {} }), Date.parse("2026-07-25T14:30:00Z"));
+  assert.equal(series.threshold, null);
+  assert.equal(series.runs.length, 3);
+});
+
+test("run chart scales: every value inside the plot, the late run above the line", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const series = runChartSeries(chartProduct(), now);
+  const scale = runChartScales(series, 600, 6);
+  // y grows downward, so a longer latency sits higher on the page
+  const line = scale.y(series.threshold);
+  const [onTime, delayed, running] = series.runs.map((run) => scale.y(run.seconds));
+  assert.ok(onTime > line, "an on-time run sits below the line");
+  assert.ok(delayed < line, "a delayed run sits above the line");
+  assert.ok(running < line, "a run past its threshold sits above the line");
+  for (const y of [line, onTime, delayed, running]) {
+    assert.ok(y >= scale.top && y <= scale.bottom, `${y} inside the plot`);
+  }
+  // time is proportional: the missing 00z and 06z leave a gap twice the step
+  const [x0, x1, x2] = series.runs.map((run) => scale.x(run.ms));
+  assert.ok(Math.abs((x2 - x1) / (x1 - x0) - 3) < 1e-9);
+  assert.ok(x0 > scale.left && x2 < scale.right);
+  // ticks are round latencies inside the domain, few enough to read
+  assert.ok(scale.yTicks.length >= 2 && scale.yTicks.length <= 5, String(scale.yTicks));
+  for (const tick of scale.yTicks) {
+    assert.equal(tick % 900, 0);
+    assert.ok(scale.y(tick) >= scale.top && scale.y(tick) <= scale.bottom);
+  }
+  assert.equal(scale.labelEvery, 1);
+});
+
+test("run chart scales: one run, or runs all alike, still draw", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const one = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [
+        { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3600 },
+      ],
+    }),
+    now,
+  );
+  const scale = runChartScales(one, 400, 24);
+  const y = scale.y(3600);
+  const x = scale.x(one.runs[0].ms);
+  assert.ok(Number.isFinite(x) && Number.isFinite(y));
+  assert.ok(y >= scale.top && y <= scale.bottom);
+  assert.ok(Math.abs(x - (scale.left + scale.right) / 2) < 1e-9);
+});
+
+test("run chart scales: labels thin to what fits between the closest inits", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const [product] = fixture.groups[0].products;
+  const series = runChartSeries(product, Date.parse(fixture.generated_at));
+  const labelPx = initColumnPx(product, "UTC");
+  assert.equal(labelPx, 30);
+  // ten six-hourly runs: every init names itself across a row, every other
+  // one in a phone column
+  assert.equal(runChartScales(series, 600, 6, labelPx).labelEvery, 1);
+  assert.equal(runChartScales(series, 300, 6, labelPx).labelEvery, 2);
+});
+
+test("run chart scales: a spread of seconds does not fill the plot, and weeks do not flood the axis", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const tight = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [
+        { init_time: "2026-07-25T00:00:00Z", status: "complete", latency_s: 3600 },
+        { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3601 },
+      ],
+    }),
+    now,
+  );
+  const scale = runChartScales(tight, 600, 6);
+  // a second apart reads as a second apart, on an axis that still has ticks
+  assert.ok(Math.abs(scale.y(3600) - scale.y(3601)) < 1);
+  assert.ok(scale.yTicks.length >= 2);
+  const stale = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [
+        { init_time: "2026-06-01T00:00:00Z", status: "in_flight" },
+        { init_time: "2026-06-08T00:00:00Z", status: "in_flight" },
+      ],
+    }),
+    now,
+  );
+  assert.ok(runChartScales(stale, 600, 24).yTicks.length <= 5);
+});
+
+// A feed that has stalled, or an init that is stuck, leaves a run in flight for
+// days; the landed runs must not be flattened onto the baseline for it.
+test("run chart scales: a run in flight for weeks is pinned to the top, not given the axis", () => {
+  const now = Date.parse("2026-08-14T12:00:00Z");
+  const product = chartProduct({
+    recent_inits: [
+      { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+      { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "delayed", latency_s: 7500 },
+      { init_time: "2026-07-25T00:00:00Z", status: "in_flight", timing: "delayed" },
+    ],
+  });
+  const series = runChartSeries(product, now);
+  const scale = runChartScales(series, 600, 6);
+  const [onTime, delayed, running] = series.runs;
+  assert.equal(running.seconds, 20.5 * 86400);
+  assert.ok(scale.pinned(running.seconds));
+  assert.equal(scale.y(running.seconds), scale.top);
+  // the landed runs still spread over the plot, either side of the line
+  const line = scale.y(series.threshold);
+  assert.ok(scale.y(onTime.seconds) - line > 20, "on-time run well below the line");
+  assert.ok(line - scale.y(delayed.seconds) > 2, "delayed run above the line");
+  assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
+  assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
+  // a run within reach of the landed ones still joins the axis
+  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")), 600, 6);
+  const nearRun = runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")).runs[2];
+  assert.equal(nearRun.seconds, 9000);
+  assert.ok(!near.pinned(9000));
+  assert.ok(near.y(9000) > near.top);
+  // with nothing landed, the elapsed times take the axis themselves
+  const only = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [{ init_time: "2026-07-25T00:00:00Z", status: "pending" }],
+    }),
+    now,
+  );
+  assert.ok(!runChartScales(only, 600, 6).pinned(only.runs[0].seconds));
+});
+
+test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const one = { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3600 };
+  // a repeated timestamp is one point, not two on the same x with the same key
+  const twice = runChartSeries(chartProduct({ recent_inits: [one, { ...one }] }), now);
+  assert.equal(twice.runs.length, 1);
+  for (const cadence of [0, null, undefined, -6]) {
+    const scale = runChartScales(twice, 600, cadence);
+    assert.ok(Number.isFinite(scale.x(twice.runs[0].ms)), `cadence ${cadence}`);
+    assert.ok(Number.isFinite(scale.labelEvery) && scale.labelEvery >= 1);
+  }
+});
+
+test("details name each group's own delayed threshold beside its percentiles", () => {
+  const product = chartProduct();
+  const rows = detailRows(product, Date.parse("2026-07-25T14:30:00Z"), false).rows;
+  assert.deepEqual(rows.map((row) => row.threshold), ["35m", "2h"]);
+  // and none while the product is short of history, whatever the feed says
+  product.timing_baseline.status = "insufficient_history";
+  assert.deepEqual(
+    detailRows(product, Date.parse("2026-07-25T14:30:00Z"), false).rows.map((row) => row.threshold),
+    ["—", "—"],
+  );
+});
+
+// The fixture is what the browser spec and the local preview draw, so its
+// threshold has to be the one its percentiles imply, and its delayed run has
+// to sit past it — or the chart would contradict the caption beside it.
+test("local preview fixture carries a coherent delayed threshold and a run past it", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const [product] = fixture.groups[0].products;
+  const { p50_s, p95_s, delayed_threshold_s } = product.latency_stats;
+  assert.equal(delayed_threshold_s, p95_s + Math.max(p95_s - p50_s, 900));
+  for (const stats of product.lead_group_stats) {
+    assert.equal(
+      stats.delayed_threshold_s,
+      stats.p95_s + Math.max(stats.p95_s - stats.p50_s, 900),
+      stats.name,
+    );
+  }
+  for (const init of product.recent_inits) {
+    if (init.status !== "complete") continue;
+    assert.equal(
+      init.timing,
+      init.latency_s > delayed_threshold_s ? "delayed" : "on_time",
+      init.init_time,
+    );
+  }
+  const series = runChartSeries(product, Date.parse(fixture.generated_at));
+  assert.equal(series.threshold, delayed_threshold_s);
+  assert.ok(series.runs.some((run) => !run.elapsed && run.timing === "delayed"));
+  // the products short of history publish no threshold, and draw no line
+  for (const group of fixture.groups) {
+    for (const other of group.products) {
+      if (other.timing_baseline.status !== "insufficient_history") continue;
+      assert.equal(other.latency_stats.delayed_threshold_s, null, other.id);
+      assert.equal(runChartThreshold(other), null, other.id);
+    }
+  }
 });

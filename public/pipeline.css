@@ -354,17 +354,82 @@
   margin-top: 1.2rem;
 }
 
+/* The run chart: the runs the field draws as squares, plotted by their time
+   after init against the current delayed threshold. A run wears the color its
+   square wears; a run still arriving is hollow. */
+
+.pipeline-runs {
+  margin: 0 0 1.6rem;
+}
+
+.pipeline-runs svg {
+  display: block;
+  overflow: visible;
+  font-size: 1rem;
+}
+
+.pipeline-runs text {
+  fill: var(--muted-text);
+}
+
+.pipeline-runs line {
+  stroke: var(--border-muted-color);
+}
+
+.pipeline-runs [data-axis="y"] line {
+  stroke: var(--pill-muted-border);
+}
+
+.pipeline-runs circle {
+  fill: var(--muted-text);
+  stroke: var(--muted-text);
+}
+
+.pipeline-runs [data-timing="on_time"] {
+  fill: var(--pipeline-ok);
+  stroke: var(--pipeline-ok);
+}
+
+.pipeline-runs [data-timing="delayed"] {
+  fill: var(--pipeline-progress);
+  stroke: var(--pipeline-progress);
+}
+
+.pipeline-runs circle[data-elapsed] {
+  fill: var(--bg-color);
+  stroke-width: 1.5;
+}
+
+/* a run pinned to the top edge is beyond the axis, not on it */
+.pipeline-runs circle[data-pinned] {
+  stroke-dasharray: 2 2;
+}
+
+.pipeline-runs [data-threshold="run"] line {
+  stroke: var(--pipeline-progress);
+}
+
+.pipeline-runs [data-threshold="run"] text {
+  fill: var(--pipeline-progress);
+}
+
+.pipeline-runs figcaption {
+  margin-top: 0.4rem;
+  color: var(--muted-text);
+  font-size: 1.2rem;
+}
+
 .pipeline-row-details table {
   width: 100%;
   border-collapse: collapse;
   font-size: 1.2rem;
 }
 
-/* the lead table's nine nowrap measurement columns need more room than the
+/* the lead table's ten nowrap measurement columns need more room than the
    content column has; the lag and facet tables' few fit, so they are sized by
    their content */
-.pipeline-row-details .table-container:first-child table {
-  min-width: 90rem;
+.pipeline-row-details .table-container:first-of-type table {
+  min-width: 100rem;
 }
 
 .pipeline-row-details th,
