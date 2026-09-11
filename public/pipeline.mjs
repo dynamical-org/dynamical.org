@@ -1247,8 +1247,6 @@ export function runChartThreshold(product) {
 
 export function runChartSeries(product, now) {
   const runs = [];
-  const failed = [];
-  const unmeasured = [];
   const seen = new Set();
   for (const init of product.recent_inits ?? []) {
     const ms = Date.parse(init.init_time);
@@ -1272,14 +1270,12 @@ export function runChartSeries(product, now) {
     } else if (Number.isFinite(init.latency_s)) {
       run.seconds = init.latency_s;
     } else {
-      // no completion time, so no place on the axis; the caption names the
-      // run so it is not simply missing
-      (init.status === "failed" ? failed : unmeasured).push(init);
+      // no completion time, so no place on the axis
       continue;
     }
     runs.push(run);
   }
-  return { runs, failed, unmeasured, threshold: runChartThreshold(product) };
+  return { runs, threshold: runChartThreshold(product) };
 }
 
 function niceTicks(lo, hi) {
@@ -1388,37 +1384,10 @@ function runTitle(run, local, pinned = false) {
     .join(" · ");
 }
 
-/* The caption defines what the line is, in the words the research post uses,
-   and says how the feed arrived at it — a manual threshold is a policy, not a
-   percentile, and the post does not explain it. */
-
-function thresholdCopy(product, threshold, windowDays) {
-  if (threshold == null) {
-    const note = timingBaselineNote(product);
-    return note
-      ? `No delayed threshold yet: ${note}.`
-      : "No delayed threshold published for this product.";
-  }
-  const value = formatLatency(threshold);
-  if (product.timing_baseline?.method === "manual") {
-    return `Current delayed threshold: ${value}, set manually for this product.`;
-  }
-  const window = Number.isFinite(windowDays)
-    ? ` within the trailing ${windowDays}-day window`
-    : "";
-  return html`Current delayed threshold: ${value} = p95 + max(p95 − p50, 15 min),
-    using available history${window}${" "}
-    (<a href="/research/when-the-forecast-is-ready/">method</a>).`;
-}
-
-function namedRuns(inits, local) {
-  return inits.map((init) => initShort(init.init_time, local)).join(", ");
-}
-
 /* The chart's own width is measured, as the field's is: the details span the
    whole row, and an SVG scaled through a viewBox would scale its text too. */
 
-function RunChart({ product, now, local, windowDays }) {
+function RunChart({ product, now, local }) {
   const box = useRef(null);
   const [width, setWidth] = useState(null);
   const count = product.recent_inits.length;
@@ -1439,12 +1408,6 @@ function RunChart({ product, now, local, windowDays }) {
   if (!mounted) return null;
   const series = runChartSeries(product, now);
   const zone = selectedTimeZone(local);
-  const failedCopy = series.failed.length
-    ? ` Failed, with no completion time: ${namedRuns(series.failed, local)}.`
-    : "";
-  const unmeasuredCopy = series.unmeasured.length
-    ? ` No completion time recorded: ${namedRuns(series.unmeasured, local)}.`
-    : "";
 
   let chart = null;
   if (series.runs.length > 0 && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
@@ -1509,14 +1472,7 @@ function RunChart({ product, now, local, windowDays }) {
     </svg>`;
   }
 
-  return html`<figure class="pipeline-runs" ref=${box}>
-    ${chart}
-    <figcaption>
-      Up to ${RUNS_MAX} recent runs; hollow points show elapsed time so
-      far.${failedCopy}${unmeasuredCopy}${" "}
-      ${thresholdCopy(product, series.threshold, windowDays)}
-    </figcaption>
-  </figure>`;
+  return html`<figure class="pipeline-runs" ref=${box}>${chart}</figure>`;
 }
 
 /* The details tables. Open details re-render once a second so their durations
@@ -1524,14 +1480,13 @@ function RunChart({ product, now, local, windowDays }) {
    reader's place in it — survives the tick. Every wide table on the site scrolls
    inside its own .table-container. */
 
-function Details({ product, now, local, groupProducts, windowDays }) {
+function Details({ product, now, local, groupProducts }) {
   const details = detailRows(product, now, local, groupProducts);
   const chart = html`<${RunChart}
     key="chart"
     product=${product}
     now=${now}
     local=${local}
-    windowDays=${windowDays}
   />`;
   // keyed siblings, no wrapper: a lag or facet table that arrives or leaves
   // with a later run must not change what node the lead table scrolls in
@@ -1683,7 +1638,6 @@ function Row({
   advisory,
   local,
   now,
-  windowDays,
   viewIndex,
   expanded,
   onCycle,
@@ -1791,7 +1745,6 @@ function Row({
             now=${now}
             local=${local}
             groupProducts=${groupProducts}
-            windowDays=${windowDays}
           />`
         : null}
     </div>
@@ -1855,7 +1808,6 @@ function Groups({ state, actions }) {
           )}
           local=${state.local}
           now=${state.now}
-          windowDays=${dashboard.window_days}
           viewIndex=${state.views[product.id] ?? 0}
           expanded=${state.expanded[product.id] ?? false}
           onCycle=${() => actions.cycleView(product)}

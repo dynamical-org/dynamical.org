@@ -413,10 +413,9 @@
   fill: var(--pipeline-progress);
 }
 
-.pipeline-runs figcaption {
-  margin-top: 0.4rem;
-  color: var(--muted-text);
-  font-size: 1.2rem;
+/* a product whose runs all lack a completion time draws nothing to leave room for */
+.pipeline-runs:empty {
+  margin: 0;
 }
 
 .pipeline-row-details table {
