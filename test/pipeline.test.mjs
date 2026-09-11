@@ -16,8 +16,11 @@ import {
   viewsOf,
   facetsAt,
   gutterPx,
+  alignedChartScales,
   runChartScales,
   runChartSeries,
+  runColumns,
+  displayedRuns,
   runChartThreshold,
   runsThatFit,
   runsThatFitFacetRows,
@@ -2014,6 +2017,59 @@ test("run chart scales: repeated inits and a zero cadence still draw finite coor
     assert.ok(Number.isFinite(scale.x(twice.runs[0].ms)), `cadence ${cadence}`);
     assert.ok(Number.isFinite(scale.labelEvery) && scale.labelEvery >= 1);
   }
+});
+
+/* The aligned plot shares the latency domain and adds nothing but its own
+   height; with nothing to plot and no line, the axis is not invented. */
+
+test("aligned chart scales: the row chart's domain at the plot's own height", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const series = runChartSeries(chartProduct(), now);
+  const across = runChartScales(series, 600, 6);
+  const aligned = alignedChartScales(series);
+  assert.deepEqual(aligned.yTicks, across.yTicks);
+  assert.equal(aligned.pinned(1e6), across.pinned(1e6));
+  assert.equal(aligned.empty, false);
+  for (const run of series.runs) {
+    assert.ok(aligned.y(run.seconds) >= aligned.top && aligned.y(run.seconds) <= aligned.bottom);
+  }
+  const none = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [{ init_time: "2026-07-25T06:00:00Z", status: "failed" }],
+    }),
+    now,
+  );
+  assert.equal(alignedChartScales(none).empty, true);
+});
+
+/* The aligned chart's columns are the lead field's: it draws the field's own
+   slice of runs, a run width and gap apart. */
+
+test("run chart columns: a point sits at the centre of its run's square", () => {
+  const columns = runColumns(4, 30, 6);
+  assert.equal(columns.width, 4 * 30 + 3 * 6);
+  assert.deepEqual([0, 1, 2, 3].map(columns.x), [15, 51, 87, 123]);
+  // a lone run is one column; no runs is no width, not a negative gap
+  assert.equal(runColumns(1, 30, 6).width, 30);
+  assert.equal(runColumns(0, 30, 6).width, 0);
+});
+
+test("run chart series: only the runs the field shows, kept in their columns", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = chartProduct();
+  // the field shows the newest three: failed, unobserved, in flight
+  const shown = displayedRuns(product, 3);
+  assert.deepEqual(
+    shown.map((init) => init.init_time),
+    ["2026-07-25T00:00:00Z", "2026-07-25T06:00:00Z", "2026-07-25T12:00:00Z"],
+  );
+  const series = runChartSeries(product, now, shown);
+  // only the run in flight has a time; the two before it keep their columns
+  // (the chart looks each point up by init, never by its place in the series)
+  assert.deepEqual(series.runs.map((run) => run.init.init_time), ["2026-07-25T12:00:00Z"]);
+  assert.equal(displayedRuns(product, 0).length, 5);
+  assert.equal(displayedRuns(product, null).length, 5);
 });
 
 test("details name each group's own delayed threshold beside its percentiles", () => {

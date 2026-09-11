@@ -36,9 +36,16 @@ const REPEATED_LEAD_LABELS = Array.from(
  * the poll something different from what the page loaded with. */
 async function stubPipeline(page, mutate = (payload) => payload) {
   let served = 0;
-  await page.route("**/dashboard.json", (route) => {
+  // what the first row was served, for the chart alignment check to read
+  await page.addInitScript(() => {
+    window.__pipelineInits = {};
+  });
+  await page.route("**/dashboard.json", async (route) => {
     served += 1;
     const payload = mutate(structuredClone(FIXTURE), served);
+    await page.evaluate((inits) => {
+      window.__pipelineInits = Object.fromEntries(inits.map((init) => [init.init_time, init]));
+    }, payload.groups[0].products[0].recent_inits ?? []).catch(() => {});
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1039,10 +1046,13 @@ test("details open on a run chart with the delayed threshold drawn", async ({
         document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     };
   });
-  // one run landed late, above the line; every on-time run below it
+  // one run landed late, above the line; every on-time run below it — and
+  // every shown run with a time is one or the other, or the run in flight
+  const shown = await chartAlignment(row);
   expect(geometry.delayed).toHaveLength(1);
   expect(geometry.delayed[0]).toBeLessThan(geometry.lineY);
-  expect(geometry.onTime.length).toBeGreaterThan(5);
+  expect(geometry.onTime).toHaveLength(shown.circles.length - 2);
+  expect(geometry.onTime.length).toBeGreaterThanOrEqual(1);
   for (const y of geometry.onTime) expect(y).toBeGreaterThan(geometry.lineY);
   // the running init is hollow, and reads in the amber its cell reads in
   expect(geometry.elapsed).toEqual([
@@ -1069,7 +1079,8 @@ test("a product without a delayed threshold draws its runs and no line", async (
   );
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
-  await expect(chart.locator("circle")).toHaveCount(8);
+  await expect(chart.locator("svg")).toHaveCount(1);
+  expectAligned(await chartAlignment(row));
   await expect(chart.locator("[data-threshold]")).toHaveCount(0);
   await expect(chart.locator("figcaption")).toHaveCount(0);
   await expect(
@@ -1131,7 +1142,9 @@ test("a feed that omits the threshold draws its runs and no line", async ({
   });
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
-  await expect(chart.locator("circle")).toHaveCount(9);
+  // every run the field shows but the failed one
+  const shown = await chartAlignment(row);
+  expect(shown.circles).toHaveLength(shown.displayed - 1);
   await expect(chart.locator("[data-threshold]")).toHaveCount(0);
   await expect(chart.locator("figcaption")).toHaveCount(0);
   await expect(
@@ -1156,10 +1169,283 @@ test("a manual threshold is drawn like any other", async ({
   await expect(chart.locator("figcaption")).toHaveCount(0);
 });
 
-// A product whose runs all lack a completion time has a figure — it is the
-// measured box — but nothing to draw in it, and nothing under it: the figure
-// must not hold the page open where a chart would go.
-test("a product whose runs all lack a completion time leaves no gap for a chart", async ({
+/** How the chart under a row's lead-group field lines up with it: each point
+ * against the column of its run in the field (its first square), and each
+ * repeated init label against the field's own. */
+function chartAlignment(row) {
+  return row.evaluate((node) => {
+    const field = node.querySelector(".pipeline-field");
+    const figure = node.querySelector(".pipeline-runs");
+    const center = (element) => {
+      const box = element.getBoundingClientRect();
+      return box.left + box.width / 2;
+    };
+    const columnOf = (init) =>
+      field.querySelector(`.pipeline-cell[data-init-time="${init}"]`);
+    const labels = (root, selector) =>
+      [...root.querySelectorAll(selector)].map((label) => ({
+        text: label.textContent,
+        x: Math.round(center(label) * 10) / 10,
+      }));
+    const boxes = [...figure.querySelectorAll("svg text")].map((text) => ({
+      text: text.textContent,
+      box: text.getBoundingClientRect(),
+    }));
+    return {
+      displayed: new Set(
+        [...field.querySelectorAll("[data-init-time]")].map((e) => e.dataset.initTime),
+      ).size,
+      failed: [...field.querySelectorAll(".pipeline-cell.g-failed")].map(
+        (cell) => cell.dataset.initTime,
+      ),
+      // which shown runs the chart owes a point: those with a completion time
+      // or still arriving, read from the feed the page was served
+      plottable: [
+        ...new Set([...field.querySelectorAll("[data-init-time]")].map((e) => e.dataset.initTime)),
+      ].filter((init) => {
+        const run = window.__pipelineInits?.[init];
+        return run && (run.status === "pending" || run.status === "in_flight" || Number.isFinite(run.latency_s));
+      }),
+      circles: [...figure.querySelectorAll("circle")].map((circle) => ({
+        init: circle.dataset.initTime,
+        dx: center(circle) - center(columnOf(circle.dataset.initTime)),
+      })),
+      fieldLabels: labels(field, ".pipeline-run-label"),
+      chartLabels: labels(figure, ".pipeline-run-label"),
+      fieldDates: labels(field, ".pipeline-run-date"),
+      chartDates: labels(figure, ".pipeline-run-date"),
+      // no two pieces of text in a plot may overlap
+      textOverlaps: boxes.flatMap((a, i) =>
+        boxes.slice(i + 1).filter(
+          (b) =>
+            a.box.left < b.box.right && a.box.right > b.box.left &&
+            a.box.top < b.box.bottom && a.box.bottom > b.box.top,
+        ).map((b) => `"${a.text}" and "${b.text}"`),
+      ),
+      labelCount: boxes.length,
+      thresholdY: figure.querySelector("[data-threshold] text")?.getAttribute("y"),
+      // a tick label inside the plot must not sit on a point
+      coveredPoints: [...figure.querySelectorAll('[data-axis="y"] text')].filter((text) => {
+        const box = text.getBoundingClientRect();
+        return [...figure.querySelectorAll("circle")].some((circle) => {
+          const dot = circle.getBoundingClientRect();
+          return dot.left < box.right && dot.right > box.left && dot.top < box.bottom && dot.bottom > box.top;
+        });
+      }).length,
+      insideLabels:
+        figure.querySelectorAll("svg text[text-anchor]").length > 0 &&
+        [...figure.querySelectorAll("svg text[text-anchor]")].every(
+          (text) => text.getBoundingClientRect().right <= text.closest("svg").getBoundingClientRect().right + 0.5,
+        ),
+      pageFits:
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  });
+}
+
+function expectAligned(alignment) {
+  // every shown run with a time has a point, and each sits under its square
+  expect(alignment.circles.map((c) => c.init).sort()).toEqual(alignment.plottable.sort());
+  for (const circle of alignment.circles) {
+    expect(Math.abs(circle.dx), `${circle.init} sits under its square`).toBeLessThanOrEqual(1);
+  }
+  for (const tier of ["Labels", "Dates"]) {
+    const chart = alignment[`chart${tier}`];
+    const field = alignment[`field${tier}`];
+    expect(chart.map((l) => l.text)).toEqual(field.map((l) => l.text));
+    chart.forEach((label, index) => {
+      expect(Math.abs(label.x - field[index].x), `"${label.text}" under its column`).toBeLessThanOrEqual(1);
+    });
+  }
+  expect(alignment.textOverlaps).toEqual([]);
+  expect(alignment.coveredPoints).toBe(0);
+  expect(alignment.pageFits).toBe(true);
+}
+
+// The chart draws the runs the field shows, one column each, under the
+// field's own columns: a run without a time keeps its column empty rather
+// than shifting the runs after it, and a missing init closes up in both.
+test("the run chart shares the field's columns and repeats its init axis", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    // a landed run with no time in the middle of the window, and an init gone
+    // from it altogether
+    const landed = product.recent_inits.filter((init) => init.status === "complete");
+    delete landed.at(-2).latency_s;
+    product.recent_inits.splice(product.recent_inits.indexOf(landed.at(-4)), 1);
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
+  const alignment = await chartAlignment(row);
+  expectAligned(alignment);
+  // the failed run and the run with no time have no point; every other shown run does
+  expect(alignment.failed).toHaveLength(1);
+  expect(alignment.circles).toHaveLength(alignment.displayed - 2);
+  expect(alignment.circles.map((c) => c.init)).not.toContain(alignment.failed[0]);
+  expect(alignment.labelCount).toBeGreaterThanOrEqual(3);
+  // the plot fills most of its column, so the labels sit inside it
+  expect(alignment.insideLabels).toBe(true);
+
+  // enlarged text keeps the chart on its columns and its labels apart: the
+  // plot's band and the field's share their gutter and gap, and the labels
+  // are laid out in the chart's own em
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "20px";
+  });
+  // the chart lays its labels out for the size it reads on its next tick
+  await expect
+    .poll(async () => (await chartAlignment(row)).thresholdY)
+    .not.toBe(alignment.thresholdY);
+  expectAligned(await chartAlignment(row));
+});
+
+// An arrival-group view lays its runs in two lanes, which no single plot can
+// sit under; there the chart stays as it was, across the whole row on a
+// proportional time axis, with every run the payload carries.
+test("in an arrival-group view the chart draws every run across the row", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) =>
+    withRecentRun(payload, 60 * 60 * 1000),
+  );
+  await row.locator(".pipeline-viz").click();
+  await expect(row).toHaveAttribute("data-view", "1");
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-row-details .pipeline-runs");
+  await expect(chart.locator("svg")).toHaveCount(1);
+  await expect(chart).not.toHaveAttribute("data-aligned", "");
+  // nine of the payload's ten runs have a time; the axis is the chart's own
+  await expect(chart.locator("circle")).toHaveCount(9);
+  await expect(chart.locator('[data-axis="x"] text').first()).toBeVisible();
+  await expect(chart.locator(".pipeline-run-label")).toHaveCount(0);
+  const geometry = await row.evaluate((node) => ({
+    chart: node.querySelector(".pipeline-runs svg").getBoundingClientRect(),
+    details: node.querySelector(".pipeline-row-details").getBoundingClientRect(),
+    field: node.querySelector(".pipeline-field").getBoundingClientRect(),
+  }));
+  expect(Math.abs(geometry.chart.left - geometry.details.left)).toBeLessThanOrEqual(1);
+  expect(geometry.chart.width).toBeGreaterThan(geometry.field.width);
+
+  // round to the lead view, and the chart lines up with the field again
+  while ((await row.getAttribute("data-view")) !== "0") {
+    await row.locator(".pipeline-viz").click();
+  }
+  await expect(chart).toHaveAttribute("data-aligned", "");
+  expectAligned(await chartAlignment(row));
+});
+
+// An init column is as wide as its label, and the label's width is the
+// zone's: "06z" in UTC, "06 CDT" in Chicago. How many runs fit, and so
+// whether the plot leaves room beside it, follows — so the cases that turn
+// on it are pinned to a zone with a letter abbreviation.
+test.describe("in a zone with a letter abbreviation", () => {
+  test.use({ timezoneId: "America/Chicago", locale: "en-US" });
+
+  // A column of another width shows another number of runs, and the chart
+  // follows the field: at 1280px the row's column holds fewer than the ten
+  // runs the payload carries; a single-column layout holds them all.
+  test("a column that changes width re-fits the chart with the field", async ({
+    page,
+  }) => {
+    const row = await openPipeline(page, (payload) =>
+      withRecentRun(payload, 60 * 60 * 1000),
+    );
+    await row.locator('[data-slot="details-button"]').click();
+    await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
+    const alignment = await chartAlignment(row);
+    expectAligned(alignment);
+    expect(alignment.displayed).toBeLessThan(10);
+
+    await page.setViewportSize({ width: 700, height: 900 });
+    await expect.poll(async () => (await chartAlignment(row)).displayed).toBe(10);
+    expectAligned(await chartAlignment(row));
+  });
+
+  // On a phone the field fills the column, so there is no room beside the
+  // plot for its labels: they move inside it rather than off the page.
+  test("on a phone the chart's labels sit inside the plot and the page does not scroll sideways", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 520, height: 900 });
+    const row = await openPipeline(page, (payload) =>
+      withRecentRun(payload, 60 * 60 * 1000),
+    );
+    await row.locator('[data-slot="details-button"]').click();
+    await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
+    const alignment = await chartAlignment(row);
+    expectAligned(alignment);
+    expect(alignment.displayed).toBe(10);
+    expect(alignment.insideLabels).toBe(true);
+    await expect(row.locator('.pipeline-runs [data-threshold="run"] text')).toHaveText(
+      "delayed past 2h",
+    );
+  });
+
+  // A threshold far above the runs puts the lowest tick on the baseline, where
+  // the oldest run sits: that tick label gives way to the point.
+  test("a tick label inside the plot gives way to a point in its place", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 900 });
+    const row = await openPipeline(page, (payload) => {
+      payload.groups[0].products[0].latency_stats.delayed_threshold_s = 12.5 * 3600;
+      return withRecentRun(payload, 60 * 60 * 1000);
+    });
+    await row.locator('[data-slot="details-button"]').click();
+    await expect(row.locator('.pipeline-runs [data-threshold="run"] text')).toHaveText(
+      "delayed past 12h 30m",
+    );
+    const alignment = await chartAlignment(row);
+    expectAligned(alignment);
+    expect(alignment.insideLabels).toBe(true);
+    // the gridlines are all there; the label the oldest run sits on is not, nor
+    // the one the threshold label stands on
+    await expect(row.locator('.pipeline-runs [data-axis="y"] line')).toHaveCount(5);
+    await expect(row.locator('.pipeline-runs [data-axis="y"] text')).toHaveText(["3h", "6h", "9h"]);
+  });
+});
+
+// With few runs the plot is a sliver, and the labels would not fit inside it:
+// they hang off its right edge, in the room the column has to spare — where
+// the title, wider than the plot, also is, so a top tick gives way to it.
+test("with a run or two the chart's labels hang beside the plot", async ({ page }) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    product.recent_inits = product.recent_inits.slice(-2);
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  await expect(row.locator(".pipeline-runs circle")).toHaveCount(1);
+  const alignment = await chartAlignment(row);
+  expectAligned(alignment);
+  expect(alignment.displayed).toBe(2);
+  expect(alignment.insideLabels).toBe(false);
+
+  // one landed run just under an hour and no line: the top tick lands where
+  // the title is, and is not drawn there
+  const lone = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    const landed = product.recent_inits.findLast((init) => init.status === "complete");
+    landed.latency_s = 3585;
+    product.recent_inits = [landed];
+    delete product.latency_stats.delayed_threshold_s;
+    return payload;
+  });
+  await lone.locator('[data-slot="details-button"]').click();
+  await expect(lone.locator(".pipeline-runs circle")).toHaveCount(1);
+  const single = await chartAlignment(lone);
+  expectAligned(single);
+  expect(single.insideLabels).toBe(false);
+  const gridlines = await lone.locator('.pipeline-runs [data-axis="y"] line').count();
+  expect(gridlines).toBeGreaterThanOrEqual(2);
+  await expect(lone.locator('.pipeline-runs [data-axis="y"] text')).toHaveCount(gridlines - 1);
+});
+
+// A product whose runs all lack a completion time keeps the field's columns
+// and init axis under an empty plot that says so, and gets its points when a
+// poll brings a run with a time.
+test("a product whose runs all lack a completion time draws an empty plot that says so", async ({
   page,
 }) => {
   await page.clock.install();
@@ -1170,30 +1456,29 @@ test("a product whose runs all lack a completion time leaves no gap for a chart"
       product.recent_inits = product.recent_inits
         .filter((init) => init.status === "complete")
         .map(({ latency_s, ...init }) => init);
+      // and no line either, or the axis would be the line's
+      delete product.latency_stats.delayed_threshold_s;
     }
     return shifted;
   });
   const row = page.locator(".pipeline-row").first();
   await row.locator('[data-slot="details-button"]').click();
   const figure = row.locator(".pipeline-runs");
-  await expect(figure).toHaveCount(1);
-  await expect(figure.locator("svg")).toHaveCount(0);
-  expect(
-    await figure.evaluate((node) => ({
-      children: node.childNodes.length,
-      empty: node.matches(":empty"),
-      margin: getComputedStyle(node).marginBottom,
-    })),
-  ).toEqual({ children: 0, empty: true, margin: "0px" });
+  await expect(figure.locator("svg")).toHaveCount(1);
+  await expect(figure.locator("circle")).toHaveCount(0);
+  await expect(figure.locator("[data-axis='y'], [data-threshold]")).toHaveCount(0);
+  await expect(figure.locator("svg")).toContainText("no completion time recorded");
+  const empty = await chartAlignment(row);
+  expect(empty.chartLabels.map((l) => l.text)).toEqual(empty.fieldLabels.map((l) => l.text));
 
-  // the next poll brings a run with a time, and the chart with it
+  // the next poll brings runs with times, and the points with them
   await page.clock.runFor(15_000);
-  await expect(figure.locator("svg")).toBeVisible();
-  expect(await figure.evaluate((node) => node.matches(":empty"))).toBe(false);
+  await expect(figure.locator("circle").first()).toBeVisible();
+  expectAligned(await chartAlignment(row));
 });
 
-// The figure exists only while the product has runs, and the chart's width is
-// measured from the figure. A product whose first run arrives by poll while
+// The figure exists only while the product has runs, and draws the runs the
+// row's measured width fits. A product whose first run arrives by poll while
 // its details are open must get its chart then — not on a later reopen.
 test("a product that gains its first run while its details are open draws its chart", async ({
   page,
@@ -1210,8 +1495,11 @@ test("a product that gains its first run while its details are open draws its ch
   await expect(row.locator(".pipeline-row-details table")).toHaveCount(1);
   await expect(row.locator(".pipeline-runs")).toHaveCount(0);
 
-  // the next poll brings the runs, and the chart with them
+  // the next poll brings the runs, and the chart with them: every run the
+  // field shows but the failed one
   await page.clock.runFor(15_000);
   await expect(row.locator(".pipeline-runs svg")).toBeVisible();
-  await expect(row.locator(".pipeline-runs circle")).toHaveCount(9);
+  const alignment = await chartAlignment(row);
+  expect(alignment.circles).toHaveLength(alignment.displayed - 1);
+  expectAligned(alignment);
 });

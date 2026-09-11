@@ -350,16 +350,42 @@
   min-width: 0;
 }
 
+/* The details share the row's columns, so the chart that lines up with the
+   lead-group field can sit in the field's own column; everything else spans
+   the row. Open details only: the attribute hides closed ones. Without
+   subgrid the details stay a block and that chart simply spans the row. */
+@supports (grid-template-columns: subgrid) {
+  .pipeline-row-details:not([hidden]) {
+    display: grid;
+    grid-template-columns: subgrid;
+  }
+
+  .pipeline-row-details > * {
+    grid-column: 1 / -1;
+  }
+
+  .pipeline-row-details > .pipeline-runs[data-aligned] {
+    grid-column: 2;
+  }
+}
+
 .pipeline-row-details .table-container + .table-container {
   margin-top: 1.2rem;
 }
 
 /* The run chart: the runs the field draws as squares, plotted by their time
-   after init against the current delayed threshold. A run wears the color its
-   square wears; a run still arriving is hollow. */
+   after init against the current delayed threshold — under the lead-group
+   field, each under its square. A run wears the color its square wears; a
+   run still arriving is hollow. */
 
 .pipeline-runs {
   margin: 0 0 1.6rem;
+}
+
+/* the chart across the row draws nothing for a product whose runs all lack
+   a completion time, and leaves no room for it */
+.pipeline-runs:empty {
+  margin: 0;
 }
 
 .pipeline-runs svg {
@@ -413,10 +439,6 @@
   fill: var(--pipeline-progress);
 }
 
-/* a product whose runs all lack a completion time draws nothing to leave room for */
-.pipeline-runs:empty {
-  margin: 0;
-}
 
 .pipeline-row-details table {
   width: 100%;
@@ -501,6 +523,10 @@ body:not(.pipeline-time-local) .pipeline-time-local-only {
 @media (max-width: 900px) {
   .pipeline-row {
     grid-template-columns: 1fr;
+  }
+
+  .pipeline-row-details > .pipeline-runs[data-aligned] {
+    grid-column: 1;
   }
 
   .pipeline-stats {
