@@ -1247,8 +1247,6 @@ export function runChartThreshold(product) {
 
 export function runChartSeries(product, now) {
   const runs = [];
-  const failed = [];
-  const unmeasured = [];
   const seen = new Set();
   for (const init of product.recent_inits ?? []) {
     const ms = Date.parse(init.init_time);
@@ -1273,12 +1271,11 @@ export function runChartSeries(product, now) {
       run.seconds = init.latency_s;
     } else {
       // no completion time, so no place on the axis
-      (init.status === "failed" ? failed : unmeasured).push(init);
       continue;
     }
     runs.push(run);
   }
-  return { runs, failed, unmeasured, threshold: runChartThreshold(product) };
+  return { runs, threshold: runChartThreshold(product) };
 }
 
 function niceTicks(lo, hi) {

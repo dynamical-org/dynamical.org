@@ -1826,13 +1826,11 @@ test("run chart series: a point per landed run, elapsed for the run still arrivi
       { init: "2026-07-25T12:00:00Z", seconds: 9000, elapsed: true, timing: "delayed", status: "in_flight" },
     ],
   );
-  // a failure has no completion time, so it is not plotted; the unobserved
+  // the failure has no completion time, so it is not plotted; the unobserved
   // run is neither
-  assert.deepEqual(series.failed.map((init) => init.init_time), ["2026-07-25T00:00:00Z"]);
-  assert.deepEqual(series.unmeasured, []);
 });
 
-test("run chart series: the marker follows the status, and a landed run without a time is set aside", () => {
+test("run chart series: the marker follows the status, and a landed run without a time is left out", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
   const series = runChartSeries(
     chartProduct({
@@ -1848,8 +1846,6 @@ test("run chart series: the marker follows the status, and a landed run without 
     series.runs.map(({ seconds, elapsed }) => ({ seconds, elapsed })),
     [{ seconds: 9000, elapsed: true }],
   );
-  assert.deepEqual(series.failed, []);
-  assert.deepEqual(series.unmeasured.map((init) => init.init_time), ["2026-07-25T06:00:00Z"]);
 });
 
 test("run chart threshold: none without history, none when the feed omits it", () => {

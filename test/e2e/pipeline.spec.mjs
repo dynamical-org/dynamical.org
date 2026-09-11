@@ -1156,6 +1156,42 @@ test("a manual threshold is drawn like any other", async ({
   await expect(chart.locator("figcaption")).toHaveCount(0);
 });
 
+// A product whose runs all lack a completion time has a figure — it is the
+// measured box — but nothing to draw in it, and nothing under it: the figure
+// must not hold the page open where a chart would go.
+test("a product whose runs all lack a completion time leaves no gap for a chart", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await openPipeline(page, (payload, served) => {
+    const shifted = withRecentRun(payload, 20 * 60 * 1000);
+    if (served === 1) {
+      const product = shifted.groups[0].products[0];
+      product.recent_inits = product.recent_inits
+        .filter((init) => init.status === "complete")
+        .map(({ latency_s, ...init }) => init);
+    }
+    return shifted;
+  });
+  const row = page.locator(".pipeline-row").first();
+  await row.locator('[data-slot="details-button"]').click();
+  const figure = row.locator(".pipeline-runs");
+  await expect(figure).toHaveCount(1);
+  await expect(figure.locator("svg")).toHaveCount(0);
+  expect(
+    await figure.evaluate((node) => ({
+      children: node.childNodes.length,
+      empty: node.matches(":empty"),
+      margin: getComputedStyle(node).marginBottom,
+    })),
+  ).toEqual({ children: 0, empty: true, margin: "0px" });
+
+  // the next poll brings a run with a time, and the chart with it
+  await page.clock.runFor(15_000);
+  await expect(figure.locator("svg")).toBeVisible();
+  expect(await figure.evaluate((node) => node.matches(":empty"))).toBe(false);
+});
+
 // The figure exists only while the product has runs, and the chart's width is
 // measured from the figure. A product whose first run arrives by poll while
 // its details are open must get its chart then — not on a later reopen.
