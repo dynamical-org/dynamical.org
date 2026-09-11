@@ -2043,8 +2043,8 @@ test("aligned chart scales: the row chart's domain at the plot's own height", ()
   assert.equal(alignedChartScales(none).empty, true);
 });
 
-/* The chart's columns are the field's: it draws the field's own slice of
-   runs, in the field's lanes, a run width and gap apart. */
+/* The aligned chart's columns are the lead field's: it draws the field's own
+   slice of runs, a run width and gap apart. */
 
 test("run chart columns: a point sits at the centre of its run's square", () => {
   const columns = runColumns(4, 30, 6);
