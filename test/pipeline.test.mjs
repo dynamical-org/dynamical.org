@@ -16,12 +16,11 @@ import {
   viewsOf,
   facetsAt,
   gutterPx,
+  alignedChartScales,
   runChartScales,
   runChartSeries,
   runColumns,
   displayedRuns,
-  laneSlices,
-  facetRunWidthPx,
   runChartThreshold,
   runsThatFit,
   runsThatFitFacetRows,
@@ -1879,7 +1878,7 @@ test("run chart threshold: none without history, none when the feed omits it", (
 test("run chart scales: every value inside the plot, the late run above the line", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
   const series = runChartSeries(chartProduct(), now);
-  const scale = runChartScales(series);
+  const scale = runChartScales(series, 600, 6);
   // y grows downward, so a longer latency sits higher on the page
   const line = scale.y(series.threshold);
   const [onTime, delayed, running] = series.runs.map((run) => scale.y(run.seconds));
@@ -1889,13 +1888,17 @@ test("run chart scales: every value inside the plot, the late run above the line
   for (const y of [line, onTime, delayed, running]) {
     assert.ok(y >= scale.top && y <= scale.bottom, `${y} inside the plot`);
   }
+  // time is proportional: the missing 00z and 06z leave a gap twice the step
+  const [x0, x1, x2] = series.runs.map((run) => scale.x(run.ms));
+  assert.ok(Math.abs((x2 - x1) / (x1 - x0) - 3) < 1e-9);
+  assert.ok(x0 > scale.left && x2 < scale.right);
   // ticks are round latencies inside the domain, few enough to read
   assert.ok(scale.yTicks.length >= 2 && scale.yTicks.length <= 5, String(scale.yTicks));
   for (const tick of scale.yTicks) {
     assert.equal(tick % 900, 0);
     assert.ok(scale.y(tick) >= scale.top && scale.y(tick) <= scale.bottom);
   }
-  assert.equal(scale.empty, false);
+  assert.equal(scale.labelEvery, 1);
 });
 
 test("run chart scales: one run, or runs all alike, still draw", () => {
@@ -1909,11 +1912,127 @@ test("run chart scales: one run, or runs all alike, still draw", () => {
     }),
     now,
   );
-  const scale = runChartScales(one);
+  const scale = runChartScales(one, 400, 24);
   const y = scale.y(3600);
-  assert.ok(Number.isFinite(y));
+  const x = scale.x(one.runs[0].ms);
+  assert.ok(Number.isFinite(x) && Number.isFinite(y));
   assert.ok(y >= scale.top && y <= scale.bottom);
-  // and with nothing to plot and no line, the axis is not invented
+  assert.ok(Math.abs(x - (scale.left + scale.right) / 2) < 1e-9);
+});
+
+test("run chart scales: labels thin to what fits between the closest inits", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const [product] = fixture.groups[0].products;
+  const series = runChartSeries(product, Date.parse(fixture.generated_at));
+  const labelPx = initColumnPx(product, "UTC");
+  assert.equal(labelPx, 30);
+  // ten six-hourly runs: every init names itself across a row, every other
+  // one in a phone column
+  assert.equal(runChartScales(series, 600, 6, labelPx).labelEvery, 1);
+  assert.equal(runChartScales(series, 300, 6, labelPx).labelEvery, 2);
+});
+
+test("run chart scales: a spread of seconds does not fill the plot, and weeks do not flood the axis", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const tight = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [
+        { init_time: "2026-07-25T00:00:00Z", status: "complete", latency_s: 3600 },
+        { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3601 },
+      ],
+    }),
+    now,
+  );
+  const scale = runChartScales(tight, 600, 6);
+  // a second apart reads as a second apart, on an axis that still has ticks
+  assert.ok(Math.abs(scale.y(3600) - scale.y(3601)) < 1);
+  assert.ok(scale.yTicks.length >= 2);
+  const stale = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [
+        { init_time: "2026-06-01T00:00:00Z", status: "in_flight" },
+        { init_time: "2026-06-08T00:00:00Z", status: "in_flight" },
+      ],
+    }),
+    now,
+  );
+  assert.ok(runChartScales(stale, 600, 24).yTicks.length <= 5);
+});
+
+// A feed that has stalled, or an init that is stuck, leaves a run in flight for
+// days; the landed runs must not be flattened onto the baseline for it.
+test("run chart scales: a run in flight for weeks is pinned to the top, not given the axis", () => {
+  const now = Date.parse("2026-08-14T12:00:00Z");
+  const product = chartProduct({
+    recent_inits: [
+      { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+      { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "delayed", latency_s: 7500 },
+      { init_time: "2026-07-25T00:00:00Z", status: "in_flight", timing: "delayed" },
+    ],
+  });
+  const series = runChartSeries(product, now);
+  const scale = runChartScales(series, 600, 6);
+  const [onTime, delayed, running] = series.runs;
+  assert.equal(running.seconds, 20.5 * 86400);
+  assert.ok(scale.pinned(running.seconds));
+  assert.equal(scale.y(running.seconds), scale.top);
+  // the landed runs still spread over the plot, either side of the line
+  const line = scale.y(series.threshold);
+  assert.ok(scale.y(onTime.seconds) - line > 20, "on-time run well below the line");
+  assert.ok(line - scale.y(delayed.seconds) > 2, "delayed run above the line");
+  assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
+  assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
+  // a run within reach of the landed ones still joins the axis
+  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")), 600, 6);
+  const nearRun = runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")).runs[2];
+  assert.equal(nearRun.seconds, 9000);
+  assert.ok(!near.pinned(9000));
+  assert.ok(near.y(9000) > near.top);
+  // with nothing landed, the elapsed times take the axis themselves
+  const only = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [{ init_time: "2026-07-25T00:00:00Z", status: "pending" }],
+    }),
+    now,
+  );
+  assert.ok(!runChartScales(only, 600, 6).pinned(only.runs[0].seconds));
+});
+
+test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const one = { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3600 };
+  // a repeated timestamp is one point, not two on the same x with the same key
+  const twice = runChartSeries(chartProduct({ recent_inits: [one, { ...one }] }), now);
+  assert.equal(twice.runs.length, 1);
+  for (const cadence of [0, null, undefined, -6]) {
+    const scale = runChartScales(twice, 600, cadence);
+    assert.ok(Number.isFinite(scale.x(twice.runs[0].ms)), `cadence ${cadence}`);
+    assert.ok(Number.isFinite(scale.labelEvery) && scale.labelEvery >= 1);
+  }
+});
+
+/* The aligned plot shares the latency domain and adds nothing but its own
+   height; with nothing to plot and no line, the axis is not invented. */
+
+test("aligned chart scales: the row chart's domain at the plot's own height", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const series = runChartSeries(chartProduct(), now);
+  const across = runChartScales(series, 600, 6);
+  const aligned = alignedChartScales(series);
+  assert.deepEqual(aligned.yTicks, across.yTicks);
+  assert.equal(aligned.pinned(1e6), across.pinned(1e6));
+  assert.equal(aligned.empty, false);
+  for (const run of series.runs) {
+    assert.ok(aligned.y(run.seconds) >= aligned.top && aligned.y(run.seconds) <= aligned.bottom);
+  }
   const none = runChartSeries(
     chartProduct({
       latency_stats: {},
@@ -1921,7 +2040,7 @@ test("run chart scales: one run, or runs all alike, still draw", () => {
     }),
     now,
   );
-  assert.equal(runChartScales(none).empty, true);
+  assert.equal(alignedChartScales(none).empty, true);
 });
 
 /* The chart's columns are the field's: it draws the field's own slice of
@@ -1951,109 +2070,6 @@ test("run chart series: only the runs the field shows, kept in their columns", (
   assert.deepEqual(series.runs.map((run) => run.init.init_time), ["2026-07-25T12:00:00Z"]);
   assert.equal(displayedRuns(product, 0).length, 5);
   assert.equal(displayedRuns(product, null).length, 5);
-});
-
-test("run chart lanes: the facet field's split, older runs first", () => {
-  const runs = Array.from({ length: 7 }, (_, index) => ({ init_time: String(index) }));
-  assert.deepEqual(
-    laneSlices(runs).map((lane) => lane.map((init) => init.init_time)),
-    [["0", "1", "2", "3"], ["4", "5", "6"]],
-  );
-  assert.deepEqual(laneSlices(runs.slice(0, 1)).map((lane) => lane.length), [1]);
-  assert.deepEqual(laneSlices([]).map((lane) => lane.length), [0]);
-});
-
-test("run chart lanes: a facet run block is as wide as the field draws it", () => {
-  const fixture = JSON.parse(
-    readFileSync(
-      new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
-      "utf8",
-    ),
-  );
-  const [product] = fixture.groups[0].products;
-  const width = facetRunWidthPx(product);
-  assert.ok(Number.isFinite(width) && width > 0);
-  // the fit is computed from that same block width: room for one block per
-  // lane beside the gutter, then for every run the payload carries
-  assert.equal(runsThatFitFacetRows(product, width + 100, "component"), 2);
-  assert.equal(runsThatFitFacetRows(product, width + 300, "component"), 10);
-});
-
-test("run chart scales: a spread of seconds does not fill the plot, and weeks do not flood the axis", () => {
-  const now = Date.parse("2026-07-25T14:30:00Z");
-  const tight = runChartSeries(
-    chartProduct({
-      latency_stats: {},
-      recent_inits: [
-        { init_time: "2026-07-25T00:00:00Z", status: "complete", latency_s: 3600 },
-        { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3601 },
-      ],
-    }),
-    now,
-  );
-  const scale = runChartScales(tight);
-  // a second apart reads as a second apart, on an axis that still has ticks
-  assert.ok(Math.abs(scale.y(3600) - scale.y(3601)) < 1);
-  assert.ok(scale.yTicks.length >= 2);
-  const stale = runChartSeries(
-    chartProduct({
-      latency_stats: {},
-      recent_inits: [
-        { init_time: "2026-06-01T00:00:00Z", status: "in_flight" },
-        { init_time: "2026-06-08T00:00:00Z", status: "in_flight" },
-      ],
-    }),
-    now,
-  );
-  assert.ok(runChartScales(stale).yTicks.length <= 5);
-});
-
-// A feed that has stalled, or an init that is stuck, leaves a run in flight for
-// days; the landed runs must not be flattened onto the baseline for it.
-test("run chart scales: a run in flight for weeks is pinned to the top, not given the axis", () => {
-  const now = Date.parse("2026-08-14T12:00:00Z");
-  const product = chartProduct({
-    recent_inits: [
-      { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
-      { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "delayed", latency_s: 7500 },
-      { init_time: "2026-07-25T00:00:00Z", status: "in_flight", timing: "delayed" },
-    ],
-  });
-  const series = runChartSeries(product, now);
-  const scale = runChartScales(series);
-  const [onTime, delayed, running] = series.runs;
-  assert.equal(running.seconds, 20.5 * 86400);
-  assert.ok(scale.pinned(running.seconds));
-  assert.equal(scale.y(running.seconds), scale.top);
-  // the landed runs still spread over the plot, either side of the line
-  const line = scale.y(series.threshold);
-  assert.ok(scale.y(onTime.seconds) - line > 20, "on-time run well below the line");
-  assert.ok(line - scale.y(delayed.seconds) > 2, "delayed run above the line");
-  assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
-  assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
-  // a run within reach of the landed ones still joins the axis
-  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")));
-  const nearRun = runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")).runs[2];
-  assert.equal(nearRun.seconds, 9000);
-  assert.ok(!near.pinned(9000));
-  assert.ok(near.y(9000) > near.top);
-  // with nothing landed, the elapsed times take the axis themselves
-  const only = runChartSeries(
-    chartProduct({
-      latency_stats: {},
-      recent_inits: [{ init_time: "2026-07-25T00:00:00Z", status: "pending" }],
-    }),
-    now,
-  );
-  assert.ok(!runChartScales(only).pinned(only.runs[0].seconds));
-});
-
-test("run chart series: a repeated init is one point", () => {
-  const now = Date.parse("2026-07-25T14:30:00Z");
-  const one = { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3600 };
-  // a repeated timestamp is one point, not two in the same column with the same key
-  const twice = runChartSeries(chartProduct({ recent_inits: [one, { ...one }] }), now);
-  assert.equal(twice.runs.length, 1);
 });
 
 test("details name each group's own delayed threshold beside its percentiles", () => {

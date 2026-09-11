@@ -1169,9 +1169,9 @@ test("a manual threshold is drawn like any other", async ({
   await expect(chart.locator("figcaption")).toHaveCount(0);
 });
 
-/** How the chart under a row's field lines up with it: each point against
- * the column of its run in the field (its first square, or its run head in a
- * facet view), and each repeated init label against the field's own. */
+/** How the chart under a row's lead-group field lines up with it: each point
+ * against the column of its run in the field (its first square), and each
+ * repeated init label against the field's own. */
 function chartAlignment(row) {
   return row.evaluate((node) => {
     const field = node.querySelector(".pipeline-field");
@@ -1181,7 +1181,6 @@ function chartAlignment(row) {
       return box.left + box.width / 2;
     };
     const columnOf = (init) =>
-      field.querySelector(`.pipeline-run-head[data-init-time="${init}"]`) ??
       field.querySelector(`.pipeline-cell[data-init-time="${init}"]`);
     const labels = (root, selector) =>
       [...root.querySelectorAll(selector)].map((label) => ({
@@ -1215,7 +1214,6 @@ function chartAlignment(row) {
       chartLabels: labels(figure, ".pipeline-run-label"),
       fieldDates: labels(field, ".pipeline-run-date"),
       chartDates: labels(figure, ".pipeline-run-date"),
-      lanes: figure.querySelectorAll("svg").length,
       // no two pieces of text in a plot may overlap
       textOverlaps: boxes.flatMap((a, i) =>
         boxes.slice(i + 1).filter(
@@ -1291,6 +1289,52 @@ test("the run chart shares the field's columns and repeats its init axis", async
   // the plot fills most of its column, so the labels sit inside it
   expect(alignment.insideLabels).toBe(true);
 
+  // enlarged text keeps the chart on its columns and its labels apart: the
+  // plot's band and the field's share their gutter and gap, and the labels
+  // are laid out in the chart's own em
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "20px";
+  });
+  // the chart lays its labels out for the size it reads on its next tick
+  await expect
+    .poll(async () => (await chartAlignment(row)).thresholdY)
+    .not.toBe(alignment.thresholdY);
+  expectAligned(await chartAlignment(row));
+});
+
+// An arrival-group view lays its runs in two lanes, which no single plot can
+// sit under; there the chart stays as it was, across the whole row on a
+// proportional time axis, with every run the payload carries.
+test("in an arrival-group view the chart draws every run across the row", async ({
+  page,
+}) => {
+  const row = await openPipeline(page, (payload) =>
+    withRecentRun(payload, 60 * 60 * 1000),
+  );
+  await row.locator(".pipeline-viz").click();
+  await expect(row).toHaveAttribute("data-view", "1");
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-row-details .pipeline-runs");
+  await expect(chart.locator("svg")).toHaveCount(1);
+  await expect(chart).not.toHaveAttribute("data-aligned", "");
+  // nine of the payload's ten runs have a time; the axis is the chart's own
+  await expect(chart.locator("circle")).toHaveCount(9);
+  await expect(chart.locator('[data-axis="x"] text').first()).toBeVisible();
+  await expect(chart.locator(".pipeline-run-label")).toHaveCount(0);
+  const geometry = await row.evaluate((node) => ({
+    chart: node.querySelector(".pipeline-runs svg").getBoundingClientRect(),
+    details: node.querySelector(".pipeline-row-details").getBoundingClientRect(),
+    field: node.querySelector(".pipeline-field").getBoundingClientRect(),
+  }));
+  expect(Math.abs(geometry.chart.left - geometry.details.left)).toBeLessThanOrEqual(1);
+  expect(geometry.chart.width).toBeGreaterThan(geometry.field.width);
+
+  // round to the lead view, and the chart lines up with the field again
+  while ((await row.getAttribute("data-view")) !== "0") {
+    await row.locator(".pipeline-viz").click();
+  }
+  await expect(chart).toHaveAttribute("data-aligned", "");
+  expectAligned(await chartAlignment(row));
 });
 
 // An init column is as wide as its label, and the label's width is the
@@ -1396,49 +1440,6 @@ test("with a run or two the chart's labels hang beside the plot", async ({ page 
   const gridlines = await lone.locator('.pipeline-runs [data-axis="y"] line').count();
   expect(gridlines).toBeGreaterThanOrEqual(2);
   await expect(lone.locator('.pipeline-runs [data-axis="y"] text')).toHaveCount(gridlines - 1);
-});
-
-test("in a facet view the chart draws one plot per lane, each under its lane", async ({
-  page,
-}) => {
-  const row = await openPipeline(page, (payload) =>
-    withRecentRun(payload, 60 * 60 * 1000),
-  );
-  await row.locator(".pipeline-viz").click();
-  await expect(row).toHaveAttribute("data-view", "1");
-  await row.locator('[data-slot="details-button"]').click();
-  await expect(row.locator(".pipeline-runs svg")).toHaveCount(2);
-  const alignment = await chartAlignment(row);
-  expectAligned(alignment);
-  expect(alignment.lanes).toBe(2);
-  // the lanes share the axis: one line, at one height, in each
-  const lines = await row
-    .locator('.pipeline-runs [data-threshold="run"] line')
-    .evaluateAll((nodes) => nodes.map((line) => line.getAttribute("y1")));
-  expect(lines).toHaveLength(2);
-  expect(lines[0]).toBe(lines[1]);
-
-  // enlarged text keeps the facet chart on its columns: the gap between the
-  // grid's gutter and its first run is in px, and so is the chart's
-  const before = await chartAlignment(row);
-  await page.evaluate(() => {
-    document.documentElement.style.fontSize = "20px";
-  });
-  // the chart lays its labels out for the size it reads on its next tick
-  await expect
-    .poll(async () => (await chartAlignment(row)).thresholdY)
-    .not.toBe(before.thresholdY);
-  expectAligned(await chartAlignment(row));
-  await page.evaluate(() => {
-    document.documentElement.style.fontSize = "";
-  });
-
-  // round to the lead view, and the chart follows the field again
-  while ((await row.getAttribute("data-view")) !== "0") {
-    await row.locator(".pipeline-viz").click();
-  }
-  await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
-  expectAligned(await chartAlignment(row));
 });
 
 // A product whose runs all lack a completion time keeps the field's columns
