@@ -1046,10 +1046,13 @@ test("details open on a run chart with the delayed threshold drawn", async ({
         document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     };
   });
-  // one run landed late, above the line; every on-time run below it
+  // one run landed late, above the line; every on-time run below it — and
+  // every shown run with a time is one or the other, or the run in flight
+  const shown = await chartAlignment(row);
   expect(geometry.delayed).toHaveLength(1);
   expect(geometry.delayed[0]).toBeLessThan(geometry.lineY);
-  expect(geometry.onTime.length).toBeGreaterThanOrEqual(4);
+  expect(geometry.onTime).toHaveLength(shown.circles.length - 2);
+  expect(geometry.onTime.length).toBeGreaterThanOrEqual(1);
   for (const y of geometry.onTime) expect(y).toBeGreaterThan(geometry.lineY);
   // the running init is hollow, and reads in the amber its cell reads in
   expect(geometry.elapsed).toEqual([
@@ -1076,7 +1079,8 @@ test("a product without a delayed threshold draws its runs and no line", async (
   );
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
-  await expect(chart.locator("circle")).toHaveCount(8);
+  await expect(chart.locator("svg")).toHaveCount(1);
+  expectAligned(await chartAlignment(row));
   await expect(chart.locator("[data-threshold]")).toHaveCount(0);
   await expect(chart.locator("figcaption")).toHaveCount(0);
   await expect(
@@ -1287,13 +1291,75 @@ test("the run chart shares the field's columns and repeats its init axis", async
   // the plot fills most of its column, so the labels sit inside it
   expect(alignment.insideLabels).toBe(true);
 
-  // a column of another width shows another number of runs, and the chart
-  // follows the field
-  await page.setViewportSize({ width: 700, height: 900 });
-  await expect
-    .poll(async () => (await chartAlignment(row)).displayed)
-    .not.toBe(alignment.displayed);
-  expectAligned(await chartAlignment(row));
+});
+
+// An init column is as wide as its label, and the label's width is the
+// zone's: "06z" in UTC, "06 CDT" in Chicago. How many runs fit, and so
+// whether the plot leaves room beside it, follows — so the cases that turn
+// on it are pinned to a zone with a letter abbreviation.
+test.describe("in a zone with a letter abbreviation", () => {
+  test.use({ timezoneId: "America/Chicago", locale: "en-US" });
+
+  // A column of another width shows another number of runs, and the chart
+  // follows the field: at 1280px the row's column holds fewer than the ten
+  // runs the payload carries; a single-column layout holds them all.
+  test("a column that changes width re-fits the chart with the field", async ({
+    page,
+  }) => {
+    const row = await openPipeline(page, (payload) =>
+      withRecentRun(payload, 60 * 60 * 1000),
+    );
+    await row.locator('[data-slot="details-button"]').click();
+    await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
+    const alignment = await chartAlignment(row);
+    expectAligned(alignment);
+    expect(alignment.displayed).toBeLessThan(10);
+
+    await page.setViewportSize({ width: 700, height: 900 });
+    await expect.poll(async () => (await chartAlignment(row)).displayed).toBe(10);
+    expectAligned(await chartAlignment(row));
+  });
+
+  // On a phone the field fills the column, so there is no room beside the
+  // plot for its labels: they move inside it rather than off the page.
+  test("on a phone the chart's labels sit inside the plot and the page does not scroll sideways", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 520, height: 900 });
+    const row = await openPipeline(page, (payload) =>
+      withRecentRun(payload, 60 * 60 * 1000),
+    );
+    await row.locator('[data-slot="details-button"]').click();
+    await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
+    const alignment = await chartAlignment(row);
+    expectAligned(alignment);
+    expect(alignment.displayed).toBe(10);
+    expect(alignment.insideLabels).toBe(true);
+    await expect(row.locator('.pipeline-runs [data-threshold="run"] text')).toHaveText(
+      "delayed past 2h",
+    );
+  });
+
+  // A threshold far above the runs puts the lowest tick on the baseline, where
+  // the oldest run sits: that tick label gives way to the point.
+  test("a tick label inside the plot gives way to a point in its place", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 900 });
+    const row = await openPipeline(page, (payload) => {
+      payload.groups[0].products[0].latency_stats.delayed_threshold_s = 12.5 * 3600;
+      return withRecentRun(payload, 60 * 60 * 1000);
+    });
+    await row.locator('[data-slot="details-button"]').click();
+    await expect(row.locator('.pipeline-runs [data-threshold="run"] text')).toHaveText(
+      "delayed past 12h 30m",
+    );
+    const alignment = await chartAlignment(row);
+    expectAligned(alignment);
+    expect(alignment.insideLabels).toBe(true);
+    // the gridlines are all there; the label the oldest run sits on is not, nor
+    // the one the threshold label stands on
+    await expect(row.locator('.pipeline-runs [data-axis="y"] line')).toHaveCount(5);
+    await expect(row.locator('.pipeline-runs [data-axis="y"] text')).toHaveText(["3h", "6h", "9h"]);
+  });
 });
 
 // With few runs the plot is a sliver, and the labels would not fit inside it:
@@ -1373,46 +1439,6 @@ test("in a facet view the chart draws one plot per lane, each under its lane", a
   }
   await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
   expectAligned(await chartAlignment(row));
-});
-
-// A threshold far above the runs puts the lowest tick on the baseline, where
-// the oldest run sits: that tick label gives way to the point.
-test("a tick label inside the plot gives way to a point in its place", async ({ page }) => {
-  await page.setViewportSize({ width: 360, height: 900 });
-  const row = await openPipeline(page, (payload) => {
-    payload.groups[0].products[0].latency_stats.delayed_threshold_s = 12.5 * 3600;
-    return withRecentRun(payload, 60 * 60 * 1000);
-  });
-  await row.locator('[data-slot="details-button"]').click();
-  await expect(row.locator('.pipeline-runs [data-threshold="run"] text')).toHaveText(
-    "delayed past 12h 30m",
-  );
-  const alignment = await chartAlignment(row);
-  expectAligned(alignment);
-  expect(alignment.insideLabels).toBe(true);
-  // the gridlines are all there; the label the oldest run sits on is not, nor
-  // the one the threshold label stands on
-  await expect(row.locator('.pipeline-runs [data-axis="y"] line')).toHaveCount(5);
-  await expect(row.locator('.pipeline-runs [data-axis="y"] text')).toHaveText(["3h", "6h", "9h"]);
-});
-
-// On a phone the field fills the column, so there is no room beside the plot
-// for its labels: they move inside it rather than off the page.
-test("on a phone the chart's labels sit inside the plot and the page does not scroll sideways", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 520, height: 900 });
-  const row = await openPipeline(page, (payload) =>
-    withRecentRun(payload, 60 * 60 * 1000),
-  );
-  await row.locator('[data-slot="details-button"]').click();
-  await expect(row.locator(".pipeline-runs svg")).toHaveCount(1);
-  const alignment = await chartAlignment(row);
-  expectAligned(alignment);
-  expect(alignment.insideLabels).toBe(true);
-  await expect(row.locator('.pipeline-runs [data-threshold="run"] text')).toHaveText(
-    "delayed past 2h",
-  );
 });
 
 // A product whose runs all lack a completion time keeps the field's columns
