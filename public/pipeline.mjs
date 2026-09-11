@@ -465,6 +465,39 @@ export function gutterPx(labelled) {
   return Math.min(GUTTER_MAX_CH, widest) * CH_PX;
 }
 
+/* What the field shows: the newest runs that fit, oldest first. The chart
+   under the field draws exactly this slice, so both take it from here. */
+
+export function displayedRuns(product, runCount) {
+  return product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+}
+
+/* A facet field lays its runs in lanes, the older runs in the first: the
+   split the field draws is the split the chart under it draws. */
+
+export function laneSlices(runs, laneCount = FACET_LANES) {
+  const lanes = Math.min(laneCount, Math.max(1, runs.length));
+  const perLane = Math.ceil(runs.length / lanes);
+  return Array.from({ length: lanes }, (_, lane) =>
+    runs.slice(lane * perLane, (lane + 1) * perLane),
+  );
+}
+
+/* A facet grid spends a run's width on lead columns inside it, and those
+   columns are proportional, so the block width comes from the extents. */
+
+export function facetRunWidthPx(product) {
+  const leads = leadAxis(product);
+  const extents = compactLeadExtents(product);
+  return (
+    leads.reduce(
+      (sum, lead) => sum + (extents.get(lead.key) ?? FACET_CELL_PX),
+      0,
+    ) +
+    Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX
+  );
+}
+
 /* How many runs fit, given what one run costs. Both layouts share the whole
    calculation and differ only in that width. */
 
@@ -489,22 +522,11 @@ export function runsThatFit(product, availablePx, local) {
   );
 }
 
-/* A facet grid spends its width on lead columns inside every run, and those
-   columns are proportional, so the block width comes from the extents. */
-
 export function runsThatFitFacetRows(product, availablePx, dimension) {
-  const leads = leadAxis(product);
-  const extents = compactLeadExtents(product);
-  const runWidth =
-    leads.reduce(
-      (sum, lead) => sum + (extents.get(lead.key) ?? FACET_CELL_PX),
-      0,
-    ) +
-    Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
   const perLane = runsFitting(
     availablePx,
     facetGutterPx(facetRowsOf(product, dimension)),
-    runWidth,
+    facetRunWidthPx(product),
     FACET_RUN_GAP_PX,
   );
   return Math.min(RUNS_MAX, perLane * FACET_LANES);
@@ -765,19 +787,18 @@ function LabelTier({
    the older, its squares keep their nodes and only their grid areas change. */
 
 function FacetRowsField({ product, local, runCount, dimension }) {
-  const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+  const runs = displayedRuns(product, runCount);
   const leads = leadAxis(product); // shortest horizon first
   const facets = facetRowsOf(product, dimension);
   const extents = compactLeadExtents(product);
   const leadWidth = (lead) => extents.get(lead.key) ?? FACET_CELL_PX;
-  const runWidth =
-    leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
-    Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
+  const runWidth = facetRunWidthPx(product);
   const joint = jointIndex(product, runs, leads);
   const zone = selectedTimeZone(local);
   // older runs occupy the first lane; newer runs continue in the second
-  const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
-  const runsPerLane = Math.ceil(runs.length / laneCount);
+  const lanes = laneSlices(runs);
+  const laneCount = lanes.length;
+  const runsPerLane = lanes[0].length;
   // a lane is a head row, a row per facet, a time row and a date row, with
   // a spacer row before every lane but the first
   const rowsPerLane = facets.length + 3;
@@ -789,7 +810,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
 
   const children = [];
   for (let lane = 0; lane < laneCount; lane += 1) {
-    const laneRuns = runs.slice(lane * runsPerLane, (lane + 1) * runsPerLane);
+    const laneRuns = lanes[lane];
     const at = (row, column) =>
       `grid-area:${rowOf(lane, row)} / ${column + 2}`;
     const owned = (init) => ({
@@ -899,7 +920,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
 }
 
 function LeadField({ product, local, runCount }) {
-  const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
+  const runs = displayedRuns(product, runCount);
   const extents = leadExtents(product);
   const column = initColumnPx(product, selectedTimeZone(local));
   return html`<div
@@ -1215,17 +1236,26 @@ export function timingBaselineNote(product) {
   return `insufficient history (${days}/${required} days)`;
 }
 
-/* The run chart. One point per run the payload carries: its completion time
-   after init, or the time elapsed so far for a run still arriving, against the
-   product's current delayed threshold. The timings are the summarizer's
+/* The run chart. One point per run the field shows: its completion time
+   after init, or the time elapsed so far for a run still arriving, against
+   the product's current delayed threshold. The timings are the summarizer's
    verdicts, each made against the threshold of its day; the line is today's,
-   so the chart draws both and judges neither. */
+   so the chart draws both and judges neither.
 
-const CHART_HEIGHT_PX = 160;
+   The chart sits under the field and shares its columns: the same gutter,
+   run width and gap, set through the same custom properties, so a point
+   lands under the square it belongs to without measuring either. A facet
+   field lays its runs in lanes; the chart draws one plot per lane on one
+   latency axis, and repeats the init labels under each. */
+
+const CHART_HEIGHT_PX = 140;
 const CHART_MARK_R = 3.5;
-// room for the widest tick label ("12h 30m") in the chart's own 10px monospace,
-// and for the threshold label to clear the right edge
-const CHART_MARGIN = { top: 16, right: 8, bottom: 30, left: 50 };
+// room above the plot for its title; the init labels are HTML tiers beneath
+const CHART_MARGIN = { top: 16, bottom: 4 };
+// the tick and threshold labels hang off the plot's right edge, where the
+// row usually has room, rather than over a column of points; when the plot
+// fills the row they move inside it, above their lines
+const CHART_LABEL_GAP_PX = 6;
 const CHART_TICK_STEPS_S = [
   60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800,
 ];
@@ -1245,13 +1275,13 @@ export function runChartThreshold(product) {
   return Number.isFinite(threshold) && threshold > 0 ? threshold : null;
 }
 
-export function runChartSeries(product, now) {
+export function runChartSeries(product, now, inits = product.recent_inits ?? []) {
   const runs = [];
   const seen = new Set();
-  for (const init of product.recent_inits ?? []) {
+  for (const init of inits) {
     const ms = Date.parse(init.init_time);
     if (!Number.isFinite(ms) || init.status === "unobserved") continue;
-    // one point per init: a repeated timestamp would share a key and an x
+    // one point per init: a repeated timestamp would share a key and a column
     if (seen.has(ms)) continue;
     seen.add(ms);
     const run = {
@@ -1291,16 +1321,14 @@ function niceTicks(lo, hi) {
   return ticks;
 }
 
-/* The scales. Latency is zoomed to the runs and the line rather than drawn
-   from zero: a threshold sits a few percent above the median, and from zero
-   that gap would be a pixel. The landed runs and the line own the domain; a
-   run still arriving joins it while it is within reach of them, and past
-   that it is pinned to the top edge, where "still going, well past the line"
-   is all it has to say. Time is proportional, so a missed init leaves a gap
-   rather than closing up. */
+/* The latency axis. Zoomed to the runs and the line rather than drawn from
+   zero: a threshold sits a few percent above the median, and from zero that
+   gap would be a pixel. The landed runs and the line own the domain; a run
+   still arriving joins it while it is within reach of them, and past that it
+   is pinned to the top edge, where "still going, well past the line" is all
+   it has to say. */
 
-export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3) {
-  const plotWidth = width - CHART_MARGIN.left - CHART_MARGIN.right;
+export function runChartScales(series) {
   const plotHeight = CHART_HEIGHT_PX - CHART_MARGIN.top - CHART_MARGIN.bottom;
 
   const landed = series.runs
@@ -1326,30 +1354,12 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
   const yMin = Math.max(0, lo - spread * 0.15);
   const yMax = hi + spread * 0.15;
 
-  const times = series.runs.map((run) => run.ms);
-  const first = times.length ? Math.min(...times) : 0;
-  const last = times.length ? Math.max(...times) : 0;
-  const gaps = [...times]
-    .sort((a, b) => a - b)
-    .map((ms, index, sorted) => (index ? ms - sorted[index - 1] : 0))
-    .filter((gap) => gap > 0);
-  // a lone run is padded by its cadence, so the axis has an extent
-  const cadenceMs =
-    (Number.isFinite(cadenceHours) && cadenceHours > 0 ? cadenceHours : 6) *
-    3600 *
-    1000;
-  const pad = (gaps.length ? Math.min(...gaps) : cadenceMs) / 2;
-  const xMin = first - pad;
-  const xMax = last + pad;
-
   return {
-    width,
     height: CHART_HEIGHT_PX,
-    left: CHART_MARGIN.left,
-    right: CHART_MARGIN.left + plotWidth,
     top: CHART_MARGIN.top,
     bottom: CHART_MARGIN.top + plotHeight,
-    x: (ms) => CHART_MARGIN.left + ((ms - xMin) / (xMax - xMin)) * plotWidth,
+    // nothing landed, nothing arriving, no line: an axis would be invented
+    empty: values.length === 0,
     y: (seconds) =>
       CHART_MARGIN.top +
       plotHeight -
@@ -1357,15 +1367,17 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
         plotHeight,
     pinned: (seconds) => seconds > yMax,
     yTicks: niceTicks(yMin, yMax),
-    // every run names itself when the label fits between neighbours; otherwise
-    // every other one, or every third — measured on the closest pair, since
-    // time is proportional and a gap elsewhere does not make room here
-    labelEvery: Math.max(
-      1,
-      Math.ceil(
-        (labelPx + 6) / ((gaps.length ? Math.min(...gaps) : cadenceMs) * (plotWidth / (xMax - xMin))),
-      ),
-    ),
+  };
+}
+
+/* The init axis is the field's: every run shown owns a column as wide as its
+   square, and a point sits at the column's centre — whether or not the runs
+   around it have a time to plot. */
+
+export function runColumns(count, runWidth, gap) {
+  return {
+    width: count > 0 ? count * runWidth + (count - 1) * gap : 0,
+    x: (index) => index * (runWidth + gap) + runWidth / 2,
   };
 }
 
@@ -1384,95 +1396,137 @@ function runTitle(run, local, pinned = false) {
     .join(" · ");
 }
 
-/* The chart's own width is measured, as the field's is: the details span the
-   whole row, and an SVG scaled through a viewBox would scale its text too. */
+/* Where a line's label goes: off the right edge, or inside the plot above
+   the line when the plot leaves no room beside it — ticks at the left, where
+   an axis is read, the threshold at the right. A tick label gives way to the
+   threshold label on or near its line, and to the title at the top. */
 
-function RunChart({ product, now, local }) {
-  const box = useRef(null);
-  const [width, setWidth] = useState(null);
-  const count = product.recent_inits.length;
-  // the figure exists only while there are runs, so the measurement follows
-  // it: a product that gains its first run while the details are open is
-  // measured then, not on a later reopen
-  const mounted = count > 0;
-  useLayoutEffect(() => {
-    const node = box.current;
-    if (!node) return undefined;
-    const measure = () => setWidth(node.getBoundingClientRect().width);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [mounted]);
-
-  if (!mounted) return null;
-  const series = runChartSeries(product, now);
-  const zone = selectedTimeZone(local);
-
-  let chart = null;
-  if (series.runs.length > 0 && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
-    const scale = runChartScales(
-      series,
-      width,
-      product.cadence_hours,
-      initColumnPx(product, zone),
-    );
-    // the date shows where it turns over among the labelled runs, so a day
-    // that begins at a run thinned out of the labels is still named
-    let previousDate = null;
-    chart = html`<svg
-      width=${width}
-      height=${scale.height}
-      role="img"
-      aria-label=${`Completion time after init for ${series.runs.length} of the last ${count} runs${series.threshold == null ? "" : `, against the current delayed threshold of ${formatLatency(series.threshold)}`}`}
-    >
-      <text x=${scale.left} y=${scale.top - 6}>time after init</text>
-      ${scale.yTicks.map(
-        (tick) => html`<g key=${`y/${tick}`} data-axis="y">
-          <line x1=${scale.left} x2=${scale.right} y1=${scale.y(tick)} y2=${scale.y(tick)} />
-          <text x=${scale.left - 6} y=${scale.y(tick)} dy="0.35em" text-anchor="end">${formatLatency(tick)}</text>
-        </g>`,
-      )}
-      <line data-axis="x" x1=${scale.left} x2=${scale.right} y1=${scale.bottom} y2=${scale.bottom} />
-      ${series.runs.map((run, index) => {
-        const { date, time } = initParts(run.init.init_time, zone);
-        const x = scale.x(run.ms);
-        const labelled = index % scale.labelEvery === 0;
-        const turned = labelled && date !== previousDate;
-        if (labelled) previousDate = date;
-        return html`<g key=${`x/${run.init.init_time}`} data-axis="x">
-          <line x1=${x} x2=${x} y1=${scale.bottom} y2=${scale.bottom + 3} />
-          ${labelled
-            ? html`<text x=${x} y=${scale.bottom + 13} text-anchor="middle">${time}</text>`
-            : null}
-          ${turned
-            ? html`<text x=${x} y=${scale.bottom + 25} text-anchor="middle">${date}</text>`
-            : null}
-        </g>`;
-      })}
-      ${series.threshold == null
-        ? null
-        : html`<g data-threshold="run">
-            <line x1=${scale.left} x2=${scale.right} y1=${scale.y(series.threshold)} y2=${scale.y(series.threshold)} />
-            <text x=${scale.right} y=${scale.y(series.threshold) - 4} text-anchor="end">delayed past ${formatLatency(series.threshold)}</text>
-          </g>`}
-      ${series.runs.map((run) => {
-        const pinned = run.elapsed && scale.pinned(run.seconds);
-        return html`<circle
-          key=${run.init.init_time}
-          data-status=${run.status}
-          data-timing=${run.timing}
-          data-elapsed=${run.elapsed ? "" : null}
-          data-pinned=${pinned ? "" : null}
-          cx=${scale.x(run.ms)}
-          cy=${scale.y(run.seconds)}
-          r=${CHART_MARK_R}
-        ><title>${runTitle(run, local, pinned)}</title></circle>`;
-      })}
-    </svg>`;
+function lineLabel(y, inside, columns, scale, { lineY = null, end = false } = {}) {
+  if (lineY != null && Math.abs(y - lineY) < 12) return null;
+  if (inside && y < scale.top + 10) return null;
+  if (!inside) {
+    return { x: columns.width + CHART_LABEL_GAP_PX, y, dy: "0.35em", "text-anchor": "start" };
   }
+  return end
+    ? { x: columns.width - 2, y: y - 4, dy: "0", "text-anchor": "end" }
+    : { x: 2, y: y - 4, dy: "0", "text-anchor": "start" };
+}
 
-  return html`<figure class="pipeline-runs" ref=${box}>${chart}</figure>`;
+function RunLane({ runs, lane, laneCount, plotted, scale, series, columns, inside, local }) {
+  const lineY = series.threshold == null ? null : scale.y(series.threshold);
+  const thresholdLabel =
+    lineY == null ? null : lineLabel(lineY, inside, columns, scale, { end: true });
+  const shown = runs
+    .map((init, index) => ({ init, index, run: plotted.get(init.init_time) }))
+    .filter((entry) => entry.run);
+  const span =
+    runs.length > 1
+      ? `${initShort(runs[0].init_time, local)} to ${initShort(runs.at(-1).init_time, local)}`
+      : initShort(runs[0].init_time, local);
+  return html`<${Band} clumped>
+      <svg
+        width=${columns.width}
+        height=${scale.height}
+        role="img"
+        aria-label=${[
+          `Completion time after init for ${shown.length} of the ${runs.length} runs shown`,
+          laneCount > 1 ? `lane ${lane + 1} of ${laneCount}` : null,
+          span,
+          series.threshold == null
+            ? null
+            : `against the current delayed threshold of ${formatLatency(series.threshold)}`,
+        ]
+          .filter(Boolean)
+          .join(", ")}
+      >
+        <text x="0" y=${scale.top - 6}>time after init</text>
+        ${scale.empty
+          ? html`<text x="0" y=${(scale.top + scale.bottom) / 2} dy="0.35em">no completion time recorded</text>`
+          : scale.yTicks.map((tick) => {
+              const label = lineLabel(scale.y(tick), inside, columns, scale, { lineY });
+              return html`<g key=${`y/${tick}`} data-axis="y">
+                <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
+                ${label ? html`<text ...${label}>${formatLatency(tick)}</text>` : null}
+              </g>`;
+            })}
+        <line data-axis="x" x1="0" x2=${columns.width} y1=${scale.bottom} y2=${scale.bottom} />
+        ${lineY == null
+          ? null
+          : html`<g data-threshold="run">
+              <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
+              <text ...${thresholdLabel}>delayed past ${formatLatency(series.threshold)}</text>
+            </g>`}
+        ${shown.map(({ init, index, run }) => {
+          const pinned = run.elapsed && scale.pinned(run.seconds);
+          return html`<circle
+            key=${init.init_time}
+            data-init-time=${init.init_time}
+            data-status=${run.status}
+            data-timing=${run.timing}
+            data-elapsed=${run.elapsed ? "" : null}
+            data-pinned=${pinned ? "" : null}
+            cx=${columns.x(index)}
+            cy=${scale.y(run.seconds)}
+            r=${CHART_MARK_R}
+          ><title>${runTitle(run, local, pinned)}</title></circle>`;
+        })}
+      </svg>
+    <//>
+    <${InitTiers} runs=${runs} local=${local} />`;
+}
+
+function RunChart({ product, now, local, runCount, dimension, fieldWidth }) {
+  // the figure follows the field: nothing until the row is measured, and
+  // nothing for a product with no runs
+  if (runCount == null || !product.recent_inits.length) return null;
+  const zone = selectedTimeZone(local);
+  const runs = displayedRuns(product, runCount);
+  const series = runChartSeries(product, now, runs);
+  const scale = runChartScales(series);
+  const plotted = new Map(series.runs.map((run) => [run.init.init_time, run]));
+  const geometry = dimension
+    ? {
+        runWidth: facetRunWidthPx(product),
+        gap: FACET_RUN_GAP_PX,
+        gutter: facetGutterPx(facetRowsOf(product, dimension)),
+        lanes: laneSlices(runs),
+      }
+    : {
+        runWidth: initColumnPx(product, zone),
+        gap: RUN_GAP_PX,
+        gutter: gutterPx(bandsOf(product)),
+        lanes: [runs],
+      };
+  const columns = runColumns(geometry.lanes[0].length, geometry.runWidth, geometry.gap);
+  // the labels hang off the right edge while the field's column has room
+  // for the widest of them beside the plot; the gutter and its gap are the
+  // field's own
+  const widestLabel = Math.max(
+    ...scale.yTicks.map((tick) => formatLatency(tick).length),
+    series.threshold == null ? 0 : `delayed past ${formatLatency(series.threshold)}`.length,
+  );
+  const inside =
+    columns.width + CHART_LABEL_GAP_PX + widestLabel * CH_PX >
+    fieldWidth - geometry.gutter - RUN_GAP_PX;
+  return html`<figure
+    class="pipeline-runs"
+    style=${`--run-width:${geometry.runWidth}px;--clumped-run-gap:${geometry.gap}px;--band-gutter:${geometry.gutter}px;--label-h:${LABEL_PX}px`}
+  >
+    ${geometry.lanes.map(
+      (laneRuns, lane) => html`<${RunLane}
+        key=${lane}
+        runs=${laneRuns}
+        lane=${lane}
+        laneCount=${geometry.lanes.length}
+        plotted=${plotted}
+        scale=${scale}
+        series=${series}
+        columns=${columns}
+        inside=${inside}
+        local=${local}
+      />`,
+    )}
+  </figure>`;
 }
 
 /* The details tables. Open details re-render once a second so their durations
@@ -1480,13 +1534,16 @@ function RunChart({ product, now, local }) {
    reader's place in it — survives the tick. Every wide table on the site scrolls
    inside its own .table-container. */
 
-function Details({ product, now, local, groupProducts }) {
+function Details({ product, now, local, groupProducts, runCount, dimension, fieldWidth }) {
   const details = detailRows(product, now, local, groupProducts);
   const chart = html`<${RunChart}
     key="chart"
     product=${product}
     now=${now}
     local=${local}
+    runCount=${runCount}
+    dimension=${dimension}
+    fieldWidth=${fieldWidth}
   />`;
   // keyed siblings, no wrapper: a lag or facet table that arrives or leaves
   // with a later run must not change what node the lead table scrolls in
@@ -1663,21 +1720,28 @@ function Row({
   const views = viewsOf(product);
   const index = wrapIndex(viewIndex, views.length);
   const view = views[index];
+  // how many runs the field shows; the chart in the details shows the same
+  const runCount =
+    width == null
+      ? null
+      : view.dimension
+        ? runsThatFitFacetRows(product, width, view.dimension)
+        : runsThatFit(product, width, local);
   const field = useMemo(() => {
-    if (width == null) return null;
+    if (runCount == null) return null;
     return view.dimension
       ? html`<${FacetRowsField}
           product=${product}
           local=${local}
-          runCount=${runsThatFitFacetRows(product, width, view.dimension)}
+          runCount=${runCount}
           dimension=${view.dimension}
         />`
       : html`<${LeadField}
           product=${product}
           local=${local}
-          runCount=${runsThatFit(product, width, local)}
+          runCount=${runCount}
         />`;
-  }, [product, local, width, index]);
+  }, [product, local, runCount, index]);
 
   // the cycle is only reachable, and only worth announcing, when a product has
   // more than the one view
@@ -1745,6 +1809,9 @@ function Row({
             now=${now}
             local=${local}
             groupProducts=${groupProducts}
+            runCount=${runCount}
+            dimension=${view.dimension}
+            fieldWidth=${width}
           />`
         : null}
     </div>

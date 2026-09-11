@@ -350,16 +350,34 @@
   min-width: 0;
 }
 
+/* The details share the row's columns, so the run chart can sit in the
+   field's own column and line up with it; the tables span the row. Open
+   details only: the attribute hides closed ones. */
+.pipeline-row-details:not([hidden]) {
+  display: grid;
+  grid-template-columns: subgrid;
+}
+
+.pipeline-row-details > .table-container {
+  grid-column: 1 / -1;
+}
+
 .pipeline-row-details .table-container + .table-container {
   margin-top: 1.2rem;
 }
 
 /* The run chart: the runs the field draws as squares, plotted by their time
-   after init against the current delayed threshold. A run wears the color its
-   square wears; a run still arriving is hollow. */
+   after init against the current delayed threshold, each under its square.
+   A run wears the color its square wears; a run still arriving is hollow. */
 
 .pipeline-runs {
+  grid-column: 2;
   margin: 0 0 1.6rem;
+}
+
+/* a facet field lays its runs in lanes; the chart draws a plot per lane */
+.pipeline-runs .pipeline-band:has(svg):not(:first-child) {
+  margin-top: 1.6rem;
 }
 
 .pipeline-runs svg {
@@ -413,10 +431,6 @@
   fill: var(--pipeline-progress);
 }
 
-/* a product whose runs all lack a completion time draws nothing to leave room for */
-.pipeline-runs:empty {
-  margin: 0;
-}
 
 .pipeline-row-details table {
   width: 100%;
@@ -501,6 +515,10 @@ body:not(.pipeline-time-local) .pipeline-time-local-only {
 @media (max-width: 900px) {
   .pipeline-row {
     grid-template-columns: 1fr;
+  }
+
+  .pipeline-runs {
+    grid-column: 1;
   }
 
   .pipeline-stats {

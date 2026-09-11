@@ -18,6 +18,10 @@ import {
   gutterPx,
   runChartScales,
   runChartSeries,
+  runColumns,
+  displayedRuns,
+  laneSlices,
+  facetRunWidthPx,
   runChartThreshold,
   runsThatFit,
   runsThatFitFacetRows,
@@ -1875,7 +1879,7 @@ test("run chart threshold: none without history, none when the feed omits it", (
 test("run chart scales: every value inside the plot, the late run above the line", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
   const series = runChartSeries(chartProduct(), now);
-  const scale = runChartScales(series, 600, 6);
+  const scale = runChartScales(series);
   // y grows downward, so a longer latency sits higher on the page
   const line = scale.y(series.threshold);
   const [onTime, delayed, running] = series.runs.map((run) => scale.y(run.seconds));
@@ -1885,17 +1889,13 @@ test("run chart scales: every value inside the plot, the late run above the line
   for (const y of [line, onTime, delayed, running]) {
     assert.ok(y >= scale.top && y <= scale.bottom, `${y} inside the plot`);
   }
-  // time is proportional: the missing 00z and 06z leave a gap twice the step
-  const [x0, x1, x2] = series.runs.map((run) => scale.x(run.ms));
-  assert.ok(Math.abs((x2 - x1) / (x1 - x0) - 3) < 1e-9);
-  assert.ok(x0 > scale.left && x2 < scale.right);
   // ticks are round latencies inside the domain, few enough to read
   assert.ok(scale.yTicks.length >= 2 && scale.yTicks.length <= 5, String(scale.yTicks));
   for (const tick of scale.yTicks) {
     assert.equal(tick % 900, 0);
     assert.ok(scale.y(tick) >= scale.top && scale.y(tick) <= scale.bottom);
   }
-  assert.equal(scale.labelEvery, 1);
+  assert.equal(scale.empty, false);
 });
 
 test("run chart scales: one run, or runs all alike, still draw", () => {
@@ -1909,15 +1909,61 @@ test("run chart scales: one run, or runs all alike, still draw", () => {
     }),
     now,
   );
-  const scale = runChartScales(one, 400, 24);
+  const scale = runChartScales(one);
   const y = scale.y(3600);
-  const x = scale.x(one.runs[0].ms);
-  assert.ok(Number.isFinite(x) && Number.isFinite(y));
+  assert.ok(Number.isFinite(y));
   assert.ok(y >= scale.top && y <= scale.bottom);
-  assert.ok(Math.abs(x - (scale.left + scale.right) / 2) < 1e-9);
+  // and with nothing to plot and no line, the axis is not invented
+  const none = runChartSeries(
+    chartProduct({
+      latency_stats: {},
+      recent_inits: [{ init_time: "2026-07-25T06:00:00Z", status: "failed" }],
+    }),
+    now,
+  );
+  assert.equal(runChartScales(none).empty, true);
 });
 
-test("run chart scales: labels thin to what fits between the closest inits", () => {
+/* The chart's columns are the field's: it draws the field's own slice of
+   runs, in the field's lanes, a run width and gap apart. */
+
+test("run chart columns: a point sits at the centre of its run's square", () => {
+  const columns = runColumns(4, 30, 6);
+  assert.equal(columns.width, 4 * 30 + 3 * 6);
+  assert.deepEqual([0, 1, 2, 3].map(columns.x), [15, 51, 87, 123]);
+  // a lone run is one column; no runs is no width, not a negative gap
+  assert.equal(runColumns(1, 30, 6).width, 30);
+  assert.equal(runColumns(0, 30, 6).width, 0);
+});
+
+test("run chart series: only the runs the field shows, kept in their columns", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = chartProduct();
+  // the field shows the newest three: failed, unobserved, in flight
+  const shown = displayedRuns(product, 3);
+  assert.deepEqual(
+    shown.map((init) => init.init_time),
+    ["2026-07-25T00:00:00Z", "2026-07-25T06:00:00Z", "2026-07-25T12:00:00Z"],
+  );
+  const series = runChartSeries(product, now, shown);
+  // only the run in flight has a time; the two before it keep their columns
+  // (the chart looks each point up by init, never by its place in the series)
+  assert.deepEqual(series.runs.map((run) => run.init.init_time), ["2026-07-25T12:00:00Z"]);
+  assert.equal(displayedRuns(product, 0).length, 5);
+  assert.equal(displayedRuns(product, null).length, 5);
+});
+
+test("run chart lanes: the facet field's split, older runs first", () => {
+  const runs = Array.from({ length: 7 }, (_, index) => ({ init_time: String(index) }));
+  assert.deepEqual(
+    laneSlices(runs).map((lane) => lane.map((init) => init.init_time)),
+    [["0", "1", "2", "3"], ["4", "5", "6"]],
+  );
+  assert.deepEqual(laneSlices(runs.slice(0, 1)).map((lane) => lane.length), [1]);
+  assert.deepEqual(laneSlices([]).map((lane) => lane.length), [0]);
+});
+
+test("run chart lanes: a facet run block is as wide as the field draws it", () => {
   const fixture = JSON.parse(
     readFileSync(
       new URL("./fixtures/pipeline-dashboard.json", import.meta.url),
@@ -1925,13 +1971,12 @@ test("run chart scales: labels thin to what fits between the closest inits", () 
     ),
   );
   const [product] = fixture.groups[0].products;
-  const series = runChartSeries(product, Date.parse(fixture.generated_at));
-  const labelPx = initColumnPx(product, "UTC");
-  assert.equal(labelPx, 30);
-  // ten six-hourly runs: every init names itself across a row, every other
-  // one in a phone column
-  assert.equal(runChartScales(series, 600, 6, labelPx).labelEvery, 1);
-  assert.equal(runChartScales(series, 300, 6, labelPx).labelEvery, 2);
+  const width = facetRunWidthPx(product);
+  assert.ok(Number.isFinite(width) && width > 0);
+  // the fit is computed from that same block width: room for one block per
+  // lane beside the gutter, then for every run the payload carries
+  assert.equal(runsThatFitFacetRows(product, width + 100, "component"), 2);
+  assert.equal(runsThatFitFacetRows(product, width + 300, "component"), 10);
 });
 
 test("run chart scales: a spread of seconds does not fill the plot, and weeks do not flood the axis", () => {
@@ -1946,7 +1991,7 @@ test("run chart scales: a spread of seconds does not fill the plot, and weeks do
     }),
     now,
   );
-  const scale = runChartScales(tight, 600, 6);
+  const scale = runChartScales(tight);
   // a second apart reads as a second apart, on an axis that still has ticks
   assert.ok(Math.abs(scale.y(3600) - scale.y(3601)) < 1);
   assert.ok(scale.yTicks.length >= 2);
@@ -1960,7 +2005,7 @@ test("run chart scales: a spread of seconds does not fill the plot, and weeks do
     }),
     now,
   );
-  assert.ok(runChartScales(stale, 600, 24).yTicks.length <= 5);
+  assert.ok(runChartScales(stale).yTicks.length <= 5);
 });
 
 // A feed that has stalled, or an init that is stuck, leaves a run in flight for
@@ -1975,7 +2020,7 @@ test("run chart scales: a run in flight for weeks is pinned to the top, not give
     ],
   });
   const series = runChartSeries(product, now);
-  const scale = runChartScales(series, 600, 6);
+  const scale = runChartScales(series);
   const [onTime, delayed, running] = series.runs;
   assert.equal(running.seconds, 20.5 * 86400);
   assert.ok(scale.pinned(running.seconds));
@@ -1987,7 +2032,7 @@ test("run chart scales: a run in flight for weeks is pinned to the top, not give
   assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
   assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
   // a run within reach of the landed ones still joins the axis
-  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")), 600, 6);
+  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")));
   const nearRun = runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")).runs[2];
   assert.equal(nearRun.seconds, 9000);
   assert.ok(!near.pinned(9000));
@@ -2000,20 +2045,15 @@ test("run chart scales: a run in flight for weeks is pinned to the top, not give
     }),
     now,
   );
-  assert.ok(!runChartScales(only, 600, 6).pinned(only.runs[0].seconds));
+  assert.ok(!runChartScales(only).pinned(only.runs[0].seconds));
 });
 
-test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {
+test("run chart series: a repeated init is one point", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
   const one = { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 3600 };
-  // a repeated timestamp is one point, not two on the same x with the same key
+  // a repeated timestamp is one point, not two in the same column with the same key
   const twice = runChartSeries(chartProduct({ recent_inits: [one, { ...one }] }), now);
   assert.equal(twice.runs.length, 1);
-  for (const cadence of [0, null, undefined, -6]) {
-    const scale = runChartScales(twice, 600, cadence);
-    assert.ok(Number.isFinite(scale.x(twice.runs[0].ms)), `cadence ${cadence}`);
-    assert.ok(Number.isFinite(scale.labelEvery) && scale.labelEvery >= 1);
-  }
 });
 
 test("details name each group's own delayed threshold beside its percentiles", () => {
