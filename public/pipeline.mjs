@@ -1396,26 +1396,59 @@ function runTitle(run, local, pinned = false) {
     .join(" · ");
 }
 
-/* Where a line's label goes: off the right edge, or inside the plot above
-   the line when the plot leaves no room beside it — ticks at the left, where
-   an axis is read, the threshold at the right. A tick label gives way to the
-   threshold label on or near its line, and to the title at the top. */
+/* The chart's text is set in the root size, so what fits is measured in it:
+   a character of the monospace is 0.6em wide, a line 1em tall. */
 
-function lineLabel(y, inside, columns, scale, { lineY = null, end = false } = {}) {
-  if (lineY != null && Math.abs(y - lineY) < 12) return null;
-  if (inside && y < scale.top + 10) return null;
-  if (!inside) {
-    return { x: columns.width + CHART_LABEL_GAP_PX, y, dy: "0.35em", "text-anchor": "start" };
-  }
-  return end
-    ? { x: columns.width - 2, y: y - 4, dy: "0", "text-anchor": "end" }
-    : { x: 2, y: y - 4, dy: "0", "text-anchor": "start" };
+function chartEm() {
+  const px = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return Number.isFinite(px) && px > 0 ? px : 10;
 }
 
-function RunLane({ runs, lane, laneCount, plotted, scale, series, columns, inside, local }) {
+/* Where a line's label goes: off the right edge, or inside the plot above
+   the line when the plot leaves no room beside it — ticks at the left, where
+   an axis is read, the threshold at the right. The title hangs over the top
+   of the plot, and over the room beside a plot narrower than it: a label
+   that would meet it moves below its line. */
+
+function lineLabel(y, inside, columns, scale, { em, end = false, titlePx = 0 }) {
+  // a label above its line reaches 1.4em over it; the title hangs 0.3em under
+  // its baseline, six px over the plot
+  const underTitle =
+    (inside || columns.width + CHART_LABEL_GAP_PX < titlePx) && y < scale.top + 1.5 * em;
+  if (!inside) {
+    return {
+      x: columns.width + CHART_LABEL_GAP_PX,
+      y: underTitle ? y + em : y,
+      dy: "0.35em",
+      "text-anchor": "start",
+    };
+  }
+  return end
+    ? { x: columns.width - 2, y: underTitle ? y + 1.2 * em : y - 0.4 * em, dy: "0", "text-anchor": "end" }
+    : { x: 2, y: y - 0.4 * em, dy: "0", "text-anchor": "start" };
+}
+
+/* The box a label occupies, in the monospace's 0.6em characters and 1em
+   lines: a label on its baseline reaches an em above it, one centred on its
+   line half an em either side. */
+
+function labelBox(label, text, em) {
+  const width = text.length * 0.6 * em;
+  const centred = label.dy !== "0";
+  return {
+    left: label["text-anchor"] === "end" ? label.x - width : label.x,
+    right: label["text-anchor"] === "end" ? label.x : label.x + width,
+    top: centred ? label.y - 0.5 * em : label.y - em,
+    bottom: centred ? label.y + 0.5 * em : label.y + 0.3 * em,
+  };
+}
+
+function boxesMeet(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function RunLane({ runs, lane, laneCount, plotted, scale, series, columns, inside, em, local }) {
   const lineY = series.threshold == null ? null : scale.y(series.threshold);
-  const thresholdLabel =
-    lineY == null ? null : lineLabel(lineY, inside, columns, scale, { end: true });
   const shown = runs
     .map((init, index) => ({ init, index, run: plotted.get(init.init_time) }))
     .filter((entry) => entry.run);
@@ -1423,6 +1456,40 @@ function RunLane({ runs, lane, laneCount, plotted, scale, series, columns, insid
     runs.length > 1
       ? `${initShort(runs[0].init_time, local)} to ${initShort(runs.at(-1).init_time, local)}`
       : initShort(runs[0].init_time, local);
+  const title =
+    laneCount > 1
+      ? `time after init · ${lane === 0 ? "older" : "newer"} runs`
+      : "time after init";
+  const titlePx = title.length * 0.6 * em;
+  const thresholdText = lineY == null ? null : `delayed past ${formatLatency(series.threshold)}`;
+  const thresholdLabel =
+    lineY == null ? null : lineLabel(lineY, inside, columns, scale, { em, end: true, titlePx });
+  // a tick label gives way to the threshold label where the two would meet,
+  // to the threshold line itself, to the title, and to a point it would
+  // cover inside the plot
+  const tickLabel = (y, text) => {
+    if (y < scale.top + 1.5 * em && (inside || columns.width + CHART_LABEL_GAP_PX < titlePx)) {
+      return null;
+    }
+    const label = lineLabel(y, inside, columns, scale, { em, titlePx });
+    const box = labelBox(label, text, em);
+    if (thresholdLabel && boxesMeet(box, labelBox(thresholdLabel, thresholdText, em))) return null;
+    // nor may it be written across the line itself
+    if (lineY != null && lineY > box.top && lineY < box.bottom) return null;
+    const covered =
+      inside &&
+      shown.some(({ index, run }) => {
+        const cx = columns.x(index);
+        const cy = scale.y(run.seconds);
+        return (
+          cx - CHART_MARK_R < box.right + 0.3 * em &&
+          cx + CHART_MARK_R > box.left &&
+          cy + CHART_MARK_R > box.top &&
+          cy - CHART_MARK_R < box.bottom
+        );
+      });
+    return covered ? null : label;
+  };
   return html`<${Band} clumped>
       <svg
         width=${columns.width}
@@ -1439,11 +1506,11 @@ function RunLane({ runs, lane, laneCount, plotted, scale, series, columns, insid
           .filter(Boolean)
           .join(", ")}
       >
-        <text x="0" y=${scale.top - 6}>time after init</text>
+        <text x="0" y=${scale.top - 6}>${title}</text>
         ${scale.empty
           ? html`<text x="0" y=${(scale.top + scale.bottom) / 2} dy="0.35em">no completion time recorded</text>`
           : scale.yTicks.map((tick) => {
-              const label = lineLabel(scale.y(tick), inside, columns, scale, { lineY });
+              const label = tickLabel(scale.y(tick), formatLatency(tick));
               return html`<g key=${`y/${tick}`} data-axis="y">
                 <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
                 ${label ? html`<text ...${label}>${formatLatency(tick)}</text>` : null}
@@ -1454,7 +1521,7 @@ function RunLane({ runs, lane, laneCount, plotted, scale, series, columns, insid
           ? null
           : html`<g data-threshold="run">
               <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
-              <text ...${thresholdLabel}>delayed past ${formatLatency(series.threshold)}</text>
+              <text ...${thresholdLabel}>${thresholdText}</text>
             </g>`}
         ${shown.map(({ init, index, run }) => {
           const pinned = run.elapsed && scale.pinned(run.seconds);
@@ -1484,33 +1551,38 @@ function RunChart({ product, now, local, runCount, dimension, fieldWidth }) {
   const series = runChartSeries(product, now, runs);
   const scale = runChartScales(series);
   const plotted = new Map(series.runs.map((run) => [run.init.init_time, run]));
+  // the facet grid's gap between its gutter and first run is its run gap, in
+  // px; the lead field's bands use the band's own 0.6rem
   const geometry = dimension
     ? {
         runWidth: facetRunWidthPx(product),
         gap: FACET_RUN_GAP_PX,
         gutter: facetGutterPx(facetRowsOf(product, dimension)),
+        gutterGap: `${FACET_RUN_GAP_PX}px`,
         lanes: laneSlices(runs),
       }
     : {
         runWidth: initColumnPx(product, zone),
         gap: RUN_GAP_PX,
         gutter: gutterPx(bandsOf(product)),
+        gutterGap: null,
         lanes: [runs],
       };
   const columns = runColumns(geometry.lanes[0].length, geometry.runWidth, geometry.gap);
   // the labels hang off the right edge while the field's column has room
   // for the widest of them beside the plot; the gutter and its gap are the
   // field's own
+  const em = chartEm();
   const widestLabel = Math.max(
     ...scale.yTicks.map((tick) => formatLatency(tick).length),
     series.threshold == null ? 0 : `delayed past ${formatLatency(series.threshold)}`.length,
   );
   const inside =
-    columns.width + CHART_LABEL_GAP_PX + widestLabel * CH_PX >
-    fieldWidth - geometry.gutter - RUN_GAP_PX;
+    columns.width + CHART_LABEL_GAP_PX + widestLabel * 0.6 * em >
+    fieldWidth - geometry.gutter - geometry.gap;
   return html`<figure
     class="pipeline-runs"
-    style=${`--run-width:${geometry.runWidth}px;--clumped-run-gap:${geometry.gap}px;--band-gutter:${geometry.gutter}px;--label-h:${LABEL_PX}px`}
+    style=${`--run-width:${geometry.runWidth}px;--clumped-run-gap:${geometry.gap}px;--band-gutter:${geometry.gutter}px;--label-h:${LABEL_PX}px${geometry.gutterGap ? `;--gutter-gap:${geometry.gutterGap}` : ""}`}
   >
     ${geometry.lanes.map(
       (laneRuns, lane) => html`<${RunLane}
@@ -1523,6 +1595,7 @@ function RunChart({ product, now, local, runCount, dimension, fieldWidth }) {
         series=${series}
         columns=${columns}
         inside=${inside}
+        em=${em}
         local=${local}
       />`,
     )}

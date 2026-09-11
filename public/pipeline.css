@@ -165,7 +165,8 @@
   display: grid;
   grid-template-columns: var(--band-gutter) minmax(0, max-content);
   align-items: center;
-  gap: 0 0.6rem;
+  /* the run chart under a facet field sets the gap to that grid's own */
+  gap: 0 var(--gutter-gap, 0.6rem);
 }
 
 .pipeline-band-label {
@@ -352,14 +353,17 @@
 
 /* The details share the row's columns, so the run chart can sit in the
    field's own column and line up with it; the tables span the row. Open
-   details only: the attribute hides closed ones. */
-.pipeline-row-details:not([hidden]) {
-  display: grid;
-  grid-template-columns: subgrid;
-}
+   details only: the attribute hides closed ones. Without subgrid the
+   details stay a block and the chart simply spans the row. */
+@supports (grid-template-columns: subgrid) {
+  .pipeline-row-details:not([hidden]) {
+    display: grid;
+    grid-template-columns: subgrid;
+  }
 
-.pipeline-row-details > .table-container {
-  grid-column: 1 / -1;
+  .pipeline-row-details > .table-container {
+    grid-column: 1 / -1;
+  }
 }
 
 .pipeline-row-details .table-container + .table-container {
