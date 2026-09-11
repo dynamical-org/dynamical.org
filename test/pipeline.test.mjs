@@ -1826,13 +1826,13 @@ test("run chart series: a point per landed run, elapsed for the run still arrivi
       { init: "2026-07-25T12:00:00Z", seconds: 9000, elapsed: true, timing: "delayed", status: "in_flight" },
     ],
   );
-  // a failure has no completion time: named, not plotted; the unobserved run
-  // is neither
+  // a failure has no completion time, so it is not plotted; the unobserved
+  // run is neither
   assert.deepEqual(series.failed.map((init) => init.init_time), ["2026-07-25T00:00:00Z"]);
   assert.deepEqual(series.unmeasured, []);
 });
 
-test("run chart series: the marker follows the status, and a landed run without a time is named", () => {
+test("run chart series: the marker follows the status, and a landed run without a time is set aside", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
   const series = runChartSeries(
     chartProduct({

@@ -1013,18 +1013,8 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   await expect(chart.locator('[data-threshold="run"] text')).toHaveText(
     "delayed past 2h",
   );
-  await expect(chart.locator("figcaption")).toContainText(
-    "Current delayed threshold: 2h = p95 + max(p95 − p50, 15 min), using available history within the trailing 365-day window",
-  );
-  await expect(chart.locator("figcaption a")).toHaveAttribute(
-    "href",
-    "/research/when-the-forecast-is-ready/",
-  );
-  await expect(chart.locator("figcaption")).toContainText("Up to 10 recent runs");
-  // the failed run is named, not plotted
-  await expect(chart.locator("figcaption")).toContainText(
-    "Failed, with no completion time:",
-  );
+  // the chart carries no caption: the line's label is its only legend
+  await expect(chart.locator("figcaption")).toHaveCount(0);
 
   const geometry = await chart.evaluate((node) => {
     const at = (selector) => [...node.querySelectorAll(selector)];
@@ -1081,9 +1071,7 @@ test("a product without a delayed threshold draws its runs and no line", async (
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
   await expect(chart.locator("circle")).toHaveCount(8);
   await expect(chart.locator("[data-threshold]")).toHaveCount(0);
-  await expect(chart.locator("figcaption")).toContainText(
-    "No delayed threshold yet: insufficient history (24/30 days).",
-  );
+  await expect(chart.locator("figcaption")).toHaveCount(0);
   await expect(
     row.locator(
       ".pipeline-row-details .table-container:first-of-type tbody td:last-child",
@@ -1132,7 +1120,7 @@ test("a run in flight for weeks does not flatten the landed runs", async ({
 
 // What production renders until wxopticon's projection carries the field: an
 // established baseline with no threshold published.
-test("a feed that omits the threshold says so and draws no line", async ({
+test("a feed that omits the threshold draws its runs and no line", async ({
   page,
 }) => {
   const row = await openPipeline(page, (payload) => {
@@ -1145,10 +1133,7 @@ test("a feed that omits the threshold says so and draws no line", async ({
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
   await expect(chart.locator("circle")).toHaveCount(9);
   await expect(chart.locator("[data-threshold]")).toHaveCount(0);
-  await expect(chart.locator("figcaption")).toContainText(
-    "No delayed threshold published for this product.",
-  );
-  await expect(chart.locator("figcaption a")).toHaveCount(0);
+  await expect(chart.locator("figcaption")).toHaveCount(0);
   await expect(
     row.locator(
       ".pipeline-row-details .table-container:first-of-type tbody tr td:last-child",
@@ -1156,7 +1141,7 @@ test("a feed that omits the threshold says so and draws no line", async ({
   ).toHaveText(["—", "—", "—"]);
 });
 
-test("a manual threshold is drawn and named as one, without the method link", async ({
+test("a manual threshold is drawn like any other", async ({
   page,
 }) => {
   const row = await openPipeline(page, (payload) => {
@@ -1168,10 +1153,7 @@ test("a manual threshold is drawn and named as one, without the method link", as
   await expect(chart.locator('[data-threshold="run"] text')).toHaveText(
     "delayed past 2h",
   );
-  await expect(chart.locator("figcaption")).toContainText(
-    "Current delayed threshold: 2h, set manually for this product.",
-  );
-  await expect(chart.locator("figcaption a")).toHaveCount(0);
+  await expect(chart.locator("figcaption")).toHaveCount(0);
 });
 
 // The figure exists only while the product has runs, and the chart's width is
