@@ -17,7 +17,7 @@ Complete the steps below yourself, in order, by running the commands directly; d
 
 ## 2. Install
 
-The Python path needs Python 3.12 or newer and `dynamical-catalog` 0.8.0 or newer, which brings in icechunk 2, xarray, zarr, and pystac.
+The Python path needs Python 3.12 or newer and `dynamical-catalog` 0.8.0 or newer, which brings in icechunk 2, xarray, and zarr (add `pystac` yourself only if you want to walk the catalog with it; any HTTP client can read STAC).
 
 - If this project already has a Python environment, add the dependency the way the project adds dependencies (`uv add "dynamical-catalog>=0.8.0"` in a uv project; `pip install "dynamical-catalog>=0.8.0"` inside its virtualenv). If the project pins Python below 3.12 or a conflicting icechunk, do not change its constraints: report the blocker to the user and use the API route below for now.
 - If this is an empty or new directory, do not create a global environment. Run the verification below with `uv run --python 3.12 --with "dynamical-catalog>=0.8.0" python verify.py`, or without uv, `python3.12 -m venv .venv && .venv/bin/pip install "dynamical-catalog>=0.8.0"` inside the project.
