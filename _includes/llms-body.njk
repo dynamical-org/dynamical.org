@@ -1,0 +1,66 @@
+{#- The llms.txt body (https://llmstxt.org): what an agent needs to use the
+    data and nothing else. Served at /llms.txt and, for links in the wild, at
+    /llms-full.txt. Dataset metadata is not repeated here — STAC is the source
+    of truth and the index below only points at it. -#}
+# dynamical.org
+
+> Free, open, cloud-optimized weather and climate datasets — NOAA GFS, GEFS, HRRR, and MRMS; ECMWF IFS and AIFS; DWD ICON-EU; ECCC HRDPS; NASA IMERG — as Icechunk/Zarr archives on AWS Open Data, described by a STAC catalog. Nothing here needs authentication.
+
+The STAC catalog at https://stac.dynamical.org/catalog.json is the source of truth. Each dataset is one STAC Collection with its title and description, license and attribution, spatial and temporal extent, `cube:dimensions`, `cube:variables` (every variable with units, long name, dimensions, and chunk shape), runnable `examples`, and `assets` — the Icechunk repository to open, as `icechunk` (s3://, anonymous) and `icechunk-https`. When this file and STAC disagree, STAC is right.
+
+## Open a dataset
+
+Two equally supported ways. Both open an Icechunk 2 repository, so in Python that means Python 3.12+; Icechunk also has JavaScript and Rust clients that open the same `icechunk-https` asset.
+
+- The `dynamical-catalog` package (>= 0.8.0): `import dynamical_catalog; ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)`
+- STAC and Icechunk directly, with any HTTP client for the STAC part:
+
+```python
+import icechunk
+import pystac
+import xarray as xr
+
+catalog = pystac.Catalog.from_file("https://stac.dynamical.org/catalog.json")
+asset = catalog.get_child("noaa-gfs-forecast").assets["icechunk-https"]
+repo = icechunk.Repository.open(icechunk.http_storage(asset.href))
+ds = xr.open_zarr(repo.readonly_session("main").store, chunks=None)
+```
+
+Resolve the asset href from STAC every time you open a dataset. Do not hard-code buckets, hrefs, or version numbers: they change when a dataset is reprocessed.
+
+For a time series at one point without any data libraries, use the JSON API (beta, docs at https://dynamical.org/api/): `POST https://api.dynamical.org/v1/forecasts` with `{"queries": [{"dataProductId": "noaa-gfs-forecast", "location": {"latitude": 41.88, "longitude": -87.63}, "variables": ["temperature_2m"]}]}` returns the latest run; `POST /v1/analyses` takes `startTime` and `endTime` instead. Dataset ids double as `dataProductId`.
+
+`data.dynamical.org/**/latest.zarr` is retired after 2026-09-30. Never generate new code with those URLs; migration guide at https://dynamical.org/migration-2026/.
+
+## Conventions
+
+- Forecast datasets have dimensions `init_time` (start of the model run, UTC), `lead_time` (a timedelta from `init_time`; valid time = `init_time` + `lead_time`), and the grid; ensemble datasets add `ensemble_member`. The latest run is the last `init_time`.
+- Global and European datasets are on `latitude`/`longitude` grids. HRRR and HRDPS keep their native projected grids with `x` and `y` dimensions; the collection's description and example notebook show how to select geographic points and areas from the embedded spatial reference.
+- Analysis datasets concatenate the earliest lead times of successive runs into one `time` dimension: the model's own best estimate of what happened, not independent observations.
+- Variable names are the dataset's own (`temperature_2m`, `wind_u_10m`); units, long names, and dimensions are in each collection's `cube:variables`. The `-virtual` datasets keep vertical-level variables in the `model_level` and `pressure_level` Zarr groups (named `model_level/...` in `cube:variables`), which open with `group=...`.
+- Chunking is stated per collection (`dynamical-org:chunking`). Time-optimized datasets are chunked for a point or small area across many times; `-virtual` datasets are chunked for the whole grid at one time and carry the model's full variable set. Select the region and time window before loading, and pass `chunks=None` unless you need Dask.
+- License (`license`, CC-BY-4.0 today) and the attribution string (`attribution`) are in each collection. Archives update as new runs arrive; freshness is at https://dynamical.org/status/pipeline/ or via the MCP `list_recent_runs` tool.
+
+## MCP server
+
+https://mcp.dynamical.org/mcp — streamable HTTP, no authentication, server name `dynamical-catalog`. Tools: `search_catalog`, `get_dataset_info`, `get_access_pattern`, `list_recent_runs`. They read the live STAC catalog.
+
+## Datasets
+
+One line per collection, generated from STAC. The id in parentheses is the argument to `dynamical_catalog.open()` and the API's `dataProductId`; the link is the STAC Collection, and the human page is at https://dynamical.org/catalog/<id>/.
+{% for model in catalog.models %}{%- set live = model.datasets | rejectWhere("status", "deprecated") %}{% if live.length %}
+### {{ model.name | safe }}
+{% for dataset in live %}
+- [{{ dataset.title | safe }}]({{ dataset.stac_href }}) (`{{ dataset.id }}`): {{ dataset.facts | join(" · ") | safe }}
+{%- endfor %}
+{% endif %}{% endfor %}
+## Help
+
+- Questions and problems: feedback@dynamical.org, or the repositories at https://github.com/dynamical-org.
+
+## Optional
+
+- [Catalog](https://dynamical.org/catalog/): the human-readable catalog, with runnable examples and notebooks on each dataset page.
+- [Prompts for AI agents](https://dynamical.org/agents/): what a person pastes into an assistant to point it here.
+- [Pipeline status](https://dynamical.org/status/pipeline/): per-run timing and upstream arrival history; [status](https://dynamical.org/status/) for uptime.
+- [Weather station scorecard](https://dynamical.org/scorecard/): forecast accuracy against US weather stations; per-dataset validation reports are the `about` links in each collection.

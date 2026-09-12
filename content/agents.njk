@@ -1,0 +1,46 @@
+---
+layout: base.njk
+title: use with an AI agent
+socialTitle: Use dynamical.org data with an AI agent
+description: Prompts to paste into an AI assistant or coding agent so it finds, opens, and uses dynamical.org's open weather and climate data the supported way.
+permalink: /agents/
+hideLatestPopup: true
+---
+
+{% from "agent-prompt.njk" import agentPrompt %}
+
+<div class="content">
+  <h1>Use with an AI agent</h1>
+  <p>
+    Every prompt below tells an assistant where to read first: the
+    <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, which is the source of
+    truth for every dataset, and <a href="/llms.txt">llms.txt</a>, which explains how the datasets
+    are shaped and opened. Copy one, paste it into any assistant that can fetch URLs, and add what
+    you want to make. Text in angle brackets is yours to fill in. Each dataset's
+    <a href="/catalog/">catalog page</a> has a prompt for that dataset alone.
+  </p>
+
+  {% for prompt in agentPrompts.PROMPTS %}
+    <h2 id="{{ prompt.id }}">{{ prompt.title }}</h2>
+    <p class="dim">{{ prompt.audience }}</p>
+    {{ agentPrompt(prompt.text, "Prompt: " + prompt.title, prompt.id) }}
+  {% endfor %}
+
+  <h2 id="setup">Setup for coding agents</h2>
+  {% for prompt in agentPrompts.SETUP %}
+    <p class="dim">{{ prompt.audience }}</p>
+    {{ agentPrompt(prompt.text, "Prompt: " + prompt.title, prompt.id) }}
+  {% endfor %}
+  <p>
+    Migrating code that still reads <code>data.dynamical.org</code>? The
+    <a href="/migration-2026/">migration guide</a> has a prompt for that.
+  </p>
+
+  <h2 id="resources">What the agent reads</h2>
+  <ul>
+    <li><a href="https://stac.dynamical.org/catalog.json">stac.dynamical.org/catalog.json</a> — every dataset's variables, dimensions, extent, license, and the Icechunk asset to open.</li>
+    <li><a href="/llms.txt">dynamical.org/llms.txt</a> — the conventions, the two ways to open a dataset, and a one-line index of the datasets.</li>
+    <li><a href="https://mcp.dynamical.org/mcp">mcp.dynamical.org/mcp</a> — the same catalog as MCP tools, for agents that can add them.</li>
+    <li><a href="/api/">The point API</a> — forecast and analysis time series as JSON, no data libraries needed.</li>
+  </ul>
+</div>

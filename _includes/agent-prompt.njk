@@ -1,0 +1,20 @@
+{#
+  A prompt the reader hands to an AI assistant, with a one-click copy. The text
+  sits in a readonly textarea so it selects and copies as one unit and is
+  reachable without JavaScript; the button and status are the enhancement
+  (public/agent-prompt.mjs). Every call emits the same module script tag — a
+  page with several prompts still evaluates it once, because module scripts
+  are keyed by URL. Styles: .agent-prompt in main.css. Prompt texts:
+  lib/agent-prompts.js.
+
+  {% from "agent-prompt.njk" import agentPrompt %}
+  {{ agentPrompt(text, "Prompt for …", id, rows) }}
+#}
+{% macro agentPrompt(text, label, id, rows) %}
+<div class="agent-prompt"{% if id %} data-prompt="{{ id }}"{% endif %}>
+  <textarea readonly rows="{{ rows or 6 }}" aria-label="{{ label }}">{{ text }}</textarea>
+  <button type="button">copy to clipboard</button>
+  <span role="status"></span>
+</div>
+<script type="module" src="/agent-prompt.mjs?v={{ "public/agent-prompt.mjs" | fileHash }}"></script>
+{% endmacro %}

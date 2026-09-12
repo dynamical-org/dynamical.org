@@ -876,6 +876,39 @@ a.work-item:hover h3 { text-decoration: underline; }
   line-height: 22.5px;
 }
 
+/* A prompt the reader hands to an AI assistant (_includes/agent-prompt.njk).
+   Text you give to a tool, not source we highlight: a readonly field rather
+   than a <pre>, so it selects and copies as one unit. The copy control is a
+   link, not a button — it copies text, it doesn't submit anything. */
+.agent-prompt textarea {
+  display: block;
+  width: 100%;
+  padding: 1em;
+  border: 1px solid var(--border-muted-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: inherit;
+  font: inherit;
+  font-size: 1.4rem;
+  line-height: 1.5;
+  resize: vertical;
+  field-sizing: content;
+}
+.agent-prompt button {
+  margin-top: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link-color);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.agent-prompt [role="status"] {
+  margin-left: 1rem;
+  color: var(--muted-text);
+}
+
 #newsletter {
   margin-top: 4rem;
 }
