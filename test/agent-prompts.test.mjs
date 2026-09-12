@@ -67,7 +67,7 @@ test("every data prompt bounds the read before loading", () => {
   // A point alone still permits decades of data; the window has to be named.
   for (const { id, text } of [...PROMPTS, { id: "dataset", text: datasetPrompt(GFS) }]) {
     if (id === "presentation") {
-      assert.match(text, /maxLeadTimeHours 168/, "the API query has no lead-time ceiling");
+      assert.match(text, /validTimeStart now and validTimeEnd 7 days from now/, "the API query has no valid-time window");
       continue;
     }
     assert.match(text, /time window before loading|first 5 days only|valid times/, `${id} never bounds the read`);

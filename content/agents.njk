@@ -15,9 +15,11 @@ hideLatestPopup: true
     Every prompt below tells an assistant where to read first: the
     <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, which is the source of
     truth for every dataset, and <a href="/llms.txt">llms.txt</a>, which explains how the datasets
-    are shaped and opened. Copy one, paste it into any assistant that can fetch URLs, and add what
-    you want to make. Text in angle brackets is yours to fill in. Each dataset's
-    <a href="/catalog/">catalog page</a> has a prompt for that dataset alone.
+    are shaped and opened. Copy one, paste it into an assistant that can fetch URLs and run code,
+    and add what you want to make. Text in angle brackets is yours to fill in. Each dataset's
+    <a href="/catalog/">catalog page</a> has a prompt for that dataset alone. Every prompt here was
+    tested cold in Claude Code and Codex; an assistant that can only browse will get as far as
+    reading the catalog.
   </p>
 
   {% for prompt in agentPrompts.PROMPTS %}
