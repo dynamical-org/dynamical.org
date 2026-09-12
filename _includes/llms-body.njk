@@ -10,7 +10,7 @@ The STAC catalog at https://stac.dynamical.org/catalog.json is the source of tru
 
 ## Open a dataset
 
-Two equally supported ways. Both open an Icechunk 2 repository, so in Python that means Python 3.12+; Icechunk also has JavaScript and Rust clients that open the same `icechunk-https` asset.
+Two equally supported ways. Both open an Icechunk 2 repository, so the direct route needs `icechunk>=2` (Python 3.12+); Icechunk also has JavaScript and Rust clients that open the same `icechunk-https` asset.
 
 - The `dynamical-catalog` package (>= 0.8.0): `import dynamical_catalog; ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)`
 - STAC and Icechunk directly, with any HTTP client for the STAC part:
@@ -28,17 +28,17 @@ ds = xr.open_zarr(repo.readonly_session("main").store, chunks=None)
 
 Resolve the asset href from STAC every time you open a dataset. Do not hard-code buckets, hrefs, or version numbers: they change when a dataset is reprocessed.
 
-For a time series at one point without any data libraries, use the JSON API (beta, docs at https://dynamical.org/api/): `POST https://api.dynamical.org/v1/forecasts` with `{"queries": [{"dataProductId": "noaa-gfs-forecast", "location": {"latitude": 41.88, "longitude": -87.63}, "variables": ["temperature_2m"]}]}` returns the latest run; `POST /v1/analyses` takes `startTime` and `endTime` instead. Dataset ids double as `dataProductId`.
+For a time series at one point without any data libraries, use the JSON API (beta, docs at https://dynamical.org/api/): `POST https://api.dynamical.org/v1/forecasts` with `{"queries": [{"dataProductId": "noaa-gfs-forecast", "location": {"latitude": 41.88, "longitude": -87.63}, "variables": ["temperature_2m"]}]}` returns the latest run; `POST /v1/analyses` takes `startTime` and `endTime` instead. Dataset ids double as `dataProductId`; `GET /v1/data-products` lists what the API serves.
 
 `data.dynamical.org/**/latest.zarr` is retired after 2026-09-30. Never generate new code with those URLs; migration guide at https://dynamical.org/migration-2026/.
 
 ## Conventions
 
-- Forecast datasets have dimensions `init_time` (start of the model run, UTC), `lead_time` (a timedelta from `init_time`; valid time = `init_time` + `lead_time`), and the grid; ensemble datasets add `ensemble_member`. The latest run is the last `init_time`.
+- Forecast datasets have dimensions `init_time` (start of the model run, UTC), `lead_time` (a timedelta from `init_time`; valid time = `init_time` + `lead_time`), and the grid; ensemble datasets add `ensemble_member`. The latest run is the last `init_time`; check that the variables and lead times you need are present there (gaps are NaN) before presenting it as complete.
 - Global and European datasets are on `latitude`/`longitude` grids. HRRR and HRDPS keep their native projected grids with `x` and `y` dimensions; the collection's description and example notebook show how to select geographic points and areas from the embedded spatial reference.
-- Analysis datasets concatenate the earliest lead times of successive runs into one `time` dimension: the model's own best estimate of what happened, not independent observations.
+- Analysis datasets have one `time` dimension. The model analyses (GFS, GEFS, HRRR) concatenate the earliest lead times of successive runs: the model's own best estimate of what happened, not independent observations. MRMS (radar and multi-sensor) and IMERG (satellite) are observation-derived precipitation analyses.
 - Variable names are the dataset's own (`temperature_2m`, `wind_u_10m`); units, long names, and dimensions are in each collection's `cube:variables`. The `-virtual` datasets keep vertical-level variables in the `model_level` and `pressure_level` Zarr groups (named `model_level/...` in `cube:variables`), which open with `group=...`.
-- Chunking is stated per collection (`dynamical-org:chunking`). Time-optimized datasets are chunked for a point or small area across many times; `-virtual` datasets are chunked for the whole grid at one time and carry the model's full variable set. Select the region and time window before loading, and pass `chunks=None` unless you need Dask.
+- Chunking is stated per collection (`dynamical-org:chunking`). Time-optimized datasets are chunked for a point or small area across many times; `-virtual` datasets are chunked for the whole grid at one time and carry the model's full variable set. Select the variables, the region, and the time window before loading anything — the archives run to terabytes — and pass `chunks=None` unless you need Dask.
 - License (`license`, CC-BY-4.0 today) and the attribution string (`attribution`) are in each collection. Archives update as new runs arrive; freshness is at https://dynamical.org/status/pipeline/ or via the MCP `list_recent_runs` tool.
 
 ## MCP server

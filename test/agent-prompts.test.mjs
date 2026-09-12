@@ -62,6 +62,14 @@ test("the general prompts stay short enough to paste anywhere", () => {
   }
 });
 
+test("every data prompt bounds the read before loading", () => {
+  // A point alone still permits decades of data; the window has to be named.
+  for (const { id, text } of [...PROMPTS, { id: "dataset", text: datasetPrompt(GFS) }]) {
+    if (id === "presentation") continue; // the API bounds it with maxLeadTimeHours
+    assert.match(text, /time window before loading|first 5 days of lead time|valid times/, `${id} never bounds the read`);
+  }
+});
+
 test("the dataset prompt carries the id, its collection, and its dimensions", () => {
   const text = datasetPrompt(GFS);
   assert.ok(text.includes(`dynamical_catalog.open("${GFS.id}")`));
