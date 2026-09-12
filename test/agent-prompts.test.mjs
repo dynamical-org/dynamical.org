@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
+const nunjucks = require("nunjucks");
 const { PROMPTS, SETUP, MIGRATION, datasetPrompt, wordCount, STAC_CATALOG, LLMS_TXT } =
   require("../lib/agent-prompts.js");
 
@@ -65,8 +66,11 @@ test("the general prompts stay short enough to paste anywhere", () => {
 test("every data prompt bounds the read before loading", () => {
   // A point alone still permits decades of data; the window has to be named.
   for (const { id, text } of [...PROMPTS, { id: "dataset", text: datasetPrompt(GFS) }]) {
-    if (id === "presentation") continue; // the API bounds it with maxLeadTimeHours
-    assert.match(text, /time window before loading|first 5 days of lead time|valid times/, `${id} never bounds the read`);
+    if (id === "presentation") {
+      assert.match(text, /maxLeadTimeHours 168/, "the API query has no lead-time ceiling");
+      continue;
+    }
+    assert.match(text, /time window before loading|first 5 days only|valid times/, `${id} never bounds the read`);
   }
 });
 
@@ -79,10 +83,27 @@ test("the dataset prompt carries the id, its collection, and its dimensions", ()
   assert.match(datasetPrompt({ ...GFS, optimization: "space" }), /whole-grid/);
 });
 
-test("prompt ids are unique and the page renders each one", () => {
+test("prompt ids are unique and the page loops over both sets", () => {
   const ids = [...PROMPTS, ...SETUP, MIGRATION].map((p) => p.id);
   assert.equal(new Set(ids).size, ids.length);
   const page = readFileSync(new URL("../content/agents.njk", import.meta.url), "utf8");
   assert.match(page, /agentPrompts\.PROMPTS/);
   assert.match(page, /agentPrompts\.SETUP/);
+});
+
+test("the include renders every prompt into its textarea, escaped", () => {
+  // The migration prompt carries `>=` and quotes; the textarea must hold the
+  // text verbatim once the browser unescapes it, and never break out of it.
+  const env = new nunjucks.Environment(
+    new nunjucks.FileSystemLoader(new URL("../_includes/", import.meta.url).pathname),
+    { autoescape: true },
+  );
+  env.addFilter("fileHash", () => "hash");
+  const page = `{% from "agent-prompt.njk" import agentPrompt %}{% for p in prompts %}{{ agentPrompt(p.text, "Prompt: " + p.title, p.id) }}{% endfor %}`;
+  const html = env.renderString(page, { prompts: [...PROMPTS, ...SETUP, MIGRATION] });
+  const unescape = (s) => s.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+  const bodies = [...html.matchAll(/<textarea[^>]*>([\s\S]*?)<\/textarea>/g)].map((m) => unescape(m[1]));
+  assert.deepEqual(bodies, [...PROMPTS, ...SETUP, MIGRATION].map((p) => p.text));
+  assert.equal(html.match(/<script type="module"/g).length, bodies.length, "one module tag per prompt, deduped by the browser");
+  assert.ok(!html.includes("</textarea>>"), "a prompt broke out of its textarea");
 });
