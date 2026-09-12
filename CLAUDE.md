@@ -27,7 +27,7 @@ measurement (lead rows sized by group and init columns sized by their label), an
 test` has no layout engine to catch that class of bug. `agent-prompt.spec.mjs` is likewise
 offline and drives the copy control on `/agents/`, whose bugs were clipboard and timer
 behavior that `npm test` cannot see.
-Keep both out of `npm test`, which stays offline and instant.
+Keep all of them out of `npm test`, which stays offline and instant.
 
 ## Architecture
 
