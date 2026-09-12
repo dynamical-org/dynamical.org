@@ -138,7 +138,7 @@ test("the setup instructions read STAC first, verify, and hand off", () => {
     at("https://stac.dynamical.org/catalog.json"),
     at("dynamical-catalog"),
     at("## 3. Verify"),
-    at("assert -60 < value < 60"),
+    at("assert math.isfinite(value) and -60 < value < 60"),
     at("## 6. Tell the user"),
     at("ask what they want to build"),
   ];
