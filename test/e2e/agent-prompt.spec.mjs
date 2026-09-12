@@ -61,8 +61,18 @@ test("a successful copy is tracked by id, never by text", async ({ page }) => {
     });
   });
   await page.goto(PATH);
-  const block = page.locator(".agent-prompt").first();
+  const block = page.locator(".agent-prompt[data-prompt=minimum]");
   await block.locator("button").click();
   await expect(block.locator("[role=status]")).toHaveText("copied");
   expect(events).toEqual([["agent_prompt_copied", { prompt: "minimum", page: PATH }]]);
+});
+
+test("the home-page pill copies the one-line setup prompt", async ({ page }) => {
+  await page.goto("/");
+  const pill = page.locator(".agent-setup-pill").first();
+  await pill.locator("button").click();
+  await expect(pill.locator("[role=status]")).toHaveText("copied");
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toBe(await pill.locator("textarea").inputValue());
+  expect(copied).toMatch(/^Fetch and follow .* https:\/\/dynamical\.org\/agent-setup\/prompt\.md$/);
 });

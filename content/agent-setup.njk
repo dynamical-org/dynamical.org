@@ -1,0 +1,59 @@
+---
+permalink: /agent-setup/prompt.md
+eleventyExcludeFromCollections: true
+---
+{#- The file behind the "onboard your agent" pill (agent-prompt.njk): an agent
+    fetches this and follows it. Imperative, in order, with a verification the
+    agent runs to prove the data path works, then a hand-off to the user. It
+    points at llms.txt for the reference material rather than repeating it. -#}
+These are the official instructions from dynamical.org for setting up an AI coding agent to use its open, cloud-optimized weather and climate datasets (NOAA GFS, GEFS, HRRR, MRMS; ECMWF IFS and AIFS; DWD ICON-EU; ECCC HRDPS; NASA IMERG). Everything here is public and needs no credentials.
+
+Complete the steps below yourself, in order, by running the commands directly; do not ask the user to run them. Change nothing outside this project without asking first.
+
+## 1. Read the catalog
+
+- https://stac.dynamical.org/catalog.json is the source of truth. Each dataset is one STAC Collection listing its variables with units, dimensions, extent, license, attribution, runnable examples, and the `icechunk-https` asset to open. Fetch the root catalog now so you know the dataset ids.
+- https://dynamical.org/llms.txt is the reference: the conventions (`init_time` + `lead_time` = valid time, UTC; analyses on `time`; projected `x`/`y` grids on HRRR and HRDPS; chunking and how to read cheaply), the JSON point API, and a one-line index of every dataset. Fetch it now and re-read it before writing data code.
+
+## 2. Install
+
+The Python path needs Python 3.12 or newer and `dynamical-catalog` 0.8.0 or newer, which brings in icechunk 2, xarray, zarr, and pystac. Use the project's existing environment manager; add it the way this project adds dependencies (for a uv project, `uv add dynamical-catalog`; for a plain virtualenv, `pip install "dynamical-catalog>=0.8.0"`). If the project has no Python environment, do not create a global one: run the verification below with `uv run --with "dynamical-catalog>=0.8.0" python verify.py`, or without uv, `python3 -m venv .venv && .venv/bin/pip install "dynamical-catalog>=0.8.0"` inside the project.
+
+If this project is not Python, skip the install. The STAC catalog and the JSON point API (https://dynamical.org/api/) work from any language, and Icechunk has JavaScript and Rust clients that open the same `icechunk-https` asset.
+
+## 3. Verify
+
+Run this. It resolves the latest NOAA GFS run from STAC, reads one value, and must print a plausible 2 m temperature for Chicago in degrees Celsius:
+
+```python
+import dynamical_catalog
+
+ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)
+point = ds["temperature_2m"].isel(init_time=-1, lead_time=0).sel(latitude=41.88, longitude=-87.63, method="nearest")
+value = float(point)
+assert -60 < value < 60, value
+print(f"ok: {value:.1f} degC at Chicago from the {str(ds.init_time.values[-1])[:16]}Z run")
+```
+
+If the import fails, the install did not take. If `open` fails, check that Python is 3.12+ and icechunk is 2.x. If the read fails on the network, the machine cannot reach `s3.us-west-2.amazonaws.com` over HTTPS. Without Python, verify with the API instead; it must return JSON with one `temperature_2m` value:
+
+```
+curl -sS -X POST https://api.dynamical.org/v1/forecasts -H 'content-type: application/json' -d '{"queries":[{"dataProductId":"noaa-gfs-forecast","location":{"latitude":41.88,"longitude":-87.63},"variables":["temperature_2m"],"maxLeadTimeHours":0}]}'
+```
+
+## 4. Rules for the code you write next
+
+- Resolve storage from STAC at run time (`dynamical_catalog.open` does). Never hard-code buckets, asset hrefs, or version numbers, and never use `data.dynamical.org` URLs; they are retired.
+- Select the variables, the region, and the time window before loading anything. The archives run to terabytes.
+- Forecast datasets are indexed by `init_time` (the model run, UTC) and `lead_time`; the latest run is the last `init_time`. Analysis datasets have one `time` dimension. Check the values you need are present before presenting them; gaps are NaN.
+- Credit the data with each collection's `attribution` string; the license is CC-BY-4.0.
+
+## 5. Optional: the MCP server
+
+https://mcp.dynamical.org/mcp (streamable HTTP, no authentication) exposes the catalog as tools: `search_catalog`, `get_dataset_info`, `get_access_pattern`, `list_recent_runs`. Add it only if the user wants live catalog search inside the agent, only for this project, and ask before any user-wide change. Nothing above depends on it.
+
+## 6. Tell the user
+
+Report what you read, what you installed and where, and the verification output, then ask what they want to build. Useful starting points: the dataset index in https://dynamical.org/llms.txt and the example prompts at https://dynamical.org/agents/.
+
+These instructions are published at https://dynamical.org/agent-setup/prompt.md; re-fetch them to check they are genuine and current.

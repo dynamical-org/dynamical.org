@@ -5,7 +5,7 @@ import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const nunjucks = require("nunjucks");
-const { PROMPTS, SETUP, MIGRATION, datasetPrompt, wordCount, STAC_CATALOG, LLMS_TXT } =
+const { PROMPTS, SETUP, SETUP_LINE, SETUP_PROMPT, MIGRATION, datasetPrompt, wordCount, STAC_CATALOG, LLMS_TXT } =
   require("../lib/agent-prompts.js");
 
 // Every prompt is pasted cold into an assistant with nothing else, so each one
@@ -106,4 +106,43 @@ test("the include renders every prompt into its textarea, escaped", () => {
   assert.deepEqual(bodies, [...PROMPTS, ...SETUP, MIGRATION].map((p) => p.text));
   assert.equal(html.match(/<script type="module"/g).length, bodies.length, "one module tag per prompt, deduped by the browser");
   assert.ok(!html.includes("</textarea>>"), "a prompt broke out of its textarea");
+
+  const pill = env.renderString(
+    `{% from "agent-prompt.njk" import agentSetupPill %}{{ agentSetupPill(line, "Onboard your agent") }}`,
+    { line: SETUP_LINE },
+  );
+  assert.match(pill, /<button type="button"[^>]*>Onboard your agent<span aria-hidden="true">(<svg[\s\S]*?<\/svg>\s*){4}<\/span><\/button>/);
+  assert.equal(unescape(pill.match(/<textarea[^>]*>([\s\S]*?)<\/textarea>/)[1]), SETUP_LINE);
+  assert.match(pill, /<script type="module" src="\/agent-prompt\.mjs\?v=hash">/);
+});
+
+test("the setup line is one short line that names only the instructions URL", () => {
+  // The pill copies this; it has to survive any chat box and lead the agent to
+  // the file rather than try to teach it anything itself.
+  assert.ok(!SETUP_LINE.includes("\n"));
+  assert.ok(SETUP_LINE.length <= 160, `${SETUP_LINE.length} chars`);
+  assert.ok(SETUP_LINE.endsWith(SETUP_PROMPT));
+  assert.equal([...SETUP_LINE.matchAll(/https?:\/\//g)].length, 1);
+});
+
+test("the setup instructions read STAC first, verify, and hand off", () => {
+  const file = readFileSync(new URL("../content/agent-setup.njk", import.meta.url), "utf8");
+  assert.match(file, /permalink: \/agent-setup\/prompt\.md/);
+  const body = file.slice(file.indexOf("---", 3) + 3);
+  const at = (needle) => {
+    const i = body.indexOf(needle);
+    assert.ok(i >= 0, `missing: ${needle}`);
+    return i;
+  };
+  const order = [
+    at("https://stac.dynamical.org/catalog.json"),
+    at("dynamical-catalog"),
+    at("## 3. Verify"),
+    at("assert -60 < value < 60"),
+    at("## 6. Tell the user"),
+    at("ask what they want to build"),
+  ];
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), "steps are out of order");
+  assert.doesNotMatch(body, /amazonaws\.com\/[a-z0-9-]+\/v\d/, "hard-codes an asset href");
+  assert.match(body, /re-fetch/, "no self-verification pointer");
 });

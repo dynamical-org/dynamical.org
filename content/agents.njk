@@ -7,7 +7,7 @@ permalink: /agents/
 hideLatestPopup: true
 ---
 
-{% from "agent-prompt.njk" import agentPrompt %}
+{% from "agent-prompt.njk" import agentPrompt, agentSetupPill %}
 
 <div class="content">
   <h1>Use with an AI agent</h1>
@@ -22,13 +22,17 @@ hideLatestPopup: true
     reading the catalog.
   </p>
 
+  <h2 id="setup">Set up a coding agent</h2>
+  <p class="dim">One line. The agent fetches <a href="/agent-setup/prompt.md">agent-setup/prompt.md</a>, installs the Python path, verifies it with one read, and asks what you want to build.</p>
+  {{ agentSetupPill(agentPrompts.SETUP_LINE, "Onboard your agent to dynamical.org") }}
+
   {% for prompt in agentPrompts.PROMPTS %}
     <h2 id="{{ prompt.id }}">{{ prompt.title }}</h2>
     <p class="dim">{{ prompt.audience }}</p>
     {{ agentPrompt(prompt.text, "Prompt: " + prompt.title, prompt.id) }}
   {% endfor %}
 
-  <h2 id="setup">Setup for coding agents</h2>
+  <h2 id="mcp-setup">Connect the MCP server</h2>
   {% for prompt in agentPrompts.SETUP %}
     <p class="dim">{{ prompt.audience }}</p>
     {{ agentPrompt(prompt.text, "Prompt: " + prompt.title, prompt.id) }}
@@ -42,6 +46,7 @@ hideLatestPopup: true
   <ul>
     <li><a href="https://stac.dynamical.org/catalog.json">stac.dynamical.org/catalog.json</a> — every dataset's variables, dimensions, extent, license, and the Icechunk asset to open.</li>
     <li><a href="/llms.txt">dynamical.org/llms.txt</a> — the conventions, the two ways to open a dataset, and a one-line index of the datasets.</li>
+    <li><a href="/agent-setup/prompt.md">dynamical.org/agent-setup/prompt.md</a> — the setup instructions behind the pill: read, install, verify, hand off.</li>
     <li><a href="https://mcp.dynamical.org/mcp">mcp.dynamical.org/mcp</a> — the same catalog as MCP tools, for agents that can add them.</li>
     <li><a href="/api/">The point API</a> — forecast and analysis time series as JSON, no data libraries needed.</li>
   </ul>

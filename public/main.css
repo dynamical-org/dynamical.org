@@ -908,6 +908,40 @@ a.work-item:hover h3 { text-decoration: underline; }
   margin-left: 1rem;
   color: var(--muted-text);
 }
+/* The setup pill: the same control, but the button is the thing you see and
+   the one-line prompt sits under it in small type. Outlined in the link color
+   so it reads as an action, rounded so it reads as a chip rather than a form. */
+.agent-setup-pill button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  max-width: 100%;
+  margin-top: 0;
+  padding: 0.6rem 1.4rem;
+  border: 1.5px solid var(--link-color);
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 1.4rem;
+  white-space: nowrap;
+}
+.agent-setup-pill button:hover,
+.agent-setup-pill button:focus-visible {
+  background: var(--surface-muted);
+}
+.agent-setup-pill button span {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+/* The line itself reads as a caption under the pill: still a field, so it
+   selects and copies without JavaScript, but no box competing with the pill. */
+.agent-setup-pill textarea {
+  margin-top: 0.6rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 1.2rem;
+  color: var(--muted-text);
+}
 
 #newsletter {
   margin-top: 4rem;

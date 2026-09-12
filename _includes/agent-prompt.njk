@@ -7,14 +7,31 @@
   are keyed by URL. Styles: .agent-prompt in main.css. Prompt texts:
   lib/agent-prompts.js.
 
-  {% from "agent-prompt.njk" import agentPrompt %}
+  {% from "agent-prompt.njk" import agentPrompt, agentSetupPill %}
   {{ agentPrompt(text, "Prompt for …", id, rows) }}
+
+  The pill is the same control in the shape developers.cloudflare.com uses for
+  its "onboard your agent" prompt: one line the reader hands to a coding agent,
+  which then fetches /agent-setup/prompt.md and follows it. The line stays
+  visible under the pill so it can be selected and copied without JavaScript.
+
+  {{ agentSetupPill(text, "Onboard your agent to dynamical.org") }}
 #}
 {% macro agentPrompt(text, label, id, rows) %}
 <div class="agent-prompt"{% if id %} data-prompt="{{ id }}"{% endif %}>
   <textarea readonly rows="{{ rows or 6 }}" aria-label="{{ label }}">{{ text }}</textarea>
   <button type="button">copy to clipboard</button>
   <span role="status"></span>
+</div>
+<script type="module" src="/agent-prompt.mjs?v={{ "public/agent-prompt.mjs" | fileHash }}"></script>
+{% endmacro %}
+
+{% macro agentSetupPill(text, label) %}
+{%- from "tag-icon.njk" import tagIcon -%}
+<div class="agent-prompt agent-setup-pill" data-prompt="agent-setup">
+  <button type="button" title="Copies a one-line prompt for your coding agent">{{ label }}<span aria-hidden="true">{{ tagIcon("sparkles") }}{{ tagIcon("terminal") }}{{ tagIcon("box") }}{{ tagIcon("square-terminal") }}</span></button>
+  <span role="status"></span>
+  <textarea readonly rows="1" aria-label="{{ label }}: the prompt">{{ text }}</textarea>
 </div>
 <script type="module" src="/agent-prompt.mjs?v={{ "public/agent-prompt.mjs" | fileHash }}"></script>
 {% endmacro %}
