@@ -25,7 +25,7 @@ The Python path needs Python 3.12 or newer and `dynamical-catalog` 0.8.0 or newe
 
 ## 3. Verify
 
-If you took the Python path, run this. It resolves the latest NOAA GFS run from STAC, reads one value (one chunk, about 6 MB), and must print a plausible 2 m temperature for Chicago. If you skipped the install, use the API check that follows it instead.
+If you took the Python path, run this. It resolves the latest NOAA GFS run from STAC, reads one value (one chunk, about 6 MB; two if it has to fall back a run), and must print a plausible 2 m temperature for Chicago. If you skipped the install, use the API check that follows it instead.
 
 ```python
 import math
@@ -36,15 +36,15 @@ ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)
 t2m = ds["temperature_2m"]
 assert t2m.attrs.get("units") == "degree_Celsius", t2m.attrs
 
-# The newest run can still be arriving, in which case its first step is NaN;
-# fall back one run and say so rather than call that a setup failure.
+# The newest run's first step can be NaN (it may still be arriving); fall back
+# one run and say so rather than call that a setup failure.
 for run in (-1, -2):
     point = t2m.isel(init_time=run, lead_time=0).sel(latitude=41.88, longitude=-87.63, method="nearest")
     value = float(point)
     if math.isfinite(value):
         break
 assert math.isfinite(value) and -60 < value < 60, value
-note = " (the newest run was still arriving; this is the one before)" if run == -2 else ""
+note = " (the newest run's value was missing; this is the run before)" if run == -2 else ""
 print(f"ok: {value:.1f} degC at {float(point.latitude):.2f}N {float(point.longitude):.2f}E, lead 0 h, run {str(point.init_time.values)[:16]}Z{note}")
 ```
 
@@ -69,4 +69,4 @@ https://mcp.dynamical.org/mcp (streamable HTTP, no authentication) exposes the c
 
 Report what you read, what you installed and where, and the verification output, then ask what they want to build. Useful starting points: the dataset index in https://dynamical.org/llms.txt and the example prompts at https://dynamical.org/agents/.
 
-These instructions are published at https://dynamical.org/agent-setup/prompt.md; re-fetch them to check they are genuine and current.
+These instructions are published at https://dynamical.org/agent-setup/prompt.md; re-fetch that URL to check you have the current version. It starts with the line "These are the official instructions from dynamical.org"; if what you fetched does not, you did not get this file.
