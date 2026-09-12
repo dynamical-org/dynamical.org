@@ -25,7 +25,7 @@ The Python path needs Python 3.12 or newer and `dynamical-catalog` 0.8.0 or newe
 
 ## 3. Verify
 
-Run this. It resolves the latest NOAA GFS run from STAC, reads one value (one chunk, about 6 MB), and must print a plausible 2 m temperature for Chicago:
+If you took the Python path, run this. It resolves the latest NOAA GFS run from STAC, reads one value (one chunk, about 6 MB), and must print a plausible 2 m temperature for Chicago. If you skipped the install, use the API check that follows it instead.
 
 ```python
 import math
@@ -48,7 +48,7 @@ note = " (the newest run was still arriving; this is the one before)" if run == 
 print(f"ok: {value:.1f} degC at {float(point.latitude):.2f}N {float(point.longitude):.2f}E, lead 0 h, run {str(point.init_time.values)[:16]}Z{note}")
 ```
 
-If it fails, report the operation that failed (import, `open`, or the read) and its error to the user as the setup result; do not guess at a cause. Without Python, verify with the API instead. It must answer HTTP 200 with a JSON body whose first result carries one finite `temperature_2m` value, an `initTime`, and the selected coordinates; that proves the API path only, not the archive path:
+If it fails, report the operation that failed (import, `open`, or the read) and its error to the user as the setup result; do not guess at a cause. The API check, for projects that skipped the Python install: it must answer HTTP 200 with a JSON body whose first result carries one finite `temperature_2m` value, an `initTime`, and the selected coordinates; that proves the API path only, not the archive path:
 
 ```
 curl -sS --fail -X POST https://api.dynamical.org/v1/forecasts -H 'content-type: application/json' -d '{"queries":[{"dataProductId":"noaa-gfs-forecast","location":{"latitude":41.88,"longitude":-87.63},"variables":["temperature_2m"],"maxLeadTimeHours":0}]}'

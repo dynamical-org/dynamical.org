@@ -76,3 +76,18 @@ test("the home-page pill copies the one-line setup prompt", async ({ page }) => 
   expect(copied).toBe(await pill.locator("textarea").inputValue());
   expect(copied).toMatch(/^Fetch and follow .* https:\/\/dynamical\.org\/agent-setup\/prompt\.md$/);
 });
+
+for (const path of ["/", "/agents/"]) {
+  test(`the pill fits a phone on ${path}`, async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(path);
+    const pill = page.locator(".agent-setup-pill button").first();
+    const [button, icons, doc] = await Promise.all([
+      pill.boundingBox(),
+      pill.locator("span").boundingBox(),
+      page.evaluate(() => document.documentElement.scrollWidth),
+    ]);
+    expect(doc).toBeLessThanOrEqual(375);
+    expect(icons.x + icons.width).toBeLessThanOrEqual(button.x + button.width);
+  });
+}

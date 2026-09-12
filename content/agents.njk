@@ -24,7 +24,7 @@ hideLatestPopup: true
 
   <h2 id="setup">Set up a coding agent</h2>
   <p class="dim">One line. The agent fetches <a href="/agent-setup/prompt.md">agent-setup/prompt.md</a>, installs the Python path, verifies it with one read, and asks what you want to build.</p>
-  {{ agentSetupPill(agentPrompts.SETUP_LINE, "Onboard your agent to dynamical.org") }}
+  {{ agentSetupPill(agentPrompts.SETUP_LINE, "Onboard your agent") }}
 
   {% for prompt in agentPrompts.PROMPTS %}
     <h2 id="{{ prompt.id }}">{{ prompt.title }}</h2>
