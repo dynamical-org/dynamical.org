@@ -24,7 +24,9 @@ catches the data those charts read drifting out from under them. `pipeline.spec.
 instead stubs every request from `test/fixtures/pipeline-dashboard.json`, so it is
 offline and finishes in seconds — it exists because `/status/pipeline/` is laid out by
 measurement (lead rows sized by group and init columns sized by their label), and `npm
-test` has no layout engine to catch that class of bug.
+test` has no layout engine to catch that class of bug. `agent-prompt.spec.mjs` is likewise
+offline and drives the copy control on `/agents/`, whose bugs were clipboard and timer
+behavior that `npm test` cannot see.
 Keep both out of `npm test`, which stays offline and instant.
 
 ## Architecture
