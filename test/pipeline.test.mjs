@@ -17,6 +17,7 @@ import {
   facetsAt,
   gutterPx,
   alignedChartScales,
+  pinnedText,
   runChartKey,
   runChartScales,
   runChartSeries,
@@ -2048,9 +2049,9 @@ test("run chart scales: a spread of seconds does not fill the plot, and weeks do
 });
 
 // A feed that has stalled, or an init that is stuck, leaves a run in flight for
-// days. It is drawn at its own time, the axis stretching to hold it, with no
-// mark of its own; the floor stays by the landed runs, so none reads as zero.
-test("run chart scales: a run in flight for weeks is drawn at its time so far", () => {
+// days. It is parked at the top edge with its time written beside it, so the
+// landed runs keep the plot; a run merely late is drawn at its own time.
+test("run chart scales: a run in flight for weeks is parked at the top, a late one drawn at its time", () => {
   const now = Date.parse("2026-08-14T12:00:00Z");
   const product = chartProduct({
     recent_inits: [
@@ -2063,24 +2064,24 @@ test("run chart scales: a run in flight for weeks is drawn at its time so far", 
   const scale = runChartScales(series, 600, 6);
   const [onTime, delayed, running] = series.runs;
   assert.equal(running.seconds, 20.5 * 86400);
-  // the stale run is the highest point, inside the plot rather than at its edge
-  assert.ok(scale.y(running.seconds) > scale.top);
-  assert.ok(scale.y(running.seconds) < scale.y(delayed.seconds));
-  // the landed runs keep their order about the line, above a floor that is not zero
+  // the stale run is parked at the top edge, and says its time in words
+  assert.ok(scale.pinned(running.seconds));
+  assert.equal(scale.y(running.seconds), scale.top);
+  assert.equal(pinnedText(running.seconds), "20d so far ↑");
+  assert.equal(pinnedText(30000), "8h 20m so far ↑");
+  // the landed runs keep the plot, either side of the line and off the floor
   const line = scale.y(series.threshold);
-  assert.ok(scale.y(onTime.seconds) > line, "on-time run below the line");
-  assert.ok(scale.y(delayed.seconds) < line, "delayed run above the line");
-  assert.ok(!scale.yTicks.includes(0), "no zero tick for the landed runs to read against");
-  for (const run of series.runs) {
-    assert.ok(scale.y(run.seconds) >= scale.top && scale.y(run.seconds) <= scale.bottom);
-  }
-  // a stretched axis reads in days, not hundreds of hours
-  assert.ok(scale.yTicks.some((tick) => tick >= 172800));
+  assert.ok(scale.y(onTime.seconds) - line > 20, "on-time run well below the line");
+  assert.ok(line - scale.y(delayed.seconds) > 2, "delayed run above the line");
+  assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
+  assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
   // a run merely late, twice the slowest landed one, costs the landed runs
   // little: they keep clear room either side of the line
   const late = runChartSeries(product, Date.parse("2026-07-25T04:10:00Z"));
   assert.equal(late.runs[2].seconds, 15000);
   const lateScale = runChartScales(late, 600, 6);
+  assert.ok(!lateScale.pinned(15000));
+  assert.ok(lateScale.y(15000) > lateScale.top);
   const lateLine = lateScale.y(late.threshold);
   assert.ok(lateScale.y(3500) - lateLine > 20, "on-time run well below the line");
   assert.ok(lateLine - lateScale.y(7500) > 2, "delayed run above the line");
@@ -2119,6 +2120,7 @@ test("aligned chart scales: the row chart's domain at the plot's own height", ()
   const across = runChartScales(series, 600, 6);
   const aligned = alignedChartScales(series);
   assert.deepEqual(aligned.yTicks, across.yTicks);
+  assert.equal(aligned.pinned(1e6), across.pinned(1e6));
   assert.equal(aligned.empty, false);
   for (const run of series.runs) {
     assert.ok(aligned.y(run.seconds) >= aligned.top && aligned.y(run.seconds) <= aligned.bottom);

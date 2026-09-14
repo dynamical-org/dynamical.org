@@ -1131,38 +1131,52 @@ test("a product without a delayed threshold draws its runs and no line", async (
 
 // The committed fixture's running init is weeks old by now, which is what a
 // stalled feed looks like — and what the preview build reads from staging.
-// Every run is drawn at its own time: the stale run is drawn at its weeks so
-// far and the axis stretches to hold it, with no mark of its own, while the
-// landed runs sit beneath it without reading as zero.
-test("a run in flight for weeks is drawn at its time so far", async ({ page }) => {
+// A run that far past the landed ones is parked at the top edge with its time
+// written beside it in words, so the landed runs keep the plot.
+test("a run in flight for weeks is parked at the top with its time written", async ({ page }) => {
   const row = await openPipeline(page);
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
   const geometry = await chart.evaluate((node) => {
     const cy = (circle) => +circle.getAttribute("cy");
-    const elapsed = node.querySelector("circle[data-elapsed]");
+    const parked = node.querySelector("circle[data-pinned]");
+    const svg = node.querySelector("svg").getBoundingClientRect();
+    const label = node.querySelector("svg text[data-pinned]");
     return {
-      elapsed: elapsed && {
-        cy: cy(elapsed),
-        title: elapsed.querySelector("title").textContent,
-        dash: getComputedStyle(elapsed).strokeDasharray,
+      parked: parked && {
+        cy: cy(parked),
+        dash: getComputedStyle(parked).strokeDasharray,
       },
-      top: Math.min(
-        ...[...node.querySelectorAll('[data-axis="y"] line')].map((line) => +line.getAttribute("y1")),
-      ),
-      landed: [...node.querySelectorAll("circle:not([data-elapsed])")].map(cy),
+      label: label && {
+        text: label.textContent,
+        right: label.getBoundingClientRect().right,
+      },
+      svgRight: svg.right,
+      lineY: +node.querySelector('[data-threshold="run"] line').getAttribute("y1"),
+      delayed: [...node.querySelectorAll('circle[data-timing="delayed"]:not([data-elapsed])')].map(cy),
+      onTime: [...node.querySelectorAll('circle[data-timing="on_time"]')].map(cy),
+      baselineY: +node.querySelector('line[data-axis="x"]').getAttribute("y1"),
       ticks: [...node.querySelectorAll('[data-axis="y"] text')].map((t) => t.textContent),
     };
   });
-  expect(geometry.elapsed).not.toBeNull();
-  expect(geometry.elapsed.title).toMatch(/elapsed/);
-  expect(geometry.elapsed.title).not.toContain("off the chart");
-  expect(geometry.elapsed.dash).toBe("none");
-  // the stale run is the highest point; every landed run is drawn beneath it
-  for (const y of geometry.landed) expect(y).toBeGreaterThan(geometry.elapsed.cy);
-  // the floor stays near the landed runs, so none reads as zero
+  expect(geometry.parked).not.toBeNull();
+  // a hollow ring like any run still arriving, no dash; its words say the rest
+  expect(geometry.parked.dash).toBe("none");
+  expect(geometry.label.text).toMatch(/^\d+d so far ↑$/);
+  expect(geometry.label.right).toBeLessThanOrEqual(geometry.svgRight + 0.5);
+  // the landed runs still spread beneath it, either side of the line and
+  // well off the floor, on an axis at their own scale
+  for (const y of [...geometry.delayed, ...geometry.onTime]) {
+    expect(y).toBeGreaterThan(geometry.parked.cy);
+  }
+  expect(geometry.delayed[0]).toBeLessThan(geometry.lineY);
+  for (const y of geometry.onTime) {
+    expect(y).toBeGreaterThan(geometry.lineY);
+    expect(geometry.baselineY - y).toBeGreaterThan(10);
+  }
   expect(geometry.ticks).not.toContain("0s");
-  // and the key has no entry for a mark that no longer exists
+  expect(geometry.ticks.some((tick) => /d$/.test(tick))).toBe(false);
+  // and the key names no special mark: the label is its own explanation
   await expect(chart.locator("li")).not.toContainText(["dashed"]);
 });
 
