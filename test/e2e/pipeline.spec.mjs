@@ -1110,7 +1110,7 @@ test("a product without a delayed threshold draws its runs and no line", async (
   // no verdicts, so no color: every run is ink rather than a grey that reads
   // as a third kind of run, and the key says why there is no line
   await expect(chart.locator("li")).toHaveText([
-    "no delayed threshold yet: 24 of 30 days of history",
+    "no delayed threshold yet: 24 of 30 days with a completed run",
   ]);
   const fills = () =>
     chart.evaluate((node) => [

@@ -1439,7 +1439,8 @@ export function runChartKey(product, runs) {
   ) {
     key.push({
       mark: null,
-      text: `no delayed threshold yet: ${baseline.history_days} of ${baseline.required_history_days} days of history`,
+      // the gate counts distinct UTC days with a completed run, not calendar age
+      text: `no delayed threshold yet: ${baseline.history_days} of ${baseline.required_history_days} days with a completed run`,
     });
   }
   return key;

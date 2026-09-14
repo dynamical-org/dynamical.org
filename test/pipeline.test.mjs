@@ -1922,7 +1922,7 @@ test("run chart key: names only the marks drawn", () => {
     [
       { mark: "complete", text: "complete" },
       { mark: "elapsed", text: "not yet complete: time so far" },
-      { mark: null, text: "no delayed threshold yet: 7 of 30 days of history" },
+      { mark: null, text: "no delayed threshold yet: 7 of 30 days with a completed run" },
     ],
   );
 });
