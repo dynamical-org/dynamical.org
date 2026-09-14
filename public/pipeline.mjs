@@ -1238,6 +1238,9 @@ export function timingBaselineNote(product) {
 
 const CHART_HEIGHT_PX = 160;
 const CHART_MARK_R = 3.5;
+// a delayed run is larger as well as amber, so the one verdict the chart
+// colors does not rest on color alone
+const CHART_DELAYED_MARK_R = 5;
 // room for the widest tick label ("12h 30m") in the chart's own 10px monospace,
 // and for the threshold label to clear the right edge
 const CHART_MARGIN = { top: 16, right: 8, bottom: 30, left: 50 };
@@ -1408,6 +1411,47 @@ function runTitle(run, local, pinned = false) {
     .join(" · ");
 }
 
+function markRadius(run) {
+  return run.timing === "delayed" ? CHART_DELAYED_MARK_R : CHART_MARK_R;
+}
+
+/* The key names the marks the chart draws, and only those: complete and not
+   yet complete when both are shown, delayed when a run was judged so. A
+   product short of history has no verdicts to draw, and the key says why
+   rather than leaving the reader to wonder at a chart with no amber and no
+   line. */
+
+export function runChartKey(product, runs) {
+  const key = [];
+  const arriving = runs.some((run) => run.elapsed);
+  if (arriving && runs.some((run) => !run.elapsed)) {
+    key.push({ mark: "complete", text: "complete" });
+  }
+  if (arriving) key.push({ mark: "elapsed", text: "not yet complete: time so far" });
+  if (runs.some((run) => run.timing === "delayed")) {
+    key.push({ mark: "delayed", text: "delayed" });
+  }
+  const baseline = product.timing_baseline;
+  if (
+    baseline?.status === "insufficient_history" &&
+    Number.isInteger(baseline.history_days) &&
+    Number.isInteger(baseline.required_history_days)
+  ) {
+    key.push({
+      mark: null,
+      text: `no delayed threshold yet: ${baseline.history_days} of ${baseline.required_history_days} days of history`,
+    });
+  }
+  return key;
+}
+
+function RunKey({ items }) {
+  if (!items.length) return null;
+  return html`<ul>
+    ${items.map((item) => html`<li key=${item.text} data-mark=${item.mark}>${item.text}</li>`)}
+  </ul>`;
+}
+
 /* The chart across the row. Its width is measured, as the field's is: the
    details span the whole row, and an SVG scaled through a viewBox would scale
    its text too. */
@@ -1491,13 +1535,20 @@ function RunChart({ product, now, local }) {
           data-pinned=${pinned ? "" : null}
           cx=${scale.x(run.ms)}
           cy=${scale.y(run.seconds)}
-          r=${CHART_MARK_R}
+          r=${markRadius(run)}
         ><title>${runTitle(run, local, pinned)}</title></circle>`;
       })}
     </svg>`;
   }
 
-  return html`<figure class="pipeline-runs" ref=${box}>${chart}</figure>`;
+  return html`<figure
+    class="pipeline-runs"
+    ref=${box}
+    style=${`--plot-left:${CHART_MARGIN.left}px`}
+  >
+    ${chart}
+    ${chart ? html`<${RunKey} items=${runChartKey(product, series.runs)} />` : null}
+  </figure>`;
 }
 
 /* The aligned plot's own height and margins: room above for its title; the
@@ -1621,11 +1672,12 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
       shown.some(({ index, run }) => {
         const cx = columns.x(index);
         const cy = scale.y(run.seconds);
+        const r = markRadius(run);
         return (
-          cx - CHART_MARK_R < box.right + 0.3 * em &&
-          cx + CHART_MARK_R > box.left &&
-          cy + CHART_MARK_R > box.top &&
-          cy - CHART_MARK_R < box.bottom
+          cx - r < box.right + 0.3 * em &&
+          cx + r > box.left &&
+          cy + r > box.top &&
+          cy - r < box.bottom
         );
       });
     return covered ? null : label;
@@ -1673,7 +1725,7 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
             data-pinned=${pinned ? "" : null}
             cx=${columns.x(index)}
             cy=${scale.y(run.seconds)}
-            r=${CHART_MARK_R}
+            r=${markRadius(run)}
           ><title>${runTitle(run, local, pinned)}</title></circle>`;
         })}
       </svg>
@@ -1704,10 +1756,11 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
   const inside =
     columns.width + CHART_LABEL_GAP_PX + widestLabel * 0.6 * em >
     fieldWidth - gutter - RUN_GAP_PX;
+  // the key starts where the plot does: past the gutter and the band's gap
   return html`<figure
     class="pipeline-runs"
     data-aligned=""
-    style=${`--run-width:${runWidth}px;--clumped-run-gap:${RUN_GAP_PX}px;--band-gutter:${gutter}px;--label-h:${LABEL_PX}px`}
+    style=${`--run-width:${runWidth}px;--clumped-run-gap:${RUN_GAP_PX}px;--band-gutter:${gutter}px;--label-h:${LABEL_PX}px;--plot-left:calc(${gutter}px + 0.6rem)`}
   >
     <${AlignedPlot}
       runs=${runs}
@@ -1719,6 +1772,7 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
       em=${em}
       local=${local}
     />
+    <${RunKey} items=${runChartKey(product, series.runs)} />
   </figure>`;
 }
 

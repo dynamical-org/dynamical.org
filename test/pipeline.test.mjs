@@ -17,6 +17,7 @@ import {
   facetsAt,
   gutterPx,
   alignedChartScales,
+  runChartKey,
   runChartScales,
   runChartSeries,
   runColumns,
@@ -1873,6 +1874,72 @@ test("run chart threshold: none without history, none when the feed omits it", (
   const series = runChartSeries(chartProduct({ latency_stats: {} }), Date.parse("2026-07-25T14:30:00Z"));
   assert.equal(series.threshold, null);
   assert.equal(series.runs.length, 3);
+});
+
+test("run chart key: names only the marks drawn", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const key = (product) =>
+    runChartKey(product, runChartSeries(product, now).runs).map(({ mark, text }) => ({ mark, text }));
+  // a landed on-time run, a landed delayed run, and a delayed run in flight
+  assert.deepEqual(key(chartProduct()), [
+    { mark: "complete", text: "complete" },
+    { mark: "elapsed", text: "not yet complete: time so far" },
+    { mark: "delayed", text: "delayed" },
+  ]);
+  // every run landed and none late: the points need no key
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+          { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "on_time", latency_s: 3600 },
+        ],
+      }),
+    ),
+    [],
+  );
+  // a run too early to judge on a product with a baseline is only "not yet
+  // complete"; its missing verdict is not a kind of run
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [{ init_time: "2026-07-25T12:00:00Z", status: "pending", timing: null }],
+      }),
+    ),
+    [{ mark: "elapsed", text: "not yet complete: time so far" }],
+  );
+  // a product short of history says why it has no verdicts and no line
+  assert.deepEqual(
+    key(
+      chartProduct({
+        timing_baseline: { status: "insufficient_history", history_days: 7, required_history_days: 30 },
+        recent_inits: [
+          { init_time: "2026-07-25T06:00:00Z", status: "complete", timing: null, latency_s: 5200 },
+          { init_time: "2026-07-25T12:00:00Z", status: "in_flight", timing: null },
+        ],
+      }),
+    ),
+    [
+      { mark: "complete", text: "complete" },
+      { mark: "elapsed", text: "not yet complete: time so far" },
+      { mark: null, text: "no delayed threshold yet: 7 of 30 days of history" },
+    ],
+  );
+});
+
+test("run chart marks: one color means delayed; every other run is ink", () => {
+  const css = readFileSync(new URL("../public/pipeline.css", import.meta.url), "utf8");
+  assert.match(
+    css,
+    /\.pipeline-runs circle\s*{\s*fill: var\(--text-color\);\s*stroke: var\(--text-color\);\s*}/,
+  );
+  assert.match(
+    css,
+    /\.pipeline-runs \[data-timing="delayed"\]\s*{\s*fill: var\(--pipeline-progress\);\s*stroke: var\(--pipeline-progress\);\s*}/,
+  );
+  // no verdict is not a third color, and on time is not a second one
+  assert.doesNotMatch(css, /\.pipeline-runs \[data-timing="on_time"\]/);
+  assert.doesNotMatch(css, /\.pipeline-runs circle\s*{[^}]*--muted-text/);
 });
 
 test("run chart scales: every value inside the plot, the late run above the line", () => {

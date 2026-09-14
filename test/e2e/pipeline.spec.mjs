@@ -1040,6 +1040,15 @@ test("details open on a run chart with the delayed threshold drawn", async ({
       landedFill: getComputedStyle(
         node.querySelector('circle[data-timing="delayed"]:not([data-elapsed])'),
       ).fill,
+      onTimeFill: getComputedStyle(node.querySelector('circle[data-timing="on_time"]')).fill,
+      radii: {
+        onTime: +node.querySelector('circle[data-timing="on_time"]').getAttribute("r"),
+        delayed: +node.querySelector('circle[data-timing="delayed"]').getAttribute("r"),
+      },
+      keyMarks: [...node.querySelectorAll("li")].map((li) => {
+        const mark = getComputedStyle(li, "::before");
+        return { text: li.textContent, fill: mark.backgroundColor, ring: mark.borderTopColor };
+      }),
       lineColor: getComputedStyle(node.querySelector('[data-threshold="run"] line')).stroke,
       fits: svg.width <= node.getBoundingClientRect().width + 0.5,
       pageFits:
@@ -1060,6 +1069,16 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   ]);
   expect(geometry.landedFill).toBe("rgb(244, 185, 66)");
   expect(geometry.lineColor).toBe("rgb(244, 185, 66)");
+  // amber is the chart's one color; an on-time run is ink, and a delayed one
+  // is larger as well, so the verdict does not rest on color alone
+  expect(geometry.onTimeFill).toBe("rgb(17, 17, 17)");
+  expect(geometry.radii.delayed).toBeGreaterThan(geometry.radii.onTime);
+  // the key names the three marks drawn, each glyph drawn as its mark is
+  expect(geometry.keyMarks).toEqual([
+    { text: "complete", fill: "rgb(17, 17, 17)", ring: "rgb(17, 17, 17)" },
+    { text: "not yet complete: time so far", fill: "rgba(0, 0, 0, 0)", ring: "rgb(17, 17, 17)" },
+    { text: "delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
+  ]);
   expect(geometry.fits).toBe(true);
   expect(geometry.pageFits).toBe(true);
 
@@ -1088,6 +1107,18 @@ test("a product without a delayed threshold draws its runs and no line", async (
       ".pipeline-row-details .table-container:first-of-type tbody td:last-child",
     ),
   ).toHaveText(["—"]);
+  // no verdicts, so no color: every run is ink rather than a grey that reads
+  // as a third kind of run, and the key says why there is no line
+  await expect(chart.locator("li")).toHaveText([
+    "no delayed threshold yet: 24 of 30 days of history",
+  ]);
+  const fills = () =>
+    chart.evaluate((node) => [
+      ...new Set([...node.querySelectorAll("circle")].map((c) => getComputedStyle(c).fill)),
+    ]);
+  expect(await fills()).toEqual(["rgb(17, 17, 17)"]);
+  await page.emulateMedia({ colorScheme: "dark" });
+  expect(await fills()).toEqual(["rgb(232, 232, 234)"]);
 });
 
 // The committed fixture's running init is weeks old by now, which is what a
