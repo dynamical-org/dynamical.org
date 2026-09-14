@@ -23,10 +23,10 @@ test("cross-links the SLA and its terms", () => {
 
 test("keeps commercial SLA services separate from catalog data licenses", () => {
   assert.match(TERMS, /Dynamical Technology PBC/);
-  assert.match(TERMS, /does not purchase data products or data licenses/i);
+  assert.match(TERMS, /does not narrow or expand the rights granted by those\s+licenses/i);
   assert.match(TERMS, /license listed on (?:its|each) catalog\s+page/i);
   assert.match(TERMS, /commercial SLA services/i);
-  assert.doesNotMatch(TERMS, /\bOrder\b/);
+  assert.match(TERMS, /"Order" means a statement of work, invoice, or purchase order accepted by\s+both parties/i);
 });
 
 test("keeps ordinary SLA target misses within the SLA remedies", () => {
