@@ -1878,8 +1878,8 @@ test("run chart threshold: none without history, none when the feed omits it", (
 
 test("run chart key: names only the marks drawn", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
-  const key = (product, pinned) =>
-    runChartKey(product, runChartSeries(product, now).runs, pinned).map(({ mark, text }) => ({
+  const key = (product) =>
+    runChartKey(product, runChartSeries(product, now).runs).map(({ mark, text }) => ({
       mark,
       text,
     }));
@@ -1888,8 +1888,8 @@ test("run chart key: names only the marks drawn", () => {
   assert.deepEqual(key(chartProduct()), [
     { mark: "complete", text: "complete" },
     { mark: "elapsed", text: "not yet complete: time so far" },
-    { mark: "delayed", text: "delayed" },
-    { mark: "delayed-elapsed", text: "delayed, not yet complete" },
+    { mark: "delayed", text: "judged delayed" },
+    { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
   ]);
   // the only delayed run still arriving: no filled amber mark to name
   assert.deepEqual(
@@ -1904,13 +1904,8 @@ test("run chart key: names only the marks drawn", () => {
     [
       { mark: "complete", text: "complete" },
       { mark: "elapsed", text: "not yet complete: time so far" },
-      { mark: "delayed-elapsed", text: "delayed, not yet complete" },
+      { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
     ],
-  );
-  // a run pinned above the chart is named, and only when one is
-  assert.deepEqual(
-    key(chartProduct(), (run) => run.elapsed).map(({ mark }) => mark),
-    ["complete", "elapsed", "pinned", "delayed", "delayed-elapsed"],
   );
   // every run landed and none late: the points need no key
   assert.deepEqual(
@@ -1953,17 +1948,10 @@ test("run chart key: names only the marks drawn", () => {
   );
 });
 
-test("run chart marks: one color means delayed; every other run is ink", () => {
+// the computed colors are the e2e spec's to check; this only keeps a second
+// or third mark color from coming back
+test("run chart marks: no color for on time, none for no verdict", () => {
   const css = readFileSync(new URL("../public/pipeline.css", import.meta.url), "utf8");
-  assert.match(
-    css,
-    /\.pipeline-runs circle\s*{\s*fill: var\(--text-color\);\s*stroke: var\(--text-color\);\s*}/,
-  );
-  assert.match(
-    css,
-    /\.pipeline-runs \[data-timing="delayed"\]\s*{\s*fill: var\(--pipeline-progress\);\s*stroke: var\(--pipeline-progress\);\s*}/,
-  );
-  // no verdict is not a third color, and on time is not a second one
   assert.doesNotMatch(css, /\.pipeline-runs \[data-timing="on_time"\]/);
   assert.doesNotMatch(css, /\.pipeline-runs circle\s*{[^}]*--muted-text/);
 });
@@ -2060,8 +2048,9 @@ test("run chart scales: a spread of seconds does not fill the plot, and weeks do
 });
 
 // A feed that has stalled, or an init that is stuck, leaves a run in flight for
-// days; the landed runs must not be flattened onto the baseline for it.
-test("run chart scales: a run in flight for weeks is pinned to the top, not given the axis", () => {
+// days. It is drawn at its own time, the axis stretching to hold it, with no
+// mark of its own; the floor stays by the landed runs, so none reads as zero.
+test("run chart scales: a run in flight for weeks is drawn at its time so far", () => {
   const now = Date.parse("2026-08-14T12:00:00Z");
   const product = chartProduct({
     recent_inits: [
@@ -2074,20 +2063,17 @@ test("run chart scales: a run in flight for weeks is pinned to the top, not give
   const scale = runChartScales(series, 600, 6);
   const [onTime, delayed, running] = series.runs;
   assert.equal(running.seconds, 20.5 * 86400);
-  assert.ok(scale.pinned(running.seconds));
-  assert.equal(scale.y(running.seconds), scale.top);
-  // the landed runs still spread over the plot, either side of the line
+  // the stale run is the highest point, inside the plot rather than at its edge
+  assert.ok(scale.y(running.seconds) > scale.top);
+  assert.ok(scale.y(running.seconds) < scale.y(delayed.seconds));
+  // the landed runs keep their order about the line, above a floor that is not zero
   const line = scale.y(series.threshold);
-  assert.ok(scale.y(onTime.seconds) - line > 20, "on-time run well below the line");
-  assert.ok(line - scale.y(delayed.seconds) > 2, "delayed run above the line");
-  assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
-  assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
-  // a run within reach of the landed ones still joins the axis
-  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")), 600, 6);
-  const nearRun = runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")).runs[2];
-  assert.equal(nearRun.seconds, 9000);
-  assert.ok(!near.pinned(9000));
-  assert.ok(near.y(9000) > near.top);
+  assert.ok(scale.y(onTime.seconds) > line, "on-time run below the line");
+  assert.ok(scale.y(delayed.seconds) < line, "delayed run above the line");
+  assert.ok(!scale.yTicks.includes(0), "no zero tick for the landed runs to read against");
+  for (const run of series.runs) {
+    assert.ok(scale.y(run.seconds) >= scale.top && scale.y(run.seconds) <= scale.bottom);
+  }
   // with nothing landed, the elapsed times take the axis themselves
   const only = runChartSeries(
     chartProduct({
@@ -2096,7 +2082,9 @@ test("run chart scales: a run in flight for weeks is pinned to the top, not give
     }),
     now,
   );
-  assert.ok(!runChartScales(only, 600, 6).pinned(only.runs[0].seconds));
+  const alone = runChartScales(only, 600, 6);
+  assert.ok(alone.y(only.runs[0].seconds) > alone.top);
+  assert.ok(alone.y(only.runs[0].seconds) < alone.bottom);
 });
 
 test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {
@@ -2121,7 +2109,6 @@ test("aligned chart scales: the row chart's domain at the plot's own height", ()
   const across = runChartScales(series, 600, 6);
   const aligned = alignedChartScales(series);
   assert.deepEqual(aligned.yTicks, across.yTicks);
-  assert.equal(aligned.pinned(1e6), across.pinned(1e6));
   assert.equal(aligned.empty, false);
   for (const run of series.runs) {
     assert.ok(aligned.y(run.seconds) >= aligned.top && aligned.y(run.seconds) <= aligned.bottom);

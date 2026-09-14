@@ -1068,7 +1068,9 @@ test("details open on a run chart with the delayed threshold drawn", async ({
     { status: "in_flight", timing: "delayed", hollow: "rgb(255, 255, 255)" },
   ]);
   expect(geometry.landedFill).toBe("rgb(244, 185, 66)");
-  expect(geometry.lineColor).toBe("rgb(244, 185, 66)");
+  // the line is a reference, not a verdict: muted, so amber on the chart is
+  // only ever a run judged delayed
+  expect(geometry.lineColor).toBe("rgb(102, 102, 102)");
   // amber is the chart's one color; an on-time run is ink, and a delayed one
   // is larger as well, so the verdict does not rest on color alone
   expect(geometry.onTimeFill).toBe("rgb(17, 17, 17)");
@@ -1078,9 +1080,11 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   expect(geometry.keyMarks).toEqual([
     { text: "complete", fill: "rgb(17, 17, 17)", ring: "rgb(17, 17, 17)" },
     { text: "not yet complete: time so far", fill: "rgba(0, 0, 0, 0)", ring: "rgb(17, 17, 17)" },
-    { text: "delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
-    { text: "delayed, not yet complete", fill: "rgba(0, 0, 0, 0)", ring: "rgb(244, 185, 66)" },
+    { text: "judged delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
+    { text: "judged delayed, not yet complete", fill: "rgba(0, 0, 0, 0)", ring: "rgb(244, 185, 66)" },
   ]);
+  // a screen reader hears which runs were judged delayed, not only the color
+  await expect(chart.locator("svg")).toHaveAttribute("aria-label", /2 judged delayed/);
   expect(geometry.fits).toBe(true);
   expect(geometry.pageFits).toBe(true);
 
@@ -1124,46 +1128,40 @@ test("a product without a delayed threshold draws its runs and no line", async (
 });
 
 // The committed fixture's running init is weeks old by now, which is what a
-// stalled feed looks like — and what the preview build reads from staging. The
-// landed runs keep the axis; the stale run is pinned to the top edge.
-test("a run in flight for weeks does not flatten the landed runs", async ({
-  page,
-}) => {
+// stalled feed looks like — and what the preview build reads from staging.
+// Every run is drawn at its own time: the stale run is drawn at its weeks so
+// far and the axis stretches to hold it, with no mark of its own, while the
+// landed runs sit beneath it without reading as zero.
+test("a run in flight for weeks is drawn at its time so far", async ({ page }) => {
   const row = await openPipeline(page);
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
   const geometry = await chart.evaluate((node) => {
     const cy = (circle) => +circle.getAttribute("cy");
-    const pinned = node.querySelector("circle[data-pinned]");
+    const elapsed = node.querySelector("circle[data-elapsed]");
     return {
-      pinned: pinned && {
-        cy: cy(pinned),
-        title: pinned.querySelector("title").textContent,
+      elapsed: elapsed && {
+        cy: cy(elapsed),
+        title: elapsed.querySelector("title").textContent,
+        dash: getComputedStyle(elapsed).strokeDasharray,
       },
-      lineY: +node.querySelector('[data-threshold="run"] line').getAttribute("y1"),
-      delayed: [...node.querySelectorAll('circle[data-timing="delayed"]:not([data-elapsed])')].map(cy),
-      onTime: [...node.querySelectorAll('circle[data-timing="on_time"]')].map(cy),
-      baselineY: +node.querySelector('line[data-axis="x"]').getAttribute("y1"),
+      top: Math.min(
+        ...[...node.querySelectorAll('[data-axis="y"] line')].map((line) => +line.getAttribute("y1")),
+      ),
+      landed: [...node.querySelectorAll("circle:not([data-elapsed])")].map(cy),
       ticks: [...node.querySelectorAll('[data-axis="y"] text')].map((t) => t.textContent),
     };
   });
-  expect(geometry.pinned).not.toBeNull();
-  expect(geometry.pinned.title).toContain("off the chart");
-  // the key says what the dashed mark is, since its height is no longer its time
-  await expect(chart.locator("li")).toContainText([
-    "dashed: time so far is above the chart",
-  ]);
-  // the stale run sits at the very top; the landed runs still spread beneath
-  // it, the delayed one above the line and the on-time ones well off the floor
-  for (const y of [...geometry.delayed, ...geometry.onTime]) {
-    expect(y).toBeGreaterThan(geometry.pinned.cy);
-  }
-  expect(geometry.delayed[0]).toBeLessThan(geometry.lineY);
-  for (const y of geometry.onTime) {
-    expect(y).toBeGreaterThan(geometry.lineY);
-    expect(geometry.baselineY - y).toBeGreaterThan(10);
-  }
+  expect(geometry.elapsed).not.toBeNull();
+  expect(geometry.elapsed.title).toMatch(/elapsed/);
+  expect(geometry.elapsed.title).not.toContain("off the chart");
+  expect(geometry.elapsed.dash).toBe("none");
+  // the stale run is the highest point; every landed run is drawn beneath it
+  for (const y of geometry.landed) expect(y).toBeGreaterThan(geometry.elapsed.cy);
+  // the floor stays near the landed runs, so none reads as zero
   expect(geometry.ticks).not.toContain("0s");
+  // and the key has no entry for a mark that no longer exists
+  await expect(chart.locator("li")).not.toContainText(["dashed"]);
 });
 
 // What production renders until wxopticon's projection carries the field: an
