@@ -876,6 +876,75 @@ a.work-item:hover h3 { text-decoration: underline; }
   line-height: 22.5px;
 }
 
+/* A prompt the reader hands to an AI assistant (_includes/agent-prompt.njk).
+   Text you give to a tool, not source we highlight: a readonly field rather
+   than a <pre>, so it selects and copies as one unit. The copy control is a
+   link, not a button — it copies text, it doesn't submit anything. */
+.agent-prompt textarea {
+  display: block;
+  width: 100%;
+  padding: 1em;
+  border: 1px solid var(--border-muted-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: inherit;
+  font: inherit;
+  font-size: 1.4rem;
+  line-height: 1.5;
+  resize: vertical;
+  field-sizing: content;
+}
+.agent-prompt button {
+  margin-top: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link-color);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.agent-prompt [role="status"] {
+  margin-left: 1rem;
+  color: var(--muted-text);
+}
+/* The setup pill: the same control, but the button is the thing you see and
+   the one-line prompt sits under it in small type. Square, with the same 1px
+   border as the home page's cards and the footer field; the link-colored
+   label says it's an action. */
+.agent-setup-pill button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  max-width: 100%;
+  margin-top: 0;
+  padding: 0.6rem 1.4rem;
+  border: 1px solid var(--border-color);
+  text-decoration: none;
+  font-size: 1.4rem;
+  text-align: left;
+}
+.agent-setup-pill button:hover,
+.agent-setup-pill button:focus-visible {
+  background: var(--surface-muted);
+}
+/* The glyphs stay together on one row even when the label wraps. */
+.agent-setup-pill button span {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+}
+/* The line itself reads as a caption under the pill: still a field, so it
+   selects and copies without JavaScript, but no box competing with the pill. */
+.agent-setup-pill textarea {
+  margin-top: 0.6rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 1.2rem;
+  color: var(--muted-text);
+}
+
 #newsletter {
   margin-top: 4rem;
 }

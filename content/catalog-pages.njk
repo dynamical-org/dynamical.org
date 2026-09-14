@@ -18,6 +18,7 @@ eleventyComputed:
 ---
 
 {% from "tag-icon.njk" import tagIcon %}
+{% from "agent-prompt.njk" import agentPrompt %}
 <style>
   .content.catalog-item {
     font-size: 1.4rem;
@@ -365,6 +366,12 @@ eleventyComputed:
       <div class="frameStatus">{{ entry.title }} · {{ example.title }}</div>
     </div>
   {% endfor %}
+  <h3>With an AI agent</h3>
+  <p>
+    Paste this into an assistant so it reads this dataset's STAC collection before it writes code.
+    <a href="/agents/">More prompts</a>.
+  </p>
+  {{ agentPrompt(agentPrompts.datasetPrompt(entry), "Prompt for " + entry.title, "dataset") }}
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">
