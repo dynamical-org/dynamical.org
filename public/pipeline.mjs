@@ -1493,7 +1493,17 @@ function RunChart({ product, now, local }) {
       width=${width}
       height=${scale.height}
       role="img"
-      aria-label=${`Completion time after init for ${series.runs.length} of the last ${count} runs${series.threshold == null ? "" : `, against the current delayed threshold of ${formatLatency(series.threshold)}`}`}
+      aria-label=${[
+        `Completion time after init for ${series.runs.filter((run) => !run.elapsed).length} of the last ${count} runs`,
+        series.runs.some((run) => run.elapsed)
+          ? `time so far for ${series.runs.filter((run) => run.elapsed).length} not yet complete`
+          : null,
+        series.threshold == null
+          ? null
+          : `against the current delayed threshold of ${formatLatency(series.threshold)}`,
+      ]
+        .filter(Boolean)
+        .join(", ")}
     >
       <text x=${scale.left} y=${scale.top - 6}>time after init</text>
       ${scale.yTicks.map(
@@ -1688,7 +1698,10 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
         height=${scale.height}
         role="img"
         aria-label=${[
-          `Completion time after init for ${shown.length} of the ${runs.length} runs shown`,
+          `Completion time after init for ${shown.filter(({ run }) => !run.elapsed).length} of the ${runs.length} runs shown`,
+          shown.some(({ run }) => run.elapsed)
+            ? `time so far for ${shown.filter(({ run }) => run.elapsed).length} not yet complete`
+            : null,
           span,
           series.threshold == null
             ? null
