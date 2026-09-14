@@ -120,7 +120,7 @@ test("the setup line is one short line that names only the instructions URL", ()
   // The pill copies this; it has to survive any chat box and lead the agent to
   // the file rather than try to teach it anything itself.
   assert.ok(!SETUP_LINE.includes("\n"));
-  assert.ok(SETUP_LINE.length <= 160, `${SETUP_LINE.length} chars`);
+  assert.ok(SETUP_LINE.length <= 100, `${SETUP_LINE.length} chars`);
   assert.ok(SETUP_LINE.endsWith(SETUP_PROMPT));
   assert.equal([...SETUP_LINE.matchAll(/https?:\/\//g)].length, 1);
 });
@@ -145,4 +145,9 @@ test("the setup instructions read STAC first, verify, and hand off", () => {
   assert.deepEqual(order, [...order].sort((a, b) => a - b), "steps are out of order");
   assert.doesNotMatch(body, /amazonaws\.com\/[a-z0-9-]+\/v\d/, "hard-codes an asset href");
   assert.match(body, /re-fetch/, "no self-verification pointer");
+  // The closing paragraph tells the agent to recognise the file by its first
+  // line, so the first line has to keep saying exactly that.
+  const recognition = "These are the official instructions from dynamical.org";
+  assert.ok(body.replace(/^\s*\{#[\s\S]*?#\}\s*/, "").startsWith(recognition), "first line no longer matches the recognition rule");
+  assert.ok(body.includes(`"${recognition}"`), "closing paragraph no longer quotes the first line");
 });
