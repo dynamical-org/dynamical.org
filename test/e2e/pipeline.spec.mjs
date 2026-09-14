@@ -1149,8 +1149,11 @@ test("a run in flight for weeks is parked at the top with its time written", asy
       },
       label: label && {
         text: label.textContent,
+        left: label.getBoundingClientRect().left,
         right: label.getBoundingClientRect().right,
       },
+      // the title is the plot's first text
+      titleRight: node.querySelector("svg text").getBoundingClientRect().right,
       svgRight: svg.right,
       lineY: +node.querySelector('[data-threshold="run"] line').getAttribute("y1"),
       delayed: [...node.querySelectorAll('circle[data-timing="delayed"]:not([data-elapsed])')].map(cy),
@@ -1164,6 +1167,13 @@ test("a run in flight for weeks is parked at the top with its time written", asy
   expect(geometry.parked.dash).toBe("none");
   expect(geometry.label.text).toMatch(/^\d+d so far ↑$/);
   expect(geometry.label.right).toBeLessThanOrEqual(geometry.svgRight + 0.5);
+  // the words sit clear of the title they share a row with
+  expect(geometry.label.left).toBeGreaterThanOrEqual(geometry.titleRight);
+  // and a screen reader hears the run's time and that it is off the scale
+  await expect(chart.locator("svg")).toHaveAttribute(
+    "aria-label",
+    /not yet complete and above the chart's range: .*\d+d so far/,
+  );
   // the landed runs still spread beneath it, either side of the line and
   // well off the floor, on an axis at their own scale
   for (const y of [...geometry.delayed, ...geometry.onTime]) {
@@ -1178,6 +1188,55 @@ test("a run in flight for weeks is parked at the top with its time written", asy
   expect(geometry.ticks.some((tick) => /d$/.test(tick))).toBe(false);
   // and the key names no special mark: the label is its own explanation
   await expect(chart.locator("li")).not.toContainText(["dashed"]);
+});
+
+// Words in the title row would collide when two runs are parked, or when the
+// plot is too narrow to fit them beside the title; each parked run is then
+// named under the chart by its init, and nothing is written over the title.
+test("parked runs that cannot be labelled beside the title are named under the chart", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  for (const [name, mutate] of [
+    [
+      "two parked runs",
+      (payload) => {
+        const failed = payload.groups[0].products[0].recent_inits.at(-2);
+        failed.status = "in_flight";
+        failed.timing = null;
+        delete failed.latency_s;
+        return payload;
+      },
+    ],
+    [
+      "a two-run plot",
+      (payload) => {
+        const product = payload.groups[0].products[0];
+        product.recent_inits = product.recent_inits.slice(-2);
+        return payload;
+      },
+    ],
+  ]) {
+    const row = await openPipeline(page, mutate);
+    await row.locator('[data-slot="details-button"]').click();
+    const chart = row.locator(".pipeline-row-details .pipeline-runs");
+    await expect(chart.locator("circle[data-pinned]").first(), name).toBeVisible();
+    await expect(chart.locator("svg text[data-pinned]"), name).toHaveCount(0);
+    await expect(chart.locator("li").filter({ hasText: "above the chart:" }), name).toHaveCount(1);
+    await expect(chart.locator("li").filter({ hasText: "above the chart:" }), name).toContainText(
+      /\d+d so far/,
+    );
+    const overlaps = await chart.evaluate((node) => {
+      const boxes = [...node.querySelectorAll("svg text")].map((text) => text.getBoundingClientRect());
+      return boxes.flatMap((a, i) =>
+        boxes
+          .slice(i + 1)
+          .filter((b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top),
+      ).length;
+    });
+    expect(overlaps, name).toBe(0);
+    await expect(chart.locator("svg"), name).toHaveAttribute("aria-label", /above the chart's range/);
+  }
 });
 
 // What production renders until wxopticon's projection carries the field: an

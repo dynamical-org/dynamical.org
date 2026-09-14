@@ -17,6 +17,8 @@ import {
   facetsAt,
   gutterPx,
   alignedChartScales,
+  pinnedKeyItems,
+  pinnedLayout,
   pinnedText,
   runChartKey,
   runChartScales,
@@ -2096,6 +2098,33 @@ test("run chart scales: a run in flight for weeks is parked at the top, a late o
   const alone = runChartScales(only, 600, 6);
   assert.ok(alone.y(only.runs[0].seconds) > alone.top);
   assert.ok(alone.y(only.runs[0].seconds) < alone.bottom);
+});
+
+// A parked run says its time in the title row only when it is alone and its
+// words fit beside the title; otherwise the words would collide, so every
+// parked run is named under the chart by its init.
+test("run chart parked runs: labelled beside the mark when alone and it fits, else named under the chart", () => {
+  const run = (hour, seconds) => ({ init: { init_time: `2026-07-25T${hour}:00:00Z` }, seconds, elapsed: true });
+  const opts = { em: 10, titleRight: 90, right: 400, top: 16 };
+  const one = pinnedLayout([run("12", 51 * 86400)], () => 380, opts);
+  assert.equal(one.labels.length, 1);
+  assert.equal(one.labels[0].text, "51d so far ↑");
+  assert.equal(one.labels[0].attrs["text-anchor"], "end");
+  // its left edge clears the title and the gap after it, and it stays in the plot
+  assert.ok(one.labels[0].attrs.x - one.labels[0].text.length * 6 >= 90 + 6);
+  assert.ok(one.labels[0].attrs.x <= 400);
+  assert.deepEqual(one.overflow, []);
+  // a plot too narrow for the words beside the title
+  const narrow = pinnedLayout([run("12", 51 * 86400)], () => 60, { ...opts, right: 100 });
+  assert.deepEqual(narrow.labels, []);
+  assert.equal(narrow.overflow.length, 1);
+  // two parked runs would write over each other
+  const two = pinnedLayout([run("06", 52 * 86400), run("12", 51 * 86400)], () => 380, opts);
+  assert.deepEqual(two.labels, []);
+  assert.deepEqual(pinnedKeyItems(two.overflow, false), [
+    { mark: null, text: "above the chart: 07-25 06z, 52d so far; 07-25 12z, 51d so far" },
+  ]);
+  assert.deepEqual(pinnedKeyItems([], false), []);
 });
 
 test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {

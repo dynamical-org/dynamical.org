@@ -1314,9 +1314,12 @@ function tickText(seconds) {
 
 // what a run parked at the top edge says beside it: its time so far, in
 // days once it has been going for two
+function pinnedTime(seconds) {
+  return seconds >= 172800 ? `${Math.floor(seconds / 86400)}d` : formatLatency(seconds);
+}
+
 export function pinnedText(seconds) {
-  const time = seconds >= 172800 ? `${Math.floor(seconds / 86400)}d` : formatLatency(seconds);
-  return `${time} so far ↑`;
+  return `${pinnedTime(seconds)} so far ↑`;
 }
 
 function niceTicks(lo, hi) {
@@ -1513,8 +1516,18 @@ function RunChart({ product, now, local }) {
       product.cadence_hours,
       initColumnPx(product, zone),
     );
-    key = runChartKey(product, series.runs);
     const em = chartEm();
+    const parked = pinnedLayout(
+      series.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
+      (run) => scale.x(run.ms),
+      {
+        em,
+        titleRight: scale.left + "time after init".length * 0.6 * em,
+        right: scale.right,
+        top: scale.top,
+      },
+    );
+    key = [...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)];
     // the date shows where it turns over among the labelled runs, so a day
     // that begins at a run thinned out of the labels is still named
     let previousDate = null;
@@ -1530,6 +1543,7 @@ function RunChart({ product, now, local }) {
         series.runs.some((run) => run.timing === "delayed")
           ? `${series.runs.filter((run) => run.timing === "delayed").length} judged delayed`
           : null,
+        pinnedAria(parked.runs, local),
         series.threshold == null
           ? null
           : `against the current delayed threshold of ${formatLatency(series.threshold)}`,
@@ -1579,18 +1593,10 @@ function RunChart({ product, now, local }) {
           r=${markRadius(run)}
         ><title>${runTitle(run, local)}</title></circle>`;
       })}
-      ${series.runs
-        .filter((run) => run.elapsed && scale.pinned(run.seconds))
-        .map((run) => {
-          const text = pinnedText(run.seconds);
-          const label = pinnedLabel(scale.x(run.ms), text, {
-            em,
-            titleRight: scale.left + "time after init".length * 0.6 * em,
-            right: scale.right,
-            top: scale.top,
-          });
-          return html`<text key=${`pinned/${run.init.init_time}`} data-pinned="" ...${label}>${text}</text>`;
-        })}
+      ${parked.labels.map(
+        ({ run, text, attrs }) =>
+          html`<text key=${`pinned/${run.init.init_time}`} data-pinned="" ...${attrs}>${text}</text>`,
+      )}
     </svg>`;
   }
 
@@ -1694,19 +1700,40 @@ function boxesMeet(a, b) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-/* A run parked at the top edge says its time in the title row, ending at its
-   mark, clear of the title and no further right than the plot. */
+/* Where parked runs say their time. A lone parked run whose words fit between
+   the title and the plot's right edge says them in the title row, ending at its
+   mark. When they don't fit, or more than one run is parked, words in that row
+   would collide, so each parked run is named under the chart instead, by its
+   init. The chart's accessible name names every one either way. */
 
-function pinnedLabel(cx, text, { em, titleRight, right, top }) {
-  const width = text.length * 0.6 * em;
-  const x = Math.min(
-    Math.max(cx + CHART_DELAYED_MARK_R, titleRight + CHART_LABEL_GAP_PX + width),
-    right,
-  );
-  return { x, y: top - 6, "text-anchor": "end" };
+export function pinnedLayout(runs, xOf, { em, titleRight, right, top }) {
+  if (runs.length === 1) {
+    const [run] = runs;
+    const text = pinnedText(run.seconds);
+    const least = titleRight + CHART_LABEL_GAP_PX + text.length * 0.6 * em;
+    if (least <= right) {
+      const x = Math.min(Math.max(xOf(run) + CHART_DELAYED_MARK_R, least), right);
+      return { runs, labels: [{ run, text, attrs: { x, y: top - 6, "text-anchor": "end" } }], overflow: [] };
+    }
+  }
+  return { runs, labels: [], overflow: runs };
 }
 
-function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local }) {
+function parkedNames(runs, local) {
+  return runs
+    .map((run) => `${initShort(run.init.init_time, local)}, ${pinnedTime(run.seconds)} so far`)
+    .join("; ");
+}
+
+export function pinnedKeyItems(runs, local) {
+  return runs.length ? [{ mark: null, text: `above the chart: ${parkedNames(runs, local)}` }] : [];
+}
+
+function pinnedAria(runs, local) {
+  return runs.length ? `not yet complete and above the chart's range: ${parkedNames(runs, local)}` : null;
+}
+
+function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local, parked }) {
   const lineY = series.threshold == null ? null : scale.y(series.threshold);
   const shown = runs
     .map((init, index) => ({ init, index, run: plotted.get(init.init_time) }))
@@ -1760,6 +1787,7 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
           shown.some(({ run }) => run.timing === "delayed")
             ? `${shown.filter(({ run }) => run.timing === "delayed").length} judged delayed`
             : null,
+          pinnedAria(parked.runs, local),
           span,
           series.threshold == null
             ? null
@@ -1798,18 +1826,10 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
             r=${markRadius(run)}
           ><title>${runTitle(run, local)}</title></circle>`;
         })}
-        ${shown
-          .filter(({ run }) => run.elapsed && scale.pinned(run.seconds))
-          .map(({ init, index, run }) => {
-            const text = pinnedText(run.seconds);
-            const label = pinnedLabel(columns.x(index), text, {
-              em,
-              titleRight: titlePx,
-              right: columns.width,
-              top: scale.top,
-            });
-            return html`<text key=${`pinned/${init.init_time}`} data-pinned="" ...${label}>${text}</text>`;
-          })}
+        ${parked.labels.map(
+          ({ run, text, attrs }) =>
+            html`<text key=${`pinned/${run.init.init_time}`} data-pinned="" ...${attrs}>${text}</text>`,
+        )}
       </svg>
     <//>
     <${InitTiers} runs=${runs} local=${local} />`;
@@ -1838,6 +1858,12 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
   const inside =
     columns.width + CHART_LABEL_GAP_PX + widestLabel * 0.6 * em >
     fieldWidth - gutter - RUN_GAP_PX;
+  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
+  const parked = pinnedLayout(
+    series.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
+    (run) => columns.x(columnOf.get(run.init.init_time)),
+    { em, titleRight: "time after init".length * 0.6 * em, right: columns.width, top: scale.top },
+  );
   // the key starts where the plot does: past the gutter and the band's gap
   return html`<figure
     class="pipeline-runs"
@@ -1853,8 +1879,9 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
       inside=${inside}
       em=${em}
       local=${local}
+      parked=${parked}
     />
-    <${RunKey} items=${runChartKey(product, series.runs)} />
+    <${RunKey} items=${[...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)]} />
   </figure>`;
 }
 
