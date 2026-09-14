@@ -1036,10 +1036,20 @@ test("details open on a run chart with the delayed threshold drawn", async ({
         status: circle.getAttribute("data-status"),
         timing: circle.getAttribute("data-timing"),
         hollow: getComputedStyle(circle).fill,
+        stroke: getComputedStyle(circle).strokeWidth,
       })),
       landedFill: getComputedStyle(
         node.querySelector('circle[data-timing="delayed"]:not([data-elapsed])'),
       ).fill,
+      onTimeFill: getComputedStyle(node.querySelector('circle[data-timing="on_time"]')).fill,
+      radii: {
+        onTime: +node.querySelector('circle[data-timing="on_time"]').getAttribute("r"),
+        delayed: +node.querySelector('circle[data-timing="delayed"]').getAttribute("r"),
+      },
+      keyMarks: [...node.querySelectorAll("li")].map((li) => {
+        const mark = getComputedStyle(li, "::before");
+        return { text: li.textContent, fill: mark.backgroundColor, ring: mark.borderTopColor };
+      }),
       lineColor: getComputedStyle(node.querySelector('[data-threshold="run"] line')).stroke,
       fits: svg.width <= node.getBoundingClientRect().width + 0.5,
       pageFits:
@@ -1056,10 +1066,27 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   for (const y of geometry.onTime) expect(y).toBeGreaterThan(geometry.lineY);
   // the running init is hollow, and reads in the amber its cell reads in
   expect(geometry.elapsed).toEqual([
-    { status: "in_flight", timing: "delayed", hollow: "rgb(255, 255, 255)" },
+    // and, being only a ring, carries the delayed mark's heavier stroke
+    { status: "in_flight", timing: "delayed", hollow: "rgb(255, 255, 255)", stroke: "2px" },
   ]);
   expect(geometry.landedFill).toBe("rgb(244, 185, 66)");
-  expect(geometry.lineColor).toBe("rgb(244, 185, 66)");
+  // the line is a reference, not a verdict: muted, so amber on the chart is
+  // only ever a run judged delayed
+  expect(geometry.lineColor).toBe("rgb(102, 102, 102)");
+  // amber is the chart's one color; an on-time run is ink, and a delayed one
+  // is larger as well, so the verdict does not rest on color alone
+  expect(geometry.onTimeFill).toBe("rgb(17, 17, 17)");
+  expect(geometry.radii.delayed).toBeGreaterThan(geometry.radii.onTime);
+  // the key names the marks drawn, each glyph drawn as its mark is: the
+  // landed delayed run filled, the delayed run in flight hollow
+  expect(geometry.keyMarks).toEqual([
+    { text: "complete", fill: "rgb(17, 17, 17)", ring: "rgb(17, 17, 17)" },
+    { text: "not yet complete: time so far", fill: "rgba(0, 0, 0, 0)", ring: "rgb(17, 17, 17)" },
+    { text: "judged delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
+    { text: "judged delayed, not yet complete", fill: "rgba(0, 0, 0, 0)", ring: "rgb(244, 185, 66)" },
+  ]);
+  // a screen reader hears which runs were judged delayed, not only the color
+  await expect(chart.locator("svg")).toHaveAttribute("aria-label", /2 judged delayed/);
   expect(geometry.fits).toBe(true);
   expect(geometry.pageFits).toBe(true);
 
@@ -1088,25 +1115,46 @@ test("a product without a delayed threshold draws its runs and no line", async (
       ".pipeline-row-details .table-container:first-of-type tbody td:last-child",
     ),
   ).toHaveText(["—"]);
+  // no verdicts, so no color: every run is ink rather than a grey that reads
+  // as a third kind of run, and the key says why there is no line
+  await expect(chart.locator("li")).toHaveText([
+    "no delayed threshold yet: 24 of 30 days with a completed run",
+  ]);
+  const fills = () =>
+    chart.evaluate((node) => [
+      ...new Set([...node.querySelectorAll("circle")].map((c) => getComputedStyle(c).fill)),
+    ]);
+  expect(await fills()).toEqual(["rgb(17, 17, 17)"]);
+  await page.emulateMedia({ colorScheme: "dark" });
+  expect(await fills()).toEqual(["rgb(232, 232, 234)"]);
 });
 
 // The committed fixture's running init is weeks old by now, which is what a
-// stalled feed looks like — and what the preview build reads from staging. The
-// landed runs keep the axis; the stale run is pinned to the top edge.
-test("a run in flight for weeks does not flatten the landed runs", async ({
-  page,
-}) => {
+// stalled feed looks like — and what the preview build reads from staging.
+// A run that far past the landed ones is parked at the top edge with its time
+// written beside it in words, so the landed runs keep the plot.
+test("a run in flight for weeks is parked at the top with its time written", async ({ page }) => {
   const row = await openPipeline(page);
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
   const geometry = await chart.evaluate((node) => {
     const cy = (circle) => +circle.getAttribute("cy");
-    const pinned = node.querySelector("circle[data-pinned]");
+    const parked = node.querySelector("circle[data-pinned]");
+    const svg = node.querySelector("svg").getBoundingClientRect();
+    const label = node.querySelector("svg text[data-pinned]");
     return {
-      pinned: pinned && {
-        cy: cy(pinned),
-        title: pinned.querySelector("title").textContent,
+      parked: parked && {
+        cy: cy(parked),
+        dash: getComputedStyle(parked).strokeDasharray,
       },
+      label: label && {
+        text: label.textContent,
+        left: label.getBoundingClientRect().left,
+        right: label.getBoundingClientRect().right,
+      },
+      // the title is the plot's first text
+      titleRight: node.querySelector("svg text").getBoundingClientRect().right,
+      svgRight: svg.right,
       lineY: +node.querySelector('[data-threshold="run"] line').getAttribute("y1"),
       delayed: [...node.querySelectorAll('circle[data-timing="delayed"]:not([data-elapsed])')].map(cy),
       onTime: [...node.querySelectorAll('circle[data-timing="on_time"]')].map(cy),
@@ -1114,12 +1162,22 @@ test("a run in flight for weeks does not flatten the landed runs", async ({
       ticks: [...node.querySelectorAll('[data-axis="y"] text')].map((t) => t.textContent),
     };
   });
-  expect(geometry.pinned).not.toBeNull();
-  expect(geometry.pinned.title).toContain("off the chart");
-  // the stale run sits at the very top; the landed runs still spread beneath
-  // it, the delayed one above the line and the on-time ones well off the floor
+  expect(geometry.parked).not.toBeNull();
+  // a hollow ring like any run still arriving, no dash; its words say the rest
+  expect(geometry.parked.dash).toBe("none");
+  expect(geometry.label.text).toMatch(/^\d+d so far ↑$/);
+  expect(geometry.label.right).toBeLessThanOrEqual(geometry.svgRight + 0.5);
+  // the words sit clear of the title they share a row with
+  expect(geometry.label.left).toBeGreaterThanOrEqual(geometry.titleRight);
+  // and a screen reader hears the run's time and that it is off the scale
+  await expect(chart.locator("svg")).toHaveAttribute(
+    "aria-label",
+    /not yet complete and above the chart's range: .*\d+d so far/,
+  );
+  // the landed runs still spread beneath it, either side of the line and
+  // well off the floor, on an axis at their own scale
   for (const y of [...geometry.delayed, ...geometry.onTime]) {
-    expect(y).toBeGreaterThan(geometry.pinned.cy);
+    expect(y).toBeGreaterThan(geometry.parked.cy);
   }
   expect(geometry.delayed[0]).toBeLessThan(geometry.lineY);
   for (const y of geometry.onTime) {
@@ -1127,6 +1185,78 @@ test("a run in flight for weeks does not flatten the landed runs", async ({
     expect(geometry.baselineY - y).toBeGreaterThan(10);
   }
   expect(geometry.ticks).not.toContain("0s");
+  expect(geometry.ticks.some((tick) => /d$/.test(tick))).toBe(false);
+  // and the key names no special mark: the label is its own explanation
+  await expect(chart.locator("li")).not.toContainText(["dashed"]);
+});
+
+// Words in the title row would collide when two runs are parked, or when the
+// plot is too narrow to fit them beside the title; each parked run is then
+// named under the chart by its init, and nothing is written over the title.
+test("parked runs that cannot be labelled beside the title are named under the chart", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  for (const [name, mutate] of [
+    [
+      "two parked runs",
+      (payload) => {
+        const failed = payload.groups[0].products[0].recent_inits.at(-2);
+        failed.status = "in_flight";
+        failed.timing = null;
+        delete failed.latency_s;
+        return payload;
+      },
+    ],
+    [
+      "a two-run plot",
+      (payload) => {
+        const product = payload.groups[0].products[0];
+        product.recent_inits = product.recent_inits.slice(-2);
+        return payload;
+      },
+    ],
+  ]) {
+    // the aligned chart, and the chart across the row an arrival-group view draws
+    for (const view of [0, 1]) {
+      const label = `${name}, view ${view}`;
+      const row = await openPipeline(page, mutate);
+      if (view) await row.locator(".pipeline-viz").click();
+      await row.locator('[data-slot="details-button"]').click();
+      const chart = row.locator(".pipeline-row-details .pipeline-runs");
+      await expect(chart.locator("circle[data-pinned]").first(), label).toBeVisible();
+      const inRow = await chart.locator("svg text[data-pinned]").count();
+      const keyLine = chart.locator("li").filter({ hasText: "above the chart:" });
+      // every parked run is named once: in the title row when it is alone and
+      // fits, otherwise under the chart
+      if (name === "two parked runs") expect(inRow, label).toBe(0);
+      if (inRow) {
+        await expect(keyLine, label).toHaveCount(0);
+      } else {
+        await expect(keyLine, label).toHaveCount(1);
+        await expect(keyLine, label).toContainText(/\d+d so far/);
+      }
+      // no piece of the plot's text (the title, ticks, the threshold label and
+      // any parked words) overlaps another, and no parked ring sits on one; the
+      // row chart's init tiers are the axis's own business
+      const overlaps = await chart.evaluate((node) => {
+        const meet = (a, b) =>
+          a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+        const texts = [...node.querySelectorAll("svg text")]
+          .filter((text) => !text.closest('[data-axis="x"]'))
+          .map((text) => text.getBoundingClientRect());
+        const rings = [...node.querySelectorAll("circle[data-pinned]")].map((circle) =>
+          circle.getBoundingClientRect(),
+        );
+        return [
+          ...texts.flatMap((a, i) => texts.slice(i + 1).filter((b) => meet(a, b))),
+          ...rings.flatMap((ring) => texts.filter((text) => meet(ring, text))),
+        ].length;
+      });
+      expect(overlaps, label).toBe(0);
+      await expect(chart.locator("svg"), label).toHaveAttribute("aria-label", /above the chart's range/);
+    }
+  }
 });
 
 // What production renders until wxopticon's projection carries the field: an

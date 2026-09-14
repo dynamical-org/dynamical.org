@@ -1209,7 +1209,11 @@ function StatusCell({ detail }) {
   </td>`;
 }
 
-export function timingBaselineNote(product) {
+/* How far a product is from its delayed threshold: the distinct UTC days
+   with a completed run it has, and the days it needs. Null once it has one,
+   or when the feed says nothing countable. */
+
+function timingBaselineShortfall(product) {
   const baseline = product.timing_baseline;
   if (
     baseline?.status !== "insufficient_history" ||
@@ -1218,8 +1222,12 @@ export function timingBaselineNote(product) {
   ) {
     return null;
   }
-  const { history_days: days, required_history_days: required } = baseline;
-  return `insufficient history (${days}/${required} days)`;
+  return { days: baseline.history_days, required: baseline.required_history_days };
+}
+
+export function timingBaselineNote(product) {
+  const shortfall = timingBaselineShortfall(product);
+  return shortfall && `insufficient history (${shortfall.days}/${shortfall.required} days)`;
 }
 
 /* The run chart. One point per run: its completion time after init, or the
@@ -1238,17 +1246,20 @@ export function timingBaselineNote(product) {
 
 const CHART_HEIGHT_PX = 160;
 const CHART_MARK_R = 3.5;
+// a delayed run is larger as well as amber, so the one verdict the chart
+// colors does not rest on color alone
+const CHART_DELAYED_MARK_R = 5;
 // room for the widest tick label ("12h 30m") in the chart's own 10px monospace,
 // and for the threshold label to clear the right edge
 const CHART_MARGIN = { top: 16, right: 8, bottom: 30, left: 50 };
 const CHART_TICK_STEPS_S = [
   60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 172800,
 ];
-// how far past the landed runs and the line a run still arriving may pull the
-// axis before it is pinned to the top edge instead: a run that has waited
-// weeks — a stalled feed, a stuck init — would otherwise flatten every landed
-// run onto the baseline, where they read as zero
-const CHART_ELAPSED_HEADROOM = 1.5;
+// how far past the landed runs and the line a run still arriving may stretch
+// the axis: a run merely late is drawn at its own time; one three times the
+// slowest landed run is stuck or stale, and is parked at the top edge with its
+// time written beside it rather than flattening every landed run
+const CHART_ELAPSED_REACH = 3;
 
 /* The line is drawn only when the product has a verdict to make: one still
    short of history publishes no threshold, and a feed that omits the field
@@ -1293,6 +1304,24 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
   return { runs, threshold: runChartThreshold(product) };
 }
 
+// a tick of two days or more reads in days ("16d"), not hours ("384h"):
+// a run in flight that long stretches the axis to that scale
+function tickText(seconds) {
+  return seconds >= 172800 && seconds % 86400 === 0
+    ? `${seconds / 86400}d`
+    : formatLatency(seconds);
+}
+
+// what a run parked at the top edge says beside it: its time so far, in
+// days once it has been going for two
+function pinnedTime(seconds) {
+  return seconds >= 172800 ? `${Math.floor(seconds / 86400)}d` : formatLatency(seconds);
+}
+
+export function pinnedText(seconds) {
+  return `${pinnedTime(seconds)} so far ↑`;
+}
+
 function niceTicks(lo, hi) {
   let step =
     CHART_TICK_STEPS_S.find((candidate) => (hi - lo) / candidate <= 5) ??
@@ -1308,10 +1337,13 @@ function niceTicks(lo, hi) {
 
 /* The latency domain, shared by both charts. Zoomed to the runs and the
    line rather than drawn from zero: a threshold sits a few percent above the
-   median, and from zero that gap would be a pixel. The landed runs and the
-   line own the domain; a run still arriving joins it while it is within
-   reach of them, and past that it is pinned to the top edge, where "still
-   going, well past the line" is all it has to say. */
+   median, and from zero that gap would be a pixel. A run still arriving is
+   drawn at its own time while it is within reach of the landed runs and the
+   line — a run merely late stretches the axis to hold it. One past that (a
+   stuck init, a stale feed's weeks-old run) would flatten every landed run
+   onto the floor, so it is parked at the top edge with its time written
+   beside it instead. The floor is padded by the landed runs' spread, not the
+   whole span. */
 
 export function latencyDomain(series) {
   const landed = series.runs
@@ -1320,9 +1352,7 @@ export function latencyDomain(series) {
   if (series.threshold != null) landed.push(series.threshold);
   // with nothing landed there is nothing to flatten, so the elapsed times
   // take the axis themselves
-  const reach = landed.length
-    ? Math.max(...landed) * CHART_ELAPSED_HEADROOM
-    : Infinity;
+  const reach = landed.length ? Math.max(...landed) * CHART_ELAPSED_REACH : Infinity;
   const values = [
     ...landed,
     ...series.runs
@@ -1334,8 +1364,9 @@ export function latencyDomain(series) {
   // two runs a second apart are not a spread worth filling the plot with:
   // the floor is the spreadf floor, fifteen minutes
   const spread = Math.max(hi - lo, 900);
+  const floorSpread = landed.length ? Math.max(Math.max(...landed) - lo, 900) : spread;
   return {
-    yMin: Math.max(0, lo - spread * 0.15),
+    yMin: Math.max(0, lo - floorSpread * 0.15),
     yMax: hi + spread * 0.15,
     // nothing landed, nothing arriving, no line: an axis would be invented
     empty: values.length === 0,
@@ -1393,19 +1424,61 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
   };
 }
 
-function runTitle(run, local, pinned = false) {
+function runTitle(run, local) {
   const how = run.elapsed
-    ? `${formatLatency(run.seconds)} elapsed`
+    ? `${pinnedTime(run.seconds)} elapsed`
     : `${formatLatency(run.seconds)} after init`;
   return [
     initShort(run.init.init_time, local),
     how,
-    pinned ? "off the chart" : null,
     statusLabel(run.status),
     run.timing?.replaceAll("_", " "),
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function markRadius(run) {
+  return run.timing === "delayed" ? CHART_DELAYED_MARK_R : CHART_MARK_R;
+}
+
+/* The key names the marks the chart draws, and only those, each drawn as it
+   is on the chart: complete and not yet complete when both are shown, and a
+   delayed run filled or hollow as the delayed runs shown are. A product short
+   of history has no verdicts to draw, and the key says why rather than leaving
+   the reader to wonder at a chart with no amber and no line. */
+
+export function runChartKey(product, runs) {
+  const key = [];
+  const arriving = runs.some((run) => run.elapsed);
+  if (arriving && runs.some((run) => !run.elapsed)) {
+    key.push({ mark: "complete", text: "complete" });
+  }
+  if (arriving) key.push({ mark: "elapsed", text: "not yet complete: time so far" });
+  // "judged": a verdict is the summarizer's, made against the threshold of its
+  // day or a lead group's own, so one can sit below today's run-level line
+  if (runs.some((run) => run.timing === "delayed" && !run.elapsed)) {
+    key.push({ mark: "delayed", text: "judged delayed" });
+  }
+  if (runs.some((run) => run.timing === "delayed" && run.elapsed)) {
+    key.push({ mark: "delayed-elapsed", text: "judged delayed, not yet complete" });
+  }
+  const shortfall = timingBaselineShortfall(product);
+  if (shortfall) {
+    key.push({
+      mark: null,
+      // the gate counts distinct UTC days with a completed run, not calendar age
+      text: `no delayed threshold yet: ${shortfall.days} of ${shortfall.required} days with a completed run`,
+    });
+  }
+  return key;
+}
+
+function RunKey({ items }) {
+  if (!items.length) return null;
+  return html`<ul>
+    ${items.map((item) => html`<li key=${item.text} data-mark=${item.mark}>${item.text}</li>`)}
+  </ul>`;
 }
 
 /* The chart across the row. Its width is measured, as the field's is: the
@@ -1435,6 +1508,7 @@ function RunChart({ product, now, local }) {
   const zone = selectedTimeZone(local);
 
   let chart = null;
+  let key = [];
   if (series.runs.length > 0 && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
     const scale = runChartScales(
       series,
@@ -1442,6 +1516,35 @@ function RunChart({ product, now, local }) {
       product.cadence_hours,
       initColumnPx(product, zone),
     );
+    const em = chartEm();
+    const parked = pinnedLayout(
+      series.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
+      (run) => scale.x(run.ms),
+      {
+        em,
+        titleRight: scale.left + "time after init".length * 0.6 * em,
+        right: scale.right,
+        top: scale.top,
+      },
+    );
+    key = [...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)];
+    // the threshold label hangs at its line's right end; a parked ring there
+    // would sit on it, so the label moves to the line's left end, under the
+    // line where above it would reach the title row
+    const thresholdText =
+      series.threshold == null ? "" : `delayed past ${formatLatency(series.threshold)}`;
+    const thresholdY = series.threshold == null ? 0 : scale.y(series.threshold);
+    const thresholdLeft = parked.runs.some(
+      (run) =>
+        scale.x(run.ms) + CHART_DELAYED_MARK_R + 2 > scale.right - thresholdText.length * 0.6 * em,
+    );
+    const thresholdAttrs = thresholdLeft
+      ? {
+          x: scale.left + 2,
+          y: thresholdY - 4 - em < scale.top ? thresholdY + 12 : thresholdY - 4,
+          "text-anchor": "start",
+        }
+      : { x: scale.right, y: thresholdY - 4, "text-anchor": "end" };
     // the date shows where it turns over among the labelled runs, so a day
     // that begins at a run thinned out of the labels is still named
     let previousDate = null;
@@ -1449,13 +1552,27 @@ function RunChart({ product, now, local }) {
       width=${width}
       height=${scale.height}
       role="img"
-      aria-label=${`Completion time after init for ${series.runs.length} of the last ${count} runs${series.threshold == null ? "" : `, against the current delayed threshold of ${formatLatency(series.threshold)}`}`}
+      aria-label=${[
+        `Completion time after init for ${series.runs.filter((run) => !run.elapsed).length} of the last ${count} runs`,
+        series.runs.some((run) => run.elapsed)
+          ? `time so far for ${series.runs.filter((run) => run.elapsed).length} not yet complete`
+          : null,
+        series.runs.some((run) => run.timing === "delayed")
+          ? `${series.runs.filter((run) => run.timing === "delayed").length} judged delayed`
+          : null,
+        pinnedAria(parked.runs, local),
+        series.threshold == null
+          ? null
+          : `against the current delayed threshold of ${formatLatency(series.threshold)}`,
+      ]
+        .filter(Boolean)
+        .join("; ")}
     >
       <text x=${scale.left} y=${scale.top - 6}>time after init</text>
       ${scale.yTicks.map(
         (tick) => html`<g key=${`y/${tick}`} data-axis="y">
           <line x1=${scale.left} x2=${scale.right} y1=${scale.y(tick)} y2=${scale.y(tick)} />
-          <text x=${scale.left - 6} y=${scale.y(tick)} dy="0.35em" text-anchor="end">${formatLatency(tick)}</text>
+          <text x=${scale.left - 6} y=${scale.y(tick)} dy="0.35em" text-anchor="end">${tickText(tick)}</text>
         </g>`,
       )}
       <line data-axis="x" x1=${scale.left} x2=${scale.right} y1=${scale.bottom} y2=${scale.bottom} />
@@ -1479,25 +1596,35 @@ function RunChart({ product, now, local }) {
         ? null
         : html`<g data-threshold="run">
             <line x1=${scale.left} x2=${scale.right} y1=${scale.y(series.threshold)} y2=${scale.y(series.threshold)} />
-            <text x=${scale.right} y=${scale.y(series.threshold) - 4} text-anchor="end">delayed past ${formatLatency(series.threshold)}</text>
+            <text ...${thresholdAttrs}>${thresholdText}</text>
           </g>`}
       ${series.runs.map((run) => {
-        const pinned = run.elapsed && scale.pinned(run.seconds);
         return html`<circle
           key=${run.init.init_time}
           data-status=${run.status}
           data-timing=${run.timing}
           data-elapsed=${run.elapsed ? "" : null}
-          data-pinned=${pinned ? "" : null}
+          data-pinned=${run.elapsed && scale.pinned(run.seconds) ? "" : null}
           cx=${scale.x(run.ms)}
-          cy=${scale.y(run.seconds)}
-          r=${CHART_MARK_R}
-        ><title>${runTitle(run, local, pinned)}</title></circle>`;
+          cy=${run.elapsed && scale.pinned(run.seconds) ? parkedY(scale) : scale.y(run.seconds)}
+          r=${markRadius(run)}
+        ><title>${runTitle(run, local)}</title></circle>`;
       })}
+      ${parked.labels.map(
+        ({ run, text, attrs }) =>
+          html`<text key=${`pinned/${run.init.init_time}`} data-pinned="" ...${attrs}>${text}</text>`,
+      )}
     </svg>`;
   }
 
-  return html`<figure class="pipeline-runs" ref=${box}>${chart}</figure>`;
+  return html`<figure
+    class="pipeline-runs"
+    ref=${box}
+    style=${`--plot-left:${CHART_MARGIN.left}px`}
+  >
+    ${chart}
+    ${chart ? html`<${RunKey} items=${key} />` : null}
+  </figure>`;
 }
 
 /* The aligned plot's own height and margins: room above for its title; the
@@ -1568,7 +1695,7 @@ function lineLabel(y, inside, columns, scale, { em, end = false, titlePx = 0 }) 
   }
   return end
     ? { x: columns.width - 2, y: underTitle ? y + 1.2 * em : y - 0.4 * em, dy: "0", "text-anchor": "end" }
-    : { x: 2, y: y - 0.4 * em, dy: "0", "text-anchor": "start" };
+    : { x: 2, y: underTitle ? y + 1.2 * em : y - 0.4 * em, dy: "0", "text-anchor": "start" };
 }
 
 /* The box a label occupies, in the monospace's 0.6em characters and 1em
@@ -1590,7 +1717,49 @@ function boxesMeet(a, b) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local }) {
+/* Where parked runs say their time. A lone parked run whose words fit between
+   the title and the plot's right edge says them in the title row, ending at its
+   mark. When they don't fit, or more than one run is parked, words in that row
+   would collide, so each parked run is named under the chart instead, by its
+   init. The chart's accessible name names every one either way. */
+
+export function pinnedLayout(runs, xOf, { em, titleRight, right, top }) {
+  if (runs.length === 1) {
+    const [run] = runs;
+    const text = pinnedText(run.seconds);
+    const least = titleRight + CHART_LABEL_GAP_PX + text.length * 0.6 * em;
+    const end = xOf(run) + CHART_DELAYED_MARK_R;
+    // the words end at their mark, so a mark under or just past the title
+    // leaves them no room in that row
+    if (least <= right && end >= least) {
+      const x = Math.min(end, right);
+      return { runs, labels: [{ run, text, attrs: { x, y: top - 6, "text-anchor": "end" } }], overflow: [] };
+    }
+  }
+  return { runs, labels: [], overflow: runs };
+}
+
+function parkedNames(runs, local) {
+  return runs
+    .map((run) => `${initShort(run.init.init_time, local)}, ${pinnedTime(run.seconds)} so far`)
+    .join("; ");
+}
+
+export function pinnedKeyItems(runs, local) {
+  return runs.length ? [{ mark: null, text: `above the chart: ${parkedNames(runs, local)}` }] : [];
+}
+
+// a parked ring sits just inside the plot's top edge, below the title row,
+// whatever its radius
+function parkedY(scale) {
+  return scale.top + CHART_DELAYED_MARK_R + 1;
+}
+
+function pinnedAria(runs, local) {
+  return runs.length ? `not yet complete and above the chart's range: ${parkedNames(runs, local)}` : null;
+}
+
+function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local, parked }) {
   const lineY = series.threshold == null ? null : scale.y(series.threshold);
   const shown = runs
     .map((init, index) => ({ init, index, run: plotted.get(init.init_time) }))
@@ -1602,8 +1771,20 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
   const title = "time after init";
   const titlePx = title.length * 0.6 * em;
   const thresholdText = lineY == null ? null : `delayed past ${formatLatency(series.threshold)}`;
-  const thresholdLabel =
+  // a parked ring at the right end of the line would sit on its label, so
+  // the label moves to the line's left end
+  const parkedColumn = new Map(shown.map(({ init, index }) => [init.init_time, index]));
+  const rings = parked.runs.map((run) => {
+    const cx = columns.x(parkedColumn.get(run.init.init_time));
+    const r = markRadius(run) + 1;
+    return { left: cx - r, right: cx + r, top: parkedY(scale) - r, bottom: parkedY(scale) + r };
+  });
+  const endLabel =
     lineY == null ? null : lineLabel(lineY, inside, columns, scale, { em, end: true, titlePx });
+  const thresholdLabel =
+    endLabel && rings.some((ring) => boxesMeet(ring, labelBox(endLabel, thresholdText, em)))
+      ? lineLabel(lineY, inside, columns, scale, { em, end: false, titlePx })
+      : endLabel;
   // a tick label gives way to the threshold label where the two would meet,
   // to the threshold line itself, to the title, and to a point it would
   // cover inside the plot
@@ -1621,11 +1802,12 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
       shown.some(({ index, run }) => {
         const cx = columns.x(index);
         const cy = scale.y(run.seconds);
+        const r = markRadius(run);
         return (
-          cx - CHART_MARK_R < box.right + 0.3 * em &&
-          cx + CHART_MARK_R > box.left &&
-          cy + CHART_MARK_R > box.top &&
-          cy - CHART_MARK_R < box.bottom
+          cx - r < box.right + 0.3 * em &&
+          cx + r > box.left &&
+          cy + r > box.top &&
+          cy - r < box.bottom
         );
       });
     return covered ? null : label;
@@ -1636,23 +1818,30 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
         height=${scale.height}
         role="img"
         aria-label=${[
-          `Completion time after init for ${shown.length} of the ${runs.length} runs shown`,
+          `Completion time after init for ${shown.filter(({ run }) => !run.elapsed).length} of the ${runs.length} runs shown`,
+          shown.some(({ run }) => run.elapsed)
+            ? `time so far for ${shown.filter(({ run }) => run.elapsed).length} not yet complete`
+            : null,
+          shown.some(({ run }) => run.timing === "delayed")
+            ? `${shown.filter(({ run }) => run.timing === "delayed").length} judged delayed`
+            : null,
+          pinnedAria(parked.runs, local),
           span,
           series.threshold == null
             ? null
             : `against the current delayed threshold of ${formatLatency(series.threshold)}`,
         ]
           .filter(Boolean)
-          .join(", ")}
+          .join("; ")}
       >
         <text x="0" y=${scale.top - 6}>${title}</text>
         ${scale.empty
           ? html`<text x="0" y=${(scale.top + scale.bottom) / 2} dy="0.35em">no completion time recorded</text>`
           : scale.yTicks.map((tick) => {
-              const label = tickLabel(scale.y(tick), formatLatency(tick));
+              const label = tickLabel(scale.y(tick), tickText(tick));
               return html`<g key=${`y/${tick}`} data-axis="y">
                 <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
-                ${label ? html`<text ...${label}>${formatLatency(tick)}</text>` : null}
+                ${label ? html`<text ...${label}>${tickText(tick)}</text>` : null}
               </g>`;
             })}
         <line data-axis="x" x1="0" x2=${columns.width} y1=${scale.bottom} y2=${scale.bottom} />
@@ -1663,19 +1852,22 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
               <text ...${thresholdLabel}>${thresholdText}</text>
             </g>`}
         ${shown.map(({ init, index, run }) => {
-          const pinned = run.elapsed && scale.pinned(run.seconds);
           return html`<circle
             key=${init.init_time}
             data-init-time=${init.init_time}
             data-status=${run.status}
             data-timing=${run.timing}
             data-elapsed=${run.elapsed ? "" : null}
-            data-pinned=${pinned ? "" : null}
+            data-pinned=${run.elapsed && scale.pinned(run.seconds) ? "" : null}
             cx=${columns.x(index)}
-            cy=${scale.y(run.seconds)}
-            r=${CHART_MARK_R}
-          ><title>${runTitle(run, local, pinned)}</title></circle>`;
+            cy=${run.elapsed && scale.pinned(run.seconds) ? parkedY(scale) : scale.y(run.seconds)}
+            r=${markRadius(run)}
+          ><title>${runTitle(run, local)}</title></circle>`;
         })}
+        ${parked.labels.map(
+          ({ run, text, attrs }) =>
+            html`<text key=${`pinned/${run.init.init_time}`} data-pinned="" ...${attrs}>${text}</text>`,
+        )}
       </svg>
     <//>
     <${InitTiers} runs=${runs} local=${local} />`;
@@ -1698,16 +1890,23 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
   // field's own
   const em = chartEm();
   const widestLabel = Math.max(
-    ...scale.yTicks.map((tick) => formatLatency(tick).length),
+    ...scale.yTicks.map((tick) => tickText(tick).length),
     series.threshold == null ? 0 : `delayed past ${formatLatency(series.threshold)}`.length,
   );
   const inside =
     columns.width + CHART_LABEL_GAP_PX + widestLabel * 0.6 * em >
     fieldWidth - gutter - RUN_GAP_PX;
+  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
+  const parked = pinnedLayout(
+    series.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
+    (run) => columns.x(columnOf.get(run.init.init_time)),
+    { em, titleRight: "time after init".length * 0.6 * em, right: columns.width, top: scale.top },
+  );
+  // the key starts where the plot does: past the gutter and the band's gap
   return html`<figure
     class="pipeline-runs"
     data-aligned=""
-    style=${`--run-width:${runWidth}px;--clumped-run-gap:${RUN_GAP_PX}px;--band-gutter:${gutter}px;--label-h:${LABEL_PX}px`}
+    style=${`--run-width:${runWidth}px;--clumped-run-gap:${RUN_GAP_PX}px;--band-gutter:${gutter}px;--label-h:${LABEL_PX}px;--plot-left:calc(${gutter}px + 0.6rem)`}
   >
     <${AlignedPlot}
       runs=${runs}
@@ -1718,7 +1917,9 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
       inside=${inside}
       em=${em}
       local=${local}
+      parked=${parked}
     />
+    <${RunKey} items=${[...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)]} />
   </figure>`;
 }
 

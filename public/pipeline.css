@@ -375,8 +375,12 @@
 
 /* The run chart: the runs the field draws as squares, plotted by their time
    after init against the current delayed threshold — under the lead-group
-   field, each under its square. A run wears the color its square wears; a
-   run still arriving is hollow. */
+   field, each under its square. One color carries a meaning: amber is a run
+   the summarizer judged delayed, drawn larger as well so the verdict does not
+   rest on color alone. Every other run is drawn in the text color, since a
+   run with no verdict — a product short of history, a run too early to
+   judge — is not a third kind of run. A run not yet complete is hollow, at
+   the time elapsed so far. The key beneath names the marks it shows. */
 
 .pipeline-runs {
   margin: 0 0 1.6rem;
@@ -407,18 +411,16 @@
 }
 
 .pipeline-runs circle {
-  fill: var(--muted-text);
-  stroke: var(--muted-text);
+  fill: var(--text-color);
+  stroke: var(--text-color);
 }
 
-.pipeline-runs [data-timing="on_time"] {
-  fill: var(--pipeline-ok);
-  stroke: var(--pipeline-ok);
-}
-
+/* amber is a light token (1.77:1 on white), so a delayed mark is heavier as
+   well as larger, and the verdict does not rest on its color */
 .pipeline-runs [data-timing="delayed"] {
   fill: var(--pipeline-progress);
   stroke: var(--pipeline-progress);
+  stroke-width: 2;
 }
 
 .pipeline-runs circle[data-elapsed] {
@@ -426,17 +428,69 @@
   stroke-width: 1.5;
 }
 
-/* a run pinned to the top edge is beyond the axis, not on it */
-.pipeline-runs circle[data-pinned] {
-  stroke-dasharray: 2 2;
+/* a delayed run still arriving is only a ring, so its ring carries the
+   heavier stroke too */
+.pipeline-runs circle[data-elapsed][data-timing="delayed"] {
+  stroke-width: 2;
 }
 
+/* the line is today's run-level reference, not a verdict: muted and dashed,
+   so amber on the chart only ever marks a run judged delayed, and its label
+   is readable text rather than amber on white */
 .pipeline-runs [data-threshold="run"] line {
-  stroke: var(--pipeline-progress);
+  stroke: var(--muted-text);
+  stroke-dasharray: 4 3;
 }
 
 .pipeline-runs [data-threshold="run"] text {
-  fill: var(--pipeline-progress);
+  fill: var(--muted-text);
+}
+
+/* the key starts where the plot does, and draws each mark as the chart
+   does: filled, hollow, or amber and larger */
+.pipeline-runs ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.6rem;
+  margin: 0.6rem 0 0 var(--plot-left, 0);
+  padding: 0;
+  color: var(--muted-text);
+  font-size: 1rem;
+  list-style: none;
+}
+
+/* the key's items sit on one line, spaced by the gap rather than by the
+   prose list's stacking margin. main.css's classless-list rule has the same
+   specificity (0,1,3); this wins because the page stylesheet loads after it */
+.pipeline-runs ul > li + li {
+  margin-top: 0;
+}
+
+.pipeline-runs li[data-mark]::before {
+  content: "";
+  display: inline-block;
+  box-sizing: border-box;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.5rem;
+  border: 0.15rem solid var(--text-color);
+  border-radius: 50%;
+  background: var(--text-color);
+  vertical-align: -0.05rem;
+}
+
+.pipeline-runs li[data-mark^="delayed"]::before {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.2rem;
+  border-color: var(--pipeline-progress);
+  background: var(--pipeline-progress);
+  vertical-align: -0.15rem;
+}
+
+/* hollow, as a run not yet complete is */
+.pipeline-runs li:is([data-mark="elapsed"], [data-mark="delayed-elapsed"])::before {
+  background: none;
 }
 
 

@@ -17,6 +17,10 @@ import {
   facetsAt,
   gutterPx,
   alignedChartScales,
+  pinnedKeyItems,
+  pinnedLayout,
+  pinnedText,
+  runChartKey,
   runChartScales,
   runChartSeries,
   runColumns,
@@ -1875,6 +1879,86 @@ test("run chart threshold: none without history, none when the feed omits it", (
   assert.equal(series.runs.length, 3);
 });
 
+test("run chart key: names only the marks drawn", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const key = (product) =>
+    runChartKey(product, runChartSeries(product, now).runs).map(({ mark, text }) => ({
+      mark,
+      text,
+    }));
+  // a landed on-time run, a landed delayed run, and a delayed run in flight:
+  // each delayed mark is keyed as it is drawn, filled or hollow
+  assert.deepEqual(key(chartProduct()), [
+    { mark: "complete", text: "complete" },
+    { mark: "elapsed", text: "not yet complete: time so far" },
+    { mark: "delayed", text: "judged delayed" },
+    { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
+  ]);
+  // the only delayed run still arriving: no filled amber mark to name
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+          { init_time: "2026-07-25T12:00:00Z", status: "in_flight", timing: "delayed" },
+        ],
+      }),
+    ),
+    [
+      { mark: "complete", text: "complete" },
+      { mark: "elapsed", text: "not yet complete: time so far" },
+      { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
+    ],
+  );
+  // every run landed and none late: the points need no key
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+          { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "on_time", latency_s: 3600 },
+        ],
+      }),
+    ),
+    [],
+  );
+  // a run too early to judge on a product with a baseline is only "not yet
+  // complete"; its missing verdict is not a kind of run
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [{ init_time: "2026-07-25T12:00:00Z", status: "pending", timing: null }],
+      }),
+    ),
+    [{ mark: "elapsed", text: "not yet complete: time so far" }],
+  );
+  // a product short of history says why it has no verdicts and no line
+  assert.deepEqual(
+    key(
+      chartProduct({
+        timing_baseline: { status: "insufficient_history", history_days: 7, required_history_days: 30 },
+        recent_inits: [
+          { init_time: "2026-07-25T06:00:00Z", status: "complete", timing: null, latency_s: 5200 },
+          { init_time: "2026-07-25T12:00:00Z", status: "in_flight", timing: null },
+        ],
+      }),
+    ),
+    [
+      { mark: "complete", text: "complete" },
+      { mark: "elapsed", text: "not yet complete: time so far" },
+      { mark: null, text: "no delayed threshold yet: 7 of 30 days with a completed run" },
+    ],
+  );
+});
+
+// the computed colors are the e2e spec's to check; this only keeps a second
+// or third mark color from coming back
+test("run chart marks: no color for on time, none for no verdict", () => {
+  const css = readFileSync(new URL("../public/pipeline.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /\.pipeline-runs \[data-timing="on_time"\]/);
+  assert.doesNotMatch(css, /\.pipeline-runs circle\s*{[^}]*--muted-text/);
+});
+
 test("run chart scales: every value inside the plot, the late run above the line", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
   const series = runChartSeries(chartProduct(), now);
@@ -1967,8 +2051,9 @@ test("run chart scales: a spread of seconds does not fill the plot, and weeks do
 });
 
 // A feed that has stalled, or an init that is stuck, leaves a run in flight for
-// days; the landed runs must not be flattened onto the baseline for it.
-test("run chart scales: a run in flight for weeks is pinned to the top, not given the axis", () => {
+// days. It is parked at the top edge with its time written beside it, so the
+// landed runs keep the plot; a run merely late is drawn at its own time.
+test("run chart scales: a run in flight for weeks is parked at the top, a late one drawn at its time", () => {
   const now = Date.parse("2026-08-14T12:00:00Z");
   const product = chartProduct({
     recent_inits: [
@@ -1981,20 +2066,27 @@ test("run chart scales: a run in flight for weeks is pinned to the top, not give
   const scale = runChartScales(series, 600, 6);
   const [onTime, delayed, running] = series.runs;
   assert.equal(running.seconds, 20.5 * 86400);
+  // the stale run is parked at the top edge, and says its time in words
   assert.ok(scale.pinned(running.seconds));
   assert.equal(scale.y(running.seconds), scale.top);
-  // the landed runs still spread over the plot, either side of the line
+  assert.equal(pinnedText(running.seconds), "20d so far ↑");
+  assert.equal(pinnedText(30000), "8h 20m so far ↑");
+  // the landed runs keep the plot, either side of the line and off the floor
   const line = scale.y(series.threshold);
   assert.ok(scale.y(onTime.seconds) - line > 20, "on-time run well below the line");
   assert.ok(line - scale.y(delayed.seconds) > 2, "delayed run above the line");
   assert.ok(scale.bottom - scale.y(onTime.seconds) > 10, "not on the baseline");
   assert.ok(scale.yTicks.every((tick) => tick <= 7500 * 1.5));
-  // a run within reach of the landed ones still joins the axis
-  const near = runChartScales(runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")), 600, 6);
-  const nearRun = runChartSeries(product, Date.parse("2026-07-25T02:30:00Z")).runs[2];
-  assert.equal(nearRun.seconds, 9000);
-  assert.ok(!near.pinned(9000));
-  assert.ok(near.y(9000) > near.top);
+  // a run merely late, twice the slowest landed one, costs the landed runs
+  // little: they keep clear room either side of the line
+  const late = runChartSeries(product, Date.parse("2026-07-25T04:10:00Z"));
+  assert.equal(late.runs[2].seconds, 15000);
+  const lateScale = runChartScales(late, 600, 6);
+  assert.ok(!lateScale.pinned(15000));
+  assert.ok(lateScale.y(15000) > lateScale.top);
+  const lateLine = lateScale.y(late.threshold);
+  assert.ok(lateScale.y(3500) - lateLine > 20, "on-time run well below the line");
+  assert.ok(lateLine - lateScale.y(7500) > 2, "delayed run above the line");
   // with nothing landed, the elapsed times take the axis themselves
   const only = runChartSeries(
     chartProduct({
@@ -2003,7 +2095,40 @@ test("run chart scales: a run in flight for weeks is pinned to the top, not give
     }),
     now,
   );
-  assert.ok(!runChartScales(only, 600, 6).pinned(only.runs[0].seconds));
+  const alone = runChartScales(only, 600, 6);
+  assert.ok(alone.y(only.runs[0].seconds) > alone.top);
+  assert.ok(alone.y(only.runs[0].seconds) < alone.bottom);
+});
+
+// A parked run says its time in the title row only when it is alone and its
+// words fit beside the title; otherwise the words would collide, so every
+// parked run is named under the chart by its init.
+test("run chart parked runs: labelled beside the mark when alone and it fits, else named under the chart", () => {
+  const run = (hour, seconds) => ({ init: { init_time: `2026-07-25T${hour}:00:00Z` }, seconds, elapsed: true });
+  const opts = { em: 10, titleRight: 90, right: 400, top: 16 };
+  const one = pinnedLayout([run("12", 51 * 86400)], () => 380, opts);
+  assert.equal(one.labels.length, 1);
+  assert.equal(one.labels[0].text, "51d so far ↑");
+  assert.equal(one.labels[0].attrs["text-anchor"], "end");
+  // its left edge clears the title and the gap after it, and it stays in the plot
+  assert.ok(one.labels[0].attrs.x - one.labels[0].text.length * 6 >= 90 + 6);
+  assert.ok(one.labels[0].attrs.x <= 400);
+  assert.deepEqual(one.overflow, []);
+  // a mark under the title: words ending at it would run into the title
+  const underTitle = pinnedLayout([run("12", 51 * 86400)], () => 60, opts);
+  assert.deepEqual(underTitle.labels, []);
+  assert.equal(underTitle.overflow.length, 1);
+  // a plot too narrow for the words beside the title
+  const narrow = pinnedLayout([run("12", 51 * 86400)], () => 60, { ...opts, right: 100 });
+  assert.deepEqual(narrow.labels, []);
+  assert.equal(narrow.overflow.length, 1);
+  // two parked runs would write over each other
+  const two = pinnedLayout([run("06", 52 * 86400), run("12", 51 * 86400)], () => 380, opts);
+  assert.deepEqual(two.labels, []);
+  assert.deepEqual(pinnedKeyItems(two.overflow, false), [
+    { mark: null, text: "above the chart: 07-25 06z, 52d so far; 07-25 12z, 51d so far" },
+  ]);
+  assert.deepEqual(pinnedKeyItems([], false), []);
 });
 
 test("run chart scales: repeated inits and a zero cadence still draw finite coordinates", () => {
