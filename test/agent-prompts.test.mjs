@@ -92,7 +92,7 @@ test("prompt ids are unique and the page loops over both sets", () => {
 });
 
 test("the include renders every prompt into its textarea, escaped", () => {
-  // The migration prompt carries `>=` and quotes; the textarea must hold the
+  // The prompts carry `>=` (icechunk>=2) and quotes; the textarea must hold the
   // text verbatim once the browser unescapes it, and never break out of it.
   const env = new nunjucks.Environment(
     new nunjucks.FileSystemLoader(new URL("../_includes/", import.meta.url).pathname),
@@ -139,7 +139,7 @@ test("the setup instructions read STAC first, verify, and hand off", () => {
     at("dynamical-catalog"),
     at("## 3. Verify"),
     at("assert math.isfinite(value) and -60 < value < 60"),
-    at("## 6. Tell the user"),
+    at("## 5. Tell the user"),
     at("ask what they want to build"),
   ];
   assert.deepEqual(order, [...order].sort((a, b) => a - b), "steps are out of order");

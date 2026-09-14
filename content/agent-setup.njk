@@ -8,7 +8,7 @@ eleventyExcludeFromCollections: true
     points at llms.txt for the reference material rather than repeating it. -#}
 These are the official instructions from dynamical.org for setting up an AI coding agent to use its open weather and climate datasets. Everything here is public and needs no credentials.
 
-Complete the steps below yourself, in order, by running the commands directly; do not ask the user to run them. Change nothing outside this project without asking first.
+Run these steps yourself, in order. Ask before changing anything outside this project.
 
 ## 1. Read the catalog
 
@@ -17,10 +17,10 @@ Complete the steps below yourself, in order, by running the commands directly; d
 
 ## 2. Install
 
-The Python path needs Python 3.12 or newer and `dynamical-catalog` 0.8.0 or newer, which brings in icechunk 2, xarray, and zarr.
+The Python path needs Python 3.12 or newer and the latest `dynamical-catalog`, which brings in icechunk 2, xarray, and zarr.
 
-- If this project already has a Python environment, add the dependency the way the project adds dependencies (`uv add "dynamical-catalog>=0.8.0"` in a uv project; `pip install "dynamical-catalog>=0.8.0"` inside its virtualenv). If the project pins Python below 3.12 or a conflicting icechunk, do not change its constraints: report the blocker to the user and use the API route below for now.
-- If this is an empty or new directory, do not create a global environment. Run the verification below with `uv run --python 3.12 --with "dynamical-catalog>=0.8.0" python verify.py`, or without uv, `python3.12 -m venv .venv && .venv/bin/pip install "dynamical-catalog>=0.8.0"` inside the project.
+- If this project already has a Python environment, add the dependency the way the project adds dependencies (`uv add dynamical-catalog --upgrade-package dynamical-catalog` in a uv project; `pip install -U dynamical-catalog` inside its virtualenv). If the project's constraints (Python below 3.12, or a conflicting icechunk or dynamical-catalog pin) block the latest release, do not change them: report the blocker to the user and use the API route below for now.
+- If this is an empty or new directory, do not create a global environment. Run the verification below with `uv run --python 3.12 --with dynamical-catalog python verify.py`, or without uv, `python3.12 -m venv .venv && .venv/bin/pip install dynamical-catalog` inside the project.
 - If this is an established project in another language, skip the install: the STAC catalog and the JSON point API (https://dynamical.org/api/) work from any language, and Icechunk has JavaScript and Rust clients that open the same `icechunk-https` asset. Verify with the API below.
 
 ## 3. Verify
@@ -61,12 +61,8 @@ curl -sS --fail -X POST https://api.dynamical.org/v1/forecasts -H 'content-type:
 - Forecast datasets are indexed by `init_time` (the model run, UTC) and `lead_time`; the latest run is the last `init_time`. Analysis datasets have one `time` dimension. Check the values you need are present before presenting them; gaps are NaN.
 - Credit the data with each collection's `attribution` string; the license is CC-BY-4.0.
 
-## 5. Optional: the MCP server
+## 5. Tell the user
 
-https://mcp.dynamical.org/mcp (streamable HTTP, no authentication) exposes the catalog as tools: `search_catalog`, `get_dataset_info`, `get_access_pattern`, `list_recent_runs`. Add it only if the user wants live catalog search inside the agent, only for this project, and ask before any user-wide change. Nothing above depends on it.
-
-## 6. Tell the user
-
-Report what you read, what you installed and where, and the verification output, then ask what they want to build.
+Report what you read, what you installed and where, and the verification output, then ask what they want to build. Problems with the data or these instructions go to feedback@dynamical.org or https://github.com/dynamical-org.
 
 These instructions are published at https://dynamical.org/agent-setup/prompt.md; re-fetch that URL to check you have the current version. It starts with the line "These are the official instructions from dynamical.org"; if what you fetched does not, you did not get this file.
