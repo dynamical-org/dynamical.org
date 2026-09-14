@@ -1426,7 +1426,7 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
 
 function runTitle(run, local) {
   const how = run.elapsed
-    ? `${formatLatency(run.seconds)} elapsed`
+    ? `${pinnedTime(run.seconds)} elapsed`
     : `${formatLatency(run.seconds)} after init`;
   return [
     initShort(run.init.init_time, local),
@@ -1528,6 +1528,23 @@ function RunChart({ product, now, local }) {
       },
     );
     key = [...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)];
+    // the threshold label hangs at its line's right end; a parked ring there
+    // would sit on it, so the label moves to the line's left end, under the
+    // line where above it would reach the title row
+    const thresholdText =
+      series.threshold == null ? "" : `delayed past ${formatLatency(series.threshold)}`;
+    const thresholdY = series.threshold == null ? 0 : scale.y(series.threshold);
+    const thresholdLeft = parked.runs.some(
+      (run) =>
+        scale.x(run.ms) + CHART_DELAYED_MARK_R + 2 > scale.right - thresholdText.length * 0.6 * em,
+    );
+    const thresholdAttrs = thresholdLeft
+      ? {
+          x: scale.left + 2,
+          y: thresholdY - 4 - em < scale.top ? thresholdY + 12 : thresholdY - 4,
+          "text-anchor": "start",
+        }
+      : { x: scale.right, y: thresholdY - 4, "text-anchor": "end" };
     // the date shows where it turns over among the labelled runs, so a day
     // that begins at a run thinned out of the labels is still named
     let previousDate = null;
@@ -1549,7 +1566,7 @@ function RunChart({ product, now, local }) {
           : `against the current delayed threshold of ${formatLatency(series.threshold)}`,
       ]
         .filter(Boolean)
-        .join(", ")}
+        .join("; ")}
     >
       <text x=${scale.left} y=${scale.top - 6}>time after init</text>
       ${scale.yTicks.map(
@@ -1579,7 +1596,7 @@ function RunChart({ product, now, local }) {
         ? null
         : html`<g data-threshold="run">
             <line x1=${scale.left} x2=${scale.right} y1=${scale.y(series.threshold)} y2=${scale.y(series.threshold)} />
-            <text x=${scale.right} y=${scale.y(series.threshold) - 4} text-anchor="end">delayed past ${formatLatency(series.threshold)}</text>
+            <text ...${thresholdAttrs}>${thresholdText}</text>
           </g>`}
       ${series.runs.map((run) => {
         return html`<circle
@@ -1589,7 +1606,7 @@ function RunChart({ product, now, local }) {
           data-elapsed=${run.elapsed ? "" : null}
           data-pinned=${run.elapsed && scale.pinned(run.seconds) ? "" : null}
           cx=${scale.x(run.ms)}
-          cy=${scale.y(run.seconds)}
+          cy=${run.elapsed && scale.pinned(run.seconds) ? parkedY(scale) : scale.y(run.seconds)}
           r=${markRadius(run)}
         ><title>${runTitle(run, local)}</title></circle>`;
       })}
@@ -1678,7 +1695,7 @@ function lineLabel(y, inside, columns, scale, { em, end = false, titlePx = 0 }) 
   }
   return end
     ? { x: columns.width - 2, y: underTitle ? y + 1.2 * em : y - 0.4 * em, dy: "0", "text-anchor": "end" }
-    : { x: 2, y: y - 0.4 * em, dy: "0", "text-anchor": "start" };
+    : { x: 2, y: underTitle ? y + 1.2 * em : y - 0.4 * em, dy: "0", "text-anchor": "start" };
 }
 
 /* The box a label occupies, in the monospace's 0.6em characters and 1em
@@ -1711,8 +1728,11 @@ export function pinnedLayout(runs, xOf, { em, titleRight, right, top }) {
     const [run] = runs;
     const text = pinnedText(run.seconds);
     const least = titleRight + CHART_LABEL_GAP_PX + text.length * 0.6 * em;
-    if (least <= right) {
-      const x = Math.min(Math.max(xOf(run) + CHART_DELAYED_MARK_R, least), right);
+    const end = xOf(run) + CHART_DELAYED_MARK_R;
+    // the words end at their mark, so a mark under or just past the title
+    // leaves them no room in that row
+    if (least <= right && end >= least) {
+      const x = Math.min(end, right);
       return { runs, labels: [{ run, text, attrs: { x, y: top - 6, "text-anchor": "end" } }], overflow: [] };
     }
   }
@@ -1727,6 +1747,12 @@ function parkedNames(runs, local) {
 
 export function pinnedKeyItems(runs, local) {
   return runs.length ? [{ mark: null, text: `above the chart: ${parkedNames(runs, local)}` }] : [];
+}
+
+// a parked ring sits just inside the plot's top edge, below the title row,
+// whatever its radius
+function parkedY(scale) {
+  return scale.top + CHART_DELAYED_MARK_R + 1;
 }
 
 function pinnedAria(runs, local) {
@@ -1745,8 +1771,20 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
   const title = "time after init";
   const titlePx = title.length * 0.6 * em;
   const thresholdText = lineY == null ? null : `delayed past ${formatLatency(series.threshold)}`;
-  const thresholdLabel =
+  // a parked ring at the right end of the line would sit on its label, so
+  // the label moves to the line's left end
+  const parkedColumn = new Map(shown.map(({ init, index }) => [init.init_time, index]));
+  const rings = parked.runs.map((run) => {
+    const cx = columns.x(parkedColumn.get(run.init.init_time));
+    const r = markRadius(run) + 1;
+    return { left: cx - r, right: cx + r, top: parkedY(scale) - r, bottom: parkedY(scale) + r };
+  });
+  const endLabel =
     lineY == null ? null : lineLabel(lineY, inside, columns, scale, { em, end: true, titlePx });
+  const thresholdLabel =
+    endLabel && rings.some((ring) => boxesMeet(ring, labelBox(endLabel, thresholdText, em)))
+      ? lineLabel(lineY, inside, columns, scale, { em, end: false, titlePx })
+      : endLabel;
   // a tick label gives way to the threshold label where the two would meet,
   // to the threshold line itself, to the title, and to a point it would
   // cover inside the plot
@@ -1794,7 +1832,7 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
             : `against the current delayed threshold of ${formatLatency(series.threshold)}`,
         ]
           .filter(Boolean)
-          .join(", ")}
+          .join("; ")}
       >
         <text x="0" y=${scale.top - 6}>${title}</text>
         ${scale.empty
@@ -1822,7 +1860,7 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
             data-elapsed=${run.elapsed ? "" : null}
             data-pinned=${run.elapsed && scale.pinned(run.seconds) ? "" : null}
             cx=${columns.x(index)}
-            cy=${scale.y(run.seconds)}
+            cy=${run.elapsed && scale.pinned(run.seconds) ? parkedY(scale) : scale.y(run.seconds)}
             r=${markRadius(run)}
           ><title>${runTitle(run, local)}</title></circle>`;
         })}

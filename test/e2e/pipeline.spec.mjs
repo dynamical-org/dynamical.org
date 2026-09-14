@@ -1217,25 +1217,45 @@ test("parked runs that cannot be labelled beside the title are named under the c
       },
     ],
   ]) {
-    const row = await openPipeline(page, mutate);
-    await row.locator('[data-slot="details-button"]').click();
-    const chart = row.locator(".pipeline-row-details .pipeline-runs");
-    await expect(chart.locator("circle[data-pinned]").first(), name).toBeVisible();
-    await expect(chart.locator("svg text[data-pinned]"), name).toHaveCount(0);
-    await expect(chart.locator("li").filter({ hasText: "above the chart:" }), name).toHaveCount(1);
-    await expect(chart.locator("li").filter({ hasText: "above the chart:" }), name).toContainText(
-      /\d+d so far/,
-    );
-    const overlaps = await chart.evaluate((node) => {
-      const boxes = [...node.querySelectorAll("svg text")].map((text) => text.getBoundingClientRect());
-      return boxes.flatMap((a, i) =>
-        boxes
-          .slice(i + 1)
-          .filter((b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top),
-      ).length;
-    });
-    expect(overlaps, name).toBe(0);
-    await expect(chart.locator("svg"), name).toHaveAttribute("aria-label", /above the chart's range/);
+    // the aligned chart, and the chart across the row an arrival-group view draws
+    for (const view of [0, 1]) {
+      const label = `${name}, view ${view}`;
+      const row = await openPipeline(page, mutate);
+      if (view) await row.locator(".pipeline-viz").click();
+      await row.locator('[data-slot="details-button"]').click();
+      const chart = row.locator(".pipeline-row-details .pipeline-runs");
+      await expect(chart.locator("circle[data-pinned]").first(), label).toBeVisible();
+      const inRow = await chart.locator("svg text[data-pinned]").count();
+      const keyLine = chart.locator("li").filter({ hasText: "above the chart:" });
+      // every parked run is named once: in the title row when it is alone and
+      // fits, otherwise under the chart
+      if (name === "two parked runs") expect(inRow, label).toBe(0);
+      if (inRow) {
+        await expect(keyLine, label).toHaveCount(0);
+      } else {
+        await expect(keyLine, label).toHaveCount(1);
+        await expect(keyLine, label).toContainText(/\d+d so far/);
+      }
+      // no piece of the plot's text (the title, ticks, the threshold label and
+      // any parked words) overlaps another, and no parked ring sits on one; the
+      // row chart's init tiers are the axis's own business
+      const overlaps = await chart.evaluate((node) => {
+        const meet = (a, b) =>
+          a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+        const texts = [...node.querySelectorAll("svg text")]
+          .filter((text) => !text.closest('[data-axis="x"]'))
+          .map((text) => text.getBoundingClientRect());
+        const rings = [...node.querySelectorAll("circle[data-pinned]")].map((circle) =>
+          circle.getBoundingClientRect(),
+        );
+        return [
+          ...texts.flatMap((a, i) => texts.slice(i + 1).filter((b) => meet(a, b))),
+          ...rings.flatMap((ring) => texts.filter((text) => meet(ring, text))),
+        ].length;
+      });
+      expect(overlaps, label).toBe(0);
+      await expect(chart.locator("svg"), label).toHaveAttribute("aria-label", /above the chart's range/);
+    }
   }
 });
 

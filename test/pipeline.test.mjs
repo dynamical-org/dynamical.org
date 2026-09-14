@@ -2114,6 +2114,10 @@ test("run chart parked runs: labelled beside the mark when alone and it fits, el
   assert.ok(one.labels[0].attrs.x - one.labels[0].text.length * 6 >= 90 + 6);
   assert.ok(one.labels[0].attrs.x <= 400);
   assert.deepEqual(one.overflow, []);
+  // a mark under the title: words ending at it would run into the title
+  const underTitle = pinnedLayout([run("12", 51 * 86400)], () => 60, opts);
+  assert.deepEqual(underTitle.labels, []);
+  assert.equal(underTitle.overflow.length, 1);
   // a plot too narrow for the words beside the title
   const narrow = pinnedLayout([run("12", 51 * 86400)], () => 60, { ...opts, right: 100 });
   assert.deepEqual(narrow.labels, []);
