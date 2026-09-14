@@ -428,6 +428,12 @@
   stroke-width: 1.5;
 }
 
+/* a delayed run still arriving is only a ring, so its ring carries the
+   heavier stroke too */
+.pipeline-runs circle[data-elapsed][data-timing="delayed"] {
+  stroke-width: 2;
+}
+
 /* the line is today's run-level reference, not a verdict: muted and dashed,
    so amber on the chart only ever marks a run judged delayed, and its label
    is readable text rather than amber on white */

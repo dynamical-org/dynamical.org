@@ -1036,6 +1036,7 @@ test("details open on a run chart with the delayed threshold drawn", async ({
         status: circle.getAttribute("data-status"),
         timing: circle.getAttribute("data-timing"),
         hollow: getComputedStyle(circle).fill,
+        stroke: getComputedStyle(circle).strokeWidth,
       })),
       landedFill: getComputedStyle(
         node.querySelector('circle[data-timing="delayed"]:not([data-elapsed])'),
@@ -1065,7 +1066,8 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   for (const y of geometry.onTime) expect(y).toBeGreaterThan(geometry.lineY);
   // the running init is hollow, and reads in the amber its cell reads in
   expect(geometry.elapsed).toEqual([
-    { status: "in_flight", timing: "delayed", hollow: "rgb(255, 255, 255)" },
+    // and, being only a ring, carries the delayed mark's heavier stroke
+    { status: "in_flight", timing: "delayed", hollow: "rgb(255, 255, 255)", stroke: "2px" },
   ]);
   expect(geometry.landedFill).toBe("rgb(244, 185, 66)");
   // the line is a reference, not a verdict: muted, so amber on the chart is
