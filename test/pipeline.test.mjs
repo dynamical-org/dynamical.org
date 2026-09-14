@@ -2074,6 +2074,16 @@ test("run chart scales: a run in flight for weeks is drawn at its time so far", 
   for (const run of series.runs) {
     assert.ok(scale.y(run.seconds) >= scale.top && scale.y(run.seconds) <= scale.bottom);
   }
+  // a stretched axis reads in days, not hundreds of hours
+  assert.ok(scale.yTicks.some((tick) => tick >= 172800));
+  // a run merely late, twice the slowest landed one, costs the landed runs
+  // little: they keep clear room either side of the line
+  const late = runChartSeries(product, Date.parse("2026-07-25T04:10:00Z"));
+  assert.equal(late.runs[2].seconds, 15000);
+  const lateScale = runChartScales(late, 600, 6);
+  const lateLine = lateScale.y(late.threshold);
+  assert.ok(lateScale.y(3500) - lateLine > 20, "on-time run well below the line");
+  assert.ok(lateLine - lateScale.y(7500) > 2, "delayed run above the line");
   // with nothing landed, the elapsed times take the axis themselves
   const only = runChartSeries(
     chartProduct({

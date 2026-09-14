@@ -1299,6 +1299,14 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
   return { runs, threshold: runChartThreshold(product) };
 }
 
+// a tick of two days or more reads in days ("16d"), not hours ("384h"):
+// a run in flight that long stretches the axis to that scale
+function tickText(seconds) {
+  return seconds >= 172800 && seconds % 86400 === 0
+    ? `${seconds / 86400}d`
+    : formatLatency(seconds);
+}
+
 function niceTicks(lo, hi) {
   let step =
     CHART_TICK_STEPS_S.find((candidate) => (hi - lo) / candidate <= 5) ??
@@ -1513,7 +1521,7 @@ function RunChart({ product, now, local }) {
       ${scale.yTicks.map(
         (tick) => html`<g key=${`y/${tick}`} data-axis="y">
           <line x1=${scale.left} x2=${scale.right} y1=${scale.y(tick)} y2=${scale.y(tick)} />
-          <text x=${scale.left - 6} y=${scale.y(tick)} dy="0.35em" text-anchor="end">${formatLatency(tick)}</text>
+          <text x=${scale.left - 6} y=${scale.y(tick)} dy="0.35em" text-anchor="end">${tickText(tick)}</text>
         </g>`,
       )}
       <line data-axis="x" x1=${scale.left} x2=${scale.right} y1=${scale.bottom} y2=${scale.bottom} />
@@ -1718,10 +1726,10 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local 
         ${scale.empty
           ? html`<text x="0" y=${(scale.top + scale.bottom) / 2} dy="0.35em">no completion time recorded</text>`
           : scale.yTicks.map((tick) => {
-              const label = tickLabel(scale.y(tick), formatLatency(tick));
+              const label = tickLabel(scale.y(tick), tickText(tick));
               return html`<g key=${`y/${tick}`} data-axis="y">
                 <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
-                ${label ? html`<text ...${label}>${formatLatency(tick)}</text>` : null}
+                ${label ? html`<text ...${label}>${tickText(tick)}</text>` : null}
               </g>`;
             })}
         <line data-axis="x" x1="0" x2=${columns.width} y1=${scale.bottom} y2=${scale.bottom} />
@@ -1765,7 +1773,7 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
   // field's own
   const em = chartEm();
   const widestLabel = Math.max(
-    ...scale.yTicks.map((tick) => formatLatency(tick).length),
+    ...scale.yTicks.map((tick) => tickText(tick).length),
     series.threshold == null ? 0 : `delayed past ${formatLatency(series.threshold)}`.length,
   );
   const inside =
