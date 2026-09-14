@@ -1073,11 +1073,13 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   // is larger as well, so the verdict does not rest on color alone
   expect(geometry.onTimeFill).toBe("rgb(17, 17, 17)");
   expect(geometry.radii.delayed).toBeGreaterThan(geometry.radii.onTime);
-  // the key names the three marks drawn, each glyph drawn as its mark is
+  // the key names the marks drawn, each glyph drawn as its mark is: the
+  // landed delayed run filled, the delayed run in flight hollow
   expect(geometry.keyMarks).toEqual([
     { text: "complete", fill: "rgb(17, 17, 17)", ring: "rgb(17, 17, 17)" },
     { text: "not yet complete: time so far", fill: "rgba(0, 0, 0, 0)", ring: "rgb(17, 17, 17)" },
     { text: "delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
+    { text: "delayed, not yet complete", fill: "rgba(0, 0, 0, 0)", ring: "rgb(244, 185, 66)" },
   ]);
   expect(geometry.fits).toBe(true);
   expect(geometry.pageFits).toBe(true);
@@ -1147,6 +1149,10 @@ test("a run in flight for weeks does not flatten the landed runs", async ({
   });
   expect(geometry.pinned).not.toBeNull();
   expect(geometry.pinned.title).toContain("off the chart");
+  // the key says what the dashed mark is, since its height is no longer its time
+  await expect(chart.locator("li")).toContainText([
+    "dashed: time so far is above the chart",
+  ]);
   // the stale run sits at the very top; the landed runs still spread beneath
   // it, the delayed one above the line and the on-time ones well off the floor
   for (const y of [...geometry.delayed, ...geometry.onTime]) {

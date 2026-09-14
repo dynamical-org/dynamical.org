@@ -1415,21 +1415,28 @@ function markRadius(run) {
   return run.timing === "delayed" ? CHART_DELAYED_MARK_R : CHART_MARK_R;
 }
 
-/* The key names the marks the chart draws, and only those: complete and not
-   yet complete when both are shown, delayed when a run was judged so. A
-   product short of history has no verdicts to draw, and the key says why
-   rather than leaving the reader to wonder at a chart with no amber and no
-   line. */
+/* The key names the marks the chart draws, and only those, each drawn as it
+   is on the chart: complete and not yet complete when both are shown, a run
+   pinned above the chart when one is, and a delayed run filled or hollow as
+   the delayed runs shown are. A product short of history has no verdicts to
+   draw, and the key says why rather than leaving the reader to wonder at a
+   chart with no amber and no line. */
 
-export function runChartKey(product, runs) {
+export function runChartKey(product, runs, pinned = () => false) {
   const key = [];
   const arriving = runs.some((run) => run.elapsed);
   if (arriving && runs.some((run) => !run.elapsed)) {
     key.push({ mark: "complete", text: "complete" });
   }
   if (arriving) key.push({ mark: "elapsed", text: "not yet complete: time so far" });
-  if (runs.some((run) => run.timing === "delayed")) {
+  if (runs.some((run) => run.elapsed && pinned(run))) {
+    key.push({ mark: "pinned", text: "dashed: time so far is above the chart" });
+  }
+  if (runs.some((run) => run.timing === "delayed" && !run.elapsed)) {
     key.push({ mark: "delayed", text: "delayed" });
+  }
+  if (runs.some((run) => run.timing === "delayed" && run.elapsed)) {
+    key.push({ mark: "delayed-elapsed", text: "delayed, not yet complete" });
   }
   const baseline = product.timing_baseline;
   if (
@@ -1480,6 +1487,7 @@ function RunChart({ product, now, local }) {
   const zone = selectedTimeZone(local);
 
   let chart = null;
+  let key = [];
   if (series.runs.length > 0 && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
     const scale = runChartScales(
       series,
@@ -1487,6 +1495,7 @@ function RunChart({ product, now, local }) {
       product.cadence_hours,
       initColumnPx(product, zone),
     );
+    key = runChartKey(product, series.runs, (run) => scale.pinned(run.seconds));
     // the date shows where it turns over among the labelled runs, so a day
     // that begins at a run thinned out of the labels is still named
     let previousDate = null;
@@ -1558,7 +1567,7 @@ function RunChart({ product, now, local }) {
     style=${`--plot-left:${CHART_MARGIN.left}px`}
   >
     ${chart}
-    ${chart ? html`<${RunKey} items=${runChartKey(product, series.runs)} />` : null}
+    ${chart ? html`<${RunKey} items=${key} />` : null}
   </figure>`;
 }
 
@@ -1786,7 +1795,7 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
       em=${em}
       local=${local}
     />
-    <${RunKey} items=${runChartKey(product, series.runs)} />
+    <${RunKey} items=${runChartKey(product, series.runs, (run) => scale.pinned(run.seconds))} />
   </figure>`;
 }
 

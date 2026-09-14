@@ -1878,14 +1878,40 @@ test("run chart threshold: none without history, none when the feed omits it", (
 
 test("run chart key: names only the marks drawn", () => {
   const now = Date.parse("2026-07-25T14:30:00Z");
-  const key = (product) =>
-    runChartKey(product, runChartSeries(product, now).runs).map(({ mark, text }) => ({ mark, text }));
-  // a landed on-time run, a landed delayed run, and a delayed run in flight
+  const key = (product, pinned) =>
+    runChartKey(product, runChartSeries(product, now).runs, pinned).map(({ mark, text }) => ({
+      mark,
+      text,
+    }));
+  // a landed on-time run, a landed delayed run, and a delayed run in flight:
+  // each delayed mark is keyed as it is drawn, filled or hollow
   assert.deepEqual(key(chartProduct()), [
     { mark: "complete", text: "complete" },
     { mark: "elapsed", text: "not yet complete: time so far" },
     { mark: "delayed", text: "delayed" },
+    { mark: "delayed-elapsed", text: "delayed, not yet complete" },
   ]);
+  // the only delayed run still arriving: no filled amber mark to name
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+          { init_time: "2026-07-25T12:00:00Z", status: "in_flight", timing: "delayed" },
+        ],
+      }),
+    ),
+    [
+      { mark: "complete", text: "complete" },
+      { mark: "elapsed", text: "not yet complete: time so far" },
+      { mark: "delayed-elapsed", text: "delayed, not yet complete" },
+    ],
+  );
+  // a run pinned above the chart is named, and only when one is
+  assert.deepEqual(
+    key(chartProduct(), (run) => run.elapsed).map(({ mark }) => mark),
+    ["complete", "elapsed", "pinned", "delayed", "delayed-elapsed"],
+  );
   // every run landed and none late: the points need no key
   assert.deepEqual(
     key(

@@ -470,16 +470,21 @@
   vertical-align: -0.05rem;
 }
 
-.pipeline-runs li[data-mark="elapsed"]::before {
-  background: none;
-}
-
-.pipeline-runs li[data-mark="delayed"]::before {
+.pipeline-runs li[data-mark^="delayed"]::before {
   width: 1rem;
   height: 1rem;
   border-color: var(--pipeline-progress);
   background: var(--pipeline-progress);
   vertical-align: -0.15rem;
+}
+
+/* hollow, as a run not yet complete is, on the chart or above it */
+.pipeline-runs li:is([data-mark="elapsed"], [data-mark="pinned"], [data-mark="delayed-elapsed"])::before {
+  background: none;
+}
+
+.pipeline-runs li[data-mark="pinned"]::before {
+  border-style: dashed;
 }
 
 
