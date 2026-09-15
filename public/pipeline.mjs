@@ -18,7 +18,7 @@ const POLL_INTERVAL_MS = 15_000;
 const HEALTH_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
-const DASHBOARD_VERSION = 2; // the granular schema; the lead-only shape is gone
+const DASHBOARD_VERSIONS = new Set([2, 3]); // granular schemas; the lead-only shape is gone
 // Field geometry. JS owns these because the run count is computed from them;
 // the CSS reads them back off the field as custom properties.
 const CELL_PX = 12; // one measurement, the same size in every view
@@ -82,7 +82,7 @@ function validFacets(facets) {
 export function validateDashboard(data) {
   if (
     !data ||
-    data.v !== DASHBOARD_VERSION ||
+    !DASHBOARD_VERSIONS.has(data.v) ||
     !hasTimestamp(data.generated_at) ||
     !Array.isArray(data.groups) ||
     data.groups.length === 0 ||

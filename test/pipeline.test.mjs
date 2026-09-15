@@ -74,8 +74,14 @@ function dashboard() {
   };
 }
 
-test("accepts the granular dashboard contract", () => {
+test("accepts the granular v2 dashboard contract", () => {
   assert.equal(validateDashboard(dashboard()).groups[0].id, "noaa-gfs");
+});
+
+test("accepts the HRRR virtual-family v3 dashboard contract", () => {
+  const familyDashboard = dashboard();
+  familyDashboard.v = 3;
+  assert.equal(validateDashboard(familyDashboard).groups[0].id, "noaa-gfs");
 });
 
 test("labels dynamical.org virtual datasets without the implementation detail", () => {
@@ -122,7 +128,7 @@ test("accepts a product's facets", () => {
 test("rejects empty, unknown, and oversized dashboards", () => {
   assert.throws(() => validateDashboard({}), /invalid pipeline dashboard/i);
   assert.throws(
-    () => validateDashboard({ ...dashboard(), v: 3 }),
+    () => validateDashboard({ ...dashboard(), v: 4 }),
     /invalid pipeline dashboard/i,
   );
   assert.throws(
