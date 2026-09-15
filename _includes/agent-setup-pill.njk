@@ -1,0 +1,16 @@
+{#
+  The "onboard your agent" button: one line the reader hands to a coding agent,
+  which then fetches /prompt.md and follows it (the shape
+  developers.cloudflare.com uses). The line stays visible under the button so
+  it can be selected and copied without JavaScript; public/agent-prompt.mjs
+  does the copy. Styles: .agent-setup-pill in main.css.
+
+  {% include "agent-setup-pill.njk" %}
+#}
+{%- from "tag-icon.njk" import tagIcon -%}
+<div class="agent-prompt agent-setup-pill" data-prompt="agent-setup">
+  <button type="button" title="Copies a one-line prompt for your coding agent">Onboard your agent<span aria-hidden="true">{{ tagIcon("sparkles") }}{{ tagIcon("terminal") }}{{ tagIcon("box") }}{{ tagIcon("square-terminal") }}</span></button>
+  <span role="status"></span>
+  <textarea readonly rows="1" aria-label="Onboard your agent: the prompt">{{ agentPrompts.SETUP_LINE }}</textarea>
+</div>
+<script type="module" src="/agent-prompt.mjs?v={{ "public/agent-prompt.mjs" | fileHash }}"></script>

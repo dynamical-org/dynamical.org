@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-// The copy control on /agents/ (and every dataset page) is one delegated click
+// The copy control (the migration prompt, and the pill on the home page and
+// every dataset page) is one delegated click
 // handler plus a per-block status timer, and both of its bugs in review were
 // timing: a second click inside the first click's 2.5 s window lost its
 // feedback, and analytics counted a copy that had failed. `npm test` has no
 // clipboard or timers to catch either, so this spec drives the real page.
 // Nothing here touches the network beyond the dev server.
 
-const PATH = "/agents/";
+const PATH = "/migration-2026/";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -22,7 +23,7 @@ test("a click copies the prompt and announces it", async ({ page }) => {
 
 test("a second click inside the window keeps its own feedback", async ({ page }) => {
   await page.goto(PATH);
-  const block = page.locator(".agent-prompt").nth(1);
+  const block = page.locator(".agent-prompt").first();
   const status = block.locator("[role=status]");
   await block.locator("button").click();
   await expect(status).toHaveText("copied");
@@ -61,10 +62,10 @@ test("a successful copy is tracked by id, never by text", async ({ page }) => {
     });
   });
   await page.goto(PATH);
-  const block = page.locator(".agent-prompt[data-prompt=minimum]");
+  const block = page.locator(".agent-prompt[data-prompt=migration]");
   await block.locator("button").click();
   await expect(block.locator("[role=status]")).toHaveText("copied");
-  expect(events).toEqual([["agent_prompt_copied", { prompt: "minimum", page: PATH }]]);
+  expect(events).toEqual([["agent_prompt_copied", { prompt: "migration", page: PATH }]]);
 });
 
 test("the home-page pill copies the one-line setup prompt", async ({ page }) => {
@@ -77,7 +78,7 @@ test("the home-page pill copies the one-line setup prompt", async ({ page }) => 
   expect(copied).toMatch(/^Fetch and follow .* https:\/\/dynamical\.org\/prompt\.md$/);
 });
 
-for (const path of ["/", "/agents/"]) {
+for (const path of ["/", "/catalog/noaa-gfs-forecast/"]) {
   test(`the pill fits a phone on ${path}`, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto(path);

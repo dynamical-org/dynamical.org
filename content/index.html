@@ -5,7 +5,6 @@ redirects_from: /index.html
 templateEngineOverride: njk
 ---
 {% from "work-item.njk" import workItem %}
-{% from "agent-prompt.njk" import agentSetupPill %}
 
 <div class="hero-section">
   <div class="hero-content">
@@ -13,7 +12,7 @@ templateEngineOverride: njk
       A lab advancing how we <strong>access</strong>, <strong>understand</strong>, and <strong>act</strong> on data about our world.
     </p>
     <div style="margin-top: 2.4rem;">
-      {{ agentSetupPill(agentPrompts.SETUP_LINE, "Onboard your agent") }}
+      {% include "agent-setup-pill.njk" %}
     </div>
   </div>
   <div class="hero-visual">
