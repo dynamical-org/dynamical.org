@@ -944,6 +944,19 @@ a.work-item:hover h3 { text-decoration: underline; }
   font-size: 1.2rem;
   color: var(--muted-text);
 }
+/* On narrow screens the pill and the prompt line under it read better
+   centered than pinned to the left edge. */
+@media (max-width: 640px) {
+  .agent-setup-pill {
+    text-align: center;
+  }
+  .agent-setup-pill button {
+    justify-content: center;
+  }
+  .agent-setup-pill textarea {
+    text-align: center;
+  }
+}
 
 #newsletter {
   margin-top: 4rem;
