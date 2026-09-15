@@ -1196,6 +1196,255 @@ test("has no lag without a completed pair for the init", () => {
   assert.equal(lagAt(null, [aws]), null);
 });
 
+const HRRR_FAMILIES = ["nat", "prs", "sfc"];
+
+function hrrrFacets(completedAt, overrides = {}) {
+  return [...HRRR_FAMILIES, "subh"].map((family, index) => {
+    const override = overrides[family] ?? {};
+    const at = new Date(Date.parse(completedAt) + index * 60_000).toISOString();
+    return {
+      dimension: "component",
+      name: `component:conus/${family}`,
+      label: family,
+      status: "complete",
+      completion_pct: 1,
+      dependencies_available: 1,
+      dependencies_expected: 1,
+      completed_at: at,
+      ...override,
+    };
+  });
+}
+
+function hrrrProduct(id, initTime, completedAt, overrides = {}) {
+  return {
+    id,
+    source_label: id.startsWith("external-") ? id : null,
+    recent_inits: [
+      {
+        init_time: initTime,
+        status: "complete",
+        latency_s: 99,
+        facets: hrrrFacets(completedAt),
+        ...overrides,
+      },
+    ],
+    lead_group_stats: [],
+    latency_stats: { sample_init_count: 1 },
+  };
+}
+
+test("validates optional facet completion timestamps while accepting old payloads", () => {
+  const old = dashboard();
+  old.groups[0].products[0].recent_inits = [
+    {
+      init_time: "2026-07-25T12:00:00Z",
+      facets: hrrrFacets("2026-07-25T12:30:00Z").map(
+        ({ completed_at: _completedAt, ...facet }) => facet,
+      ),
+    },
+  ];
+  assert.equal(validateDashboard(old), old);
+
+  const current = structuredClone(old);
+  current.groups[0].products[0].recent_inits[0].facets = hrrrFacets(
+    "2026-07-25T12:30:00Z",
+  );
+  current.groups[0].products[0].recent_inits[0].facets[0].completed_at =
+    "2026-07-25T12:30:00+00:00";
+  assert.equal(validateDashboard(current), current);
+
+  for (const completedAt of ["not-a-timestamp", "2026-07-25T07:30:00-05:00"]) {
+    const invalid = structuredClone(current);
+    invalid.groups[0].products[0].recent_inits[0].facets[0].completed_at =
+      completedAt;
+    assert.throws(() => validateDashboard(invalid), /invalid pipeline facet/i);
+  }
+});
+
+test("HRRR virtual lag matches nat, prs, and sfc completion and ignores subh", () => {
+  const initTime = "2026-09-15T12:00:00Z";
+  const source = hrrrProduct(
+    "external-noaa-hrrr-aws",
+    initTime,
+    "2026-09-15T12:20:00Z",
+    {
+      status: "in_flight",
+      latency_s: null,
+      facets: hrrrFacets("2026-09-15T12:20:00Z", {
+        nat: { completed_at: "2026-09-15T12:29:00Z" },
+        prs: { completed_at: "2026-09-15T12:31:00Z" },
+        sfc: { completed_at: "2026-09-15T12:30:00Z" },
+        subh: { status: "in_flight", completed_at: undefined },
+      }),
+    },
+  );
+  const virtual = hrrrProduct(
+    "noaa-hrrr-forecast-48-hour-virtual",
+    initTime,
+    "2026-09-15T12:35:00Z",
+    {
+      facets: hrrrFacets("2026-09-15T12:35:00Z", {
+        nat: { completed_at: "2026-09-15T12:37:00Z" },
+        prs: { completed_at: "2026-09-15T12:40:00Z" },
+        sfc: { completed_at: "2026-09-15T12:38:00Z" },
+        subh: { completed_at: "2026-09-15T13:20:00Z" },
+      }),
+    },
+  );
+
+  assert.deepEqual(lagSeries(virtual, [source]), [9 * 60]);
+});
+
+test("HRRR virtual lag requires complete unique timestamped evidence on both sides", () => {
+  const initTime = "2026-09-15T12:00:00Z";
+  const virtual = hrrrProduct(
+    "noaa-hrrr-forecast-48-hour-virtual",
+    initTime,
+    "2026-09-15T12:40:00Z",
+  );
+  const complete = hrrrProduct(
+    "external-noaa-hrrr-aws",
+    initTime,
+    "2026-09-15T12:30:00Z",
+  );
+
+  const cases = [
+    { facets: complete.recent_inits[0].facets.filter(({ label }) => label !== "nat") },
+    {
+      facets: [
+        ...complete.recent_inits[0].facets,
+        complete.recent_inits[0].facets.find(({ label }) => label === "nat"),
+      ],
+    },
+    {
+      facets: complete.recent_inits[0].facets.map((facet) =>
+        facet.label === "prs" ? { ...facet, status: "in_flight" } : facet,
+      ),
+    },
+    {
+      facets: complete.recent_inits[0].facets.map((facet) =>
+        facet.label === "sfc" ? { ...facet, completed_at: undefined } : facet,
+      ),
+    },
+    {
+      facets: complete.recent_inits[0].facets.map((facet) =>
+        facet.label === "sfc" ? { ...facet, completed_at: "invalid" } : facet,
+      ),
+    },
+  ];
+  for (const overrides of cases) {
+    const source = structuredClone(complete);
+    Object.assign(source.recent_inits[0], overrides, { latency_s: 1 });
+    assert.deepEqual(lagSeries(virtual, [source]), []);
+  }
+
+  const oldVirtual = structuredClone(virtual);
+  oldVirtual.recent_inits[0].facets.forEach((facet) => delete facet.completed_at);
+  assert.deepEqual(lagSeries(oldVirtual, [complete]), []);
+});
+
+test("HRRR virtual lag selects the earliest complete mirror without splicing families", () => {
+  const initTime = "2026-09-15T12:00:00Z";
+  const virtual = hrrrProduct(
+    "noaa-hrrr-forecast-48-hour-virtual",
+    initTime,
+    "2026-09-15T12:40:00Z",
+  );
+  const partialAws = hrrrProduct(
+    "external-noaa-hrrr-aws",
+    initTime,
+    "2026-09-15T12:20:00Z",
+    {
+      facets: hrrrFacets("2026-09-15T12:20:00Z").filter(
+        ({ label }) => label !== "nat",
+      ),
+    },
+  );
+  const partialFtp = hrrrProduct(
+    "external-noaa-hrrr-ftp",
+    initTime,
+    "2026-09-15T12:21:00Z",
+    {
+      facets: hrrrFacets("2026-09-15T12:21:00Z").filter(
+        ({ label }) => label !== "prs",
+      ),
+    },
+  );
+  assert.deepEqual(lagSeries(virtual, [partialAws, partialFtp]), []);
+
+  const slowerComplete = hrrrProduct(
+    "external-noaa-hrrr-aws",
+    initTime,
+    "2026-09-15T12:31:00Z",
+  );
+  const fasterComplete = hrrrProduct(
+    "external-noaa-hrrr-ftp",
+    initTime,
+    "2026-09-15T12:29:00Z",
+  );
+  assert.deepEqual(lagSeries(virtual, [slowerComplete, fasterComplete]), [11 * 60]);
+});
+
+test("HRRR virtual lag uses only the matching source horizon and init", () => {
+  const initTime = "2026-09-15T12:00:00Z";
+  const virtual48 = hrrrProduct(
+    "noaa-hrrr-forecast-48-hour-virtual",
+    initTime,
+    "2026-09-15T12:40:00Z",
+  );
+  const wrongHorizon = hrrrProduct(
+    "external-noaa-hrrr-18h-aws",
+    initTime,
+    "2026-09-15T12:10:00Z",
+  );
+  const wrongInit = hrrrProduct(
+    "external-noaa-hrrr-aws",
+    "2026-09-15T13:00:00Z",
+    "2026-09-15T12:15:00Z",
+  );
+  const matching = hrrrProduct(
+    "external-noaa-hrrr-aws",
+    initTime,
+    "2026-09-15T12:30:00Z",
+  );
+  assert.deepEqual(
+    lagSeries(virtual48, [wrongHorizon, wrongInit, matching]),
+    [10 * 60],
+  );
+
+  const virtual18 = {
+    ...virtual48,
+    id: "noaa-hrrr-forecast-18-hour-virtual",
+  };
+  assert.deepEqual(lagSeries(virtual18, [matching]), []);
+  assert.deepEqual(lagSeries(virtual18, [wrongHorizon]), [30 * 60]);
+});
+
+test("HRRR virtual family lag stays signed and labels its matching families", () => {
+  const initTime = "2026-09-15T12:00:00Z";
+  const virtual = hrrrProduct(
+    "noaa-hrrr-forecast-48-hour-virtual",
+    initTime,
+    "2026-09-15T12:20:00Z",
+  );
+  const source = hrrrProduct(
+    "external-noaa-hrrr-aws",
+    initTime,
+    "2026-09-15T12:30:00Z",
+  );
+  const details = detailRows(virtual, Date.parse("2026-09-15T13:00:00Z"), false, [
+    source,
+    virtual,
+  ]);
+
+  assert.equal(details.lag.last, "−10m");
+  assert.equal(
+    details.lag.header,
+    "lag after source · matching nat/prs/sfc families · 1 recent sample",
+  );
+});
+
 test("takes lag percentiles by nearest rank, and only from a real sample", () => {
   const lags = [600, 540, 660, 480, 720, 600, 540, 300];
   assert.equal(lagPercentile(lags, 0.5), 540);

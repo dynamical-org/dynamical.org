@@ -49,6 +49,14 @@ function hasTimestamp(value) {
   );
 }
 
+function hasUtcTimestamp(value) {
+  return (
+    typeof value === "string" &&
+    /(?:Z|\+00:?00)$/.test(value) &&
+    Number.isFinite(Date.parse(value))
+  );
+}
+
 function validFacets(facets) {
   return (
     Array.isArray(facets) &&
@@ -65,7 +73,8 @@ function validFacets(facets) {
         Number.isFinite(facet.completion_pct) &&
         facet.completion_pct >= 0 &&
         facet.completion_pct <= 1 &&
-        typeof facet.status === "string",
+        typeof facet.status === "string" &&
+        (facet.completed_at == null || hasUtcTimestamp(facet.completed_at)),
     )
   );
 }
@@ -988,10 +997,13 @@ function statsHeader(sampleInitCount, note = null) {
 
 // A lag has no published baseline behind it, so its sample is the handful of
 // runs the payload carries — named apart from the upstream rows' own count.
-function lagStatsHeader(sampleCount) {
-  if (!sampleCount) return "lag after source";
+function lagStatsHeader(sampleCount, matchingFamilies = false) {
+  const header = matchingFamilies
+    ? "lag after source · matching nat/prs/sfc families"
+    : "lag after source";
+  if (!sampleCount) return header;
   const samples = sampleCount === 1 ? "recent sample" : "recent samples";
-  return `lag after source · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+  return `${header} · ${sampleCount.toLocaleString("en-US")} ${samples}`;
 }
 
 const NO_RUN = Object.freeze({
@@ -1079,13 +1091,73 @@ function initAt(product, initTime) {
   );
 }
 
+const HRRR_FAMILY_LAG_SOURCES = new Map([
+  [
+    "noaa-hrrr-forecast-18-hour-virtual",
+    new Set(["external-noaa-hrrr-18h-aws", "external-noaa-hrrr-18h-ftp"]),
+  ],
+  [
+    "noaa-hrrr-forecast-48-hour-virtual",
+    new Set(["external-noaa-hrrr-aws", "external-noaa-hrrr-ftp"]),
+  ],
+]);
+const HRRR_LAG_FACETS = new Set([
+  "component:conus/nat",
+  "component:conus/prs",
+  "component:conus/sfc",
+]);
+
+// A virtual HRRR run is comparable to one source mirror once the same three
+// file families have all landed on both sides. subh is deliberately excluded:
+// it is not part of either virtual store and can keep the source's whole-run
+// status open after the comparable files are ready.
+function hrrrFamilyCompletion(init) {
+  const completed = new Map();
+  for (const facet of init?.facets ?? []) {
+    if (
+      facet.dimension !== "component" ||
+      !HRRR_LAG_FACETS.has(facet.name)
+    ) {
+      continue;
+    }
+    if (
+      completed.has(facet.name) ||
+      facet.status !== "complete" ||
+      !hasUtcTimestamp(facet.completed_at)
+    ) {
+      return null;
+    }
+    completed.set(facet.name, Date.parse(facet.completed_at));
+  }
+  if (completed.size !== HRRR_LAG_FACETS.size) return null;
+  return Math.max(...completed.values());
+}
+
+function hrrrFamilyLagAt(init, sources, eligibleSourceIds) {
+  const mine = hrrrFamilyCompletion(init);
+  if (mine == null) return null;
+
+  let earliest = null;
+  for (const source of sources) {
+    if (!eligibleSourceIds.has(source.id)) continue;
+    const theirs = hrrrFamilyCompletion(initAt(source, init.init_time));
+    if (theirs == null) continue;
+    if (earliest == null || theirs < earliest) earliest = theirs;
+  }
+  return earliest == null ? null : (mine - earliest) / 1000;
+}
+
 // The earliest source completion is the one to measure from — a mirror that
 // lagged tells us nothing about when the data became available. Only whole
 // runs are subtracted: two rows carrying the same number of lead groups is no
 // evidence that they cut their horizons the same way, so there is no per-group
 // lag to report.
-export function lagAt(init, sources) {
+export function lagAt(init, sources, product = null) {
   if (!init) return null;
+  const hrrrSourceIds = HRRR_FAMILY_LAG_SOURCES.get(product?.id);
+  if (hrrrSourceIds) {
+    return hrrrFamilyLagAt(init, sources, hrrrSourceIds);
+  }
   const mine = completedLatency(init);
   if (mine == null) return null;
   let earliest = null;
@@ -1099,7 +1171,7 @@ export function lagAt(init, sources) {
 
 export function lagSeries(product, sources) {
   return (product.recent_inits ?? [])
-    .map((init) => lagAt(init, sources))
+    .map((init) => lagAt(init, sources, product))
     .filter((lag) => lag != null);
 }
 
@@ -1173,9 +1245,10 @@ export function detailRows(product, now, local, groupProducts = []) {
 // still out reads "—".
 function lagRow(product, sources, last) {
   const lags = lagSeries(product, sources);
+  const matchingFamilies = HRRR_FAMILY_LAG_SOURCES.has(product.id);
   return {
-    header: lagStatsHeader(lags.length),
-    last: formatSignedLatency(lagAt(last, sources)),
+    header: lagStatsHeader(lags.length, matchingFamilies),
+    last: formatSignedLatency(lagAt(last, sources, product)),
     p50: formatSignedLatency(lagPercentile(lags, 0.5)),
     p95: formatSignedLatency(lagPercentile(lags, 0.95)),
     p99: formatSignedLatency(lagPercentile(lags, 0.99)),
