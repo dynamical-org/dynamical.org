@@ -7,7 +7,6 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
 ---
 
 {% from "tag-icon.njk" import tagIcon %}
-{% from "agent-prompt.njk" import agentPrompt %}
 
 <style>
   /* Catalog grouped by model: each model heads a short .index-list of its
@@ -89,7 +88,6 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
         <li class="toc-h2"><a href="#{{ item.model.id | slugify }}">{{ item.model.name }}</a></li>
         {% endfor %}
         <li class="toc-h2"><a href="#experimental">Experimental</a></li>
-        <li class="toc-h2"><a href="#agents">AI agents</a></li>
       </ul>
     </nav>
   </div>
@@ -135,16 +133,6 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
       </a>
     </li>
     </ul>
-  </section>
-
-  <section class="model-group">
-    <strong id="agents">Use with an AI agent</strong>
-    <p>
-      Paste this into an assistant so it reads the catalog before it writes code.
-      <a href="/agents/">More prompts</a> for specific tasks, and one per dataset on its page.
-    </p>
-    {%- set standard = agentPrompts.PROMPTS | find("id", "standard") %}
-    {{ agentPrompt(standard.text, "Prompt: " + standard.title, standard.id) }}
   </section>
 
   <hr style="margin: 6rem 0;" />
