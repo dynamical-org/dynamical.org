@@ -128,7 +128,9 @@ test("the setup line is one short line that names only the instructions URL", ()
 test("the setup instructions read STAC first, verify, and hand off", () => {
   const file = readFileSync(new URL("../content/agent-setup.njk", import.meta.url), "utf8");
   assert.match(file, /permalink: \/agent-setup\/prompt\.md/);
-  const body = file.slice(file.indexOf("---", 3) + 3);
+  const promptFile = readFileSync(new URL("../content/prompt.njk", import.meta.url), "utf8");
+  assert.match(promptFile, /permalink: \/prompt\.md/);
+  const body = readFileSync(new URL("../_includes/agent-setup-body.njk", import.meta.url), "utf8");
   const at = (needle) => {
     const i = body.indexOf(needle);
     assert.ok(i >= 0, `missing: ${needle}`);

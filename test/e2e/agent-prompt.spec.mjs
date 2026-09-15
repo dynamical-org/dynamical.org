@@ -74,7 +74,7 @@ test("the home-page pill copies the one-line setup prompt", async ({ page }) => 
   await expect(pill.locator("[role=status]")).toHaveText("copied");
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toBe(await pill.locator("textarea").inputValue());
-  expect(copied).toMatch(/^Fetch and follow .* https:\/\/dynamical\.org\/agent-setup\/prompt\.md$/);
+  expect(copied).toMatch(/^Fetch and follow .* https:\/\/dynamical\.org\/prompt\.md$/);
 });
 
 for (const path of ["/", "/agents/"]) {
@@ -89,5 +89,7 @@ for (const path of ["/", "/agents/"]) {
     ]);
     expect(doc).toBeLessThanOrEqual(375);
     expect(icons.x + icons.width).toBeLessThanOrEqual(button.x + button.width);
+    const buttonCenter = button.x + button.width / 2;
+    expect(Math.abs(buttonCenter - 375 / 2)).toBeLessThan(10);
   });
 }
