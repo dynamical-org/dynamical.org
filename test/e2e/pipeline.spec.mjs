@@ -523,7 +523,7 @@ test("a dynamical row reports its lag after the source beneath its time after in
   // the lag is one row under the same run headers, with its own sample
   const lag = tables.nth(1);
   await expect(lag.locator("thead tr:first-child th")).toHaveText(
-    "lag after source · 8 recent samples",
+    "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
   );
   const heads = lag.locator("thead tr:last-child th");
   await expect(heads.nth(0)).toHaveText(/^last run · /);
@@ -531,8 +531,9 @@ test("a dynamical row reports its lag after the source beneath its time after in
   const cells = lag.locator("tbody tr td");
   await expect(cells).toHaveCount(4);
   await expect(cells.nth(0)).toHaveText("5m");
-  await expect(cells.nth(1)).toHaveText("9m");
-  await expect(cells.nth(2)).toHaveText("12m");
+  await expect(cells.nth(1)).toHaveText("15m");
+  await expect(cells.nth(2)).toHaveText("30m");
+  await expect(cells.nth(3)).toHaveText("45m");
 });
 
 test("each details table scrolls itself, under a header that names its column", async ({
