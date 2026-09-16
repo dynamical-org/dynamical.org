@@ -194,19 +194,7 @@ export function validateDashboard(data) {
           throw new TypeError("Invalid pipeline facet group");
         }
       }
-      if (
-        Object.hasOwn(product, "pipeline_lag") &&
-        !validPipelineLag(product.pipeline_lag)
-      ) {
-        throw new TypeError("Invalid pipeline lag");
-      }
       for (const init of product.recent_inits) {
-        if (
-          Object.hasOwn(init, "pipeline_lag_s") &&
-          !Number.isFinite(init.pipeline_lag_s)
-        ) {
-          throw new TypeError("Invalid pipeline lag");
-        }
         if (init.facets != null && !validFacets(init.facets)) {
           throw new TypeError("Invalid pipeline facet");
         }
@@ -1062,13 +1050,14 @@ function lagStatsHeader(lag) {
   const header = lag?.basis === "shared_nat_prs_sfc"
     ? "lag after source · matching nat/prs/sfc families"
     : "lag after source";
-  if (!lag) return `${header} · unavailable (not paired)`;
+  if (!lag) return `${header} · unavailable (no published baseline)`;
   if (lag.status === "pending") {
     return `${header} · historical baseline pending`;
   }
   const { sample_init_count: inits, sample_day_count: days } = lag.stats;
   const window = `${lag.window_start.slice(0, 10)}–${lag.window_end.slice(0, 10)} UTC`;
-  return `${header} · historical baseline (effective ${window}) · ${countLabel(inits, "sample")} across ${countLabel(days, "day")}`;
+  const generated = `${lag.generated_at.slice(0, 19).replace("T", " ")} UTC`;
+  return `${header} · historical baseline (effective ${window}; as of ${generated}) · ${countLabel(inits, "sample")} across ${countLabel(days, "day")}`;
 }
 
 const NO_RUN = Object.freeze({
@@ -1192,7 +1181,9 @@ export function detailRows(product, now, local) {
 // complete, and a lag needs both sides landed — a last run whose source is
 // still out reads "—".
 function lagRow(product, last) {
-  const lag = product.pipeline_lag;
+  const lag = validPipelineLag(product.pipeline_lag)
+    ? product.pipeline_lag
+    : null;
   const stats = lag?.status === "ready" ? lag.stats : null;
   return {
     header: lagStatsHeader(lag),

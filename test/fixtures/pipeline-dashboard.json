@@ -1975,7 +1975,7 @@
             "window_days": 365,
             "window_start": "2025-07-25T18:00:00Z",
             "window_end": "2026-07-25T18:00:00Z",
-            "generated_at": "2026-07-25T18:05:00Z",
+            "generated_at": "2026-07-25T18:00:00Z",
             "stats": {
               "p50_s": 900,
               "p95_s": 1800,

@@ -1112,7 +1112,7 @@ function readyPipelineLag(overrides = {}) {
     window_days: 365,
     window_start: "2025-07-25T18:00:00Z",
     window_end: "2026-07-25T18:00:00Z",
-    generated_at: "2026-07-25T18:05:00Z",
+    generated_at: "2026-07-25T18:00:00Z",
     stats: {
       p50_s: 900,
       p95_s: 1800,
@@ -1243,9 +1243,14 @@ test("validates ready and pending published pipeline lag", () => {
     },
   });
   assert.equal(validateDashboard(current), current);
+  product.source_label = null;
+  assert.equal(
+    detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).lag.p95,
+    "1h",
+  );
 });
 
-test("rejects malformed published pipeline lag", () => {
+test("malformed optional lag fields degrade only the affected lag", () => {
   const malformed = [
     null,
     readyPipelineLag({ status: "stale" }),
@@ -1272,22 +1277,48 @@ test("rejects malformed published pipeline lag", () => {
         p99_s: 1,
         avg_s: 2,
         sample_init_count: 3,
-        sample_day_count: 4,
+        sample_day_count: 3,
       },
     }),
     { ...readyPipelineLag(), status: "pending", stats: null },
   ];
   for (const pipelineLag of malformed) {
     const invalid = dashboard();
-    invalid.groups[0].products[0].pipeline_lag = pipelineLag;
-    assert.throws(() => validateDashboard(invalid), /invalid pipeline lag/i);
+    const [affected] = invalid.groups[0].products;
+    affected.source_label = null;
+    affected.pipeline_lag = pipelineLag;
+    const sibling = {
+      ...lagProduct([lagInit("2026-07-25T12:00:00Z", 60)]),
+      id: "noaa-gfs-forecast-virtual",
+    };
+    invalid.groups[0].products.push(sibling);
+
+    assert.equal(validateDashboard(invalid), invalid);
+    assert.equal(
+      detailRows(affected, Date.parse("2026-07-25T18:00:00Z"), false).lag.header,
+      "lag after source · unavailable (no published baseline)",
+    );
+    assert.equal(
+      detailRows(sibling, Date.parse("2026-07-25T18:00:00Z"), false).lag.p50,
+      "15m",
+    );
   }
 
   const invalidInit = dashboard();
-  invalidInit.groups[0].products[0].recent_inits = [
+  const [affectedInit] = invalidInit.groups[0].products;
+  affectedInit.source_label = null;
+  affectedInit.pipeline_lag = readyPipelineLag();
+  affectedInit.recent_inits = [
     { init_time: "2026-07-25T12:00:00Z", pipeline_lag_s: null },
   ];
-  assert.throws(() => validateDashboard(invalidInit), /invalid pipeline lag/i);
+  assert.equal(validateDashboard(invalidInit), invalidInit);
+  const details = detailRows(
+    affectedInit,
+    Date.parse("2026-07-25T18:00:00Z"),
+    false,
+  ).lag;
+  assert.equal(details.last, "—");
+  assert.equal(details.p50, "15m");
 });
 
 test("details use historical lag statistics instead of recent values", () => {
@@ -1300,7 +1331,7 @@ test("details use historical lag statistics instead of recent values", () => {
 
   assert.deepEqual(details.lag, {
     header:
-      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC) · 1,204 samples across 301 days",
+      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
     last: "3m",
     p50: "15m",
     p95: "30m",
@@ -1359,7 +1390,10 @@ test("pending, empty, and missing lag baselines stay distinct", () => {
   const old = lagProduct([lagInit("2026-07-25T00:00:00Z", undefined)]);
   delete old.pipeline_lag;
   const unavailable = detailRows(old, Date.parse("2026-07-25T01:00:00Z"), false).lag;
-  assert.equal(unavailable.header, "lag after source · unavailable (not paired)");
+  assert.equal(
+    unavailable.header,
+    "lag after source · unavailable (no published baseline)",
+  );
   assert.deepEqual([unavailable.last, unavailable.p50, unavailable.p99], ["—", "—", "—"]);
 });
 
@@ -1438,7 +1472,7 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
   );
   assert.deepEqual(details.lag, {
     header:
-      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC) · 1,204 samples across 301 days",
+      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
     last: "5m",
     p50: "15m",
     p95: "30m",

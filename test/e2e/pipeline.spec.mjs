@@ -523,7 +523,7 @@ test("a dynamical row reports its lag after the source beneath its time after in
   // the lag is one row under the same run headers, with its own sample
   const lag = tables.nth(1);
   await expect(lag.locator("thead tr:first-child th")).toHaveText(
-    "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC) · 1,204 samples across 301 days",
+    "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
   );
   const heads = lag.locator("thead tr:last-child th");
   await expect(heads.nth(0)).toHaveText(/^last run · /);
