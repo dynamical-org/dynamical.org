@@ -40,6 +40,7 @@ const LABEL_PX = 12; // one axis-label row
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
+const QUANTILE_ORDER_TOLERANCE_S = 1e-9;
 
 function hasTimestamp(value) {
   return (
@@ -76,6 +77,60 @@ function validFacets(facets) {
         typeof facet.status === "string" &&
         (facet.completed_at == null || hasUtcTimestamp(facet.completed_at)),
     )
+  );
+}
+
+function validPipelineLagStats(stats) {
+  if (!stats) return false;
+  const values = [stats.p50_s, stats.p95_s, stats.p99_s, stats.avg_s];
+  if (
+    !values.every((value) => value === null || Number.isFinite(value)) ||
+    !Number.isInteger(stats.sample_init_count) ||
+    stats.sample_init_count < 0 ||
+    !Number.isInteger(stats.sample_day_count) ||
+    stats.sample_day_count < 0 ||
+    stats.sample_day_count > stats.sample_init_count
+  ) {
+    return false;
+  }
+  if (stats.sample_init_count === 0) {
+    return stats.sample_day_count === 0 && values.every((value) => value === null);
+  }
+  return (
+    stats.sample_day_count > 0 &&
+    values.every(Number.isFinite) &&
+    stats.p50_s <= stats.p95_s + QUANTILE_ORDER_TOLERANCE_S &&
+    stats.p95_s <= stats.p99_s + QUANTILE_ORDER_TOLERANCE_S
+  );
+}
+
+function validPipelineLag(lag) {
+  if (
+    !lag ||
+    !["ready", "pending"].includes(lag.status) ||
+    !["shared_nat_prs_sfc", "whole_run"].includes(lag.basis) ||
+    !Array.isArray(lag.source_ids) ||
+    lag.source_ids.length === 0 ||
+    !lag.source_ids.every((sourceId) => typeof sourceId === "string" && sourceId !== "") ||
+    !Number.isInteger(lag.window_days) ||
+    lag.window_days <= 0
+  ) {
+    return false;
+  }
+  if (lag.status === "pending") {
+    return (
+      lag.window_start === null &&
+      lag.window_end === null &&
+      lag.generated_at === null &&
+      lag.stats === null
+    );
+  }
+  return (
+    hasUtcTimestamp(lag.window_start) &&
+    hasUtcTimestamp(lag.window_end) &&
+    hasUtcTimestamp(lag.generated_at) &&
+    Date.parse(lag.window_start) <= Date.parse(lag.window_end) &&
+    validPipelineLagStats(lag.stats)
   );
 }
 
@@ -139,7 +194,19 @@ export function validateDashboard(data) {
           throw new TypeError("Invalid pipeline facet group");
         }
       }
+      if (
+        Object.hasOwn(product, "pipeline_lag") &&
+        !validPipelineLag(product.pipeline_lag)
+      ) {
+        throw new TypeError("Invalid pipeline lag");
+      }
       for (const init of product.recent_inits) {
+        if (
+          Object.hasOwn(init, "pipeline_lag_s") &&
+          !Number.isFinite(init.pipeline_lag_s)
+        ) {
+          throw new TypeError("Invalid pipeline lag");
+        }
         if (init.facets != null && !validFacets(init.facets)) {
           throw new TypeError("Invalid pipeline facet");
         }
@@ -171,16 +238,6 @@ export function displayRowLabel(label) {
 
 function productsOf(dashboard) {
   return dashboard.groups.flatMap((group) => group.products);
-}
-
-// a dynamical row reads its lag off the sources beside it, so every row needs
-// its group's products; one pass builds the lookup for a whole render
-function groupProductsById(dashboard) {
-  const index = new Map();
-  for (const group of dashboard.groups) {
-    for (const product of group.products) index.set(product.id, group.products);
-  }
-  return index;
 }
 
 function formatLatency(seconds) {
@@ -995,15 +1052,23 @@ function statsHeader(sampleInitCount, note = null) {
   return note ? `${header} · ${note}` : header;
 }
 
-// A lag has no published baseline behind it, so its sample is the handful of
-// runs the payload carries — named apart from the upstream rows' own count.
-function lagStatsHeader(sampleCount, matchingFamilies = false) {
-  const header = matchingFamilies
+function countLabel(count, singular) {
+  return `${count.toLocaleString("en-US")} ${count === 1 ? singular : `${singular}s`}`;
+}
+
+// Lag statistics describe the backend's historical window. Missing metadata is
+// deliberately unavailable: an old payload's recent runs are not that sample.
+function lagStatsHeader(lag) {
+  const header = lag?.basis === "shared_nat_prs_sfc"
     ? "lag after source · matching nat/prs/sfc families"
     : "lag after source";
-  if (!sampleCount) return header;
-  const samples = sampleCount === 1 ? "recent sample" : "recent samples";
-  return `${header} · ${sampleCount.toLocaleString("en-US")} ${samples}`;
+  if (!lag) return `${header} · unavailable (not paired)`;
+  if (lag.status === "pending") {
+    return `${header} · historical baseline pending`;
+  }
+  const { sample_init_count: inits, sample_day_count: days } = lag.stats;
+  const window = `${lag.window_start.slice(0, 10)}–${lag.window_end.slice(0, 10)} UTC`;
+  return `${header} · historical baseline (effective ${window}) · ${countLabel(inits, "sample")} across ${countLabel(days, "day")}`;
 }
 
 const NO_RUN = Object.freeze({
@@ -1064,127 +1129,11 @@ function labelledRun(label, initTime, local) {
   return initTime ? `${label} · ${initShort(initTime, local)}` : label;
 }
 
-/* Ingestion lag. dynamical.org's own rows sit in the same group as the upstream
-   sources they read, and their `source_label` is null; beside their time after
-   init, what matters for them is how long after the source published the
-   dataset landed. Both latencies are seconds after the same init, so the init
-   cancels out of the subtraction. */
-
-export function sourceRowsOf(products) {
-  return (products ?? []).filter(({ source_label }) => source_label != null);
-}
-
 export function isDynamicalRow(product) {
-  return product.source_label == null;
+  return product.source_label === null;
 }
 
-function completedLatency(measured) {
-  return measured?.status === "complete" && Number.isFinite(measured.latency_s)
-    ? measured.latency_s
-    : null;
-}
-
-function initAt(product, initTime) {
-  const at = Date.parse(initTime);
-  return (product.recent_inits ?? []).find(
-    (init) => Date.parse(init.init_time) === at,
-  );
-}
-
-const HRRR_FAMILY_LAG_SOURCES = new Map([
-  [
-    "noaa-hrrr-forecast-18-hour-virtual",
-    new Set(["external-noaa-hrrr-18h-aws", "external-noaa-hrrr-18h-ftp"]),
-  ],
-  [
-    "noaa-hrrr-forecast-48-hour-virtual",
-    new Set(["external-noaa-hrrr-aws", "external-noaa-hrrr-ftp"]),
-  ],
-]);
-const HRRR_LAG_FACETS = new Set([
-  "component:conus/nat",
-  "component:conus/prs",
-  "component:conus/sfc",
-]);
-
-// A virtual HRRR run is comparable to one source mirror once the same three
-// file families have all landed on both sides. subh is deliberately excluded:
-// it is not part of either virtual store and can keep the source's whole-run
-// status open after the comparable files are ready.
-function hrrrFamilyCompletion(init) {
-  const completed = new Map();
-  for (const facet of init?.facets ?? []) {
-    if (
-      facet.dimension !== "component" ||
-      !HRRR_LAG_FACETS.has(facet.name)
-    ) {
-      continue;
-    }
-    if (
-      completed.has(facet.name) ||
-      facet.status !== "complete" ||
-      !hasUtcTimestamp(facet.completed_at)
-    ) {
-      return null;
-    }
-    completed.set(facet.name, Date.parse(facet.completed_at));
-  }
-  if (completed.size !== HRRR_LAG_FACETS.size) return null;
-  return Math.max(...completed.values());
-}
-
-function hrrrFamilyLagAt(init, sources, eligibleSourceIds) {
-  const mine = hrrrFamilyCompletion(init);
-  if (mine == null) return null;
-
-  let earliest = null;
-  for (const source of sources) {
-    if (!eligibleSourceIds.has(source.id)) continue;
-    const theirs = hrrrFamilyCompletion(initAt(source, init.init_time));
-    if (theirs == null) continue;
-    if (earliest == null || theirs < earliest) earliest = theirs;
-  }
-  return earliest == null ? null : (mine - earliest) / 1000;
-}
-
-// The earliest source completion is the one to measure from — a mirror that
-// lagged tells us nothing about when the data became available. Only whole
-// runs are subtracted: two rows carrying the same number of lead groups is no
-// evidence that they cut their horizons the same way, so there is no per-group
-// lag to report.
-export function lagAt(init, sources, product = null) {
-  if (!init) return null;
-  const hrrrSourceIds = HRRR_FAMILY_LAG_SOURCES.get(product?.id);
-  if (hrrrSourceIds) {
-    return hrrrFamilyLagAt(init, sources, hrrrSourceIds);
-  }
-  const mine = completedLatency(init);
-  if (mine == null) return null;
-  let earliest = null;
-  for (const source of sources) {
-    const theirs = completedLatency(initAt(source, init.init_time));
-    if (theirs == null) continue;
-    if (earliest == null || theirs < earliest) earliest = theirs;
-  }
-  return earliest == null ? null : mine - earliest;
-}
-
-export function lagSeries(product, sources) {
-  return (product.recent_inits ?? [])
-    .map((init) => lagAt(init, sources, product))
-    .filter((lag) => lag != null);
-}
-
-// Nearest rank over the runs the payload carries: no baseline is published for
-// a lag, so the columns summarise the sample on screen. Two runs is the least
-// that reads as a distribution rather than a single number three times.
-export function lagPercentile(lags, fraction) {
-  if (lags.length < 2) return null;
-  const sorted = [...lags].sort((a, b) => a - b);
-  return sorted[Math.max(1, Math.ceil(fraction * sorted.length)) - 1];
-}
-
-export function detailRows(product, now, local, groupProducts = []) {
+export function detailRows(product, now, local) {
   const recent = product.recent_inits ?? [];
   const activeIndex = recent.findLastIndex(
     (init) => init.status === "pending" || init.status === "in_flight",
@@ -1192,7 +1141,6 @@ export function detailRows(product, now, local, groupProducts = []) {
   const active = activeIndex >= 0 ? recent[activeIndex] : null;
   const last = activeIndex >= 0 ? recent[activeIndex - 1] : recent.at(-1);
   const upcoming = active ? null : product.next_expected_init;
-  const sources = isDynamicalRow(product) ? sourceRowsOf(groupProducts) : [];
   return {
     lastHeader: labelledRun("last run", last?.init_time, local),
     runHeader: active
@@ -1234,7 +1182,7 @@ export function detailRows(product, now, local, groupProducts = []) {
           : stats.delayed_threshold_s,
       ),
     })),
-    lag: sources.length > 0 ? lagRow(product, sources, last) : null,
+    lag: isDynamicalRow(product) ? lagRow(product, last) : null,
   };
 }
 
@@ -1243,15 +1191,15 @@ export function detailRows(product, now, local, groupProducts = []) {
 // it. Only the last run has one: the current run is by definition not
 // complete, and a lag needs both sides landed — a last run whose source is
 // still out reads "—".
-function lagRow(product, sources, last) {
-  const lags = lagSeries(product, sources);
-  const matchingFamilies = HRRR_FAMILY_LAG_SOURCES.has(product.id);
+function lagRow(product, last) {
+  const lag = product.pipeline_lag;
+  const stats = lag?.status === "ready" ? lag.stats : null;
   return {
-    header: lagStatsHeader(lags.length, matchingFamilies),
-    last: formatSignedLatency(lagAt(last, sources, product)),
-    p50: formatSignedLatency(lagPercentile(lags, 0.5)),
-    p95: formatSignedLatency(lagPercentile(lags, 0.95)),
-    p99: formatSignedLatency(lagPercentile(lags, 0.99)),
+    header: lagStatsHeader(lag),
+    last: formatSignedLatency(lag ? last?.pipeline_lag_s : null),
+    p50: formatSignedLatency(stats?.p50_s),
+    p95: formatSignedLatency(stats?.p95_s),
+    p99: formatSignedLatency(stats?.p99_s),
   };
 }
 
@@ -2001,8 +1949,8 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
    reader's place in it — survives the tick. Every wide table on the site scrolls
    inside its own .table-container. */
 
-function Details({ product, now, local, groupProducts, runCount, dimension, fieldWidth }) {
-  const details = detailRows(product, now, local, groupProducts);
+function Details({ product, now, local, runCount, dimension, fieldWidth }) {
+  const details = detailRows(product, now, local);
   // the chart lines up with the lead-group field; an arrival-group field
   // keeps the chart across the row
   const chart = dimension
@@ -2161,7 +2109,6 @@ function Eta({ product, now, local }) {
 
 function Row({
   product,
-  groupProducts,
   advisory,
   local,
   now,
@@ -2278,7 +2225,6 @@ function Row({
             product=${product}
             now=${now}
             local=${local}
-            groupProducts=${groupProducts}
             runCount=${runCount}
             dimension=${view.dimension}
             fieldWidth=${width}
@@ -2330,7 +2276,6 @@ function Groups({ state, actions }) {
   if (!dashboard) {
     return html`<p data-slot="loading">Loading pipeline status…</p>`;
   }
-  const siblings = groupProductsById(dashboard);
   const advisories = dashboard.advisories ?? [];
   return dashboard.groups.map(
     (group) => html`<section key=${group.id} class="pipeline-group">
@@ -2339,7 +2284,6 @@ function Groups({ state, actions }) {
         (product) => html`<${Row}
           key=${product.id}
           product=${product}
-          groupProducts=${siblings.get(product.id)}
           advisory=${advisories.findLast((advisory) =>
             advisory.product_ids?.includes(product.id),
           )}

@@ -33,10 +33,6 @@ import {
   displayRowLabel,
   displaySource,
   isDynamicalRow,
-  lagAt,
-  lagPercentile,
-  lagSeries,
-  sourceRowsOf,
   etaLineText,
   facetRows,
   initColumnPx,
@@ -1108,98 +1104,43 @@ test("facet rows take the timing of the run they describe", () => {
   );
 });
 
-/* Ingestion lag. dynamical.org's own rows carry a null `source_label` and sit
-   in the group of the sources they read, so the frontend subtracts: both
-   latencies are seconds after the same init. */
-
-function sourceRow(label, latencies) {
+function readyPipelineLag(overrides = {}) {
   return {
-    source_label: label,
-    recent_inits: Object.entries(latencies).map(([init_time, latency_s]) => ({
-      init_time,
-      status: latency_s == null ? "in_flight" : "complete",
-      latency_s,
-      lead_groups: [
-        { status: "complete", latency_s: 900 },
-        { status: latency_s == null ? "in_flight" : "complete", latency_s },
-      ],
-    })),
+    status: "ready",
+    basis: "whole_run",
+    source_ids: ["external-noaa-gfs-aws"],
+    window_days: 365,
+    window_start: "2025-07-25T18:00:00Z",
+    window_end: "2026-07-25T18:00:00Z",
+    generated_at: "2026-07-25T18:05:00Z",
+    stats: {
+      p50_s: 900,
+      p95_s: 1800,
+      p99_s: 2700,
+      avg_s: 1200,
+      sample_init_count: 1204,
+      sample_day_count: 301,
+    },
+    ...overrides,
   };
 }
 
-function dynamicalRow(latencies) {
+function lagProduct(recentInits, pipelineLag = readyPipelineLag()) {
   return {
     source_label: null,
     row_label: "dynamical.org · virtual",
-    recent_inits: Object.entries(latencies).map(([init_time, latency_s]) => ({
-      init_time,
-      status: latency_s == null ? "in_flight" : "complete",
-      latency_s,
-      lead_groups: [
-        { status: latency_s == null ? "in_flight" : "complete", latency_s },
-      ],
-    })),
-    lead_group_stats: [{ label: "fc", p50_s: 4100, p95_s: 5000, p99_s: 6100 }],
+    recent_inits: recentInits,
+    pipeline_lag: pipelineLag,
+    lead_group_stats: [
+      { name: "forecast", label: "fc", p50_s: 4100, p95_s: 5000, p99_s: 6100 },
+    ],
     latency_stats: { p50_s: 4100, p95_s: 5000, p99_s: 6100, sample_init_count: 24 },
   };
 }
 
-test("reads the source rows of a group off the null source label", () => {
-  const aws = sourceRow("AWS", { "2026-07-25T00:00:00Z": 3400 });
-  const virtual = dynamicalRow({ "2026-07-25T00:00:00Z": 4000 });
-
-  assert.deepEqual(sourceRowsOf([aws, virtual]), [aws]);
-  assert.equal(isDynamicalRow(virtual), true);
-  assert.equal(isDynamicalRow(aws), false);
-});
-
-test("splits the HRRR group into its two mirrors and the virtual row", () => {
-  // the shape wxopticon publishes: dynamical's dataset sits in the group of
-  // the sources it reads, and only it carries a null source_label
-  const products = [
-    { id: "external-noaa-hrrr-aws", source_label: "AWS" },
-    { id: "external-noaa-hrrr-ftp", source_label: "NOMADS" },
-    { id: "noaa-hrrr-forecast-48-hour-virtual", source_label: null },
-  ];
-
-  assert.deepEqual(
-    sourceRowsOf(products).map(({ id }) => id),
-    ["external-noaa-hrrr-aws", "external-noaa-hrrr-ftp"],
-  );
-  assert.deepEqual(
-    products.filter(isDynamicalRow).map(({ id }) => id),
-    ["noaa-hrrr-forecast-48-hour-virtual"],
-  );
-});
-
-test("lags a dynamical init behind the earliest source completion", () => {
-  const at = "2026-07-25T00:00:00Z";
-  const aws = sourceRow("AWS", { [at]: 3400 });
-  const nomads = sourceRow("NOMADS", { [at]: 3200 });
-  const [init] = dynamicalRow({ [at]: 4000 }).recent_inits;
-
-  assert.equal(lagAt(init, [aws]), 600);
-  // the earliest publication is the one worth measuring from, so two mirrors
-  // lag from the faster of them
-  assert.equal(lagAt(init, [aws, nomads]), 800);
-  assert.equal(lagAt(init, [nomads, aws]), 800);
-
-  // dynamical can land before a mirror it is not reading
-  const [early] = dynamicalRow({ [at]: 3000 }).recent_inits;
-  assert.equal(lagAt(early, [aws]), -400);
-});
-
-test("has no lag without a completed pair for the init", () => {
-  const at = "2026-07-25T00:00:00Z";
-  const aws = sourceRow("AWS", { [at]: 3400 });
-  const [running] = dynamicalRow({ [at]: null }).recent_inits;
-  const [done] = dynamicalRow({ [at]: 4000 }).recent_inits;
-
-  assert.equal(lagAt(running, [aws]), null); // dynamical still in flight
-  assert.equal(lagAt(done, [sourceRow("AWS", { [at]: null })]), null); // source is
-  assert.equal(lagAt(done, [sourceRow("AWS", { "2026-07-25T06:00:00Z": 3400 })]), null);
-  assert.equal(lagAt(done, []), null);
-  assert.equal(lagAt(null, [aws]), null);
+test("identifies dynamical rows without deriving lag from their siblings", () => {
+  assert.equal(isDynamicalRow({ source_label: null }), true);
+  assert.equal(isDynamicalRow({ source_label: "AWS" }), false);
 });
 
 const HRRR_FAMILIES = ["nat", "prs", "sfc"];
@@ -1220,24 +1161,6 @@ function hrrrFacets(completedAt, overrides = {}) {
       ...override,
     };
   });
-}
-
-function hrrrProduct(id, initTime, completedAt, overrides = {}) {
-  return {
-    id,
-    source_label: id.startsWith("external-") ? id : null,
-    recent_inits: [
-      {
-        init_time: initTime,
-        status: "complete",
-        latency_s: 99,
-        facets: hrrrFacets(completedAt),
-        ...overrides,
-      },
-    ],
-    lead_group_stats: [],
-    latency_stats: { sample_init_count: 1 },
-  };
 }
 
 test("validates optional facet completion timestamps while accepting old payloads", () => {
@@ -1268,314 +1191,199 @@ test("validates optional facet completion timestamps while accepting old payload
   }
 });
 
-test("HRRR virtual lag matches nat, prs, and sfc completion and ignores subh", () => {
-  const initTime = "2026-09-15T12:00:00Z";
-  const source = hrrrProduct(
-    "external-noaa-hrrr-aws",
-    initTime,
-    "2026-09-15T12:20:00Z",
-    {
-      status: "in_flight",
-      latency_s: null,
-      facets: hrrrFacets("2026-09-15T12:20:00Z", {
-        nat: { completed_at: "2026-09-15T12:29:00Z" },
-        prs: { completed_at: "2026-09-15T12:31:00Z" },
-        sfc: { completed_at: "2026-09-15T12:30:00Z" },
-        subh: { status: "in_flight", completed_at: undefined },
-      }),
-    },
-  );
-  const virtual = hrrrProduct(
-    "noaa-hrrr-forecast-48-hour-virtual",
-    initTime,
-    "2026-09-15T12:35:00Z",
-    {
-      facets: hrrrFacets("2026-09-15T12:35:00Z", {
-        nat: { completed_at: "2026-09-15T12:37:00Z" },
-        prs: { completed_at: "2026-09-15T12:40:00Z" },
-        sfc: { completed_at: "2026-09-15T12:38:00Z" },
-        subh: { completed_at: "2026-09-15T13:20:00Z" },
-      }),
-    },
-  );
+function lagInit(init_time, pipeline_lag_s, status = "complete") {
+  const latency_s = status === "complete" ? 4000 : null;
+  const init = {
+    init_time,
+    status,
+    latency_s,
+    lead_groups: [{ status, latency_s }],
+  };
+  if (pipeline_lag_s !== undefined) init.pipeline_lag_s = pipeline_lag_s;
+  return init;
+}
 
-  assert.deepEqual(lagSeries(virtual, [source]), [9 * 60]);
-});
-
-test("HRRR virtual lag requires complete unique timestamped evidence on both sides", () => {
-  const initTime = "2026-09-15T12:00:00Z";
-  const virtual = hrrrProduct(
-    "noaa-hrrr-forecast-48-hour-virtual",
-    initTime,
-    "2026-09-15T12:40:00Z",
-  );
-  const complete = hrrrProduct(
-    "external-noaa-hrrr-aws",
-    initTime,
-    "2026-09-15T12:30:00Z",
-  );
-
-  const cases = [
-    { facets: complete.recent_inits[0].facets.filter(({ label }) => label !== "nat") },
-    {
-      facets: [
-        ...complete.recent_inits[0].facets,
-        complete.recent_inits[0].facets.find(({ label }) => label === "nat"),
-      ],
+test("validates ready and pending published pipeline lag", () => {
+  const current = dashboard();
+  const [product] = current.groups[0].products;
+  product.pipeline_lag = readyPipelineLag({
+    stats: {
+      p50_s: -60,
+      p95_s: 0,
+      p99_s: 30,
+      avg_s: -10,
+      sample_init_count: 2,
+      sample_day_count: 1,
     },
-    {
-      facets: complete.recent_inits[0].facets.map((facet) =>
-        facet.label === "prs" ? { ...facet, status: "in_flight" } : facet,
-      ),
-    },
-    {
-      facets: complete.recent_inits[0].facets.map((facet) =>
-        facet.label === "sfc" ? { ...facet, completed_at: undefined } : facet,
-      ),
-    },
-    {
-      facets: complete.recent_inits[0].facets.map((facet) =>
-        facet.label === "sfc" ? { ...facet, completed_at: "invalid" } : facet,
-      ),
-    },
+  });
+  product.recent_inits = [
+    { init_time: "2026-07-25T06:00:00Z", pipeline_lag_s: 0 },
+    { init_time: "2026-07-25T12:00:00Z", pipeline_lag_s: -30 },
   ];
-  for (const overrides of cases) {
-    const source = structuredClone(complete);
-    Object.assign(source.recent_inits[0], overrides, { latency_s: 1 });
-    assert.deepEqual(lagSeries(virtual, [source]), []);
+  assert.equal(validateDashboard(current), current);
+
+  product.pipeline_lag = {
+    ...readyPipelineLag(),
+    status: "pending",
+    window_start: null,
+    window_end: null,
+    generated_at: null,
+    stats: null,
+  };
+  assert.equal(validateDashboard(current), current);
+
+  product.pipeline_lag = readyPipelineLag({
+    stats: {
+      p50_s: 0.828933,
+      p95_s: 3600.828933,
+      p99_s: 3600.8289329999993,
+      avg_s: 1800.828933,
+      sample_init_count: 12,
+      sample_day_count: 3,
+    },
+  });
+  assert.equal(validateDashboard(current), current);
+});
+
+test("rejects malformed published pipeline lag", () => {
+  const malformed = [
+    null,
+    readyPipelineLag({ status: "stale" }),
+    readyPipelineLag({ basis: "recent_runs" }),
+    readyPipelineLag({ source_ids: [] }),
+    readyPipelineLag({ window_days: 0 }),
+    readyPipelineLag({ window_start: "2025-07-25T13:00:00-05:00" }),
+    readyPipelineLag({ stats: null }),
+    readyPipelineLag({ stats: { sample_init_count: 0, sample_day_count: 0 } }),
+    readyPipelineLag({
+      stats: {
+        p50_s: null,
+        p95_s: null,
+        p99_s: null,
+        avg_s: null,
+        sample_init_count: 1,
+        sample_day_count: 1,
+      },
+    }),
+    readyPipelineLag({
+      stats: {
+        p50_s: 3,
+        p95_s: 2,
+        p99_s: 1,
+        avg_s: 2,
+        sample_init_count: 3,
+        sample_day_count: 4,
+      },
+    }),
+    { ...readyPipelineLag(), status: "pending", stats: null },
+  ];
+  for (const pipelineLag of malformed) {
+    const invalid = dashboard();
+    invalid.groups[0].products[0].pipeline_lag = pipelineLag;
+    assert.throws(() => validateDashboard(invalid), /invalid pipeline lag/i);
   }
 
-  const oldVirtual = structuredClone(virtual);
-  oldVirtual.recent_inits[0].facets.forEach((facet) => delete facet.completed_at);
-  assert.deepEqual(lagSeries(oldVirtual, [complete]), []);
+  const invalidInit = dashboard();
+  invalidInit.groups[0].products[0].recent_inits = [
+    { init_time: "2026-07-25T12:00:00Z", pipeline_lag_s: null },
+  ];
+  assert.throws(() => validateDashboard(invalidInit), /invalid pipeline lag/i);
 });
 
-test("HRRR virtual lag selects the earliest complete mirror without splicing families", () => {
-  const initTime = "2026-09-15T12:00:00Z";
-  const virtual = hrrrProduct(
-    "noaa-hrrr-forecast-48-hour-virtual",
-    initTime,
-    "2026-09-15T12:40:00Z",
-  );
-  const partialAws = hrrrProduct(
-    "external-noaa-hrrr-aws",
-    initTime,
-    "2026-09-15T12:20:00Z",
-    {
-      facets: hrrrFacets("2026-09-15T12:20:00Z").filter(
-        ({ label }) => label !== "nat",
-      ),
-    },
-  );
-  const partialFtp = hrrrProduct(
-    "external-noaa-hrrr-ftp",
-    initTime,
-    "2026-09-15T12:21:00Z",
-    {
-      facets: hrrrFacets("2026-09-15T12:21:00Z").filter(
-        ({ label }) => label !== "prs",
-      ),
-    },
-  );
-  assert.deepEqual(lagSeries(virtual, [partialAws, partialFtp]), []);
-
-  const slowerComplete = hrrrProduct(
-    "external-noaa-hrrr-aws",
-    initTime,
-    "2026-09-15T12:31:00Z",
-  );
-  const fasterComplete = hrrrProduct(
-    "external-noaa-hrrr-ftp",
-    initTime,
-    "2026-09-15T12:29:00Z",
-  );
-  assert.deepEqual(lagSeries(virtual, [slowerComplete, fasterComplete]), [11 * 60]);
-});
-
-test("HRRR virtual lag uses only the matching source horizon and init", () => {
-  const initTime = "2026-09-15T12:00:00Z";
-  const virtual48 = hrrrProduct(
-    "noaa-hrrr-forecast-48-hour-virtual",
-    initTime,
-    "2026-09-15T12:40:00Z",
-  );
-  const wrongHorizon = hrrrProduct(
-    "external-noaa-hrrr-18h-aws",
-    initTime,
-    "2026-09-15T12:10:00Z",
-  );
-  const wrongInit = hrrrProduct(
-    "external-noaa-hrrr-aws",
-    "2026-09-15T13:00:00Z",
-    "2026-09-15T12:15:00Z",
-  );
-  const matching = hrrrProduct(
-    "external-noaa-hrrr-aws",
-    initTime,
-    "2026-09-15T12:30:00Z",
-  );
-  assert.deepEqual(
-    lagSeries(virtual48, [wrongHorizon, wrongInit, matching]),
-    [10 * 60],
-  );
-
-  const virtual18 = {
-    ...virtual48,
-    id: "noaa-hrrr-forecast-18-hour-virtual",
-  };
-  assert.deepEqual(lagSeries(virtual18, [matching]), []);
-  assert.deepEqual(lagSeries(virtual18, [wrongHorizon]), [30 * 60]);
-});
-
-test("HRRR virtual family lag stays signed and labels its matching families", () => {
-  const initTime = "2026-09-15T12:00:00Z";
-  const virtual = hrrrProduct(
-    "noaa-hrrr-forecast-48-hour-virtual",
-    initTime,
-    "2026-09-15T12:20:00Z",
-  );
-  const source = hrrrProduct(
-    "external-noaa-hrrr-aws",
-    initTime,
-    "2026-09-15T12:30:00Z",
-  );
-  const details = detailRows(virtual, Date.parse("2026-09-15T13:00:00Z"), false, [
-    source,
-    virtual,
+test("details use historical lag statistics instead of recent values", () => {
+  const product = lagProduct([
+    lagInit("2026-07-25T00:00:00Z", 60),
+    lagInit("2026-07-25T06:00:00Z", 120),
+    lagInit("2026-07-25T12:00:00Z", 180),
   ]);
+  const details = detailRows(product, Date.parse("2026-07-25T14:00:00Z"), false);
 
-  assert.equal(details.lag.last, "−10m");
-  assert.equal(
-    details.lag.header,
-    "lag after source · matching nat/prs/sfc families · 1 recent sample",
-  );
-});
-
-test("takes lag percentiles by nearest rank, and only from a real sample", () => {
-  const lags = [600, 540, 660, 480, 720, 600, 540, 300];
-  assert.equal(lagPercentile(lags, 0.5), 540);
-  assert.equal(lagPercentile(lags, 0.95), 720);
-  assert.equal(lagPercentile(lags, 0.99), 720);
-
-  // one run is a number, not a distribution
-  assert.equal(lagPercentile([600], 0.5), null);
-  assert.equal(lagPercentile([], 0.5), null);
-  assert.equal(lagPercentile([-300, 600], 0.5), -300);
-});
-
-test("details read a dynamical row as lag after its source", () => {
-  const inits = {
-    "2026-07-25T00:00:00Z": 3400,
-    "2026-07-25T06:00:00Z": 3600,
-    "2026-07-25T12:00:00Z": 3500,
-  };
-  const aws = sourceRow("AWS", inits);
-  const virtual = dynamicalRow({
-    "2026-07-25T00:00:00Z": 3400 + 600,
-    "2026-07-25T06:00:00Z": 3600 - 180,
-    "2026-07-25T12:00:00Z": 3500 + 120,
-  });
-  const details = detailRows(
-    virtual,
-    Date.parse("2026-07-25T14:00:00Z"),
-    false,
-    [aws, virtual],
-  );
-
-  // the lead rows keep the row's own time after init; the lag is a row of
-  // its own beneath them
-  assert.equal(details.statsHeader, "time after init · 24 samples");
-  const [row] = details.rows;
-  assert.equal(row.last.duration, "1h");
-  assert.equal(row.last.time, "13:00");
-  assert.deepEqual([row.p50, row.p95, row.p99], ["1h 8m", "1h 23m", "1h 42m"]);
-  assert.equal(lagSeries(virtual, [aws]).length, 3);
   assert.deepEqual(details.lag, {
-    header: "lag after source · 3 recent samples",
-    last: "2m",
-    p50: "2m",
-    p95: "10m",
-    p99: "10m",
+    header:
+      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC) · 1,204 samples across 301 days",
+    last: "3m",
+    p50: "15m",
+    p95: "30m",
+    p99: "45m",
   });
+});
 
-  // a single lagged run names its sample in the singular and reports no spread
-  const lone = dynamicalRow({ "2026-07-25T00:00:00Z": 4000 });
-  const only = detailRows(lone, Date.parse("2026-07-25T14:00:00Z"), false, [
-    sourceRow("AWS", { "2026-07-25T00:00:00Z": 3400 }),
-    lone,
+test("last lag uses the chosen last init and preserves signed zero and negatives", () => {
+  const running = lagProduct([
+    lagInit("2026-07-25T00:00:00Z", 0),
+    lagInit("2026-07-25T06:00:00Z", -180),
+    lagInit("2026-07-25T12:00:00Z", 999, "in_flight"),
   ]);
-  assert.equal(only.lag.header, "lag after source · 1 recent sample");
-  assert.deepEqual([only.lag.last, only.lag.p50], ["10m", "—"]);
-});
-
-test("renders a negative lag with a sign", () => {
-  const at = "2026-07-25T00:00:00Z";
-  const virtual = dynamicalRow({ [at]: 3220 });
-  const details = detailRows(
-    virtual,
-    Date.parse("2026-07-25T14:00:00Z"),
-    false,
-    [sourceRow("AWS", { [at]: 3400 }), virtual],
-  );
-  assert.equal(details.lag.last, "\u22123m");
-});
-
-test("a lagged run in flight counts up after init and has no lag yet", () => {
-  const done = "2026-07-25T00:00:00Z";
-  const running = "2026-07-25T06:00:00Z";
-  const virtual = dynamicalRow({ [done]: 3400 + 600, [running]: null });
-  const details = detailRows(
-    virtual,
-    Date.parse("2026-07-25T06:20:00Z"),
-    false,
-    [sourceRow("AWS", { [done]: 3400, [running]: 3300 }), virtual],
-  );
-
-  assert.equal(details.rows[0].run.status, "processing");
-  assert.equal(details.rows[0].run.duration, "20m 0s");
-  // a lag needs both sides complete, so only the last run carries one
-  assert.equal(details.lag.last, "10m");
-  assert.equal("run" in details.lag, false);
-});
-
-test("keeps time after init where a row has no source beside it", () => {
-  const at = "2026-07-25T00:00:00Z";
-  const virtual = dynamicalRow({ [at]: 4000 });
-
-  // a dynamical row alone in its group, and the default with no group at all
-  for (const group of [[virtual], undefined]) {
-    const details = detailRows(
-      virtual,
-      Date.parse("2026-07-25T14:00:00Z"),
-      false,
-      group,
-    );
-    assert.equal(details.statsHeader, "time after init · 24 samples");
-    assert.equal(details.lag, null);
-    assert.deepEqual(
-      [details.rows[0].last.duration, details.rows[0].p50],
-      ["1h 7m", "1h 8m"],
-    );
-  }
-});
-
-test("leaves an upstream row untouched by a dynamical sibling", () => {
-  const at = "2026-07-25T00:00:00Z";
-  const aws = {
-    ...sourceRow("AWS", { [at]: 3600 }),
-    lead_group_stats: [{ label: "1d", p50_s: 1200, p95_s: 1800, p99_s: 2400 }],
-    latency_stats: { p50_s: 1200, p95_s: 1800, p99_s: 2400, sample_init_count: 30 },
-  };
-  const virtual = dynamicalRow({ [at]: 4000 });
-  const now = Date.parse("2026-07-25T14:00:00Z");
-
-  assert.deepEqual(
-    detailRows(aws, now, false, [aws, virtual]),
-    detailRows(aws, now, false),
-  );
   assert.equal(
-    detailRows(aws, now, false, [aws, virtual]).statsHeader,
-    "time after init · 30 samples",
+    detailRows(running, Date.parse("2026-07-25T12:20:00Z"), false).lag.last,
+    "−3m",
+  );
+
+  const zero = lagProduct([lagInit("2026-07-25T00:00:00Z", 0)]);
+  assert.equal(detailRows(zero, Date.parse("2026-07-25T01:00:00Z"), false).lag.last, "0s");
+});
+
+test("pending, empty, and missing lag baselines stay distinct", () => {
+  const pending = lagProduct(
+    [lagInit("2026-07-25T00:00:00Z", 60)],
+    {
+      ...readyPipelineLag(),
+      status: "pending",
+      window_start: null,
+      window_end: null,
+      generated_at: null,
+      stats: null,
+    },
+  );
+  const pendingRow = detailRows(pending, Date.parse("2026-07-25T01:00:00Z"), false).lag;
+  assert.equal(pendingRow.header, "lag after source · historical baseline pending");
+  assert.deepEqual([pendingRow.last, pendingRow.p50, pendingRow.p95], ["1m", "—", "—"]);
+
+  const empty = lagProduct(
+    [lagInit("2026-07-25T00:00:00Z", undefined)],
+    readyPipelineLag({
+      stats: {
+        p50_s: null,
+        p95_s: null,
+        p99_s: null,
+        avg_s: null,
+        sample_init_count: 0,
+        sample_day_count: 0,
+      },
+    }),
+  );
+  const emptyRow = detailRows(empty, Date.parse("2026-07-25T01:00:00Z"), false).lag;
+  assert.match(emptyRow.header, /0 samples across 0 days$/);
+  assert.deepEqual([emptyRow.last, emptyRow.p50, emptyRow.p99], ["—", "—", "—"]);
+
+  const old = lagProduct([lagInit("2026-07-25T00:00:00Z", undefined)]);
+  delete old.pipeline_lag;
+  const unavailable = detailRows(old, Date.parse("2026-07-25T01:00:00Z"), false).lag;
+  assert.equal(unavailable.header, "lag after source · unavailable (not paired)");
+  assert.deepEqual([unavailable.last, unavailable.p50, unavailable.p99], ["—", "—", "—"]);
+});
+
+test("family lag labels its published comparison basis", () => {
+  const product = lagProduct(
+    [lagInit("2026-07-25T00:00:00Z", -600)],
+    readyPipelineLag({
+      basis: "shared_nat_prs_sfc",
+      source_ids: ["external-noaa-hrrr-aws", "external-noaa-hrrr-ftp"],
+    }),
+  );
+  const details = detailRows(product, Date.parse("2026-07-25T01:00:00Z"), false);
+  assert.match(details.lag.header, /^lag after source · matching nat\/prs\/sfc families/);
+  assert.equal(details.lag.last, "−10m");
+});
+
+test("leaves upstream rows without a lag table", () => {
+  const upstream = {
+    ...lagProduct([lagInit("2026-07-25T00:00:00Z", 60)]),
+    source_label: "AWS",
+  };
+  assert.equal(
+    detailRows(upstream, Date.parse("2026-07-25T01:00:00Z"), false).lag,
+    null,
   );
 });
 
@@ -1629,11 +1437,12 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
     "time after init · 24 samples · insufficient history (24/30 days)",
   );
   assert.deepEqual(details.lag, {
-    header: "lag after source · 8 recent samples",
+    header:
+      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC) · 1,204 samples across 301 days",
     last: "5m",
-    p50: "9m",
-    p95: "12m",
-    p99: "12m",
+    p50: "15m",
+    p95: "30m",
+    p99: "45m",
   });
 });
 
