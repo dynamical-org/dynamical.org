@@ -1817,16 +1817,11 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   );
 
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
-  // the migration notice is deliberate copy, not decoration: it should leave
-  // with the cutover and backfill it describes
-  assert.match(template, /increasing the granularity of arrival monitoring/);
-  assert.match(template, /intermittent or\s+show arrival states that appear incorrect/);
-  assert.match(pipelineCss, /\.pipeline-notice \{/);
-  assert.match(template, /part arrived/);
-  assert.match(template, /still expected/);
-  assert.match(template, /no monitoring data/);
-  assert.match(template, /hover a cell for what it measured/);
-  assert.match(template, /no monitoring data/);
+  // the migration notice and the page legend are gone: a cell's hover says
+  // what it measured, and the squares and marks carry their own colors
+  assert.doesNotMatch(template, /pipeline-notice|increasing the granularity/);
+  assert.doesNotMatch(template, /pipeline-legend|part arrived|still expected/);
+  assert.doesNotMatch(pipelineCss, /\.pipeline-notice|\.pipeline-legend/);
   assert.doesNotMatch(template, /pipeline-footer|window-days/);
   assert.doesNotMatch(pipelineScript, /window-days/);
   assert.match(template, /style="margin-top: 4rem;"/);
@@ -1987,7 +1982,7 @@ test("run chart key: names only the marks drawn", () => {
   // a landed on-time run, a landed delayed run, and a delayed run in flight:
   // each delayed mark is keyed as it is drawn, filled or hollow
   assert.deepEqual(key(chartProduct()), [
-    { mark: "complete", text: "complete" },
+    { mark: "on-time", text: "judged on time" },
     { mark: "elapsed", text: "not yet complete: time so far" },
     { mark: "delayed", text: "judged delayed" },
     { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
@@ -2003,12 +1998,13 @@ test("run chart key: names only the marks drawn", () => {
       }),
     ),
     [
-      { mark: "complete", text: "complete" },
+      { mark: "on-time", text: "judged on time" },
       { mark: "elapsed", text: "not yet complete: time so far" },
       { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
     ],
   );
-  // every run landed and none late: the points need no key
+  // every run landed and none late: green is the squares' green, and the
+  // points need no key
   assert.deepEqual(
     key(
       chartProduct({
@@ -2049,11 +2045,11 @@ test("run chart key: names only the marks drawn", () => {
   );
 });
 
-// the computed colors are the e2e spec's to check; this only keeps a second
-// or third mark color from coming back
-test("run chart marks: no color for on time, none for no verdict", () => {
+// the computed colors are the e2e spec's to check; this keeps the on-time
+// verdict colored and a grey for no verdict from coming back
+test("run chart marks: green for on time, no grey for no verdict", () => {
   const css = readFileSync(new URL("../public/pipeline.css", import.meta.url), "utf8");
-  assert.doesNotMatch(css, /\.pipeline-runs \[data-timing="on_time"\]/);
+  assert.match(css, /\.pipeline-runs \[data-timing="on_time"\]\s*{[^}]*--pipeline-ok/);
   assert.doesNotMatch(css, /\.pipeline-runs circle\s*{[^}]*--muted-text/);
 });
 

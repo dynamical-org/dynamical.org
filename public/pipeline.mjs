@@ -1258,8 +1258,8 @@ export function timingBaselineNote(product) {
 
 const CHART_HEIGHT_PX = 160;
 const CHART_MARK_R = 3.5;
-// a delayed run is larger as well as amber, so the one verdict the chart
-// colors does not rest on color alone
+// a delayed run is larger as well as amber, so the verdict does not rest on
+// telling amber from green
 const CHART_DELAYED_MARK_R = 5;
 // room for the widest tick label ("12h 30m") in the chart's own 10px monospace,
 // and for the threshold label to clear the right edge
@@ -1455,7 +1455,8 @@ function markRadius(run) {
 }
 
 /* The key names the marks the chart draws, and only those, each drawn as it
-   is on the chart: complete and not yet complete when both are shown, and a
+   is on the chart: on time or complete beside not yet complete when both are
+   shown, and a
    delayed run filled or hollow as the delayed runs shown are. A product short
    of history has no verdicts to draw, and the key says why rather than leaving
    the reader to wonder at a chart with no amber and no line. */
@@ -1463,7 +1464,12 @@ function markRadius(run) {
 export function runChartKey(product, runs) {
   const key = [];
   const arriving = runs.some((run) => run.elapsed);
-  if (arriving && runs.some((run) => !run.elapsed)) {
+  const landed = runs.filter((run) => !run.elapsed);
+  if (arriving && landed.some((run) => run.timing === "on_time")) {
+    key.push({ mark: "on-time", text: "judged on time" });
+  }
+  // a landed run with no verdict is ink, not green
+  if (arriving && landed.some((run) => run.timing !== "on_time" && run.timing !== "delayed")) {
     key.push({ mark: "complete", text: "complete" });
   }
   if (arriving) key.push({ mark: "elapsed", text: "not yet complete: time so far" });

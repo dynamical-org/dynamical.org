@@ -1074,14 +1074,14 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   // the line is a reference, not a verdict: muted, so amber on the chart is
   // only ever a run judged delayed
   expect(geometry.lineColor).toBe("rgb(102, 102, 102)");
-  // amber is the chart's one color; an on-time run is ink, and a delayed one
-  // is larger as well, so the verdict does not rest on color alone
-  expect(geometry.onTimeFill).toBe("rgb(17, 17, 17)");
+  // an on-time run wears its square's green; a delayed one is larger as well
+  // as amber, so the verdict does not rest on telling the two colors apart
+  expect(geometry.onTimeFill).toBe("rgb(91, 197, 74)");
   expect(geometry.radii.delayed).toBeGreaterThan(geometry.radii.onTime);
   // the key names the marks drawn, each glyph drawn as its mark is: the
   // landed delayed run filled, the delayed run in flight hollow
   expect(geometry.keyMarks).toEqual([
-    { text: "complete", fill: "rgb(17, 17, 17)", ring: "rgb(17, 17, 17)" },
+    { text: "judged on time", fill: "rgb(91, 197, 74)", ring: "rgb(91, 197, 74)" },
     { text: "not yet complete: time so far", fill: "rgba(0, 0, 0, 0)", ring: "rgb(17, 17, 17)" },
     { text: "judged delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
     { text: "judged delayed, not yet complete", fill: "rgba(0, 0, 0, 0)", ring: "rgb(244, 185, 66)" },
