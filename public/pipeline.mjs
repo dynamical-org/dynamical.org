@@ -1258,8 +1258,8 @@ export function timingBaselineNote(product) {
 
 const CHART_HEIGHT_PX = 160;
 const CHART_MARK_R = 3.5;
-// a delayed run is larger as well as amber, so the one verdict the chart
-// colors does not rest on color alone
+// a delayed run is larger as well as amber, so the verdict does not rest on
+// telling amber from green
 const CHART_DELAYED_MARK_R = 5;
 // room for the widest tick label ("12h 30m") in the chart's own 10px monospace,
 // and for the threshold label to clear the right edge
@@ -1455,24 +1455,35 @@ function markRadius(run) {
 }
 
 /* The key names the marks the chart draws, and only those, each drawn as it
-   is on the chart: complete and not yet complete when both are shown, and a
-   delayed run filled or hollow as the delayed runs shown are. A product short
-   of history has no verdicts to draw, and the key says why rather than leaving
-   the reader to wonder at a chart with no amber and no line. */
+   is on the chart: a verdict's color filled for a run that landed and hollow
+   for one still arriving. Ink marks have no verdict; they are named once a
+   hollow or a colored mark sits beside them. A product short of history has no
+   verdicts to draw, and the key says why rather than leaving the reader to
+   wonder at a chart with no color and no line. */
 
 export function runChartKey(product, runs) {
   const key = [];
-  const arriving = runs.some((run) => run.elapsed);
-  if (arriving && runs.some((run) => !run.elapsed)) {
-    key.push({ mark: "complete", text: "complete" });
+  const drawn = (timing, elapsed) =>
+    runs.some((run) => run.elapsed === elapsed && (run.timing ?? null) === timing);
+  const unjudged = (elapsed) =>
+    runs.some(
+      (run) => run.elapsed === elapsed && run.timing !== "on_time" && run.timing !== "delayed",
+    );
+  const judged = runs.some((run) => run.timing === "on_time" || run.timing === "delayed");
+  if (drawn("on_time", false)) key.push({ mark: "on-time", text: "judged on time" });
+  if (drawn("on_time", true)) {
+    key.push({ mark: "on-time-elapsed", text: "judged on time, not yet complete" });
   }
-  if (arriving) key.push({ mark: "elapsed", text: "not yet complete: time so far" });
+  // an ink run is also complete, as a green one is: beside verdicts it is
+  // named for what sets it apart
+  if (unjudged(false) && (judged || runs.some((run) => run.elapsed))) {
+    key.push({ mark: "complete", text: judged ? "complete, not judged" : "complete" });
+  }
+  if (unjudged(true)) key.push({ mark: "elapsed", text: "not yet complete: time so far" });
   // "judged": a verdict is the summarizer's, made against the threshold of its
   // day or a lead group's own, so one can sit below today's run-level line
-  if (runs.some((run) => run.timing === "delayed" && !run.elapsed)) {
-    key.push({ mark: "delayed", text: "judged delayed" });
-  }
-  if (runs.some((run) => run.timing === "delayed" && run.elapsed)) {
+  if (drawn("delayed", false)) key.push({ mark: "delayed", text: "judged delayed" });
+  if (drawn("delayed", true)) {
     key.push({ mark: "delayed-elapsed", text: "judged delayed, not yet complete" });
   }
   const shortfall = timingBaselineShortfall(product);

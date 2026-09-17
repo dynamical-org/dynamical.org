@@ -5,59 +5,6 @@
   --pipeline-unobserved: #a8a8ad;
 }
 
-.pipeline-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem 1.6rem;
-  margin: 0 0 2rem;
-  color: var(--muted-text);
-  font-size: 1.1rem;
-}
-
-.pipeline-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.pipeline-legend-mark {
-  display: inline-block;
-  width: 2.4rem;
-  height: 1rem;
-}
-
-.pipeline-legend-mark--pending {
-  border: 1px solid var(--pipeline-unobserved);
-}
-
-.pipeline-legend-mark--partial {
-  border: 1px solid var(--text-color);
-  background: linear-gradient(
-    to right,
-    var(--pipeline-progress) 0 55%,
-    transparent 55%
-  );
-}
-
-.pipeline-legend-mark--unobserved {
-  border: 1px dotted var(--pipeline-unobserved);
-  background: repeating-linear-gradient(
-    135deg,
-    var(--pipeline-unobserved) 0 1px,
-    transparent 1px 4px
-  );
-}
-
-/* A migration notice, not a fault: dotted and muted so it reads as context
-   rather than competing with the ribbon's live staleness warning. */
-.pipeline-notice {
-  margin: 0 0 1.6rem;
-  padding: 0.8rem 1.2rem;
-  border: 1px dotted var(--border-muted-color);
-  color: var(--muted-text);
-  font-size: 1.2rem;
-}
-
 .pipeline-ribbon:not([hidden]),
 .pipeline-banner {
   margin-bottom: 1.5rem;
@@ -375,11 +322,12 @@
 
 /* The run chart: the runs the field draws as squares, plotted by their time
    after init against the current delayed threshold — under the lead-group
-   field, each under its square. One color carries a meaning: amber is a run
-   the summarizer judged delayed, drawn larger as well so the verdict does not
-   rest on color alone. Every other run is drawn in the text color, since a
-   run with no verdict — a product short of history, a run too early to
-   judge — is not a third kind of run. A run not yet complete is hollow, at
+   field, each under its square. Color is the summarizer's verdict, where
+   a square's is the run's status: green a run judged on time, amber one
+   judged delayed, drawn larger as well so the verdict does not rest on
+   color alone. A run with no verdict — a product short of history, a run
+   too early to judge — is drawn in the text color, not a grey that reads
+   as a third kind of run. A run not yet complete is hollow, at
    the time elapsed so far. The key beneath names the marks it shows. */
 
 .pipeline-runs {
@@ -413,6 +361,12 @@
 .pipeline-runs circle {
   fill: var(--text-color);
   stroke: var(--text-color);
+}
+
+/* the summarizer's verdict; a run with none stays ink under a green square */
+.pipeline-runs [data-timing="on_time"] {
+  fill: var(--pipeline-ok);
+  stroke: var(--pipeline-ok);
 }
 
 /* amber is a light token (1.77:1 on white), so a delayed mark is heavier as
@@ -488,8 +442,13 @@
   vertical-align: -0.15rem;
 }
 
+.pipeline-runs li[data-mark^="on-time"]::before {
+  border-color: var(--pipeline-ok);
+  background: var(--pipeline-ok);
+}
+
 /* hollow, as a run not yet complete is */
-.pipeline-runs li:is([data-mark="elapsed"], [data-mark="delayed-elapsed"])::before {
+.pipeline-runs li:is([data-mark="elapsed"], [data-mark$="-elapsed"])::before {
   background: none;
 }
 

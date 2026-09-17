@@ -1817,16 +1817,12 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   );
 
   assert.match(subnav, /https:\/\/status\.dynamical\.org\/webhooks/);
-  // the migration notice is deliberate copy, not decoration: it should leave
-  // with the cutover and backfill it describes
-  assert.match(template, /increasing the granularity of arrival monitoring/);
-  assert.match(template, /intermittent or\s+show arrival states that appear incorrect/);
-  assert.match(pipelineCss, /\.pipeline-notice \{/);
-  assert.match(template, /part arrived/);
-  assert.match(template, /still expected/);
-  assert.match(template, /no monitoring data/);
-  assert.match(template, /hover a cell for what it measured/);
-  assert.match(template, /no monitoring data/);
+  // the migration notice and the page legend are gone: a cell's hover says
+  // what it measured, and the squares and marks carry their own colors
+  assert.doesNotMatch(template, /pipeline-notice|increasing the granularity/);
+  assert.doesNotMatch(template, /pipeline-legend|part arrived|still expected/);
+  assert.doesNotMatch(template, /no monitoring data|hover a cell/);
+  assert.doesNotMatch(pipelineCss, /\.pipeline-notice|\.pipeline-legend/);
   assert.doesNotMatch(template, /pipeline-footer|window-days/);
   assert.doesNotMatch(pipelineScript, /window-days/);
   assert.match(template, /style="margin-top: 4rem;"/);
@@ -1987,8 +1983,7 @@ test("run chart key: names only the marks drawn", () => {
   // a landed on-time run, a landed delayed run, and a delayed run in flight:
   // each delayed mark is keyed as it is drawn, filled or hollow
   assert.deepEqual(key(chartProduct()), [
-    { mark: "complete", text: "complete" },
-    { mark: "elapsed", text: "not yet complete: time so far" },
+    { mark: "on-time", text: "judged on time" },
     { mark: "delayed", text: "judged delayed" },
     { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
   ]);
@@ -2003,12 +1998,11 @@ test("run chart key: names only the marks drawn", () => {
       }),
     ),
     [
-      { mark: "complete", text: "complete" },
-      { mark: "elapsed", text: "not yet complete: time so far" },
+      { mark: "on-time", text: "judged on time" },
       { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
     ],
   );
-  // every run landed and none late: the points need no key
+  // every run landed and none late: the color is still named
   assert.deepEqual(
     key(
       chartProduct({
@@ -2018,7 +2012,41 @@ test("run chart key: names only the marks drawn", () => {
         ],
       }),
     ),
-    [],
+    [{ mark: "on-time", text: "judged on time" }],
+  );
+  // a run arriving on time is a green ring beside the ink ring of one too
+  // early to judge, and each is keyed as drawn
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+          { init_time: "2026-07-25T06:00:00Z", status: "in_flight", timing: "on_time" },
+          { init_time: "2026-07-25T12:00:00Z", status: "pending", timing: null },
+        ],
+      }),
+    ),
+    [
+      { mark: "on-time", text: "judged on time" },
+      { mark: "on-time-elapsed", text: "judged on time, not yet complete" },
+      { mark: "elapsed", text: "not yet complete: time so far" },
+    ],
+  );
+  // an ink run beside a green one is complete too; it is named for its
+  // missing verdict
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: null, latency_s: 3500 },
+          { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "on_time", latency_s: 3600 },
+        ],
+      }),
+    ),
+    [
+      { mark: "on-time", text: "judged on time" },
+      { mark: "complete", text: "complete, not judged" },
+    ],
   );
   // a run too early to judge on a product with a baseline is only "not yet
   // complete"; its missing verdict is not a kind of run
@@ -2049,11 +2077,11 @@ test("run chart key: names only the marks drawn", () => {
   );
 });
 
-// the computed colors are the e2e spec's to check; this only keeps a second
-// or third mark color from coming back
-test("run chart marks: no color for on time, none for no verdict", () => {
+// the computed colors are the e2e spec's to check; this keeps the on-time
+// verdict colored and a grey for no verdict from coming back
+test("run chart marks: green for on time, no grey for no verdict", () => {
   const css = readFileSync(new URL("../public/pipeline.css", import.meta.url), "utf8");
-  assert.doesNotMatch(css, /\.pipeline-runs \[data-timing="on_time"\]/);
+  assert.match(css, /\.pipeline-runs \[data-timing="on_time"\]\s*{[^}]*--pipeline-ok/);
   assert.doesNotMatch(css, /\.pipeline-runs circle\s*{[^}]*--muted-text/);
 });
 
