@@ -11,7 +11,7 @@ The STAC catalog at https://stac.dynamical.org/catalog.json is the source of tru
 
 **Open a dataset.** Two equally supported ways. Both open an Icechunk 2 repository, so the direct route needs `icechunk>=2` (Python 3.12+); Icechunk also has JavaScript and Rust clients that open the same `icechunk-https` asset.
 
-- The `dynamical-catalog` package (latest release): `import dynamical_catalog; ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)`
+- The `dynamical-catalog` package (1.0.0 or newer; earlier releases can no longer load the catalog, for any dataset): `import dynamical_catalog; ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)`
 - STAC and Icechunk directly, with any HTTP client for the STAC part:
 
 ```python

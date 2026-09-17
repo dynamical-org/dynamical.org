@@ -31,7 +31,8 @@ permalink: /migration-2026/
   <p>
     Option 1: open using <code>dynamical-catalog</code>, a thin STAC and Icechunk
     wrapper that ensures minimum dependency versions.
-    Install the latest <code>dynamical-catalog</code> on Python 3.12 or newer, and
+    Install <code>dynamical-catalog</code> 1.0.0 or newer on Python 3.12 or newer
+    (earlier releases can no longer load the catalog, for any dataset), and
     pass the dataset ID from its <a href="/catalog/">catalog page</a>.
   </p>
   {% frameHighlight "py" %}import dynamical_catalog
