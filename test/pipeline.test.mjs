@@ -1821,6 +1821,7 @@ test("pipeline page uses the shared subnav without a separate footer", () => {
   // what it measured, and the squares and marks carry their own colors
   assert.doesNotMatch(template, /pipeline-notice|increasing the granularity/);
   assert.doesNotMatch(template, /pipeline-legend|part arrived|still expected/);
+  assert.doesNotMatch(template, /no monitoring data|hover a cell/);
   assert.doesNotMatch(pipelineCss, /\.pipeline-notice|\.pipeline-legend/);
   assert.doesNotMatch(template, /pipeline-footer|window-days/);
   assert.doesNotMatch(pipelineScript, /window-days/);
@@ -1983,7 +1984,6 @@ test("run chart key: names only the marks drawn", () => {
   // each delayed mark is keyed as it is drawn, filled or hollow
   assert.deepEqual(key(chartProduct()), [
     { mark: "on-time", text: "judged on time" },
-    { mark: "elapsed", text: "not yet complete: time so far" },
     { mark: "delayed", text: "judged delayed" },
     { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
   ]);
@@ -1999,12 +1999,10 @@ test("run chart key: names only the marks drawn", () => {
     ),
     [
       { mark: "on-time", text: "judged on time" },
-      { mark: "elapsed", text: "not yet complete: time so far" },
       { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
     ],
   );
-  // every run landed and none late: green is the squares' green, and the
-  // points need no key
+  // every run landed and none late: the color is still named
   assert.deepEqual(
     key(
       chartProduct({
@@ -2014,7 +2012,41 @@ test("run chart key: names only the marks drawn", () => {
         ],
       }),
     ),
-    [],
+    [{ mark: "on-time", text: "judged on time" }],
+  );
+  // a run arriving on time is a green ring beside the ink ring of one too
+  // early to judge, and each is keyed as drawn
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: "on_time", latency_s: 3500 },
+          { init_time: "2026-07-25T06:00:00Z", status: "in_flight", timing: "on_time" },
+          { init_time: "2026-07-25T12:00:00Z", status: "pending", timing: null },
+        ],
+      }),
+    ),
+    [
+      { mark: "on-time", text: "judged on time" },
+      { mark: "on-time-elapsed", text: "judged on time, not yet complete" },
+      { mark: "elapsed", text: "not yet complete: time so far" },
+    ],
+  );
+  // an ink run beside a green one is complete too; it is named for its
+  // missing verdict
+  assert.deepEqual(
+    key(
+      chartProduct({
+        recent_inits: [
+          { init_time: "2026-07-24T12:00:00Z", status: "complete", timing: null, latency_s: 3500 },
+          { init_time: "2026-07-24T18:00:00Z", status: "complete", timing: "on_time", latency_s: 3600 },
+        ],
+      }),
+    ),
+    [
+      { mark: "on-time", text: "judged on time" },
+      { mark: "complete", text: "complete, not judged" },
+    ],
   );
   // a run too early to judge on a product with a baseline is only "not yet
   // complete"; its missing verdict is not a kind of run

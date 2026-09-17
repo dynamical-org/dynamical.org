@@ -1082,7 +1082,6 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   // landed delayed run filled, the delayed run in flight hollow
   expect(geometry.keyMarks).toEqual([
     { text: "judged on time", fill: "rgb(91, 197, 74)", ring: "rgb(91, 197, 74)" },
-    { text: "not yet complete: time so far", fill: "rgba(0, 0, 0, 0)", ring: "rgb(17, 17, 17)" },
     { text: "judged delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
     { text: "judged delayed, not yet complete", fill: "rgba(0, 0, 0, 0)", ring: "rgb(244, 185, 66)" },
   ]);
@@ -1097,6 +1096,60 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   );
   await expect(thresholds).toHaveText(["35m", "55m", "2h"]);
 });
+
+// The published feed judges a run while it is still arriving, so a green ring
+// is an everyday mark: hollow in the page's background, green in its stroke,
+// and keyed as drawn, in both charts and both themes.
+for (const [view, open] of [
+  ["lead-group", async () => {}],
+  ["arrival-group", async (row) => row.locator(".pipeline-viz").click()],
+]) {
+  test(`a run arriving on time is a green ring in the ${view} chart`, async ({ page }) => {
+    const row = await openPipeline(page, (payload) => {
+      const shifted = withRecentRun(payload, 60 * 60 * 1000);
+      const running = shifted.groups[0].products[0].recent_inits.findLast(
+        (init) => init.status === "in_flight",
+      );
+      running.timing = "on_time";
+      for (const group of running.lead_groups) group.timing = "on_time";
+      return shifted;
+    });
+    await open(row);
+    await row.locator('[data-slot="details-button"]').click();
+    const chart = row.locator(".pipeline-row-details .pipeline-runs");
+    await expect(chart.locator("circle[data-elapsed]")).toHaveCount(1);
+    const marks = () =>
+      chart.evaluate((node) => {
+        const ring = getComputedStyle(node.querySelector("circle[data-elapsed]"));
+        const landed = getComputedStyle(
+          node.querySelector('circle[data-timing="on_time"]:not([data-elapsed])'),
+        );
+        const glyph = getComputedStyle(
+          node.querySelector('li[data-mark="on-time-elapsed"]'),
+          "::before",
+        );
+        return {
+          ring: [ring.fill, ring.stroke],
+          landed: [landed.fill, landed.stroke],
+          glyph: [glyph.backgroundColor, glyph.borderTopColor],
+          key: [...node.querySelectorAll("li")].map((li) => li.textContent),
+        };
+      });
+    const green = "rgb(91, 197, 74)";
+    expect(await marks()).toEqual({
+      ring: ["rgb(255, 255, 255)", green],
+      landed: [green, green],
+      glyph: ["rgba(0, 0, 0, 0)", green],
+      key: ["judged on time", "judged on time, not yet complete", "judged delayed"],
+    });
+    await page.emulateMedia({ colorScheme: "dark" });
+    expect(await marks()).toMatchObject({
+      ring: ["rgb(15, 15, 16)", green],
+      landed: [green, green],
+      glyph: ["rgba(0, 0, 0, 0)", green],
+    });
+  });
+}
 
 test("a product without a delayed threshold draws its runs and no line", async ({
   page,

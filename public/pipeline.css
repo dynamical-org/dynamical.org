@@ -322,11 +322,12 @@
 
 /* The run chart: the runs the field draws as squares, plotted by their time
    after init against the current delayed threshold — under the lead-group
-   field, each under its square. Color is the summarizer's verdict: green a
-   run judged on time, amber one judged delayed, drawn larger as well so the
-   verdict does not rest on color alone. A run with no verdict — a product
-   short of history, a run too early to judge — is drawn in the text color,
-   not a grey that reads as a third kind of run. A run not yet complete is hollow, at
+   field, each under its square. Color is the summarizer's verdict, where
+   a square's is the run's status: green a run judged on time, amber one
+   judged delayed, drawn larger as well so the verdict does not rest on
+   color alone. A run with no verdict — a product short of history, a run
+   too early to judge — is drawn in the text color, not a grey that reads
+   as a third kind of run. A run not yet complete is hollow, at
    the time elapsed so far. The key beneath names the marks it shows. */
 
 .pipeline-runs {
@@ -362,7 +363,7 @@
   stroke: var(--text-color);
 }
 
-/* the summarizer's verdict, in the green its square wears */
+/* the summarizer's verdict; a run with none stays ink under a green square */
 .pipeline-runs [data-timing="on_time"] {
   fill: var(--pipeline-ok);
   stroke: var(--pipeline-ok);
@@ -441,13 +442,13 @@
   vertical-align: -0.15rem;
 }
 
-.pipeline-runs li[data-mark="on-time"]::before {
+.pipeline-runs li[data-mark^="on-time"]::before {
   border-color: var(--pipeline-ok);
   background: var(--pipeline-ok);
 }
 
 /* hollow, as a run not yet complete is */
-.pipeline-runs li:is([data-mark="elapsed"], [data-mark="delayed-elapsed"])::before {
+.pipeline-runs li:is([data-mark="elapsed"], [data-mark$="-elapsed"])::before {
   background: none;
 }
 
