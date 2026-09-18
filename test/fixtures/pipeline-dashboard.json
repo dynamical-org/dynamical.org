@@ -1953,8 +1953,8 @@
           "lead_groups": [
             {
               "name": "forecast",
-              "label": "fc",
-              "leads_in_group": 1,
+              "label": "3d",
+              "leads_in_group": 13,
               "center_pct": 50
             }
           ],
@@ -2013,8 +2013,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 4020,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             },
@@ -2029,8 +2029,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 4050,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             },
@@ -2045,8 +2045,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 4140,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             },
@@ -2061,8 +2061,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 4030,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             },
@@ -2077,8 +2077,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 4330,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             },
@@ -2093,8 +2093,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 4100,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             },
@@ -2109,8 +2109,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 4230,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             },
@@ -2126,8 +2126,8 @@
                   "status": "complete",
                   "completion_pct": 1.0,
                   "latency_s": 6000,
-                  "leads_available": 1,
-                  "leads_expected": 1
+                  "leads_available": 13,
+                  "leads_expected": 13
                 }
               ]
             }

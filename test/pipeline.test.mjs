@@ -1213,7 +1213,7 @@ function lagInit(init_time, pipeline_lag_s, status = "complete", latency_s) {
     init_time,
     status,
     latency_s: arrived,
-    lead_groups: [{ status, latency_s: arrived }],
+    lead_groups: [{ name: "forecast", status, latency_s: arrived }],
   };
   if (pipeline_lag_s !== undefined) init.pipeline_lag_s = pipeline_lag_s;
   return init;
@@ -1229,7 +1229,12 @@ function lagSourceRow(inits, overrides = {}) {
     lead_group_stats: [
       { name: "f072", label: "3d", leads_in_group: 13, p50_s: 3600 },
     ],
-    recent_inits: inits,
+    // a source names the horizon after its own last lead, where the store
+    // names it after the forecast it publishes
+    recent_inits: inits.map((init) => ({
+      ...init,
+      lead_groups: init.lead_groups.map((group) => ({ ...group, name: "f072" })),
+    })),
     ...overrides,
   };
 }
@@ -1396,6 +1401,74 @@ test("a lag needs the same horizon, landed on both sides", () => {
     lagInit("2026-07-25T12:00:00Z", undefined, "in_flight"),
   ]);
   assert.equal(lagAt(waiting, [lagSourceRow([arrived])]).rows[0].run.lag, "—");
+});
+
+test("a horizon the payload cannot identify is not measured", () => {
+  const product = lagProduct([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
+  ]);
+  const arrived = lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4000);
+
+  // the source's groups arrive in a different order than its own shapes: the
+  // name each group carries is what says which horizon it is, not its position
+  const reordered = lagSourceRow([arrived], {
+    lead_group_stats: [
+      { name: "f000", label: "0h", leads_in_group: 1, p50_s: 900 },
+      { name: "f072", label: "3d", leads_in_group: 13, p50_s: 3600 },
+    ],
+    recent_inits: [
+      {
+        ...arrived,
+        lead_groups: [
+          { name: "f072", status: "complete", latency_s: 4000 },
+          { name: "f000", status: "complete", latency_s: 900 },
+        ],
+      },
+    ],
+  });
+  assert.equal(lagAt(product, [reordered]).rows[0].last.lag, "5m");
+
+  // two of the source's groups print the same horizon: neither can be the one
+  // this row means, so it reads no lag rather than the sooner of the two
+  const collided = lagSourceRow([arrived], {
+    lead_group_stats: [
+      { name: "f000", label: "3d", leads_in_group: 13, p50_s: 900 },
+      { name: "f072", label: "3d", leads_in_group: 13, p50_s: 3600 },
+    ],
+    recent_inits: [
+      {
+        ...arrived,
+        lead_groups: [
+          { name: "f000", status: "complete", latency_s: 900 },
+          { name: "f072", status: "complete", latency_s: 4000 },
+        ],
+      },
+    ],
+  });
+  assert.equal(lagAt(product, [collided]).rows[0].last.lag, "—");
+
+  // a group of ours with no shape beside it, and a horizon of ours printed
+  // twice, are both unmatchable
+  const unnamed = lagProduct([
+    {
+      init_time: "2026-07-25T12:00:00Z",
+      status: "complete",
+      latency_s: 4300,
+      lead_groups: [{ status: "complete", latency_s: 4300 }],
+    },
+  ]);
+  assert.equal(lagAt(unnamed, [lagSourceRow([arrived])]).rows[0].last.lag, "—");
+
+  const twice = lagProduct([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
+  ]);
+  twice.lead_group_stats = [
+    ...twice.lead_group_stats,
+    { name: "shadow", label: "3d", leads_in_group: 13, p50_s: 4100 },
+  ];
+  for (const row of lagAt(twice, [lagSourceRow([arrived])]).rows) {
+    assert.equal(row.last.lag, "—");
+  }
 });
 
 test("the current run reports a lag for each horizon that has landed", () => {

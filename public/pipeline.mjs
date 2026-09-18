@@ -1054,11 +1054,37 @@ export function lagSources(product, groupProducts = []) {
   return sources.every(Boolean) ? sources : [];
 }
 
-/* A horizon, as both sides name it. Only the source keeps the lead's own name
-   for its last group, so the label the horizon column prints is what joins
-   them, and the lead count is the guard that they really are the same span. */
+/* A horizon, as both sides name it. The two products do not share group names —
+   the store keeps the lead's own name for its last group where the source keeps
+   the lead hour's — so the join is the label the horizon column prints plus the
+   leads the group covers. Two groups of one product that share that key are not
+   a horizon this page can match, and neither is a live group whose name has no
+   shape beside it: both drop out rather than be guessed at, because the harm
+   here is a number against the wrong horizon, not a missing one. */
 
 const horizonKey = (stats) => `${stats.label}/${stats.leads_in_group}`;
+
+function horizonIndex(product) {
+  const keyByName = new Map();
+  const ambiguous = new Set();
+  const seen = new Set();
+  for (const stats of product.lead_group_stats ?? []) {
+    const key = horizonKey(stats);
+    if (seen.has(key)) ambiguous.add(key);
+    seen.add(key);
+    keyByName.set(stats.name, key);
+  }
+  return { keyByName, ambiguous };
+}
+
+function arrivedAt(init, name) {
+  const group = (init?.lead_groups ?? []).find(
+    (candidate) => candidate.name === name,
+  );
+  return group?.status === "complete" && group.latency_s != null
+    ? group.latency_s
+    : null;
+}
 
 /* When an init's horizons landed on the source. Several sources means the
    earliest of them, which is the comparison the feed's own lag statistics
@@ -1068,18 +1094,17 @@ function sourceArrivals(sources, initTime) {
   const arrivals = new Map();
   if (!initTime) return arrivals;
   for (const source of sources) {
-    const shapes = source.lead_group_stats ?? [];
+    const { keyByName, ambiguous } = horizonIndex(source);
     const init = (source.recent_inits ?? []).find(
       (candidate) => candidate.init_time === initTime,
     );
-    (init?.lead_groups ?? []).forEach((group, index) => {
-      if (!shapes[index] || group.latency_s == null) return;
-      const key = horizonKey(shapes[index]);
+    for (const [name, key] of keyByName) {
+      if (ambiguous.has(key)) continue;
+      const seconds = arrivedAt(init, name);
+      if (seconds == null) continue;
       const first = arrivals.get(key);
-      if (first == null || group.latency_s < first) {
-        arrivals.set(key, group.latency_s);
-      }
-    });
+      if (first == null || seconds < first) arrivals.set(key, seconds);
+    }
   }
   return arrivals;
 }
@@ -1093,7 +1118,7 @@ const NO_RUN = Object.freeze({
   lag: "—",
 });
 
-function observedRunDetail(init, live, stats, now, local, active, afterSource) {
+function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
   if (!init) return NO_RUN;
   const initMs = Date.parse(init.init_time);
   let time = "—";
@@ -1121,11 +1146,7 @@ function observedRunDetail(init, live, stats, now, local, active, afterSource) {
     time,
     duration,
     // a horizon has a lag once both sides have landed it, and not before
-    lag: formatSignedLatency(
-      live?.status === "complete" && live.latency_s != null && afterSource != null
-        ? live.latency_s - afterSource
-        : null,
-    ),
+    lag: formatSignedLatency(lagSeconds),
   };
 }
 
@@ -1164,6 +1185,15 @@ export function detailRows(product, now, local, sources = []) {
   const upcoming = active ? null : product.next_expected_init;
   const afterLast = sourceArrivals(sources, last?.init_time);
   const afterActive = sourceArrivals(sources, active?.init_time);
+  const horizons = horizonIndex(product);
+  // this run's horizon, less the source's own arrival for the same horizon
+  const lagOf = (init, arrivals, stats) => {
+    const key = horizons.keyByName.get(stats.name);
+    if (key == null || horizons.ambiguous.has(key)) return null;
+    const ours = arrivedAt(init, stats.name);
+    const theirs = arrivals.get(key);
+    return ours == null || theirs == null ? null : ours - theirs;
+  };
   return {
     // a row measures its lag against the source the feed pairs it with; every
     // other row has no source to be late after
@@ -1186,7 +1216,7 @@ export function detailRows(product, now, local, sources = []) {
         now,
         local,
         false,
-        afterLast.get(horizonKey(stats)),
+        lagOf(last, afterLast, stats),
       ),
       run: active
         ? observedRunDetail(
@@ -1196,7 +1226,7 @@ export function detailRows(product, now, local, sources = []) {
             now,
             local,
             true,
-            afterActive.get(horizonKey(stats)),
+            lagOf(active, afterActive, stats),
           )
         : upcomingRunDetail(upcoming, stats, local),
       p50: formatLatency(stats.p50_s),
