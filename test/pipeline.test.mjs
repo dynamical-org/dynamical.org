@@ -1471,6 +1471,104 @@ test("a horizon the payload cannot identify is not measured", () => {
   }
 });
 
+test("a row reads one horizon in every cell, whatever order the payload used", () => {
+  // two horizons, and an init that lists them the other way round
+  const product = lagProduct([
+    {
+      init_time: "2026-07-25T12:00:00Z",
+      status: "complete",
+      latency_s: 4300,
+      lead_groups: [
+        { name: "forecast", status: "complete", latency_s: 4300 },
+        { name: "short", status: "complete", latency_s: 900 },
+      ],
+    },
+  ]);
+  product.lead_group_stats = [
+    { name: "short", label: "0h", leads_in_group: 1, p50_s: 900 },
+    ...product.lead_group_stats,
+  ];
+  const source = lagSourceRow([], {
+    lead_group_stats: [
+      { name: "f000", label: "0h", leads_in_group: 1, p50_s: 800 },
+      { name: "f072", label: "3d", leads_in_group: 13, p50_s: 3600 },
+    ],
+    recent_inits: [
+      {
+        init_time: "2026-07-25T12:00:00Z",
+        status: "complete",
+        latency_s: 4000,
+        lead_groups: [
+          { name: "f072", status: "complete", latency_s: 4000 },
+          { name: "f000", status: "complete", latency_s: 780 },
+        ],
+      },
+    ],
+  });
+
+  const [short, forecast] = lagAt(product, [source]).rows;
+  // the lag has to sit beside the arrival it is a lag on: both cells of a row
+  // describe that row's horizon, not the group that happened to be listed there
+  assert.deepEqual([short.label, short.last.duration, short.last.lag], [
+    "0h",
+    "15m",
+    "2m",
+  ]);
+  assert.deepEqual([forecast.label, forecast.last.duration, forecast.last.lag], [
+    "3d",
+    "1h 12m",
+    "5m",
+  ]);
+});
+
+test("a horizon neither side can identify is not measured either", () => {
+  const arrived = lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4000);
+
+  // shapes that print no horizon and count no leads say nothing that could
+  // match across two products, so they must not match each other
+  const nameless = lagProduct([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
+  ]);
+  nameless.lead_group_stats = [{ name: "forecast", p50_s: 4100 }];
+  const bare = lagSourceRow([arrived], {
+    lead_group_stats: [{ name: "f072", p50_s: 3600 }],
+  });
+  assert.equal(lagAt(nameless, [bare]).rows[0].last.lag, "—");
+
+  // the same horizon reported twice in one run is not one arrival
+  const product = lagProduct([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
+  ]);
+  const twiceOnSource = lagSourceRow([arrived], {
+    recent_inits: [
+      {
+        ...arrived,
+        lead_groups: [
+          { name: "f072", status: "complete", latency_s: 1000 },
+          { name: "f072", status: "complete", latency_s: 4000 },
+        ],
+      },
+    ],
+  });
+  assert.equal(lagAt(product, [twiceOnSource]).rows[0].last.lag, "—");
+
+  const twiceOnOurs = lagProduct([
+    {
+      init_time: "2026-07-25T12:00:00Z",
+      status: "complete",
+      latency_s: 4300,
+      lead_groups: [
+        { name: "forecast", status: "complete", latency_s: 4300 },
+        { name: "forecast", status: "complete", latency_s: 900 },
+      ],
+    },
+  ]);
+  const row = lagAt(twiceOnOurs, [lagSourceRow([arrived])]).rows[0];
+  assert.equal(row.last.lag, "—");
+  // and the row reports no arrival either, rather than picking one of the two
+  assert.equal(row.last.duration, "—");
+});
+
 test("the current run reports a lag for each horizon that has landed", () => {
   const product = lagProduct([
     lagInit("2026-07-25T06:00:00Z", undefined, "complete", 4000),

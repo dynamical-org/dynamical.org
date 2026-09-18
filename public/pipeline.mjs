@@ -1062,6 +1062,14 @@ export function lagSources(product, groupProducts = []) {
    shape beside it: both drop out rather than be guessed at, because the harm
    here is a number against the wrong horizon, not a missing one. */
 
+// a horizon this page can print and count is one it can match; a shape short
+// of either says nothing that identifies it across two products
+const identified = (stats) =>
+  typeof stats.label === "string" &&
+  stats.label !== "" &&
+  Number.isInteger(stats.leads_in_group) &&
+  stats.leads_in_group > 0;
+
 const horizonKey = (stats) => `${stats.label}/${stats.leads_in_group}`;
 
 function horizonIndex(product) {
@@ -1069,6 +1077,7 @@ function horizonIndex(product) {
   const ambiguous = new Set();
   const seen = new Set();
   for (const stats of product.lead_group_stats ?? []) {
+    if (!identified(stats)) continue;
     const key = horizonKey(stats);
     if (seen.has(key)) ambiguous.add(key);
     seen.add(key);
@@ -1077,10 +1086,31 @@ function horizonIndex(product) {
   return { keyByName, ambiguous };
 }
 
-function arrivedAt(init, name) {
-  const group = (init?.lead_groups ?? []).find(
-    (candidate) => candidate.name === name,
+/* The live group a shape names. One match is an identification; none or
+   several is not, and a run read under the wrong horizon is worse than a run
+   not read at all. */
+
+function namedGroup(init, name) {
+  const matches = (init?.lead_groups ?? []).filter(
+    (group) => group.name === name,
   );
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+/* What a horizon's row reads. A payload that names its groups is read by name,
+   as the rest of the page reads it, so the row's cells all describe the same
+   group however the payload ordered them; one that names none is read in
+   order, which is all it offers — and a lag, which crosses two products, is
+   never read that way. */
+
+function liveGroupOf(init, stats, index) {
+  const groups = init?.lead_groups ?? [];
+  if (!groups.some((group) => group.name != null)) return groups[index];
+  return namedGroup(init, stats.name);
+}
+
+function arrivedAt(init, name) {
+  const group = namedGroup(init, name);
   return group?.status === "complete" && group.latency_s != null
     ? group.latency_s
     : null;
@@ -1211,7 +1241,7 @@ export function detailRows(product, now, local, sources = []) {
       label: stats.label,
       last: observedRunDetail(
         last,
-        last?.lead_groups?.[index],
+        liveGroupOf(last, stats, index),
         stats,
         now,
         local,
@@ -1221,7 +1251,7 @@ export function detailRows(product, now, local, sources = []) {
       run: active
         ? observedRunDetail(
             active,
-            active.lead_groups?.[index],
+            liveGroupOf(active, stats, index),
             stats,
             now,
             local,
