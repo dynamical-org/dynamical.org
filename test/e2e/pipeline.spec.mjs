@@ -591,7 +591,7 @@ test("a dynamical row folds its lag after the source into the foot of its lead t
   // its provenance reads under the table, wrapping in the row's own width
   const note = row.locator(".pipeline-row-details > p");
   await expect(note).toHaveText(
-    "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
+    "lag after source · after AWS · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
   );
   const fits = await note.evaluate(
     (el) => el.scrollWidth <= el.parentElement.clientWidth,

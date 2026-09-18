@@ -1044,14 +1044,35 @@ function countLabel(count, singular) {
   return `${count.toLocaleString("en-US")} ${count === 1 ? singular : `${singular}s`}`;
 }
 
+/* Which source the lag is measured from. The feed names it by product id, and
+   those ids are the group's own source rows, so the label comes from there. A
+   lag paired with more than one mirror is measured from whichever published
+   first, which is not necessarily the one the dataset was built from. */
+
+export function lagSourceLabels(product, groupProducts = []) {
+  const ids = product.pipeline_lag?.source_ids ?? [];
+  const labelOf = new Map(
+    groupProducts.map((sibling) => [sibling.id, sibling.source_label]),
+  );
+  return ids.map((id) => labelOf.get(id)).filter(Boolean);
+}
+
+function lagSourcePhrase(labels) {
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return `after ${labels[0]} · `;
+  const last = labels.at(-1);
+  return `after the earliest of ${labels.slice(0, -1).join(", ")} and ${last} · `;
+}
+
 // Lag statistics describe the backend's historical window. It is too long to
 // head a column, so it reads as a note under the table the lag row sits in.
 // Missing metadata is deliberately unavailable: an old payload's recent runs
 // are not that sample.
-function lagNote(lag) {
+function lagNote(lag, sourceLabels) {
   if (!lag) return "unavailable (no published baseline)";
-  const basis =
-    lag.basis === "shared_nat_prs_sfc" ? "matching nat/prs/sfc families · " : "";
+  const basis = `${lagSourcePhrase(sourceLabels)}${
+    lag.basis === "shared_nat_prs_sfc" ? "matching nat/prs/sfc families · " : ""
+  }`;
   if (lag.status === "pending") {
     return `${basis}historical baseline pending`;
   }
@@ -1123,7 +1144,7 @@ export function isDynamicalRow(product) {
   return product.source_label === null;
 }
 
-export function detailRows(product, now, local) {
+export function detailRows(product, now, local, sourceLabels = []) {
   const recent = product.recent_inits ?? [];
   const activeIndex = recent.findLastIndex(
     (init) => init.status === "pending" || init.status === "in_flight",
@@ -1172,7 +1193,7 @@ export function detailRows(product, now, local) {
           : stats.delayed_threshold_s,
       ),
     })),
-    lag: isDynamicalRow(product) ? lagRow(product, last) : null,
+    lag: isDynamicalRow(product) ? lagRow(product, last, sourceLabels) : null,
   };
 }
 
@@ -1182,13 +1203,13 @@ export function detailRows(product, now, local) {
 // that run, the percentiles under theirs. Only the last run has one: the
 // current run is by definition not complete, and a lag needs both sides
 // landed — a last run whose source is still out reads "—".
-function lagRow(product, last) {
+function lagRow(product, last, sourceLabels) {
   const lag = validPipelineLag(product.pipeline_lag)
     ? product.pipeline_lag
     : null;
   const stats = lag?.status === "ready" ? lag.stats : null;
   return {
-    note: lagNote(lag),
+    note: lagNote(lag, sourceLabels),
     last: formatSignedLatency(lag ? last?.pipeline_lag_s : null),
     p50: formatSignedLatency(stats?.p50_s),
     p95: formatSignedLatency(stats?.p95_s),
@@ -1953,8 +1974,16 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
    reader's place in it — survives the tick. Every wide table on the site scrolls
    inside its own .table-container. */
 
-function Details({ product, now, local, runCount, dimension, fieldWidth }) {
-  const details = detailRows(product, now, local);
+function Details({
+  product,
+  now,
+  local,
+  sourceLabels,
+  runCount,
+  dimension,
+  fieldWidth,
+}) {
+  const details = detailRows(product, now, local, sourceLabels);
   // the chart lines up with the lead-group field; an arrival-group field
   // keeps the chart across the row
   const chart = dimension
@@ -2124,6 +2153,7 @@ function Row({
   advisory,
   local,
   now,
+  sourceLabels,
   viewIndex,
   expanded,
   onCycle,
@@ -2237,6 +2267,7 @@ function Row({
             product=${product}
             now=${now}
             local=${local}
+            sourceLabels=${sourceLabels}
             runCount=${runCount}
             dimension=${view.dimension}
             fieldWidth=${width}
@@ -2301,6 +2332,7 @@ function Groups({ state, actions }) {
           )}
           local=${state.local}
           now=${state.now}
+          sourceLabels=${lagSourceLabels(product, group.products)}
           viewIndex=${state.views[product.id] ?? 0}
           expanded=${state.expanded[product.id] ?? false}
           onCycle=${() => actions.cycleView(product)}

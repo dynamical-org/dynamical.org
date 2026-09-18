@@ -33,6 +33,7 @@ import {
   displayRowLabel,
   displaySource,
   isDynamicalRow,
+  lagSourceLabels,
   etaLineText,
   facetRows,
   initColumnPx,
@@ -1396,6 +1397,41 @@ test("pending, empty, and missing lag baselines stay distinct", () => {
   assert.deepEqual([unavailable.last, unavailable.p50, unavailable.p99], ["—", "—", "—"]);
 });
 
+test("the lag names the source it was measured from", () => {
+  const product = lagProduct([lagInit("2026-07-25T00:00:00Z", 60)]);
+  const mirrors = [
+    { id: "external-noaa-gfs-aws", source_label: "AWS" },
+    { id: "external-noaa-gfs-ftp", source_label: "NOMADS" },
+    product,
+  ];
+  const noteOf = (lag) => {
+    const row = { ...product, pipeline_lag: lag };
+    return detailRows(
+      row,
+      Date.parse("2026-07-25T01:00:00Z"),
+      false,
+      lagSourceLabels(row, mirrors),
+    ).lag.note;
+  };
+
+  assert.match(noteOf(readyPipelineLag()), /^after AWS · historical baseline/);
+  // paired with both mirrors the metric measures from whichever published
+  // first, which need not be the one the dataset was built from
+  assert.match(
+    noteOf(
+      readyPipelineLag({
+        source_ids: ["external-noaa-gfs-aws", "external-noaa-gfs-ftp"],
+      }),
+    ),
+    /^after the earliest of AWS and NOMADS · historical baseline/,
+  );
+  // an id with no row in the group leaves the phrase off rather than guessing
+  assert.match(
+    noteOf(readyPipelineLag({ source_ids: ["external-noaa-gfs-gone"] })),
+    /^historical baseline/,
+  );
+});
+
 test("family lag labels its published comparison basis", () => {
   const product = lagProduct(
     [lagInit("2026-07-25T00:00:00Z", -600)],
@@ -1462,15 +1498,16 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
     product,
     Date.parse("2026-07-25T18:00:00Z"),
     false,
-    group.products,
+    lagSourceLabels(product, group.products),
   );
   // the note sits on the baseline it describes, not on the lag sample
   assert.equal(
     details.statsHeader,
     "time after init · 24 samples · insufficient history (24/30 days)",
   );
+  // and it names the source the lag was measured from
   assert.deepEqual(details.lag, {
-    note: "historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
+    note: "after AWS · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
     last: "5m",
     p50: "15m",
     p95: "30m",
