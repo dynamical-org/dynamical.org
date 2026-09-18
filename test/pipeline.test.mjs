@@ -1295,8 +1295,8 @@ test("malformed optional lag fields degrade only the affected lag", () => {
 
     assert.equal(validateDashboard(invalid), invalid);
     assert.equal(
-      detailRows(affected, Date.parse("2026-07-25T18:00:00Z"), false).lag.header,
-      "lag after source · unavailable (no published baseline)",
+      detailRows(affected, Date.parse("2026-07-25T18:00:00Z"), false).lag.note,
+      "unavailable (no published baseline)",
     );
     assert.equal(
       detailRows(sibling, Date.parse("2026-07-25T18:00:00Z"), false).lag.p50,
@@ -1330,8 +1330,7 @@ test("details use historical lag statistics instead of recent values", () => {
   const details = detailRows(product, Date.parse("2026-07-25T14:00:00Z"), false);
 
   assert.deepEqual(details.lag, {
-    header:
-      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
+    note: "historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
     last: "3m",
     p50: "15m",
     p95: "30m",
@@ -1367,7 +1366,7 @@ test("pending, empty, and missing lag baselines stay distinct", () => {
     },
   );
   const pendingRow = detailRows(pending, Date.parse("2026-07-25T01:00:00Z"), false).lag;
-  assert.equal(pendingRow.header, "lag after source · historical baseline pending");
+  assert.equal(pendingRow.note, "historical baseline pending");
   assert.deepEqual([pendingRow.last, pendingRow.p50, pendingRow.p95], ["1m", "—", "—"]);
 
   const empty = lagProduct(
@@ -1384,15 +1383,15 @@ test("pending, empty, and missing lag baselines stay distinct", () => {
     }),
   );
   const emptyRow = detailRows(empty, Date.parse("2026-07-25T01:00:00Z"), false).lag;
-  assert.match(emptyRow.header, /0 samples across 0 days$/);
+  assert.match(emptyRow.note, /0 samples across 0 days$/);
   assert.deepEqual([emptyRow.last, emptyRow.p50, emptyRow.p99], ["—", "—", "—"]);
 
   const old = lagProduct([lagInit("2026-07-25T00:00:00Z", undefined)]);
   delete old.pipeline_lag;
   const unavailable = detailRows(old, Date.parse("2026-07-25T01:00:00Z"), false).lag;
   assert.equal(
-    unavailable.header,
-    "lag after source · unavailable (no published baseline)",
+    unavailable.note,
+    "unavailable (no published baseline)",
   );
   assert.deepEqual([unavailable.last, unavailable.p50, unavailable.p99], ["—", "—", "—"]);
 });
@@ -1406,7 +1405,7 @@ test("family lag labels its published comparison basis", () => {
     }),
   );
   const details = detailRows(product, Date.parse("2026-07-25T01:00:00Z"), false);
-  assert.match(details.lag.header, /^lag after source · matching nat\/prs\/sfc families/);
+  assert.match(details.lag.note, /^matching nat\/prs\/sfc families/);
   assert.equal(details.lag.last, "−10m");
 });
 
@@ -1471,8 +1470,7 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
     "time after init · 24 samples · insufficient history (24/30 days)",
   );
   assert.deepEqual(details.lag, {
-    header:
-      "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
+    note: "historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
     last: "5m",
     p50: "15m",
     p95: "30m",

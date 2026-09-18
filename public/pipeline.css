@@ -316,8 +316,18 @@
   }
 }
 
-.pipeline-row-details .table-container + .table-container {
+.pipeline-row-details .table-container + .table-container,
+.pipeline-row-details > p + .table-container {
   margin-top: 1.2rem;
+}
+
+/* the lag row's provenance, under the table it summarises: the one line here
+   that wraps, since it reads in the row's width rather than the table's */
+.pipeline-row-details > p {
+  margin: 0.6rem 0 0;
+  color: var(--muted-text);
+  font-size: 1.2rem;
+  white-space: normal;
 }
 
 /* The run chart: the runs the field draws as squares, plotted by their time
@@ -460,8 +470,8 @@
 }
 
 /* the lead table's ten nowrap measurement columns need more room than the
-   content column has; the lag and facet tables' few fit, so they are sized by
-   their content */
+   content column has; the facet table's few fit, so it is sized by its
+   content */
 .pipeline-row-details .table-container:first-of-type table {
   min-width: 100rem;
 }
@@ -483,6 +493,13 @@
    its first cell is a status column and belongs right with the rest */
 .pipeline-row-details thead:has(th[rowspan]) tr + tr th:first-child {
   text-align: right;
+}
+
+/* the lag summarises the whole run, not a horizon, so it reads as the lead
+   table's foot — set off from the horizons by a solid rule, with its own
+   columns' cells empty */
+.pipeline-row-details tfoot :is(th, td) {
+  border-top: 1px solid var(--border-muted-color);
 }
 
 /* a status wears the color its square wears on the grid: green once a run has

@@ -496,7 +496,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
   ]);
 });
 
-test("a dynamical row reports its lag after the source beneath its time after init", async ({
+test("a dynamical row folds its lag after the source into the foot of its lead table", async ({
   page,
 }) => {
   await openPipeline(page);
@@ -506,7 +506,8 @@ test("a dynamical row reports its lag after the source beneath its time after in
   await expect(row.locator("strong").first()).toHaveText("dynamical.org");
   await row.locator('[data-slot="details-button"]').click();
   const tables = row.locator(".pipeline-row-details .table-container");
-  await expect(tables).toHaveCount(2);
+  // the lag no longer brings a table of its own
+  await expect(tables).toHaveCount(1);
 
   // the lead table reads like any other row's, note included
   const lead = tables.first();
@@ -520,20 +521,48 @@ test("a dynamical row reports its lag after the source beneath its time after in
     "1h 40m",
   );
 
-  // the lag is one row under the same run headers, with its own sample
-  const lag = tables.nth(1);
-  await expect(lag.locator("thead tr:first-child th")).toHaveText(
+  // the lag is the table's foot: the last run's lag under that run's own
+  // "after init", the percentiles under the percentile columns
+  const foot = lead.locator("tfoot tr");
+  await expect(foot.locator("th")).toHaveText("lag after source");
+  const cells = foot.locator("td");
+  await expect(cells).toHaveCount(8);
+  await expect(cells.nth(0)).toHaveText("5m");
+  await expect(cells.nth(4)).toHaveText("15m");
+  await expect(cells.nth(5)).toHaveText("30m");
+  await expect(cells.nth(6)).toHaveText("45m");
+  // the columns the lag says nothing about stay empty
+  expect(
+    await Promise.all([1, 2, 3, 7].map((i) => cells.nth(i).textContent())),
+  ).toEqual(["", "", "", ""]);
+
+  // the fold is only worth anything if the numbers land under their headers
+  const aligned = await lead.evaluate((node) => {
+    const box = (el) => {
+      const { left, right } = el.getBoundingClientRect();
+      return [Math.round(left), Math.round(right)];
+    };
+    const heads = node.querySelectorAll("thead tr:last-child th");
+    const lag = node.querySelectorAll("tfoot td");
+    return {
+      afterInit: [box(heads[2]), box(lag[0])],
+      p50: [box(heads[6]), box(lag[4])],
+      p99: [box(heads[8]), box(lag[6])],
+    };
+  });
+  expect(aligned.afterInit[1]).toEqual(aligned.afterInit[0]);
+  expect(aligned.p50[1]).toEqual(aligned.p50[0]);
+  expect(aligned.p99[1]).toEqual(aligned.p99[0]);
+
+  // its provenance reads under the table, wrapping in the row's own width
+  const note = row.locator(".pipeline-row-details > p");
+  await expect(note).toHaveText(
     "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
   );
-  const heads = lag.locator("thead tr:last-child th");
-  await expect(heads.nth(0)).toHaveText(/^last run · /);
-  await expect(heads.nth(1)).toHaveText("p50");
-  const cells = lag.locator("tbody tr td");
-  await expect(cells).toHaveCount(4);
-  await expect(cells.nth(0)).toHaveText("5m");
-  await expect(cells.nth(1)).toHaveText("15m");
-  await expect(cells.nth(2)).toHaveText("30m");
-  await expect(cells.nth(3)).toHaveText("45m");
+  const fits = await note.evaluate(
+    (el) => el.scrollWidth <= el.parentElement.clientWidth,
+  );
+  expect(fits).toBe(true);
 });
 
 test("each details table scrolls itself, under a header that names its column", async ({

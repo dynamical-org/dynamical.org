@@ -1044,20 +1044,21 @@ function countLabel(count, singular) {
   return `${count.toLocaleString("en-US")} ${count === 1 ? singular : `${singular}s`}`;
 }
 
-// Lag statistics describe the backend's historical window. Missing metadata is
-// deliberately unavailable: an old payload's recent runs are not that sample.
-function lagStatsHeader(lag) {
-  const header = lag?.basis === "shared_nat_prs_sfc"
-    ? "lag after source · matching nat/prs/sfc families"
-    : "lag after source";
-  if (!lag) return `${header} · unavailable (no published baseline)`;
+// Lag statistics describe the backend's historical window. It is too long to
+// head a column, so it reads as a note under the table the lag row sits in.
+// Missing metadata is deliberately unavailable: an old payload's recent runs
+// are not that sample.
+function lagNote(lag) {
+  if (!lag) return "unavailable (no published baseline)";
+  const basis =
+    lag.basis === "shared_nat_prs_sfc" ? "matching nat/prs/sfc families · " : "";
   if (lag.status === "pending") {
-    return `${header} · historical baseline pending`;
+    return `${basis}historical baseline pending`;
   }
   const { sample_init_count: inits, sample_day_count: days } = lag.stats;
   const window = `${lag.window_start.slice(0, 10)}–${lag.window_end.slice(0, 10)} UTC`;
   const generated = `${lag.generated_at.slice(0, 19).replace("T", " ")} UTC`;
-  return `${header} · historical baseline (effective ${window}; as of ${generated}) · ${countLabel(inits, "sample")} across ${countLabel(days, "day")}`;
+  return `${basis}historical baseline (effective ${window}; as of ${generated}) · ${countLabel(inits, "sample")} across ${countLabel(days, "day")}`;
 }
 
 const NO_RUN = Object.freeze({
@@ -1176,17 +1177,18 @@ export function detailRows(product, now, local) {
 }
 
 // The lag is a property of the whole run, not of a horizon, so it gets one
-// row of its own beneath the lead table rather than a column repeated down
-// it. Only the last run has one: the current run is by definition not
-// complete, and a lag needs both sides landed — a last run whose source is
-// still out reads "—".
+// summary row in the lead table's foot rather than a column repeated down it.
+// Its numbers are durations like the ones above them: the last run's lag under
+// that run, the percentiles under theirs. Only the last run has one: the
+// current run is by definition not complete, and a lag needs both sides
+// landed — a last run whose source is still out reads "—".
 function lagRow(product, last) {
   const lag = validPipelineLag(product.pipeline_lag)
     ? product.pipeline_lag
     : null;
   const stats = lag?.status === "ready" ? lag.stats : null;
   return {
-    header: lagStatsHeader(lag),
+    note: lagNote(lag),
     last: formatSignedLatency(lag ? last?.pipeline_lag_s : null),
     p50: formatSignedLatency(stats?.p50_s),
     p95: formatSignedLatency(stats?.p95_s),
@@ -1965,8 +1967,8 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
         runCount=${runCount}
         fieldWidth=${fieldWidth}
       />`;
-  // keyed siblings, no wrapper: a lag or facet table that arrives or leaves
-  // with a later run must not change what node the lead table scrolls in
+  // keyed siblings, no wrapper: a facet table that arrives or leaves with a
+  // later run must not change what node the lead table scrolls in
   const leadTable = html`<div key="lead" class="table-container">
     <table>
       <thead>
@@ -2006,38 +2008,30 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
           </tr>`,
         )}
       </tbody>
+      ${details.lag &&
+      html`<tfoot>
+        <tr>
+          <th scope="row" colspan="3">lag after source</th>
+          <td>${details.lag.last}</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>${details.lag.p50}</td>
+          <td>${details.lag.p95}</td>
+          <td>${details.lag.p99}</td>
+          <td></td>
+        </tr>
+      </tfoot>`}
     </table>
   </div>`;
-  // the lag table names the same last run the lead table does, one number
-  const lagTable =
-    details.lag &&
-    html`<div key="lag" class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th colspan="4">${details.lag.header}</th>
-          </tr>
-          <tr>
-            <th>${details.lastHeader}</th>
-            <th>p50</th>
-            <th>p95</th>
-            <th>p99</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>${details.lag.last}</td>
-            <td>${details.lag.p50}</td>
-            <td>${details.lag.p95}</td>
-            <td>${details.lag.p99}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>`;
+  // where the lag row's numbers came from: a line too long for any cell, so it
+  // reads under the table, wrapping in the row's width rather than the table's
+  const lagNoteLine =
+    details.lag && html`<p key="lag-note">lag after source · ${details.lag.note}</p>`;
   const facets = facetRows(product);
-  if (facets.length === 0) return html`${chart}${leadTable}${lagTable}`;
+  if (facets.length === 0) return html`${chart}${leadTable}${lagNoteLine}`;
 
-  return html`${chart}${leadTable}${lagTable}
+  return html`${chart}${leadTable}${lagNoteLine}
     <div key="facets" class="table-container">
       <table class="pipeline-facets">
         <thead>
