@@ -459,9 +459,9 @@
   font-size: 1.2rem;
 }
 
-/* the lead table's ten nowrap measurement columns need more room than the
-   content column has; the lag and facet tables' few fit, so they are sized by
-   their content */
+/* the lead table's ten or twelve nowrap measurement columns need more room than
+   the content column has; the facet table's few fit, so it is sized by its
+   content */
 .pipeline-row-details .table-container:first-of-type table {
   min-width: 100rem;
 }

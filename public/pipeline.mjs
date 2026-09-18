@@ -1040,24 +1040,103 @@ function statsHeader(sampleInitCount, note = null) {
   return note ? `${header} · ${note}` : header;
 }
 
-function countLabel(count, singular) {
-  return `${count.toLocaleString("en-US")} ${count === 1 ? singular : `${singular}s`}`;
+/* The sources the published lag is measured against, as rows of this group.
+   All or nothing: a lag whose source has no row here cannot be compared
+   against the sources that do — that would measure the wrong distance rather
+   than fail to measure one — and a malformed lag block names nothing. */
+
+export function lagSources(product, groupProducts = []) {
+  if (!isDynamicalRow(product) || !validPipelineLag(product.pipeline_lag)) {
+    return [];
+  }
+  const byId = new Map(groupProducts.map((sibling) => [sibling.id, sibling]));
+  const sources = product.pipeline_lag.source_ids.map((id) => byId.get(id));
+  return sources.every(Boolean) ? sources : [];
 }
 
-// Lag statistics describe the backend's historical window. Missing metadata is
-// deliberately unavailable: an old payload's recent runs are not that sample.
-function lagStatsHeader(lag) {
-  const header = lag?.basis === "shared_nat_prs_sfc"
-    ? "lag after source · matching nat/prs/sfc families"
-    : "lag after source";
-  if (!lag) return `${header} · unavailable (no published baseline)`;
-  if (lag.status === "pending") {
-    return `${header} · historical baseline pending`;
+/* A horizon, as both sides name it. The two products do not share group names —
+   the store keeps the lead's own name for its last group where the source keeps
+   the lead hour's — so the join is the label the horizon column prints plus the
+   leads the group covers. Two groups of one product that share that key are not
+   a horizon this page can match, and neither is a live group whose name has no
+   shape beside it: both drop out rather than be guessed at, because the harm
+   here is a number against the wrong horizon, not a missing one. */
+
+// a horizon this page can print and count is one it can match; a shape short
+// of either says nothing that identifies it across two products
+const identified = (stats) =>
+  typeof stats.label === "string" &&
+  stats.label !== "" &&
+  Number.isInteger(stats.leads_in_group) &&
+  stats.leads_in_group > 0;
+
+const horizonKey = (stats) => `${stats.label}/${stats.leads_in_group}`;
+
+function horizonIndex(product) {
+  const keyByName = new Map();
+  const ambiguous = new Set();
+  const seen = new Set();
+  for (const stats of product.lead_group_stats ?? []) {
+    if (!identified(stats)) continue;
+    const key = horizonKey(stats);
+    if (seen.has(key)) ambiguous.add(key);
+    seen.add(key);
+    keyByName.set(stats.name, key);
   }
-  const { sample_init_count: inits, sample_day_count: days } = lag.stats;
-  const window = `${lag.window_start.slice(0, 10)}–${lag.window_end.slice(0, 10)} UTC`;
-  const generated = `${lag.generated_at.slice(0, 19).replace("T", " ")} UTC`;
-  return `${header} · historical baseline (effective ${window}; as of ${generated}) · ${countLabel(inits, "sample")} across ${countLabel(days, "day")}`;
+  return { keyByName, ambiguous };
+}
+
+/* The live group a shape names. One match is an identification; none or
+   several is not, and a run read under the wrong horizon is worse than a run
+   not read at all. */
+
+function namedGroup(init, name) {
+  const matches = (init?.lead_groups ?? []).filter(
+    (group) => group.name === name,
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+/* What a horizon's row reads. A payload that names its groups is read by name,
+   as the rest of the page reads it, so the row's cells all describe the same
+   group however the payload ordered them; one that names none is read in
+   order, which is all it offers — and a lag, which crosses two products, is
+   never read that way. */
+
+function liveGroupOf(init, stats, index) {
+  const groups = init?.lead_groups ?? [];
+  if (!groups.some((group) => group.name != null)) return groups[index];
+  return namedGroup(init, stats.name);
+}
+
+function arrivedAt(init, name) {
+  const group = namedGroup(init, name);
+  return group?.status === "complete" && group.latency_s != null
+    ? group.latency_s
+    : null;
+}
+
+/* When an init's horizons landed on the source. Several sources means the
+   earliest of them, which is the comparison the feed's own lag statistics
+   make. */
+
+function sourceArrivals(sources, initTime) {
+  const arrivals = new Map();
+  if (!initTime) return arrivals;
+  for (const source of sources) {
+    const { keyByName, ambiguous } = horizonIndex(source);
+    const init = (source.recent_inits ?? []).find(
+      (candidate) => candidate.init_time === initTime,
+    );
+    for (const [name, key] of keyByName) {
+      if (ambiguous.has(key)) continue;
+      const seconds = arrivedAt(init, name);
+      if (seconds == null) continue;
+      const first = arrivals.get(key);
+      if (first == null || seconds < first) arrivals.set(key, seconds);
+    }
+  }
+  return arrivals;
 }
 
 const NO_RUN = Object.freeze({
@@ -1066,9 +1145,10 @@ const NO_RUN = Object.freeze({
   timing: null,
   time: "—",
   duration: "—",
+  lag: "—",
 });
 
-function observedRunDetail(init, live, stats, now, local, active) {
+function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
   if (!init) return NO_RUN;
   const initMs = Date.parse(init.init_time);
   let time = "—";
@@ -1095,6 +1175,8 @@ function observedRunDetail(init, live, stats, now, local, active) {
     timing: live?.timing ?? null,
     time,
     duration,
+    // a horizon has a lag once both sides have landed it, and not before
+    lag: formatSignedLatency(lagSeconds),
   };
 }
 
@@ -1111,6 +1193,7 @@ function upcomingRunDetail(initTime, stats, local) {
         ? "—"
         : `ETA ${clockTime(target, selectedTimeZone(local))}`,
     duration: "—",
+    lag: "—",
   };
 }
 
@@ -1122,7 +1205,7 @@ export function isDynamicalRow(product) {
   return product.source_label === null;
 }
 
-export function detailRows(product, now, local) {
+export function detailRows(product, now, local, sources = []) {
   const recent = product.recent_inits ?? [];
   const activeIndex = recent.findLastIndex(
     (init) => init.status === "pending" || init.status === "in_flight",
@@ -1130,7 +1213,21 @@ export function detailRows(product, now, local) {
   const active = activeIndex >= 0 ? recent[activeIndex] : null;
   const last = activeIndex >= 0 ? recent[activeIndex - 1] : recent.at(-1);
   const upcoming = active ? null : product.next_expected_init;
+  const afterLast = sourceArrivals(sources, last?.init_time);
+  const afterActive = sourceArrivals(sources, active?.init_time);
+  const horizons = horizonIndex(product);
+  // this run's horizon, less the source's own arrival for the same horizon
+  const lagOf = (init, arrivals, stats) => {
+    const key = horizons.keyByName.get(stats.name);
+    if (key == null || horizons.ambiguous.has(key)) return null;
+    const ours = arrivedAt(init, stats.name);
+    const theirs = arrivals.get(key);
+    return ours == null || theirs == null ? null : ours - theirs;
+  };
   return {
+    // a row measures its lag against the source the feed pairs it with; every
+    // other row has no source to be late after
+    lagged: sources.length > 0,
     lastHeader: labelledRun("last run", last?.init_time, local),
     runHeader: active
       ? labelledRun("current run", active.init_time, local)
@@ -1144,20 +1241,22 @@ export function detailRows(product, now, local) {
       label: stats.label,
       last: observedRunDetail(
         last,
-        last?.lead_groups?.[index],
+        liveGroupOf(last, stats, index),
         stats,
         now,
         local,
         false,
+        lagOf(last, afterLast, stats),
       ),
       run: active
         ? observedRunDetail(
             active,
-            active.lead_groups?.[index],
+            liveGroupOf(active, stats, index),
             stats,
             now,
             local,
             true,
+            lagOf(active, afterActive, stats),
           )
         : upcomingRunDetail(upcoming, stats, local),
       p50: formatLatency(stats.p50_s),
@@ -1171,26 +1270,6 @@ export function detailRows(product, now, local) {
           : stats.delayed_threshold_s,
       ),
     })),
-    lag: isDynamicalRow(product) ? lagRow(product, last) : null,
-  };
-}
-
-// The lag is a property of the whole run, not of a horizon, so it gets one
-// row of its own beneath the lead table rather than a column repeated down
-// it. Only the last run has one: the current run is by definition not
-// complete, and a lag needs both sides landed — a last run whose source is
-// still out reads "—".
-function lagRow(product, last) {
-  const lag = validPipelineLag(product.pipeline_lag)
-    ? product.pipeline_lag
-    : null;
-  const stats = lag?.status === "ready" ? lag.stats : null;
-  return {
-    header: lagStatsHeader(lag),
-    last: formatSignedLatency(lag ? last?.pipeline_lag_s : null),
-    p50: formatSignedLatency(stats?.p50_s),
-    p95: formatSignedLatency(stats?.p95_s),
-    p99: formatSignedLatency(stats?.p99_s),
   };
 }
 
@@ -1470,7 +1549,8 @@ export function runChartKey(product, runs) {
       (run) => run.elapsed === elapsed && run.timing !== "on_time" && run.timing !== "delayed",
     );
   const judged = runs.some((run) => run.timing === "on_time" || run.timing === "delayed");
-  if (drawn("on_time", false)) key.push({ mark: "on-time", text: "judged on time" });
+  // a complete run judged on time needs no key: green for on time is the
+  // language of every square and pill on the page
   if (drawn("on_time", true)) {
     key.push({ mark: "on-time-elapsed", text: "judged on time, not yet complete" });
   }
@@ -1951,8 +2031,16 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
    reader's place in it — survives the tick. Every wide table on the site scrolls
    inside its own .table-container. */
 
-function Details({ product, now, local, runCount, dimension, fieldWidth }) {
-  const details = detailRows(product, now, local);
+function Details({
+  product,
+  now,
+  local,
+  sources,
+  runCount,
+  dimension,
+  fieldWidth,
+}) {
+  const details = detailRows(product, now, local, sources);
   // the chart lines up with the lead-group field; an arrival-group field
   // keeps the chart across the row
   const chart = dimension
@@ -1965,24 +2053,31 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
         runCount=${runCount}
         fieldWidth=${fieldWidth}
       />`;
-  // keyed siblings, no wrapper: a lag or facet table that arrives or leaves
-  // with a later run must not change what node the lead table scrolls in
+  // A row paired with a source measures each horizon against that source's own
+  // arrival for the same horizon, so the lag reads beside the time it is a lag
+  // on. Every other row has no source and no column.
+  const afterSource = details.lagged;
+  const runSpan = afterSource ? "4" : "3";
+  // keyed siblings, no wrapper: a facet table that arrives or leaves with a
+  // later run must not change what node the lead table scrolls in
   const leadTable = html`<div key="lead" class="table-container">
     <table>
       <thead>
         <tr>
           <th rowspan="2">horizon</th>
-          <th colspan="3">${details.lastHeader}</th>
-          <th colspan="3">${details.runHeader}</th>
+          <th colspan=${runSpan}>${details.lastHeader}</th>
+          <th colspan=${runSpan}>${details.runHeader}</th>
           <th colspan="4">${details.statsHeader}</th>
         </tr>
         <tr>
           <th>status</th>
           <th>time</th>
           <th>after init</th>
+          ${afterSource && html`<th>after source</th>`}
           <th>status</th>
           <th>time</th>
           <th>after init</th>
+          ${afterSource && html`<th>after source</th>`}
           <th>p50</th>
           <th>p95</th>
           <th>p99</th>
@@ -1996,9 +2091,11 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
             <${StatusCell} detail=${row.last} />
             <td>${row.last.time}</td>
             <td>${row.last.duration}</td>
+            ${afterSource && html`<td>${row.last.lag}</td>`}
             <${StatusCell} detail=${row.run} />
             <td>${row.run.time}</td>
             <td>${row.run.duration}</td>
+            ${afterSource && html`<td>${row.run.lag}</td>`}
             <td>${row.p50}</td>
             <td>${row.p95}</td>
             <td>${row.p99}</td>
@@ -2008,36 +2105,10 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
       </tbody>
     </table>
   </div>`;
-  // the lag table names the same last run the lead table does, one number
-  const lagTable =
-    details.lag &&
-    html`<div key="lag" class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th colspan="4">${details.lag.header}</th>
-          </tr>
-          <tr>
-            <th>${details.lastHeader}</th>
-            <th>p50</th>
-            <th>p95</th>
-            <th>p99</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>${details.lag.last}</td>
-            <td>${details.lag.p50}</td>
-            <td>${details.lag.p95}</td>
-            <td>${details.lag.p99}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>`;
   const facets = facetRows(product);
-  if (facets.length === 0) return html`${chart}${leadTable}${lagTable}`;
+  if (facets.length === 0) return html`${chart}${leadTable}`;
 
-  return html`${chart}${leadTable}${lagTable}
+  return html`${chart}${leadTable}
     <div key="facets" class="table-container">
       <table class="pipeline-facets">
         <thead>
@@ -2114,6 +2185,7 @@ function Row({
   advisory,
   local,
   now,
+  sources,
   viewIndex,
   expanded,
   onCycle,
@@ -2227,6 +2299,7 @@ function Row({
             product=${product}
             now=${now}
             local=${local}
+            sources=${sources}
             runCount=${runCount}
             dimension=${view.dimension}
             fieldWidth=${width}
@@ -2291,6 +2364,7 @@ function Groups({ state, actions }) {
           )}
           local=${state.local}
           now=${state.now}
+          sources=${lagSources(product, group.products)}
           viewIndex=${state.views[product.id] ?? 0}
           expanded=${state.expanded[product.id] ?? false}
           onCycle=${() => actions.cycleView(product)}

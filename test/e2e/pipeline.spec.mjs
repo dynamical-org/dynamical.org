@@ -496,7 +496,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
   ]);
 });
 
-test("a dynamical row reports its lag after the source beneath its time after init", async ({
+test("a dynamical row reads its lag beside the arrival it is a lag on", async ({
   page,
 }) => {
   await openPipeline(page);
@@ -506,34 +506,66 @@ test("a dynamical row reports its lag after the source beneath its time after in
   await expect(row.locator("strong").first()).toHaveText("dynamical.org");
   await row.locator('[data-slot="details-button"]').click();
   const tables = row.locator(".pipeline-row-details .table-container");
-  await expect(tables).toHaveCount(2);
+  // the lag brings no table and no note of its own
+  await expect(tables).toHaveCount(1);
+  await expect(row.locator(".pipeline-row-details > p")).toHaveCount(0);
+  await expect(row.locator(".pipeline-row-details tfoot")).toHaveCount(0);
 
-  // the lead table reads like any other row's, note included
+  // it is a column of each run group, beside that run's "after init"
   const lead = tables.first();
-  await expect(lead.locator("thead tr:first-child th").nth(3)).toHaveText(
+  await expect(lead.locator("thead tr:last-child th")).toHaveText([
+    "status",
+    "time",
+    "after init",
+    "after source",
+    "status",
+    "time",
+    "after init",
+    "after source",
+    "p50",
+    "p95",
+    "p99",
+    "delayed past",
+  ]);
+  const groups = lead.locator("thead tr:first-child th");
+  await expect(groups.nth(1)).toHaveText(/^last run · /);
+  await expect(groups.nth(3)).toHaveText(
     "time after init · 24 samples · insufficient history (24/30 days)",
   );
-  await expect(lead.locator("thead tr:last-child th").nth(2)).toHaveText(
-    "after init",
-  );
-  await expect(lead.locator("tbody tr:first-child td").nth(3)).toHaveText(
-    "1h 40m",
-  );
 
-  // the lag is one row under the same run headers, with its own sample
-  const lag = tables.nth(1);
-  await expect(lag.locator("thead tr:first-child th")).toHaveText(
-    "lag after source · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
+  // the fixture's virtual landed its horizon 5 minutes after the AWS row's own
+  // arrival for it; the run still out has no lag to report
+  const cells = lead.locator("tbody tr:first-child td");
+  await expect(cells.nth(3)).toHaveText("1h 40m");
+  await expect(cells.nth(4)).toHaveText("5m");
+  await expect(cells.nth(8)).toHaveText("—");
+
+  // the reader has to be able to follow a lag up to its own header
+  const aligned = await lead.evaluate((node) => {
+    const box = (el) => {
+      const { left, right } = el.getBoundingClientRect();
+      return [Math.round(left), Math.round(right)];
+    };
+    const heads = node.querySelectorAll("thead tr:last-child th");
+    const body = node.querySelectorAll("tbody tr:first-child td");
+    return {
+      lastLag: [box(heads[3]), box(body[4])],
+      runLag: [box(heads[7]), box(body[8])],
+    };
+  });
+  expect(aligned.lastLag[1]).toEqual(aligned.lastLag[0]);
+  expect(aligned.runLag[1]).toEqual(aligned.runLag[0]);
+
+  // a row with no source of its own keeps the ten columns it had
+  const upstream = page.locator(
+    '.pipeline-row[data-product-id="external-noaa-gfs-aws"]',
   );
-  const heads = lag.locator("thead tr:last-child th");
-  await expect(heads.nth(0)).toHaveText(/^last run · /);
-  await expect(heads.nth(1)).toHaveText("p50");
-  const cells = lag.locator("tbody tr td");
-  await expect(cells).toHaveCount(4);
-  await expect(cells.nth(0)).toHaveText("5m");
-  await expect(cells.nth(1)).toHaveText("15m");
-  await expect(cells.nth(2)).toHaveText("30m");
-  await expect(cells.nth(3)).toHaveText("45m");
+  await upstream.locator('[data-slot="details-button"]').click();
+  await expect(
+    upstream.locator(
+      ".pipeline-row-details .table-container:first-of-type thead tr:last-child th",
+    ),
+  ).toHaveCount(10);
 });
 
 test("each details table scrolls itself, under a header that names its column", async ({
@@ -1078,10 +1110,11 @@ test("details open on a run chart with the delayed threshold drawn", async ({
   // as amber, so the verdict does not rest on telling the two colors apart
   expect(geometry.onTimeFill).toBe("rgb(91, 197, 74)");
   expect(geometry.radii.delayed).toBeGreaterThan(geometry.radii.onTime);
-  // the key names the marks drawn, each glyph drawn as its mark is: the
-  // landed delayed run filled, the delayed run in flight hollow
+  // the key names the marks that need naming, each glyph drawn as its mark is:
+  // the landed delayed run filled, the delayed run in flight hollow. A run
+  // judged on time is not among them — green for on time is the page's own
+  // language, in every square and pill.
   expect(geometry.keyMarks).toEqual([
-    { text: "judged on time", fill: "rgb(91, 197, 74)", ring: "rgb(91, 197, 74)" },
     { text: "judged delayed", fill: "rgb(244, 185, 66)", ring: "rgb(244, 185, 66)" },
     { text: "judged delayed, not yet complete", fill: "rgba(0, 0, 0, 0)", ring: "rgb(244, 185, 66)" },
   ]);
@@ -1140,7 +1173,7 @@ for (const [view, open] of [
       ring: ["rgb(255, 255, 255)", green],
       landed: [green, green],
       glyph: ["rgba(0, 0, 0, 0)", green],
-      key: ["judged on time", "judged on time, not yet complete", "judged delayed"],
+      key: ["judged on time, not yet complete", "judged delayed"],
     });
     await page.emulateMedia({ colorScheme: "dark" });
     expect(await marks()).toMatchObject({
