@@ -1040,55 +1040,48 @@ function statsHeader(sampleInitCount, note = null) {
   return note ? `${header} · ${note}` : header;
 }
 
-function countLabel(count, singular) {
-  return `${count.toLocaleString("en-US")} ${count === 1 ? singular : `${singular}s`}`;
-}
+/* The sources the published lag is measured against, as rows of this group.
+   All or nothing: a lag whose source has no row here cannot be compared
+   against the sources that do — that would measure the wrong distance rather
+   than fail to measure one — and a malformed lag block names nothing. */
 
-/* Which source the lag is measured from. The feed names it by product id, and
-   those ids are the group's own source rows, so the label comes from there. A
-   lag paired with more than one mirror is measured from whichever published
-   first, which is not necessarily the one the dataset was built from.
-
-   All or nothing: a lag whose source has no row here — which the feed can
-   publish, since a missing source is exactly what makes its lag pending — must
-   not read as a lag after the sources that do have one. That would name the
-   wrong comparison rather than fail to name it, and the pending baseline the
-   note already carries says the data is degraded. */
-
-export function lagSourceLabels(product, groupProducts = []) {
-  const ids = product.pipeline_lag?.source_ids ?? [];
-  const labelOf = new Map(
-    groupProducts.map((sibling) => [sibling.id, sibling.source_label]),
-  );
-  const labels = ids.map((id) => labelOf.get(id));
-  return labels.every((label) => typeof label === "string" && label !== "")
-    ? labels
-    : [];
-}
-
-function lagSourcePhrase(labels) {
-  if (labels.length === 0) return "";
-  if (labels.length === 1) return `after ${labels[0]} · `;
-  const last = labels.at(-1);
-  return `after the earliest of ${labels.slice(0, -1).join(", ")} and ${last} · `;
-}
-
-// Lag statistics describe the backend's historical window. It is too long to
-// head a column, so it reads as a note under the table the lag row sits in.
-// Missing metadata is deliberately unavailable: an old payload's recent runs
-// are not that sample.
-function lagNote(lag, sourceLabels) {
-  if (!lag) return "unavailable (no published baseline)";
-  const basis = `${lagSourcePhrase(sourceLabels)}${
-    lag.basis === "shared_nat_prs_sfc" ? "matching nat/prs/sfc families · " : ""
-  }`;
-  if (lag.status === "pending") {
-    return `${basis}historical baseline pending`;
+export function lagSources(product, groupProducts = []) {
+  if (!isDynamicalRow(product) || !validPipelineLag(product.pipeline_lag)) {
+    return [];
   }
-  const { sample_init_count: inits, sample_day_count: days } = lag.stats;
-  const window = `${lag.window_start.slice(0, 10)}–${lag.window_end.slice(0, 10)} UTC`;
-  const generated = `${lag.generated_at.slice(0, 19).replace("T", " ")} UTC`;
-  return `${basis}historical baseline (effective ${window}; as of ${generated}) · ${countLabel(inits, "sample")} across ${countLabel(days, "day")}`;
+  const byId = new Map(groupProducts.map((sibling) => [sibling.id, sibling]));
+  const sources = product.pipeline_lag.source_ids.map((id) => byId.get(id));
+  return sources.every(Boolean) ? sources : [];
+}
+
+/* A horizon, as both sides name it. Only the source keeps the lead's own name
+   for its last group, so the label the horizon column prints is what joins
+   them, and the lead count is the guard that they really are the same span. */
+
+const horizonKey = (stats) => `${stats.label}/${stats.leads_in_group}`;
+
+/* When an init's horizons landed on the source. Several sources means the
+   earliest of them, which is the comparison the feed's own lag statistics
+   make. */
+
+function sourceArrivals(sources, initTime) {
+  const arrivals = new Map();
+  if (!initTime) return arrivals;
+  for (const source of sources) {
+    const shapes = source.lead_group_stats ?? [];
+    const init = (source.recent_inits ?? []).find(
+      (candidate) => candidate.init_time === initTime,
+    );
+    (init?.lead_groups ?? []).forEach((group, index) => {
+      if (!shapes[index] || group.latency_s == null) return;
+      const key = horizonKey(shapes[index]);
+      const first = arrivals.get(key);
+      if (first == null || group.latency_s < first) {
+        arrivals.set(key, group.latency_s);
+      }
+    });
+  }
+  return arrivals;
 }
 
 const NO_RUN = Object.freeze({
@@ -1097,9 +1090,10 @@ const NO_RUN = Object.freeze({
   timing: null,
   time: "—",
   duration: "—",
+  lag: "—",
 });
 
-function observedRunDetail(init, live, stats, now, local, active) {
+function observedRunDetail(init, live, stats, now, local, active, afterSource) {
   if (!init) return NO_RUN;
   const initMs = Date.parse(init.init_time);
   let time = "—";
@@ -1126,6 +1120,12 @@ function observedRunDetail(init, live, stats, now, local, active) {
     timing: live?.timing ?? null,
     time,
     duration,
+    // a horizon has a lag once both sides have landed it, and not before
+    lag: formatSignedLatency(
+      live?.status === "complete" && live.latency_s != null && afterSource != null
+        ? live.latency_s - afterSource
+        : null,
+    ),
   };
 }
 
@@ -1142,6 +1142,7 @@ function upcomingRunDetail(initTime, stats, local) {
         ? "—"
         : `ETA ${clockTime(target, selectedTimeZone(local))}`,
     duration: "—",
+    lag: "—",
   };
 }
 
@@ -1153,7 +1154,7 @@ export function isDynamicalRow(product) {
   return product.source_label === null;
 }
 
-export function detailRows(product, now, local, sourceLabels = []) {
+export function detailRows(product, now, local, sources = []) {
   const recent = product.recent_inits ?? [];
   const activeIndex = recent.findLastIndex(
     (init) => init.status === "pending" || init.status === "in_flight",
@@ -1161,7 +1162,12 @@ export function detailRows(product, now, local, sourceLabels = []) {
   const active = activeIndex >= 0 ? recent[activeIndex] : null;
   const last = activeIndex >= 0 ? recent[activeIndex - 1] : recent.at(-1);
   const upcoming = active ? null : product.next_expected_init;
+  const afterLast = sourceArrivals(sources, last?.init_time);
+  const afterActive = sourceArrivals(sources, active?.init_time);
   return {
+    // a row measures its lag against the source the feed pairs it with; every
+    // other row has no source to be late after
+    lagged: sources.length > 0,
     lastHeader: labelledRun("last run", last?.init_time, local),
     runHeader: active
       ? labelledRun("current run", active.init_time, local)
@@ -1180,6 +1186,7 @@ export function detailRows(product, now, local, sourceLabels = []) {
         now,
         local,
         false,
+        afterLast.get(horizonKey(stats)),
       ),
       run: active
         ? observedRunDetail(
@@ -1189,6 +1196,7 @@ export function detailRows(product, now, local, sourceLabels = []) {
             now,
             local,
             true,
+            afterActive.get(horizonKey(stats)),
           )
         : upcomingRunDetail(upcoming, stats, local),
       p50: formatLatency(stats.p50_s),
@@ -1202,27 +1210,6 @@ export function detailRows(product, now, local, sourceLabels = []) {
           : stats.delayed_threshold_s,
       ),
     })),
-    lag: isDynamicalRow(product) ? lagRow(product, last, sourceLabels) : null,
-  };
-}
-
-// The lag is a property of the whole run, not of a horizon, so it gets one
-// summary row in the lead table's foot rather than a column repeated down it.
-// Its numbers are durations like the ones above them: the last run's lag under
-// that run, the percentiles under theirs. Only the last run has one: the
-// current run is by definition not complete, and a lag needs both sides
-// landed — a last run whose source is still out reads "—".
-function lagRow(product, last, sourceLabels) {
-  const lag = validPipelineLag(product.pipeline_lag)
-    ? product.pipeline_lag
-    : null;
-  const stats = lag?.status === "ready" ? lag.stats : null;
-  return {
-    note: lagNote(lag, sourceLabels),
-    last: formatSignedLatency(lag ? last?.pipeline_lag_s : null),
-    p50: formatSignedLatency(stats?.p50_s),
-    p95: formatSignedLatency(stats?.p95_s),
-    p99: formatSignedLatency(stats?.p99_s),
   };
 }
 
@@ -1502,7 +1489,8 @@ export function runChartKey(product, runs) {
       (run) => run.elapsed === elapsed && run.timing !== "on_time" && run.timing !== "delayed",
     );
   const judged = runs.some((run) => run.timing === "on_time" || run.timing === "delayed");
-  if (drawn("on_time", false)) key.push({ mark: "on-time", text: "judged on time" });
+  // a complete run judged on time needs no key: green for on time is the
+  // language of every square and pill on the page
   if (drawn("on_time", true)) {
     key.push({ mark: "on-time-elapsed", text: "judged on time, not yet complete" });
   }
@@ -1987,12 +1975,12 @@ function Details({
   product,
   now,
   local,
-  sourceLabels,
+  sources,
   runCount,
   dimension,
   fieldWidth,
 }) {
-  const details = detailRows(product, now, local, sourceLabels);
+  const details = detailRows(product, now, local, sources);
   // the chart lines up with the lead-group field; an arrival-group field
   // keeps the chart across the row
   const chart = dimension
@@ -2005,11 +1993,11 @@ function Details({
         runCount=${runCount}
         fieldWidth=${fieldWidth}
       />`;
-  // The lag row below shares these columns but not their measurement: its
-  // percentiles come from the published lag baseline, not from the lead-time
-  // sample "time after init" names. So its cells name their own headers, and
-  // those headers need ids — unique per product, since rows open together.
-  const id = (name) => `${product.id}-${name}`;
+  // A row paired with a source measures each horizon against that source's own
+  // arrival for the same horizon, so the lag reads beside the time it is a lag
+  // on. Every other row has no source and no column.
+  const afterSource = details.lagged;
+  const runSpan = afterSource ? "4" : "3";
   // keyed siblings, no wrapper: a facet table that arrives or leaves with a
   // later run must not change what node the lead table scrolls in
   const leadTable = html`<div key="lead" class="table-container">
@@ -2017,20 +2005,22 @@ function Details({
       <thead>
         <tr>
           <th rowspan="2">horizon</th>
-          <th colspan="3" id=${id("last")}>${details.lastHeader}</th>
-          <th colspan="3">${details.runHeader}</th>
+          <th colspan=${runSpan}>${details.lastHeader}</th>
+          <th colspan=${runSpan}>${details.runHeader}</th>
           <th colspan="4">${details.statsHeader}</th>
         </tr>
         <tr>
           <th>status</th>
           <th>time</th>
           <th>after init</th>
+          ${afterSource && html`<th>after source</th>`}
           <th>status</th>
           <th>time</th>
           <th>after init</th>
-          <th id=${id("p50")}>p50</th>
-          <th id=${id("p95")}>p95</th>
-          <th id=${id("p99")}>p99</th>
+          ${afterSource && html`<th>after source</th>`}
+          <th>p50</th>
+          <th>p95</th>
+          <th>p99</th>
           <th>delayed past</th>
         </tr>
       </thead>
@@ -2041,9 +2031,11 @@ function Details({
             <${StatusCell} detail=${row.last} />
             <td>${row.last.time}</td>
             <td>${row.last.duration}</td>
+            ${afterSource && html`<td>${row.last.lag}</td>`}
             <${StatusCell} detail=${row.run} />
             <td>${row.run.time}</td>
             <td>${row.run.duration}</td>
+            ${afterSource && html`<td>${row.run.lag}</td>`}
             <td>${row.p50}</td>
             <td>${row.p95}</td>
             <td>${row.p99}</td>
@@ -2051,41 +2043,12 @@ function Details({
           </tr>`,
         )}
       </tbody>
-      ${details.lag &&
-      html`<tfoot>
-        <tr>
-          <th
-            scope="row"
-            colspan="3"
-            id=${id("lag")}
-            aria-describedby=${id("lag-note")}
-          >
-            lag after source
-          </th>
-          <td headers=${`${id("lag")} ${id("last")}`}>${details.lag.last}</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td headers=${`${id("lag")} ${id("p50")}`}>${details.lag.p50}</td>
-          <td headers=${`${id("lag")} ${id("p95")}`}>${details.lag.p95}</td>
-          <td headers=${`${id("lag")} ${id("p99")}`}>${details.lag.p99}</td>
-          <td></td>
-        </tr>
-      </tfoot>`}
     </table>
   </div>`;
-  // where the lag row's numbers came from: a line too long for any cell, so it
-  // reads under the table, wrapping in the row's width rather than the table's.
-  // Outside the table it is out of the lag row's scope, so the row points at it.
-  const lagNoteLine =
-    details.lag &&
-    html`<p key="lag-note" id=${id("lag-note")}>
-      lag after source · ${details.lag.note}
-    </p>`;
   const facets = facetRows(product);
-  if (facets.length === 0) return html`${chart}${leadTable}${lagNoteLine}`;
+  if (facets.length === 0) return html`${chart}${leadTable}`;
 
-  return html`${chart}${leadTable}${lagNoteLine}
+  return html`${chart}${leadTable}
     <div key="facets" class="table-container">
       <table class="pipeline-facets">
         <thead>
@@ -2162,7 +2125,7 @@ function Row({
   advisory,
   local,
   now,
-  sourceLabels,
+  sources,
   viewIndex,
   expanded,
   onCycle,
@@ -2276,7 +2239,7 @@ function Row({
             product=${product}
             now=${now}
             local=${local}
-            sourceLabels=${sourceLabels}
+            sources=${sources}
             runCount=${runCount}
             dimension=${view.dimension}
             fieldWidth=${width}
@@ -2341,7 +2304,7 @@ function Groups({ state, actions }) {
           )}
           local=${state.local}
           now=${state.now}
-          sourceLabels=${lagSourceLabels(product, group.products)}
+          sources=${lagSources(product, group.products)}
           viewIndex=${state.views[product.id] ?? 0}
           expanded=${state.expanded[product.id] ?? false}
           onCycle=${() => actions.cycleView(product)}

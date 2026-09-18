@@ -33,7 +33,7 @@ import {
   displayRowLabel,
   displaySource,
   isDynamicalRow,
-  lagSourceLabels,
+  lagSources,
   etaLineText,
   facetRows,
   initColumnPx,
@@ -860,6 +860,7 @@ test("retains live horizon status, time, and duration in details", () => {
             timing: null,
             time: "06:20",
             duration: "20m",
+            lag: "—",
           },
           run: {
             status: "complete",
@@ -867,6 +868,7 @@ test("retains live horizon status, time, and duration in details", () => {
             timing: null,
             time: "12:30",
             duration: "30m",
+            lag: "—",
           },
           p50: "20m",
           p95: "30m",
@@ -882,6 +884,7 @@ test("retains live horizon status, time, and duration in details", () => {
             timing: null,
             time: "06:45",
             duration: "45m",
+            lag: "—",
           },
           run: {
             status: "processing",
@@ -889,6 +892,7 @@ test("retains live horizon status, time, and duration in details", () => {
             timing: null,
             time: "ETA 13:00",
             duration: "30m 0s",
+            lag: "—",
           },
           p50: "40m",
           p95: "1h",
@@ -896,7 +900,7 @@ test("retains live horizon status, time, and duration in details", () => {
           threshold: "—",
         },
       ],
-      lag: null,
+      lagged: false,
     },
   );
 });
@@ -994,6 +998,7 @@ test("shows the last and upcoming runs while waiting for the next init", () => {
           timing: null,
           time: "06:20",
           duration: "20m",
+          lag: "—",
         },
         run: {
           status: "upcoming",
@@ -1001,6 +1006,7 @@ test("shows the last and upcoming runs while waiting for the next init", () => {
           timing: null,
           time: "ETA 12:30",
           duration: "—",
+          lag: "—",
         },
       },
       {
@@ -1010,6 +1016,7 @@ test("shows the last and upcoming runs while waiting for the next init", () => {
           timing: null,
           time: "06:45",
           duration: "45m",
+          lag: "—",
         },
         run: {
           status: "upcoming",
@@ -1017,6 +1024,7 @@ test("shows the last and upcoming runs while waiting for the next init", () => {
           timing: null,
           time: "ETA 13:00",
           duration: "—",
+          lag: "—",
         },
       },
     ],
@@ -1133,7 +1141,14 @@ function lagProduct(recentInits, pipelineLag = readyPipelineLag()) {
     recent_inits: recentInits,
     pipeline_lag: pipelineLag,
     lead_group_stats: [
-      { name: "forecast", label: "fc", p50_s: 4100, p95_s: 5000, p99_s: 6100 },
+      {
+        name: "forecast",
+        label: "3d",
+        leads_in_group: 13,
+        p50_s: 4100,
+        p95_s: 5000,
+        p99_s: 6100,
+      },
     ],
     latency_stats: { p50_s: 4100, p95_s: 5000, p99_s: 6100, sample_init_count: 24 },
   };
@@ -1192,16 +1207,36 @@ test("validates optional facet completion timestamps while accepting old payload
   }
 });
 
-function lagInit(init_time, pipeline_lag_s, status = "complete") {
-  const latency_s = status === "complete" ? 4000 : null;
+function lagInit(init_time, pipeline_lag_s, status = "complete", latency_s) {
+  const arrived = latency_s ?? (status === "complete" ? 4000 : null);
   const init = {
     init_time,
     status,
-    latency_s,
-    lead_groups: [{ status, latency_s }],
+    latency_s: arrived,
+    lead_groups: [{ status, latency_s: arrived }],
   };
   if (pipeline_lag_s !== undefined) init.pipeline_lag_s = pipeline_lag_s;
   return init;
+}
+
+/* A source row beside the virtual: the same horizon, under the name the source
+   gives it. Its arrivals are what the "after source" column subtracts. */
+
+function lagSourceRow(inits, overrides = {}) {
+  return {
+    id: "external-noaa-gfs-aws",
+    source_label: "AWS",
+    lead_group_stats: [
+      { name: "f072", label: "3d", leads_in_group: 13, p50_s: 3600 },
+    ],
+    recent_inits: inits,
+    ...overrides,
+  };
+}
+
+function lagAt(product, sources, now = "2026-07-25T14:00:00Z") {
+  const details = detailRows(product, Date.parse(now), false, sources);
+  return { lagged: details.lagged, rows: details.rows };
 }
 
 test("validates ready and pending published pipeline lag", () => {
@@ -1244,11 +1279,6 @@ test("validates ready and pending published pipeline lag", () => {
     },
   });
   assert.equal(validateDashboard(current), current);
-  product.source_label = null;
-  assert.equal(
-    detailRows(product, Date.parse("2026-07-25T18:00:00Z"), false).lag.p95,
-    "1h",
-  );
 });
 
 test("malformed optional lag fields degrade only the affected lag", () => {
@@ -1295,183 +1325,143 @@ test("malformed optional lag fields degrade only the affected lag", () => {
     invalid.groups[0].products.push(sibling);
 
     assert.equal(validateDashboard(invalid), invalid);
+    // a malformed lag block names no source, so the row gets no column at all
+    assert.deepEqual(lagSources(affected, invalid.groups[0].products), []);
     assert.equal(
-      detailRows(affected, Date.parse("2026-07-25T18:00:00Z"), false).lag.note,
-      "unavailable (no published baseline)",
-    );
-    assert.equal(
-      detailRows(sibling, Date.parse("2026-07-25T18:00:00Z"), false).lag.p50,
-      "15m",
+      lagSources(sibling, [...invalid.groups[0].products, lagSourceRow([])])
+        .length,
+      1,
     );
   }
-
-  const invalidInit = dashboard();
-  const [affectedInit] = invalidInit.groups[0].products;
-  affectedInit.source_label = null;
-  affectedInit.pipeline_lag = readyPipelineLag();
-  affectedInit.recent_inits = [
-    { init_time: "2026-07-25T12:00:00Z", pipeline_lag_s: null },
-  ];
-  assert.equal(validateDashboard(invalidInit), invalidInit);
-  const details = detailRows(
-    affectedInit,
-    Date.parse("2026-07-25T18:00:00Z"),
-    false,
-  ).lag;
-  assert.equal(details.last, "—");
-  assert.equal(details.p50, "15m");
 });
 
-test("details use historical lag statistics instead of recent values", () => {
+test("a horizon reads its lag against the source's own arrival for it", () => {
   const product = lagProduct([
-    lagInit("2026-07-25T00:00:00Z", 60),
-    lagInit("2026-07-25T06:00:00Z", 120),
-    lagInit("2026-07-25T12:00:00Z", 180),
+    lagInit("2026-07-25T06:00:00Z", undefined, "complete", 3900),
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
   ]);
-  const details = detailRows(product, Date.parse("2026-07-25T14:00:00Z"), false);
-
-  assert.deepEqual(details.lag, {
-    note: "historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
-    last: "3m",
-    p50: "15m",
-    p95: "30m",
-    p99: "45m",
-  });
-});
-
-test("last lag uses the chosen last init and preserves signed zero and negatives", () => {
-  const running = lagProduct([
-    lagInit("2026-07-25T00:00:00Z", 0),
-    lagInit("2026-07-25T06:00:00Z", -180),
-    lagInit("2026-07-25T12:00:00Z", 999, "in_flight"),
-  ]);
-  assert.equal(
-    detailRows(running, Date.parse("2026-07-25T12:20:00Z"), false).lag.last,
-    "−3m",
-  );
-
-  const zero = lagProduct([lagInit("2026-07-25T00:00:00Z", 0)]);
-  assert.equal(detailRows(zero, Date.parse("2026-07-25T01:00:00Z"), false).lag.last, "0s");
-});
-
-test("pending, empty, and missing lag baselines stay distinct", () => {
-  const pending = lagProduct(
-    [lagInit("2026-07-25T00:00:00Z", 60)],
-    {
-      ...readyPipelineLag(),
-      status: "pending",
-      window_start: null,
-      window_end: null,
-      generated_at: null,
-      stats: null,
-    },
-  );
-  const pendingRow = detailRows(pending, Date.parse("2026-07-25T01:00:00Z"), false).lag;
-  assert.equal(pendingRow.note, "historical baseline pending");
-  assert.deepEqual([pendingRow.last, pendingRow.p50, pendingRow.p95], ["1m", "—", "—"]);
-
-  const empty = lagProduct(
-    [lagInit("2026-07-25T00:00:00Z", undefined)],
-    readyPipelineLag({
-      stats: {
-        p50_s: null,
-        p95_s: null,
-        p99_s: null,
-        avg_s: null,
-        sample_init_count: 0,
-        sample_day_count: 0,
-      },
-    }),
-  );
-  const emptyRow = detailRows(empty, Date.parse("2026-07-25T01:00:00Z"), false).lag;
-  assert.match(emptyRow.note, /0 samples across 0 days$/);
-  assert.deepEqual([emptyRow.last, emptyRow.p50, emptyRow.p99], ["—", "—", "—"]);
-
-  const old = lagProduct([lagInit("2026-07-25T00:00:00Z", undefined)]);
-  delete old.pipeline_lag;
-  const unavailable = detailRows(old, Date.parse("2026-07-25T01:00:00Z"), false).lag;
-  assert.equal(
-    unavailable.note,
-    "unavailable (no published baseline)",
-  );
-  assert.deepEqual([unavailable.last, unavailable.p50, unavailable.p99], ["—", "—", "—"]);
-});
-
-test("the lag names the source it was measured from", () => {
-  const product = lagProduct([lagInit("2026-07-25T00:00:00Z", 60)]);
-  const mirrors = [
-    { id: "external-noaa-gfs-aws", source_label: "AWS" },
-    { id: "external-noaa-gfs-ftp", source_label: "NOMADS" },
-    product,
+  const sources = [
+    lagSourceRow([
+      lagInit("2026-07-25T06:00:00Z", undefined, "complete", 3600),
+      lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4000),
+    ]),
   ];
-  const noteOf = (lag) => {
-    const row = { ...product, pipeline_lag: lag };
-    return detailRows(
-      row,
-      Date.parse("2026-07-25T01:00:00Z"),
-      false,
-      lagSourceLabels(row, mirrors),
-    ).lag.note;
-  };
 
-  assert.match(noteOf(readyPipelineLag()), /^after AWS · historical baseline/);
-  // paired with both mirrors the metric measures from whichever published
-  // first, which need not be the one the dataset was built from
-  assert.match(
-    noteOf(
-      readyPipelineLag({
-        source_ids: ["external-noaa-gfs-aws", "external-noaa-gfs-ftp"],
-      }),
-    ),
-    /^after the earliest of AWS and NOMADS · historical baseline/,
-  );
-  // an id with no row in the group leaves the phrase off rather than guessing
-  assert.match(
-    noteOf(readyPipelineLag({ source_ids: ["external-noaa-gfs-gone"] })),
-    /^historical baseline/,
-  );
-  // and one id resolving is not enough: naming AWS alone would claim a
-  // comparison against AWS when the metric measures from whichever of the two
-  // published first
-  assert.match(
-    noteOf(
-      readyPipelineLag({
-        source_ids: ["external-noaa-gfs-aws", "external-noaa-gfs-gone"],
-      }),
-    ),
-    /^historical baseline/,
-  );
-  // a row that carries no label of its own is not a name either
-  assert.match(
-    noteOf(
-      readyPipelineLag({ source_ids: ["noaa-gfs-forecast-virtual"] }),
-    ),
-    /^historical baseline/,
-  );
+  const { lagged, rows } = lagAt(product, sources);
+  assert.equal(lagged, true);
+  // the last run is the one the horizon row reports, and its lag is that run's
+  // own arrival less the source's for the same horizon
+  assert.equal(rows[0].last.lag, "5m");
+  assert.equal(rows[0].last.duration, "1h 12m");
+
+  // a source that landed after us keeps its sign, and an identical pair is 0s
+  const ahead = [
+    lagSourceRow([lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4600)]),
+  ];
+  assert.equal(lagAt(product, ahead).rows[0].last.lag, "−5m");
+  const together = [
+    lagSourceRow([lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300)]),
+  ];
+  assert.equal(lagAt(product, together).rows[0].last.lag, "0s");
 });
 
-test("family lag labels its published comparison basis", () => {
+test("a lag needs the same horizon, landed on both sides", () => {
+  const product = lagProduct([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
+  ]);
+  const arrived = lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4000);
+
+  // the source labels the horizon the same way but over a different span
+  const widerGroup = lagSourceRow([arrived], {
+    lead_group_stats: [
+      { name: "f072", label: "3d", leads_in_group: 9, p50_s: 3600 },
+    ],
+  });
+  assert.equal(lagAt(product, [widerGroup]).rows[0].last.lag, "—");
+
+  // the source has no run for this init
+  const elsewhere = lagSourceRow([
+    lagInit("2026-07-25T06:00:00Z", undefined, "complete", 4000),
+  ]);
+  assert.equal(lagAt(product, [elsewhere]).rows[0].last.lag, "—");
+
+  // the source's own horizon is still out
+  const running = lagSourceRow([
+    lagInit("2026-07-25T12:00:00Z", undefined, "in_flight"),
+  ]);
+  assert.equal(lagAt(product, [running]).rows[0].last.lag, "—");
+
+  // and our horizon is still out
+  const waiting = lagProduct([
+    lagInit("2026-07-25T12:00:00Z", undefined, "in_flight"),
+  ]);
+  assert.equal(lagAt(waiting, [lagSourceRow([arrived])]).rows[0].run.lag, "—");
+});
+
+test("the current run reports a lag for each horizon that has landed", () => {
+  const product = lagProduct([
+    lagInit("2026-07-25T06:00:00Z", undefined, "complete", 4000),
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4200),
+  ]);
+  product.recent_inits[1].status = "in_flight";
+  const sources = [
+    lagSourceRow([
+      lagInit("2026-07-25T06:00:00Z", undefined, "complete", 3800),
+      lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4020),
+    ]),
+  ];
+
+  const { rows } = lagAt(product, sources, "2026-07-25T13:20:00Z");
+  assert.equal(rows[0].last.lag, "3m");
+  assert.equal(rows[0].run.lag, "3m");
+});
+
+test("several sources compare against whichever published first", () => {
   const product = lagProduct(
-    [lagInit("2026-07-25T00:00:00Z", -600)],
+    [lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300)],
     readyPipelineLag({
-      basis: "shared_nat_prs_sfc",
-      source_ids: ["external-noaa-hrrr-aws", "external-noaa-hrrr-ftp"],
+      source_ids: ["external-noaa-gfs-aws", "external-noaa-gfs-ftp"],
     }),
   );
-  const details = detailRows(product, Date.parse("2026-07-25T01:00:00Z"), false);
-  assert.match(details.lag.note, /^matching nat\/prs\/sfc families/);
-  assert.equal(details.lag.last, "−10m");
+  const mirrors = [
+    lagSourceRow([lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4200)]),
+    lagSourceRow([lagInit("2026-07-25T12:00:00Z", undefined, "complete", 3400)], {
+      id: "external-noaa-gfs-ftp",
+      source_label: "NOMADS",
+    }),
+  ];
+
+  assert.equal(lagAt(product, mirrors).rows[0].last.lag, "15m");
 });
 
-test("leaves upstream rows without a lag table", () => {
+test("a lag whose source has no row here is not measured at all", () => {
+  const product = lagProduct([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
+  ]);
+  const aws = lagSourceRow([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4200),
+  ]);
+  assert.equal(lagSources(product, [aws, product]).length, 1);
+
+  // one of two mirrors missing would measure the wrong distance, not a shorter
+  // one, so the whole comparison goes
+  const paired = lagProduct(
+    [lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300)],
+    readyPipelineLag({
+      source_ids: ["external-noaa-gfs-aws", "external-noaa-gfs-ftp"],
+    }),
+  );
+  assert.deepEqual(lagSources(paired, [aws, paired]), []);
+  assert.equal(lagAt(paired, lagSources(paired, [aws, paired])).lagged, false);
+});
+
+test("leaves upstream rows without a lag column", () => {
   const upstream = {
     ...lagProduct([lagInit("2026-07-25T00:00:00Z", 60)]),
     source_label: "AWS",
   };
-  assert.equal(
-    detailRows(upstream, Date.parse("2026-07-25T01:00:00Z"), false).lag,
-    null,
-  );
+  assert.deepEqual(lagSources(upstream, [lagSourceRow([]), upstream]), []);
+  assert.equal(lagAt(upstream, []).lagged, false);
 });
 
 test("a product without enough history says so, and an established one says nothing", () => {
@@ -1512,25 +1502,30 @@ test("local preview fixture carries a dynamical row lagging its source", () => {
   const product = group.products.find(({ source_label }) => source_label == null);
   assert.equal(product.row_label, "dynamical.org · virtual");
 
+  const sources = lagSources(product, group.products);
+  assert.deepEqual(
+    sources.map(({ source_label }) => source_label),
+    ["AWS"],
+  );
+
   const details = detailRows(
     product,
     Date.parse("2026-07-25T18:00:00Z"),
     false,
-    lagSourceLabels(product, group.products),
+    sources,
   );
   // the note sits on the baseline it describes, not on the lag sample
   assert.equal(
     details.statsHeader,
     "time after init · 24 samples · insufficient history (24/30 days)",
   );
-  // and it names the source the lag was measured from
-  assert.deepEqual(details.lag, {
-    note: "after AWS · historical baseline (effective 2025-07-25–2026-07-25 UTC; as of 2026-07-25 18:00:00 UTC) · 1,204 samples across 301 days",
-    last: "5m",
-    p50: "15m",
-    p95: "30m",
-    p99: "45m",
-  });
+  // the fixture's virtual labels one horizon the way its AWS row does, and
+  // landed it 5 minutes after that row's own arrival for it
+  assert.equal(details.lagged, true);
+  assert.deepEqual(
+    details.rows.map(({ label, last }) => [label, last.duration, last.lag]),
+    [["3d", "1h 40m", "5m"]],
+  );
 });
 
 test("local preview fixture exercises dashboard v2 facet rendering", () => {
@@ -2036,7 +2031,6 @@ test("run chart key: names only the marks drawn", () => {
   // a landed on-time run, a landed delayed run, and a delayed run in flight:
   // each delayed mark is keyed as it is drawn, filled or hollow
   assert.deepEqual(key(chartProduct()), [
-    { mark: "on-time", text: "judged on time" },
     { mark: "delayed", text: "judged delayed" },
     { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
   ]);
@@ -2050,12 +2044,10 @@ test("run chart key: names only the marks drawn", () => {
         ],
       }),
     ),
-    [
-      { mark: "on-time", text: "judged on time" },
-      { mark: "delayed-elapsed", text: "judged delayed, not yet complete" },
-    ],
+    [{ mark: "delayed-elapsed", text: "judged delayed, not yet complete" }],
   );
-  // every run landed and none late: the color is still named
+  // every run landed and none late: green for on time is the page's own
+  // language, so there is nothing left to key
   assert.deepEqual(
     key(
       chartProduct({
@@ -2065,7 +2057,7 @@ test("run chart key: names only the marks drawn", () => {
         ],
       }),
     ),
-    [{ mark: "on-time", text: "judged on time" }],
+    [],
   );
   // a run arriving on time is a green ring beside the ink ring of one too
   // early to judge, and each is keyed as drawn
@@ -2080,13 +2072,12 @@ test("run chart key: names only the marks drawn", () => {
       }),
     ),
     [
-      { mark: "on-time", text: "judged on time" },
       { mark: "on-time-elapsed", text: "judged on time, not yet complete" },
       { mark: "elapsed", text: "not yet complete: time so far" },
     ],
   );
   // an ink run beside a green one is complete too; it is named for its
-  // missing verdict
+  // missing verdict, and the green one it stands apart from is not
   assert.deepEqual(
     key(
       chartProduct({
@@ -2096,10 +2087,7 @@ test("run chart key: names only the marks drawn", () => {
         ],
       }),
     ),
-    [
-      { mark: "on-time", text: "judged on time" },
-      { mark: "complete", text: "complete, not judged" },
-    ],
+    [{ mark: "complete", text: "complete, not judged" }],
   );
   // a run too early to judge on a product with a baseline is only "not yet
   // complete"; its missing verdict is not a kind of run

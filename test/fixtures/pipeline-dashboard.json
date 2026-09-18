@@ -1942,7 +1942,7 @@
           "label": "NOAA GFS forecast, virtual",
           "source": "s3://dynamical-noaa-gfs/noaa-gfs-forecast-virtual",
           "source_label": null,
-          "row_label": "dynamical.org · virtual",
+          "row_label": "dynamical.org \u00b7 virtual",
           "cadence_hours": 6,
           "init_hours": [
             "00",
@@ -1993,8 +1993,8 @@
           "lead_group_stats": [
             {
               "name": "forecast",
-              "label": "fc",
-              "leads_in_group": 1,
+              "label": "3d",
+              "leads_in_group": 13,
               "p50_s": 4100,
               "p95_s": 5000,
               "p99_s": 6100,
