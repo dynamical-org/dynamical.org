@@ -1967,6 +1967,11 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
         runCount=${runCount}
         fieldWidth=${fieldWidth}
       />`;
+  // The lag row below shares these columns but not their measurement: its
+  // percentiles come from the published lag baseline, not from the lead-time
+  // sample "time after init" names. So its cells name their own headers, and
+  // those headers need ids — unique per product, since rows open together.
+  const id = (name) => `${product.id}-${name}`;
   // keyed siblings, no wrapper: a facet table that arrives or leaves with a
   // later run must not change what node the lead table scrolls in
   const leadTable = html`<div key="lead" class="table-container">
@@ -1974,7 +1979,7 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
       <thead>
         <tr>
           <th rowspan="2">horizon</th>
-          <th colspan="3">${details.lastHeader}</th>
+          <th colspan="3" id=${id("last")}>${details.lastHeader}</th>
           <th colspan="3">${details.runHeader}</th>
           <th colspan="4">${details.statsHeader}</th>
         </tr>
@@ -1985,9 +1990,9 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
           <th>status</th>
           <th>time</th>
           <th>after init</th>
-          <th>p50</th>
-          <th>p95</th>
-          <th>p99</th>
+          <th id=${id("p50")}>p50</th>
+          <th id=${id("p95")}>p95</th>
+          <th id=${id("p99")}>p99</th>
           <th>delayed past</th>
         </tr>
       </thead>
@@ -2011,23 +2016,34 @@ function Details({ product, now, local, runCount, dimension, fieldWidth }) {
       ${details.lag &&
       html`<tfoot>
         <tr>
-          <th scope="row" colspan="3">lag after source</th>
-          <td>${details.lag.last}</td>
+          <th
+            scope="row"
+            colspan="3"
+            id=${id("lag")}
+            aria-describedby=${id("lag-note")}
+          >
+            lag after source
+          </th>
+          <td headers=${`${id("lag")} ${id("last")}`}>${details.lag.last}</td>
           <td></td>
           <td></td>
           <td></td>
-          <td>${details.lag.p50}</td>
-          <td>${details.lag.p95}</td>
-          <td>${details.lag.p99}</td>
+          <td headers=${`${id("lag")} ${id("p50")}`}>${details.lag.p50}</td>
+          <td headers=${`${id("lag")} ${id("p95")}`}>${details.lag.p95}</td>
+          <td headers=${`${id("lag")} ${id("p99")}`}>${details.lag.p99}</td>
           <td></td>
         </tr>
       </tfoot>`}
     </table>
   </div>`;
   // where the lag row's numbers came from: a line too long for any cell, so it
-  // reads under the table, wrapping in the row's width rather than the table's
+  // reads under the table, wrapping in the row's width rather than the table's.
+  // Outside the table it is out of the lag row's scope, so the row points at it.
   const lagNoteLine =
-    details.lag && html`<p key="lag-note">lag after source · ${details.lag.note}</p>`;
+    details.lag &&
+    html`<p key="lag-note" id=${id("lag-note")}>
+      lag after source · ${details.lag.note}
+    </p>`;
   const facets = facetRows(product);
   if (facets.length === 0) return html`${chart}${leadTable}${lagNoteLine}`;
 

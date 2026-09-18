@@ -536,6 +536,40 @@ test("a dynamical row folds its lag after the source into the foot of its lead t
     await Promise.all([1, 2, 3, 7].map((i) => cells.nth(i).textContent())),
   ).toEqual(["", "", "", ""]);
 
+  // the columns it borrows head a different measurement and a different
+  // sample, so each lag cell names the headers it is actually under, and the
+  // row points at the note that says where its numbers came from
+  const described = await lead.evaluate((node) => {
+    const row = node.querySelector("tfoot tr");
+    const named = (el) => {
+      const headers = el.getAttribute("headers");
+      return headers
+        ? headers
+            .split(/\s+/)
+            .map((id) => document.getElementById(id)?.textContent.trim())
+        : null;
+    };
+    return {
+      cells: [...row.querySelectorAll("td")].map(named),
+      note: document
+        .getElementById(row.querySelector("th").getAttribute("aria-describedby"))
+        ?.textContent.trim()
+        .slice(0, 16),
+    };
+  });
+  expect(described.cells).toEqual([
+    // the run header carries its init in the reader's zone
+    ["lag after source", expect.stringMatching(/^last run · /)],
+    null,
+    null,
+    null,
+    ["lag after source", "p50"],
+    ["lag after source", "p95"],
+    ["lag after source", "p99"],
+    null,
+  ]);
+  expect(described.note).toBe("lag after source");
+
   // the fold is only worth anything if the numbers land under their headers
   const aligned = await lead.evaluate((node) => {
     const box = (el) => {
