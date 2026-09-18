@@ -1047,14 +1047,23 @@ function countLabel(count, singular) {
 /* Which source the lag is measured from. The feed names it by product id, and
    those ids are the group's own source rows, so the label comes from there. A
    lag paired with more than one mirror is measured from whichever published
-   first, which is not necessarily the one the dataset was built from. */
+   first, which is not necessarily the one the dataset was built from.
+
+   All or nothing: a lag whose source has no row here — which the feed can
+   publish, since a missing source is exactly what makes its lag pending — must
+   not read as a lag after the sources that do have one. That would name the
+   wrong comparison rather than fail to name it, and the pending baseline the
+   note already carries says the data is degraded. */
 
 export function lagSourceLabels(product, groupProducts = []) {
   const ids = product.pipeline_lag?.source_ids ?? [];
   const labelOf = new Map(
     groupProducts.map((sibling) => [sibling.id, sibling.source_label]),
   );
-  return ids.map((id) => labelOf.get(id)).filter(Boolean);
+  const labels = ids.map((id) => labelOf.get(id));
+  return labels.every((label) => typeof label === "string" && label !== "")
+    ? labels
+    : [];
 }
 
 function lagSourcePhrase(labels) {

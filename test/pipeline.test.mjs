@@ -1430,6 +1430,24 @@ test("the lag names the source it was measured from", () => {
     noteOf(readyPipelineLag({ source_ids: ["external-noaa-gfs-gone"] })),
     /^historical baseline/,
   );
+  // and one id resolving is not enough: naming AWS alone would claim a
+  // comparison against AWS when the metric measures from whichever of the two
+  // published first
+  assert.match(
+    noteOf(
+      readyPipelineLag({
+        source_ids: ["external-noaa-gfs-aws", "external-noaa-gfs-gone"],
+      }),
+    ),
+    /^historical baseline/,
+  );
+  // a row that carries no label of its own is not a name either
+  assert.match(
+    noteOf(
+      readyPipelineLag({ source_ids: ["noaa-gfs-forecast-virtual"] }),
+    ),
+    /^historical baseline/,
+  );
 });
 
 test("family lag labels its published comparison basis", () => {
