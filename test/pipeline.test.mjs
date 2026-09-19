@@ -546,7 +546,7 @@ test("a facet view shows only its own dimension's rows", () => {
 test("abbreviates long facet axis labels without changing their data labels", () => {
   const abbreviations = new Map([
     ["cloud and convection", "cloud/conv"],
-    ["natural levels", "nat lvls"],
+    ["native levels", "nat lvls"],
     ["pgrb2a.0p50", "pgrb2a"],
     ["precipitation and snow", "precip/snow"],
     ["pressure levels", "prs lvls"],
