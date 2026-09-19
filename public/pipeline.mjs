@@ -697,7 +697,7 @@ export function facetRowsOf(product, dimension) {
 
 const FACET_AXIS_ABBREVIATIONS = new Map([
   ["cloud and convection", "cloud/conv"],
-  ["natural levels", "nat lvls"],
+  ["native levels", "nat lvls"],
   ["precipitation and snow", "precip/snow"],
   ["pressure levels", "prs lvls"],
   ["solar radiation", "solar"],
