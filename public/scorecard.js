@@ -17,6 +17,19 @@ const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };
 const METRIC_HEIGHT = 360;
 const OBS_HEIGHT = 300;
 
+// Whole state boundaries, not station counts: us-atlas@3 states-10m checked
+// against the HRDPS rotated grid on 2026-09-21, without an edge tolerance.
+const HRDPS_STATES = new Set([
+  "CT", "DC", "DE", "IA", "ID", "IN", "MA", "MD", "ME", "MI", "MN", "MT",
+  "ND", "NH", "NJ", "NY", "OH", "OR", "PA", "RI", "SD", "VA", "VT", "WA",
+  "WI", "WV",
+]);
+
+export function modelCoversRegion(model, { scope = "country", stateAbbr } = {}) {
+  if (model !== "ECCC HRDPS" && model !== "ECCC HRDPS (bc)") return true;
+  return scope === "station" || (scope === "state" && HRDPS_STATES.has(stateAbbr));
+}
+
 // DuckDB exposes parquet durations as their encoded integers. The writer now
 // pins both durations to nanoseconds; accept the prior microsecond window
 // encoding as well so publishing the new file and deploying this query can
@@ -221,7 +234,7 @@ async function windowIsPublished(windowDays, context) {
 
 export async function renderMetric(
   container,
-  { variable, metric, stationIds, windowDays }
+  { variable, metric, stationIds, windowDays, scope = "country", stateAbbr }
 ) {
   const resolvedMetric = metric || DEFAULT_METRIC[variable] || "RMSE";
   const cfg = METRIC_CONFIG[resolvedMetric] || METRIC_CONFIG.RMSE;
@@ -237,7 +250,7 @@ export async function renderMetric(
       stationFilter = `AND station_id IN (${ids})`;
     }
 
-    const data = await query(`
+    const rows = await query(`
       SELECT
         CAST(lead_time / ${NANOSECONDS_PER_DAY} AS INTEGER) AS lead_time_days,
         model,
@@ -250,6 +263,7 @@ export async function renderMetric(
       GROUP BY lead_time_days, model
       ORDER BY lead_time_days, model
     `);
+    const data = rows.filter(({ model }) => modelCoversRegion(model, { scope, stateAbbr }));
 
     if (data.length === 0) {
       // Ask before showing anything: a window the file does not hold is our bug,

@@ -213,7 +213,7 @@ eleventyComputed:
 
   function renderScore(kind) {
     const c = charts[kind];
-    renderMetric(c.score, { variable: c.variable, metric: c.metricEl.value, stationIds: [stationId], windowDays: c.windowDays });
+    renderMetric(c.score, { variable: c.variable, metric: c.metricEl.value, stationIds: [stationId], windowDays: c.windowDays, scope: 'station' });
   }
   function renderVar(kind) {
     const c = charts[kind];
