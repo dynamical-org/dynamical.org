@@ -209,10 +209,10 @@ eleventyComputed:
       let windowDays = 180;
 
       function renderTemp() {
-        renderMetric(tempEl, { variable: 'temperature_2m', metric: tempMetricEl.value, stationIds, windowDays });
+        renderMetric(tempEl, { variable: 'temperature_2m', metric: tempMetricEl.value, stationIds, windowDays, scope: 'state', stateAbbr: '{{ state.abbr }}' });
       }
       function renderPrecip() {
-        renderMetric(precipEl, { variable: 'precipitation_surface', metric: precipMetricEl.value, stationIds, windowDays });
+        renderMetric(precipEl, { variable: 'precipitation_surface', metric: precipMetricEl.value, stationIds, windowDays, scope: 'state', stateAbbr: '{{ state.abbr }}' });
       }
       function renderAll() { renderTemp(); renderPrecip(); }
 

@@ -22,9 +22,32 @@ const {
   DEFAULT_METRIC,
   encodedWindowValues,
   initDB,
+  modelCoversRegion,
 } = await import(
   `data:text/javascript,${encodeURIComponent(readFileSync(SCORECARD_JS, "utf8"))}`
 );
+
+test("HRDPS and its bias correction are excluded from country plots", () => {
+  for (const model of ["ECCC HRDPS", "ECCC HRDPS (bc)"]) {
+    assert.equal(modelCoversRegion(model), false);
+    assert.equal(modelCoversRegion(model, { scope: "country" }), false);
+    assert.equal(modelCoversRegion(model, { scope: "station" }), true);
+  }
+  assert.equal(modelCoversRegion("NOAA GFS"), true);
+});
+
+test("HRDPS state coverage requires the whole state, not just some stations", () => {
+  for (const model of ["ECCC HRDPS", "ECCC HRDPS (bc)"]) {
+    for (const stateAbbr of ["IN", "OR", "VA", "NY", "DC"]) {
+      assert.equal(modelCoversRegion(model, { scope: "state", stateAbbr }), true);
+    }
+    for (const stateAbbr of ["IL", "AK", "WY", "NC", "CA", undefined]) {
+      assert.equal(modelCoversRegion(model, { scope: "state", stateAbbr }), false);
+    }
+    assert.equal(modelCoversRegion(model, { scope: "country", stateAbbr: "NY" }), false);
+  }
+  assert.equal(modelCoversRegion("NOAA GFS", { scope: "state", stateAbbr: "IL" }), true);
+});
 
 test("every offered metric has display configuration", () => {
   for (const [variable, metrics] of Object.entries(VARIABLE_METRICS)) {
