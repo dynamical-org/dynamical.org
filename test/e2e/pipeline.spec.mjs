@@ -1265,3 +1265,38 @@ test("two parked runs are named below the lanes by init", async ({ page }) => {
   await expect(lanes.locator('[data-lane="run"] text[data-pinned]')).toHaveCount(0);
   await expect(lanes.locator('li').filter({ hasText: 'above run lane:' })).toContainText(/\d+d so far.*\d+d so far/);
 });
+
+test("an explicit unobserved group has different evidence wording from an absent group", async ({ page }) => {
+  await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products.find((entry) => entry.id === 'fixture-mixed-lead-lanes');
+    product.recent_inits[2].lead_groups.find((group) => group.name === 'f000').status = 'unobserved';
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
+  await row.locator('[data-slot="details-button"]').click();
+  const lanes = row.locator('.pipeline-lead-lanes');
+  await expect(lanes.locator('[data-lane="f000"] [data-slot-marker="unobserved"] title'))
+    .toContainText('no probe visibility; not a publication failure');
+  await expect(lanes.locator('[data-lane="f072"] [data-slot-marker="missing"] title'))
+    .toContainText('no measurement for 3d');
+});
+
+test("a pending group is a hollow ring and keyboard activation shows its value", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products.find((entry) => entry.id === 'fixture-mixed-lead-lanes');
+    const pending = product.recent_inits.at(-1).lead_groups.find((group) => group.name === 'f072');
+    pending.status = 'pending';
+    delete pending.timing;
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
+  await row.locator('[data-slot="details-button"]').click();
+  const slot = row.locator('.pipeline-lead-lanes [data-lane="f072"] [data-slot-init]').last();
+  await expect(slot.locator('circle')).toHaveAttribute('data-status', 'pending');
+  await expect(slot.locator('circle')).toHaveAttribute('data-elapsed', '');
+  await slot.focus();
+  await page.keyboard.press('Enter');
+  await expect(row.locator('.pipeline-lane-selection')).toContainText('pending');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+});
