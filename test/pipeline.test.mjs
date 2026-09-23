@@ -23,6 +23,7 @@ import {
   runChartKey,
   runChartScales,
   runChartSeries,
+  leadLaneSeries,
   runColumns,
   displayedRuns,
   runChartThreshold,
@@ -2148,6 +2149,69 @@ test("run chart series: a point per landed run, elapsed for the run still arrivi
   );
   // the failure has no completion time, so it is not plotted; the unobserved
   // run is neither
+});
+
+test("lead lanes keep every init, group state, deadlines, and the unchanged run series", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = chartProduct({
+    lead_groups: [{ name: "f000", label: "0h" }, { name: "f072", label: "3d" }],
+    lead_group_stats: [
+      { name: "f000", delayed_threshold_s: null, delayed_threshold_source: "static" },
+      { name: "f072", delayed_threshold_s: 7200 },
+    ],
+    recent_inits: [
+      { init_time: "2026-07-25T00:00:00Z", status: "complete", latency_s: 2000, lead_groups: [{ name: "f000", status: "complete", latency_s: 900, deadline_s: 1200 }, { name: "f072", status: "complete", timing: "delayed", latency_s: 2100 }] },
+      { init_time: "2026-07-25T06:00:00Z", status: "complete", latency_s: 2500, deadline_s: 3000, lead_groups: [{ name: "f000", status: "unobserved" }] },
+      { init_time: "2026-07-25T12:00:00Z", status: "pending", lead_groups: [{ name: "f000", status: "pending" }] },
+    ],
+  });
+  const lanes = leadLaneSeries(product, now);
+  assert.deepEqual(lanes.map((lane) => lane.name), ["f072", "f000", "run"]);
+  assert.deepEqual(lanes[1].slots.map((slot) => slot.state), ["point", "unobserved", "point"]);
+  assert.equal(lanes[1].slots[0].run.timing, null);
+  assert.equal(lanes[1].slots[2].run.elapsed, true);
+  assert.equal(lanes[1].threshold, null);
+  assert.deepEqual(lanes[1].slots.map((slot) => slot.deadline), [1200, 3000, null]);
+  assert.equal(lanes[0].slots[1].state, "missing");
+  assert.deepEqual(lanes.at(-1).runs, runChartSeries(product, now).runs);
+  assert.ok(lanes.domain.yMax >= 7200);
+});
+
+test("producer static-budget payload renders deadlines without a constant threshold", () => {
+  const payload = validateDashboard(JSON.parse(readFileSync(
+    new URL("./fixtures/pipeline-static-dashboard.json", import.meta.url), "utf8",
+  )));
+  const product = payload.groups.flatMap((group) => group.products)
+    .find((entry) => entry.id === "noaa-hrrr-forecast-48-hour-virtual");
+  assert.ok(product.latency_budget);
+  const lanes = leadLaneSeries(product, Date.parse(payload.generated_at));
+  assert.equal(lanes.length, product.lead_groups.length + 1);
+  assert.ok(lanes.every((lane) => lane.threshold == null));
+  assert.deepEqual(lanes.at(-1).slots.map((slot) => slot.deadline), [7800, 7800]);
+  assert.deepEqual(lanes[0].slots.map((slot) => slot.deadline), [7800, 7800]);
+  assert.equal(lanes[0].slots[1].run.elapsed, true);
+  assert.equal(lanes[0].slots[1].run.timing, "delayed");
+  const pending = payload.groups.flatMap((group) => group.products)
+    .find((entry) => entry.id === "noaa-hrrr-forecast-18-hour-virtual");
+  const pendingLanes = leadLaneSeries(pending, Date.parse(payload.generated_at));
+  assert.equal(pendingLanes[0].slots[0].run.status, "pending");
+  assert.equal(pendingLanes[0].slots[0].run.elapsed, true);
+  assert.deepEqual(pendingLanes[0].slots.map((slot) => slot.deadline), [7800, null]);
+});
+
+test("failed groups have red-mark state without inventing a latency", () => {
+  const product = chartProduct({
+    lead_groups: [{ name: "f000", label: "0h" }],
+    lead_group_stats: [],
+    latency_stats: {},
+    recent_inits: [
+      { init_time: "2026-07-25T00:00:00Z", status: "complete", lead_groups: [{ name: "f000", status: "complete", latency_s: 3600 }] },
+      { init_time: "2026-07-25T06:00:00Z", status: "failed", lead_groups: [{ name: "f000", status: "failed" }] },
+    ],
+  });
+  const lanes = leadLaneSeries(product, Date.parse("2026-07-25T07:00:00Z"));
+  assert.equal(lanes[0].slots[1].run.noTime, true);
+  assert.ok(lanes.domain.yMin > 0);
 });
 
 test("run chart series: the marker follows the status, and a landed run without a time is left out", () => {

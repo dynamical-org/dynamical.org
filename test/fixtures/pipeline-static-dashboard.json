@@ -1,0 +1,1913 @@
+{
+  "v": 3,
+  "generated_at": "2026-09-23T18:30:00+00:00",
+  "window_days": 365,
+  "advisories": [],
+  "groups": [
+    {
+      "id": "noaa-hrrr",
+      "label": "noaa-hrrr-forecast-48-hour-virtual",
+      "products": [
+        {
+          "id": "external-noaa-hrrr-aws",
+          "label": "external-noaa-hrrr-aws",
+          "source": "s3://noaa-hrrr-bdp-pds",
+          "source_label": "AWS",
+          "row_label": "AWS",
+          "cadence_hours": 6,
+          "init_hours": [
+            "00",
+            "12"
+          ],
+          "lead_groups": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "center_pct": 1.0204081632653061
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "center_pct": 8.16326530612245
+            },
+            {
+              "name": "f018",
+              "label": "18h",
+              "leads_in_group": 19,
+              "center_pct": 26.53061224489796
+            },
+            {
+              "name": "f048",
+              "label": "2d",
+              "leads_in_group": 49,
+              "center_pct": 69.38775510204081
+            }
+          ],
+          "facet_groups": [
+            {
+              "dimension": "component",
+              "name": "component:conus/nat",
+              "label": "natural levels"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/prs",
+              "label": "pressure levels"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/sfc",
+              "label": "surface"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/subh",
+              "label": "subhourly"
+            }
+          ],
+          "latency_stats": {
+            "p50_s": null,
+            "p95_s": null,
+            "p99_s": null,
+            "sample_init_count": 0,
+            "sample_day_count": 0,
+            "delayed_threshold_s": null,
+            "delayed_threshold_source": null
+          },
+          "lead_group_stats": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": null
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": null
+            },
+            {
+              "name": "f018",
+              "label": "18h",
+              "leads_in_group": 19,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": null
+            },
+            {
+              "name": "f048",
+              "label": "2d",
+              "leads_in_group": 49,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": null
+            }
+          ],
+          "recent_inits": [
+            {
+              "init_time": "2026-09-23T00:00:00+00:00",
+              "status": "in_flight",
+              "completion_pct": 0.8855,
+              "deadline_s": null,
+              "reference_at": "2026-09-23T00:00:00+00:00",
+              "threshold_source": null,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 6,
+                  "leads_expected": 8,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T00:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 2
+                    }
+                  ]
+                },
+                {
+                  "name": "f006",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 42,
+                  "leads_expected": 56,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T00:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "f018",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 114,
+                  "leads_expected": 152,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T00:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "f048",
+                  "status": "in_flight",
+                  "completion_pct": 0.8855,
+                  "leads_available": 294,
+                  "leads_expected": 332,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T00:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 60,
+                      "dependencies_expected": 60
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 60,
+                      "dependencies_expected": 60
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 60,
+                      "dependencies_expected": 60
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:conus/nat",
+                  "label": "natural levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 98,
+                  "dependencies_expected": 98,
+                  "completed_at": "2026-09-23T02:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/prs",
+                  "label": "pressure levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 98,
+                  "dependencies_expected": 98,
+                  "completed_at": "2026-09-23T02:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/sfc",
+                  "label": "surface",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 98,
+                  "dependencies_expected": 98,
+                  "completed_at": "2026-09-23T02:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/subh",
+                  "label": "subhourly",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 38
+                }
+              ]
+            },
+            {
+              "init_time": "2026-09-23T12:00:00+00:00",
+              "status": "in_flight",
+              "completion_pct": 0.8855,
+              "deadline_s": null,
+              "reference_at": "2026-09-23T12:00:00+00:00",
+              "threshold_source": null,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 6,
+                  "leads_expected": 8,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T12:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 2
+                    }
+                  ]
+                },
+                {
+                  "name": "f006",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 42,
+                  "leads_expected": 56,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T12:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "f018",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 114,
+                  "leads_expected": 152,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T12:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "f048",
+                  "status": "in_flight",
+                  "completion_pct": 0.8855,
+                  "leads_available": 294,
+                  "leads_expected": 332,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T12:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 60,
+                      "dependencies_expected": 60
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 60,
+                      "dependencies_expected": 60
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 60,
+                      "dependencies_expected": 60
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:conus/nat",
+                  "label": "natural levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 98,
+                  "dependencies_expected": 98,
+                  "completed_at": "2026-09-23T14:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/prs",
+                  "label": "pressure levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 98,
+                  "dependencies_expected": 98,
+                  "completed_at": "2026-09-23T14:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/sfc",
+                  "label": "surface",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 98,
+                  "dependencies_expected": 98,
+                  "completed_at": "2026-09-23T14:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/subh",
+                  "label": "subhourly",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 38
+                }
+              ]
+            }
+          ],
+          "next_expected_init": "2026-09-24T00:00:00+00:00",
+          "timing_baseline": {
+            "status": "insufficient_history",
+            "history_days": 0,
+            "required_history_days": 30,
+            "method": "historical"
+          },
+          "next_expected_completion_at": null,
+          "latency_budget": null
+        },
+        {
+          "id": "noaa-hrrr-forecast-48-hour-virtual",
+          "label": "noaa-hrrr-forecast-48-hour-virtual",
+          "source": "s3://dynamical-noaa-hrrr/noaa-hrrr-forecast-48-hour-virtual",
+          "source_label": null,
+          "row_label": "dynamical.org \u00b7 virtual",
+          "cadence_hours": 6,
+          "init_hours": [
+            "00",
+            "12"
+          ],
+          "lead_groups": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "center_pct": 1.0204081632653061
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "center_pct": 8.16326530612245
+            },
+            {
+              "name": "f018",
+              "label": "18h",
+              "leads_in_group": 19,
+              "center_pct": 26.53061224489796
+            },
+            {
+              "name": "forecast",
+              "label": "2d",
+              "leads_in_group": 49,
+              "center_pct": 69.38775510204081
+            }
+          ],
+          "facet_groups": [
+            {
+              "dimension": "component",
+              "name": "component:conus/sfc",
+              "label": "surface"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/prs",
+              "label": "pressure levels"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/nat",
+              "label": "natural levels"
+            }
+          ],
+          "latency_stats": {
+            "p50_s": 7203.0,
+            "p95_s": 7203.0,
+            "p99_s": 7203.0,
+            "sample_init_count": 1,
+            "sample_day_count": 1,
+            "delayed_threshold_s": null,
+            "delayed_threshold_source": "static"
+          },
+          "lead_group_stats": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "p50_s": 7203.0,
+              "p95_s": 7203.0,
+              "p99_s": 7203.0,
+              "sample_day_count": 1,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": "static"
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "p50_s": 7203.0,
+              "p95_s": 7203.0,
+              "p99_s": 7203.0,
+              "sample_day_count": 1,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": "static"
+            },
+            {
+              "name": "f018",
+              "label": "18h",
+              "leads_in_group": 19,
+              "p50_s": 7203.0,
+              "p95_s": 7203.0,
+              "p99_s": 7203.0,
+              "sample_day_count": 1,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": "static"
+            },
+            {
+              "name": "forecast",
+              "label": "2d",
+              "leads_in_group": 49,
+              "p50_s": 7203.0,
+              "p95_s": 7203.0,
+              "p99_s": 7203.0,
+              "sample_day_count": 1,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": "static"
+            }
+          ],
+          "recent_inits": [
+            {
+              "init_time": "2026-09-23T00:00:00+00:00",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1.0,
+              "latency_s": 7203.0,
+              "pipeline_lag_s": 3.0,
+              "deadline_s": 7800.0,
+              "reference_at": "2026-09-23T02:00:00+00:00",
+              "threshold_source": "static",
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 7203.0,
+                  "leads_available": 3,
+                  "leads_expected": 3,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T02:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    }
+                  ]
+                },
+                {
+                  "name": "f006",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 7203.0,
+                  "leads_available": 21,
+                  "leads_expected": 21,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T02:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 6,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 6,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 6,
+                      "dependencies_expected": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "f018",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 7203.0,
+                  "leads_available": 57,
+                  "leads_expected": 57,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T02:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "forecast",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 7203.0,
+                  "leads_available": 147,
+                  "leads_expected": 147,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T02:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 30,
+                      "dependencies_expected": 30
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 30,
+                      "dependencies_expected": 30
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 30,
+                      "dependencies_expected": 30
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:conus/sfc",
+                  "label": "surface",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 49,
+                  "dependencies_expected": 49,
+                  "completed_at": "2026-09-23T02:00:03+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/prs",
+                  "label": "pressure levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 49,
+                  "dependencies_expected": 49,
+                  "completed_at": "2026-09-23T02:00:03+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/nat",
+                  "label": "natural levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 49,
+                  "dependencies_expected": 49,
+                  "completed_at": "2026-09-23T02:00:03+00:00"
+                }
+              ]
+            },
+            {
+              "init_time": "2026-09-23T12:00:00+00:00",
+              "status": "in_flight",
+              "timing": "delayed",
+              "completion_pct": 0.0204,
+              "deadline_s": 7800.0,
+              "reference_at": "2026-09-23T14:00:00+00:00",
+              "threshold_source": "static",
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1.0,
+                  "latency_s": 7203.0,
+                  "leads_available": 3,
+                  "leads_expected": 3,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T14:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 1,
+                      "dependencies_expected": 1
+                    }
+                  ]
+                },
+                {
+                  "name": "f006",
+                  "status": "in_flight",
+                  "timing": "delayed",
+                  "completion_pct": 0.1429,
+                  "leads_available": 3,
+                  "leads_expected": 21,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T14:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "f018",
+                  "status": "in_flight",
+                  "timing": "delayed",
+                  "completion_pct": 0.0526,
+                  "leads_available": 3,
+                  "leads_expected": 57,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T14:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "forecast",
+                  "status": "in_flight",
+                  "timing": "delayed",
+                  "completion_pct": 0.0204,
+                  "leads_available": 3,
+                  "leads_expected": 147,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T14:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 30
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 30
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 30
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:conus/sfc",
+                  "label": "surface",
+                  "status": "in_flight",
+                  "completion_pct": 0.0204,
+                  "dependencies_available": 1,
+                  "dependencies_expected": 49
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/prs",
+                  "label": "pressure levels",
+                  "status": "in_flight",
+                  "completion_pct": 0.0204,
+                  "dependencies_available": 1,
+                  "dependencies_expected": 49
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/nat",
+                  "label": "natural levels",
+                  "status": "in_flight",
+                  "completion_pct": 0.0204,
+                  "dependencies_available": 1,
+                  "dependencies_expected": 49
+                }
+              ]
+            }
+          ],
+          "next_expected_init": "2026-09-24T00:00:00+00:00",
+          "timing_baseline": {
+            "status": "established",
+            "history_days": 1,
+            "required_history_days": 30,
+            "method": "static"
+          },
+          "next_expected_completion_at": "2026-09-24T02:00:03+00:00",
+          "pipeline_lag": {
+            "status": "pending",
+            "basis": "shared_nat_prs_sfc",
+            "source_ids": [
+              "external-noaa-hrrr-aws"
+            ],
+            "window_days": 365,
+            "window_start": null,
+            "window_end": null,
+            "generated_at": null,
+            "stats": null
+          },
+          "latency_budget": {
+            "reference": "source_release",
+            "source_ids": [
+              "external-noaa-hrrr-aws"
+            ],
+            "run_s": 600.0,
+            "groups": {
+              "f000": 600.0,
+              "f006": 600.0,
+              "f018": 600.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "noaa-hrrr-18h",
+      "label": "noaa-hrrr-forecast-18-hour-virtual",
+      "products": [
+        {
+          "id": "external-noaa-hrrr-18h-aws",
+          "label": "NOAA HRRR forecast, 18 hour",
+          "source": "s3://noaa-hrrr-bdp-pds",
+          "source_label": "AWS",
+          "row_label": "AWS",
+          "cadence_hours": 1,
+          "init_hours": [
+            "15"
+          ],
+          "lead_groups": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "center_pct": 2.631578947368421
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "center_pct": 21.052631578947366
+            },
+            {
+              "name": "f018",
+              "label": "18h",
+              "leads_in_group": 19,
+              "center_pct": 68.42105263157895
+            }
+          ],
+          "facet_groups": [
+            {
+              "dimension": "component",
+              "name": "component:conus/nat",
+              "label": "natural levels"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/prs",
+              "label": "pressure levels"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/sfc",
+              "label": "surface"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/subh",
+              "label": "subhourly"
+            }
+          ],
+          "latency_stats": {
+            "p50_s": null,
+            "p95_s": null,
+            "p99_s": null,
+            "sample_init_count": 0,
+            "sample_day_count": 0,
+            "delayed_threshold_s": null,
+            "delayed_threshold_source": null
+          },
+          "lead_group_stats": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": null
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": null
+            },
+            {
+              "name": "f018",
+              "label": "18h",
+              "leads_in_group": 19,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": null
+            }
+          ],
+          "recent_inits": [
+            {
+              "init_time": "2026-09-23T15:00:00+00:00",
+              "status": "in_flight",
+              "completion_pct": 0.75,
+              "deadline_s": null,
+              "reference_at": "2026-09-23T15:00:00+00:00",
+              "threshold_source": null,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 6,
+                  "leads_expected": 8,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T15:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 2,
+                      "dependencies_expected": 2
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 2
+                    }
+                  ]
+                },
+                {
+                  "name": "f006",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 42,
+                  "leads_expected": 56,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T15:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 12,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "f018",
+                  "status": "in_flight",
+                  "completion_pct": 0.75,
+                  "leads_available": 114,
+                  "leads_expected": 152,
+                  "deadline_s": null,
+                  "reference_at": "2026-09-23T15:00:00+00:00",
+                  "threshold_source": null,
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "complete",
+                      "completion_pct": 1.0,
+                      "dependencies_available": 24,
+                      "dependencies_expected": 24
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/subh",
+                      "label": "subhourly",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 24
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:conus/nat",
+                  "label": "natural levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 38,
+                  "dependencies_expected": 38,
+                  "completed_at": "2026-09-23T17:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/prs",
+                  "label": "pressure levels",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 38,
+                  "dependencies_expected": 38,
+                  "completed_at": "2026-09-23T17:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/sfc",
+                  "label": "surface",
+                  "status": "complete",
+                  "completion_pct": 1.0,
+                  "dependencies_available": 38,
+                  "dependencies_expected": 38,
+                  "completed_at": "2026-09-23T17:00:00+00:00"
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/subh",
+                  "label": "subhourly",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 38
+                }
+              ]
+            }
+          ],
+          "next_expected_init": "2026-09-23T19:00:00+00:00",
+          "timing_baseline": {
+            "status": "insufficient_history",
+            "history_days": 0,
+            "required_history_days": 30,
+            "method": "historical"
+          },
+          "next_expected_completion_at": null,
+          "latency_budget": null
+        },
+        {
+          "id": "noaa-hrrr-forecast-18-hour-virtual",
+          "label": "noaa-hrrr-forecast-18-hour-virtual",
+          "source": "s3://dynamical-noaa-hrrr/noaa-hrrr-forecast-18-hour-virtual",
+          "source_label": null,
+          "row_label": "dynamical.org \u00b7 virtual",
+          "cadence_hours": 1,
+          "init_hours": [
+            "15",
+            "16"
+          ],
+          "lead_groups": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "center_pct": 2.631578947368421
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "center_pct": 21.052631578947366
+            },
+            {
+              "name": "forecast",
+              "label": "18h",
+              "leads_in_group": 19,
+              "center_pct": 68.42105263157895
+            }
+          ],
+          "facet_groups": [
+            {
+              "dimension": "component",
+              "name": "component:conus/sfc",
+              "label": "surface"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/prs",
+              "label": "pressure levels"
+            },
+            {
+              "dimension": "component",
+              "name": "component:conus/nat",
+              "label": "natural levels"
+            }
+          ],
+          "latency_stats": {
+            "p50_s": null,
+            "p95_s": null,
+            "p99_s": null,
+            "sample_init_count": 0,
+            "sample_day_count": 0,
+            "delayed_threshold_s": null,
+            "delayed_threshold_source": "static"
+          },
+          "lead_group_stats": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": "static"
+            },
+            {
+              "name": "f006",
+              "label": "6h",
+              "leads_in_group": 7,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": "static"
+            },
+            {
+              "name": "forecast",
+              "label": "18h",
+              "leads_in_group": 19,
+              "p50_s": null,
+              "p95_s": null,
+              "p99_s": null,
+              "sample_day_count": 0,
+              "delayed_threshold_s": null,
+              "delayed_threshold_source": "static"
+            }
+          ],
+          "recent_inits": [
+            {
+              "init_time": "2026-09-23T15:00:00+00:00",
+              "status": "pending",
+              "timing": "delayed",
+              "completion_pct": 0.0,
+              "deadline_s": 7800.0,
+              "reference_at": "2026-09-23T17:00:00+00:00",
+              "threshold_source": "static",
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "pending",
+                  "timing": "delayed",
+                  "completion_pct": 0.0,
+                  "leads_available": 0,
+                  "leads_expected": 3,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T17:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 1
+                    }
+                  ]
+                },
+                {
+                  "name": "f006",
+                  "status": "pending",
+                  "timing": "delayed",
+                  "completion_pct": 0.0,
+                  "leads_available": 0,
+                  "leads_expected": 21,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T17:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "forecast",
+                  "status": "pending",
+                  "timing": "delayed",
+                  "completion_pct": 0.0,
+                  "leads_available": 0,
+                  "leads_expected": 57,
+                  "deadline_s": 7800.0,
+                  "reference_at": "2026-09-23T17:00:00+00:00",
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:conus/sfc",
+                  "label": "surface",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 19
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/prs",
+                  "label": "pressure levels",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 19
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/nat",
+                  "label": "natural levels",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 19
+                }
+              ]
+            },
+            {
+              "init_time": "2026-09-23T16:00:00+00:00",
+              "status": "pending",
+              "completion_pct": 0.0,
+              "deadline_s": null,
+              "reference_at": null,
+              "threshold_source": "static",
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "leads_available": 0,
+                  "leads_expected": 3,
+                  "deadline_s": null,
+                  "reference_at": null,
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 1
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 1
+                    }
+                  ]
+                },
+                {
+                  "name": "f006",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "leads_available": 0,
+                  "leads_expected": 21,
+                  "deadline_s": null,
+                  "reference_at": null,
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "forecast",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "leads_available": 0,
+                  "leads_expected": 57,
+                  "deadline_s": null,
+                  "reference_at": null,
+                  "threshold_source": "static",
+                  "facets": [
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/sfc",
+                      "label": "surface",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/prs",
+                      "label": "pressure levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    },
+                    {
+                      "dimension": "component",
+                      "name": "component:conus/nat",
+                      "label": "natural levels",
+                      "status": "pending",
+                      "completion_pct": 0.0,
+                      "dependencies_available": 0,
+                      "dependencies_expected": 12
+                    }
+                  ]
+                }
+              ],
+              "facets": [
+                {
+                  "dimension": "component",
+                  "name": "component:conus/sfc",
+                  "label": "surface",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 19
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/prs",
+                  "label": "pressure levels",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 19
+                },
+                {
+                  "dimension": "component",
+                  "name": "component:conus/nat",
+                  "label": "natural levels",
+                  "status": "pending",
+                  "completion_pct": 0.0,
+                  "dependencies_available": 0,
+                  "dependencies_expected": 19
+                }
+              ]
+            }
+          ],
+          "next_expected_init": "2026-09-23T19:00:00+00:00",
+          "timing_baseline": {
+            "status": "established",
+            "history_days": 0,
+            "required_history_days": 30,
+            "method": "static"
+          },
+          "next_expected_completion_at": null,
+          "pipeline_lag": {
+            "status": "pending",
+            "basis": "shared_nat_prs_sfc",
+            "source_ids": [
+              "external-noaa-hrrr-18h-aws"
+            ],
+            "window_days": 365,
+            "window_start": null,
+            "window_end": null,
+            "generated_at": null,
+            "stats": null
+          },
+          "latency_budget": {
+            "reference": "source_release",
+            "source_ids": [
+              "external-noaa-hrrr-18h-aws"
+            ],
+            "run_s": 600.0,
+            "groups": {
+              "f000": 600.0,
+              "f006": 600.0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

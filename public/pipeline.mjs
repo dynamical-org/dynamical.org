@@ -1321,19 +1321,14 @@ export function timingBaselineNote(product) {
   return shortfall && `insufficient history (${shortfall.days}/${shortfall.required} days)`;
 }
 
-/* The run chart. One point per run: its completion time after init, or the
+/* The chart points mark completion time after init, or the
    time elapsed so far for a run still arriving, against the product's current
    delayed threshold. The timings are the summarizer's verdicts, each made
    against the threshold of its day; the line is today's, so the chart draws
    both and judges neither.
 
-   Two charts draw it. Under the lead-group view, the one a row opens on, the
-   chart sits under the field and shares its columns: the same gutter, run
-   width and gap, set through the same custom properties, so a point lands
-   under the square it belongs to without measuring either, and the field's
-   init labels are repeated beneath it. Under an arrival-group view the chart
-   draws every run the payload carries across the whole row, on a
-   proportional time axis of its own. */
+   The lead-group view draws a lane per group plus the whole run under the
+   field's columns. An arrival-group view keeps the proportional run chart. */
 
 const CHART_HEIGHT_PX = 160;
 const CHART_MARK_R = 3.5;
@@ -1395,6 +1390,55 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
   return { runs, threshold: runChartThreshold(product) };
 }
 
+/* The expanded lead view keeps the field's columns, including absent groups.
+   A missing entry and an explicit unobserved entry have different titles. */
+export function leadLaneSeries(product, now, inits = product.recent_inits ?? []) {
+  const stats = new Map((product.lead_group_stats ?? []).map((entry) => [entry.name, entry]));
+  const leads = bandsOf(product).map((band) => {
+    const threshold = product.timing_baseline?.status === "insufficient_history"
+      ? null
+      : stats.get(band.key)?.delayed_threshold_s;
+    const slots = inits.map((init) => {
+      const entry = init.lead_groups?.find((group) => group.name === band.key);
+      const value = entry && Object.hasOwn(entry, "deadline_s") ? entry.deadline_s : init.deadline_s;
+      const deadline = Number.isFinite(value) && value > 0 ? value : null;
+      if (!entry) return { init, state: "missing", deadline };
+      if (entry.status === "unobserved") return { init, state: "unobserved", deadline };
+      const ms = Date.parse(init.init_time);
+      if (!Number.isFinite(ms)) return { init, state: "missing", deadline };
+      const elapsed = entry.status === "pending" || entry.status === "in_flight";
+      const seconds = elapsed ? Math.max(0, (now - ms) / 1000)
+        : Number.isFinite(entry.latency_s) ? entry.latency_s
+        : entry.status === "failed" ? 0 : null;
+      if (seconds == null) return { init, state: "missing", deadline };
+      return { init, state: "point", deadline, run: {
+        init, ms, status: entry.status, timing: entry.timing ?? null, seconds, elapsed,
+        noTime: entry.status === "failed" && !Number.isFinite(entry.latency_s),
+      } };
+    });
+    return { name: band.key, label: band.label, slots,
+      runs: slots.filter((slot) => slot.run).map((slot) => slot.run),
+      threshold: Number.isFinite(threshold) && threshold > 0 ? threshold : null };
+  });
+  const runSeries = runChartSeries(product, now, inits);
+  const runByInit = new Map(runSeries.runs.map((run) => [run.init.init_time, run]));
+  const runLane = {
+    name: "run", label: "run", ...runSeries,
+    slots: inits.map((init) => ({ init,
+      state: runByInit.has(init.init_time) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
+      run: runByInit.get(init.init_time),
+      deadline: Number.isFinite(init.deadline_s) && init.deadline_s > 0 ? init.deadline_s : null,
+    })),
+  };
+  const lanes = [...leads, runLane];
+  lanes.domain = latencyDomain({
+    runs: lanes.flatMap((lane) => lane.runs),
+    thresholds: lanes.map((lane) => lane.threshold).filter((value) => value != null),
+    deadlines: lanes.flatMap((lane) => lane.slots.map((slot) => slot.deadline).filter((value) => value != null)),
+  });
+  return lanes;
+}
+
 // a tick of two days or more reads in days ("16d"), not hours ("384h"):
 // a run in flight that long stretches the axis to that scale
 function tickText(seconds) {
@@ -1438,9 +1482,10 @@ function niceTicks(lo, hi) {
 
 export function latencyDomain(series) {
   const landed = series.runs
-    .filter((run) => !run.elapsed)
+    .filter((run) => !run.elapsed && !run.noTime)
     .map((run) => run.seconds);
   if (series.threshold != null) landed.push(series.threshold);
+  landed.push(...(series.thresholds ?? []), ...(series.deadlines ?? []));
   // with nothing landed there is nothing to flatten, so the elapsed times
   // take the axis themselves
   const reach = landed.length ? Math.max(...landed) * CHART_ELAPSED_REACH : Infinity;
@@ -1516,7 +1561,7 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
 }
 
 function runTitle(run, local) {
-  const how = run.elapsed
+  const how = run.noTime ? "no completion time recorded" : run.elapsed
     ? `${pinnedTime(run.seconds)} elapsed`
     : `${formatLatency(run.seconds)} after init`;
   return [
@@ -1740,11 +1785,11 @@ const ALIGNED_MARGIN = { top: 16, bottom: 4 };
 // fills the row they move inside it, above their lines
 const CHART_LABEL_GAP_PX = 6;
 
-export function alignedChartScales(series) {
-  const plotHeight = ALIGNED_HEIGHT_PX - ALIGNED_MARGIN.top - ALIGNED_MARGIN.bottom;
-  const { yMin, yMax, empty } = latencyDomain(series);
+export function alignedChartScales(series, domain = latencyDomain(series), height = ALIGNED_HEIGHT_PX) {
+  const plotHeight = height - ALIGNED_MARGIN.top - ALIGNED_MARGIN.bottom;
+  const { yMin, yMax, empty } = domain;
   return {
-    height: ALIGNED_HEIGHT_PX,
+    height,
     top: ALIGNED_MARGIN.top,
     bottom: ALIGNED_MARGIN.top + plotHeight,
     empty,
@@ -2026,6 +2071,137 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
   </figure>`;
 }
 
+function LeadLanes({ product, now, local, runCount, fieldWidth }) {
+  const [selected, setSelected] = useState(null);
+  if (runCount == null || !product.recent_inits.length) return null;
+  const runs = displayedRuns(product, runCount);
+  const lanes = leadLaneSeries(product, now, runs);
+  const gutter = gutterPx(bandsOf(product));
+  const runWidth = initColumnPx(product, selectedTimeZone(local));
+  const columns = runColumns(runs.length, runWidth, RUN_GAP_PX);
+  const em = chartEm();
+  const height = Math.max(44, CHART_HEIGHT_PX / 2);
+  const scale = alignedChartScales({ runs: [] }, lanes.domain, height);
+  const widestLabel = Math.max(
+    ...scale.yTicks.map((tick) => tickText(tick).length),
+    ...lanes.map((lane) => lane.threshold == null ? 0 : `delayed past ${formatLatency(lane.threshold)}`.length),
+  );
+  const inside = columns.width + CHART_LABEL_GAP_PX + widestLabel * 0.6 * em >
+    fieldWidth - gutter - RUN_GAP_PX;
+  const allPoints = lanes.flatMap((lane) => lane.runs);
+  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
+  const parked = lanes.map((lane) => ({ lane, layout: pinnedLayout(
+    lane.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
+    (run) => columns.x(columnOf.get(run.init.init_time)),
+    { em, titleRight: columns.width, right: columns.width, top: scale.top },
+  ) }));
+  const parkedItems = parked.flatMap(({ lane, layout }) => layout.overflow.length
+    ? [{ mark: null, text: `above ${lane.label} lane: ${parkedNames(layout.overflow, local)}` }]
+    : []);
+  const key = runChartKey(product, allPoints.filter((run) => run.status !== "failed"));
+  if (lanes.some((lane) => lane.slots.some((slot) => slot.state === "missing" || slot.state === "unobserved"))) {
+    key.push({ mark: "missing", text: "no measurement" });
+  }
+  if (lanes.some((lane) => lane.slots.some((slot) => slot.deadline != null))) {
+    key.push({ mark: "deadline", text: "deadline for this init" });
+  }
+  if (allPoints.some((run) => run.status === "failed")) {
+    key.push({ mark: "failed", text: "failed" });
+  }
+  const span = runs.length > 1
+    ? `${initShort(runs[0].init_time, local)} to ${initShort(runs.at(-1).init_time, local)}`
+    : initShort(runs[0].init_time, local);
+  return html`<figure class="pipeline-runs pipeline-lead-lanes" data-aligned=""
+    style=${`--run-width:${runWidth}px;--clumped-run-gap:${RUN_GAP_PX}px;--band-gutter:${gutter}px;--label-h:${LABEL_PX}px;--plot-left:calc(${gutter}px + 0.6rem);--lane-height:${height}px`}
+  >
+    <p class="pipeline-lane-scale">time after init · shared scale ${formatLatency(lanes.domain.yMin)}–${formatLatency(lanes.domain.yMax)}</p>
+    <div class="pipeline-lanes-grid">
+      <div class="pipeline-lane-labels">${lanes.map((lane, index) => html`<span key=${lane.name}
+        title=${index === lanes.length - 1 ? "whole run verdict" : `${lane.label} lead group verdict`}
+      >${lane.label}</span>`)}</div>
+      <svg width=${columns.width} height=${height * lanes.length} role="img"
+        aria-label=${[
+          `Completion time after init by lead group and whole run; ${span}; ${lanes.length} lanes on a shared seconds scale`,
+          ...parked.map(({ lane, layout }) => layout.runs.length
+            ? `${lane.label}: ${pinnedAria(layout.runs, local)}` : null).filter(Boolean),
+        ].join("; ")}
+      >
+        ${lanes.map((lane, laneIndex) => {
+          const offset = laneIndex * height;
+          const lineY = lane.threshold == null ? null : scale.y(lane.threshold);
+          const thresholdText = lineY == null ? null : `delayed past ${formatLatency(lane.threshold)}`;
+          const label = lineY == null ? null : {
+            x: inside ? columns.width - 2 : columns.width + CHART_LABEL_GAP_PX,
+            y: scale.top - 6,
+            "text-anchor": inside ? "end" : "start",
+          };
+          const parkedLabels = parked[laneIndex].layout.labels;
+          const counts = {
+            onTime: lane.runs.filter((run) => run.timing === "on_time").length,
+            delayed: lane.runs.filter((run) => run.timing === "delayed").length,
+            unjudged: lane.runs.filter((run) => run.timing == null).length,
+            missing: lane.slots.filter((slot) => slot.state !== "point").length,
+          };
+          return html`<g key=${lane.name} data-lane=${lane.name} role="group"
+            aria-label=${`${lane.label}: ${counts.onTime} on time, ${counts.delayed} delayed, ${counts.unjudged} not judged, ${counts.missing} missing`}
+            transform=${`translate(0 ${offset})`}
+          >
+            ${scale.empty && laneIndex === 0
+              ? html`<text x="0" y=${(scale.top + scale.bottom) / 2}>no completion time recorded</text>`
+              : null}
+            ${scale.empty ? null : scale.yTicks.map((tick) => html`<g key=${tick} data-axis="y">
+              <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
+            </g>`)}
+            <line data-axis="x" x1="0" x2=${columns.width} y1=${scale.bottom} y2=${scale.bottom} />
+            ${lineY == null ? null : html`<g data-threshold="run">
+              <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
+              <text ...${label}>${thresholdText}</text>
+            </g>`}
+            ${lane.slots.map((slot, index) => {
+              const x = columns.x(index);
+              const title = slot.state === "missing"
+                ? `no measurement for ${lane.label} at ${initShort(slot.init.init_time, local)}`
+                : slot.state === "unobserved"
+                  ? cellTitle({ kind: "lead", label: lane.label }, slot.init, { state: "unobserved" }, local)
+                  : `${lane.label} · ${runTitle(slot.run, local)}${slot.run.timing == null ? " · not judged" : ""}`;
+              return html`<g key=${slot.init.init_time} data-slot-init=${slot.init.init_time}
+                tabindex="0" role="button" aria-label=${title}
+                onClick=${() => setSelected(title)}
+                onKeyDown=${(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelected(title);
+                  }
+                }}>
+                ${slot.deadline == null ? null : html`<line data-deadline="" x1=${x - 4} x2=${x + 4}
+                  y1=${scale.y(slot.deadline)} y2=${scale.y(slot.deadline)}><title>${lane.label} · ${initShort(slot.init.init_time, local)} · deadline ${formatLatency(slot.deadline)} after init</title></line>`}
+                ${slot.state === "point" ? html`<circle data-init-time=${slot.init.init_time}
+                  data-status=${slot.run.status} data-timing=${slot.run.timing}
+                  data-elapsed=${slot.run.elapsed ? "" : null}
+                  data-pinned=${slot.run.elapsed && scale.pinned(slot.run.seconds) ? "" : null}
+                  cx=${x} cy=${slot.run.elapsed && scale.pinned(slot.run.seconds) ? parkedY(scale) : scale.y(slot.run.seconds)}
+                  r=${markRadius(slot.run)}><title>${title}</title></circle>`
+                  : html`<line data-slot-marker=${slot.state} x1=${x} x2=${x}
+                    y1=${scale.bottom - 8} y2=${scale.bottom}><title>${title}</title></line>`}
+              </g>`;
+            })}
+            ${parkedLabels.map(({ run, text, attrs }) => html`<text key=${run.init.init_time}
+              data-pinned="" ...${attrs}>${text}</text>`)}
+          </g>`;
+        })}
+      </svg>
+    </div>
+    <${InitTiers} runs=${runs} local=${local} />
+    ${selected ? html`<p class="pipeline-lane-selection" role="status">${selected}</p>` : null}
+    <${RunKey} items=${[...key, ...parkedItems]} />
+    <ul class="sr-only">${lanes.map((lane) => html`<li key=${lane.name}>${lane.label}: ${lane.slots.map((slot) => {
+      const when = initShort(slot.init.init_time, local);
+      return slot.run ? `${when}, ${slot.run.noTime ? "no completion time recorded" : `${slot.run.elapsed ? "elapsed " : ""}${formatLatency(slot.run.seconds)}`}, ${slot.run.status}, ${slot.run.timing?.replaceAll("_", " ") ?? "not judged"}`
+        : `${when}, ${slot.state === "unobserved" ? "unobserved" : "no measurement"}`;
+    }).join("; ")}</li>`)}</ul>
+  </figure>`;
+}
+
 /* The details tables. Open details re-render once a second so their durations
    tick; the keyed diff keeps every node, so a table's own scroll box — and the
    reader's place in it — survives the tick. Every wide table on the site scrolls
@@ -2045,7 +2221,7 @@ function Details({
   // keeps the chart across the row
   const chart = dimension
     ? html`<${RunChart} key="chart" product=${product} now=${now} local=${local} />`
-    : html`<${AlignedRunChart}
+    : html`<${LeadLanes}
         key="chart"
         product=${product}
         now=${now}
