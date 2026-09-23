@@ -416,6 +416,10 @@
 }
 
 .pipeline-lane-labels span {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--lane-height);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

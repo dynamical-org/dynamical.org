@@ -2177,6 +2177,7 @@ test("lead lanes keep every init, group state, deadlines, and the unchanged run 
   assert.ok(lanes.domain.yMax >= 7200);
 });
 
+// Producer output: /tmp/claude-1000/-home-marsh-workspace-dynamical-org-wxopticon--claude-worktrees-latency-alerts/57013e40-0c04-40b5-9192-bce0133084b1/scratchpad/fixtures/static-dashboard.json
 test("producer static-budget payload renders deadlines without a constant threshold", () => {
   const payload = validateDashboard(JSON.parse(readFileSync(
     new URL("./fixtures/pipeline-static-dashboard.json", import.meta.url), "utf8",

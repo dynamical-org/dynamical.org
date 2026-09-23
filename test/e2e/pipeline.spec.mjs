@@ -1119,7 +1119,7 @@ test("lead lanes fit a phone and keep threshold labels inside", async ({ page })
   const chart = row.locator(".pipeline-lead-lanes");
   await expect(chart.locator('[data-lane]')).toHaveCount(4);
   const geometry = await page.evaluate(() => ({
-    pageFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    pageFits: document.documentElement.scrollWidth === document.documentElement.clientWidth,
     labelsFit: [...document.querySelectorAll('.pipeline-lead-lanes [data-threshold] text')].every((el) =>
       el.getBoundingClientRect().right <= el.closest('svg').getBoundingClientRect().right + 1),
   }));
@@ -1153,4 +1153,115 @@ test("a row gaining its first run while open gains its lanes", async ({ page }) 
   await page.clock.runFor(15_000);
   await expect(row.locator(".pipeline-lead-lanes svg")).toBeVisible();
   await expect(row.locator('[data-lane]')).toHaveCount(4);
+});
+
+test.describe("in a zone with wider init labels", () => {
+  test.use({ timezoneId: "America/Chicago", locale: "en-US" });
+
+  test("changing column width refits the lanes with the field", async ({ page }) => {
+    const row = await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+    await row.locator('[data-slot="details-button"]').click();
+    const counts = () => row.evaluate((node) => ({
+      field: new Set([...node.querySelectorAll('.pipeline-field [data-init-time]')]
+        .map((entry) => entry.dataset.initTime)).size,
+      chart: node.querySelectorAll('.pipeline-lead-lanes .pipeline-run-label').length,
+    }));
+    const wide = await counts();
+    expect(wide.field).toBeLessThan(10);
+    expect(wide.chart).toBe(wide.field);
+    await page.setViewportSize({ width: 700, height: 900 });
+    await expect.poll(async () => (await counts()).field).toBe(10);
+    expect(await counts()).toEqual({ field: 10, chart: 10 });
+  });
+});
+
+test("an omitted threshold leaves measured points and no constant lines", async ({ page }) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    delete product.latency_stats.delayed_threshold_s;
+    for (const stats of product.lead_group_stats) delete stats.delayed_threshold_s;
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  const lanes = row.locator('.pipeline-lead-lanes');
+  await expect(lanes.locator('[data-threshold]')).toHaveCount(0);
+  expect(await lanes.locator('circle').count()).toBeGreaterThan(0);
+  await expect(lanes.locator('[data-lane="run"] circle').first()).toBeVisible();
+});
+
+test("a manual threshold is labelled on its group and run lanes", async ({ page }) => {
+  const row = await openPipeline(page, (payload) => {
+    payload.groups[0].products[0].timing_baseline.method = 'manual';
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  const lanes = row.locator('.pipeline-lead-lanes');
+  await expect(lanes.locator('[data-threshold]')).toHaveCount(4);
+  await expect(lanes.locator('[data-lane="run"] [data-threshold] text')).toHaveText('delayed past 2h');
+});
+
+test("the insufficient-history product shows ink measurements without a threshold", async ({ page }) => {
+  await openPipeline(page);
+  const row = page.locator('[data-product-id="noaa-gfs-forecast-virtual"]');
+  await row.locator('[data-slot="details-button"]').click();
+  const lanes = row.locator('.pipeline-lead-lanes');
+  await expect(lanes.locator('[data-threshold]')).toHaveCount(0);
+  const fills = await lanes.locator('circle:not([data-elapsed])').evaluateAll((circles) =>
+    [...new Set(circles.map((circle) => getComputedStyle(circle).fill))]);
+  expect(fills).toEqual(['rgb(17, 17, 17)']);
+  await expect(lanes.locator('li').filter({ hasText: 'no delayed threshold yet' })).toHaveCount(1);
+});
+
+test("no recorded completion times leave an empty plot and named slots", async ({ page }) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    product.recent_inits = product.recent_inits.slice(-3);
+    delete product.latency_stats.delayed_threshold_s;
+    for (const stats of product.lead_group_stats) delete stats.delayed_threshold_s;
+    for (const init of product.recent_inits) {
+      init.status = 'complete';
+      delete init.latency_s;
+      for (const group of init.lead_groups) {
+        group.status = 'complete';
+        delete group.latency_s;
+      }
+    }
+    return payload;
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  const lanes = row.locator('.pipeline-lead-lanes');
+  await expect(lanes.locator('circle')).toHaveCount(0);
+  await expect(lanes.locator('svg')).toContainText('no completion time recorded');
+  await expect(lanes.locator('[data-axis="y"]')).toHaveCount(0);
+  await expect(lanes.locator('.pipeline-run-label')).toHaveCount(3);
+});
+
+test("a sparse chart places its threshold label beside its columns", async ({ page }) => {
+  const row = await openPipeline(page, (payload) => {
+    payload.groups[0].products[0].recent_inits = payload.groups[0].products[0].recent_inits.slice(-1);
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  const result = await row.locator('.pipeline-lead-lanes').evaluate((node) => {
+    const text = node.querySelector('[data-lane="run"] [data-threshold] text');
+    const svg = node.querySelector('svg').getBoundingClientRect();
+    return { anchor: text.getAttribute('text-anchor'), left: text.getBoundingClientRect().left, right: svg.right };
+  });
+  expect(result.anchor).toBe('start');
+  expect(result.left).toBeGreaterThan(result.right);
+});
+
+test("two parked runs are named below the lanes by init", async ({ page }) => {
+  const row = await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products[0];
+    const failed = product.recent_inits.at(-2);
+    failed.status = 'in_flight';
+    delete failed.latency_s;
+    return payload;
+  });
+  await row.locator('[data-slot="details-button"]').click();
+  const lanes = row.locator('.pipeline-lead-lanes');
+  await expect(lanes.locator('[data-lane="run"] circle[data-pinned]')).toHaveCount(2);
+  await expect(lanes.locator('[data-lane="run"] text[data-pinned]')).toHaveCount(0);
+  await expect(lanes.locator('li').filter({ hasText: 'above run lane:' })).toContainText(/\d+d so far.*\d+d so far/);
 });

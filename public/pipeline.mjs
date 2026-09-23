@@ -2088,6 +2088,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
   );
   const inside = columns.width + CHART_LABEL_GAP_PX + widestLabel * 0.6 * em >
     fieldWidth - gutter - RUN_GAP_PX;
+  const clipWidth = Math.max(columns.width, fieldWidth - gutter - RUN_GAP_PX);
   const allPoints = lanes.flatMap((lane) => lane.runs);
   const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
   const parked = lanes.map((lane) => ({ lane, layout: pinnedLayout(
@@ -2126,13 +2127,17 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
             ? `${lane.label}: ${pinnedAria(layout.runs, local)}` : null).filter(Boolean),
         ].join("; ")}
       >
+        <defs>${lanes.map((lane) => html`<clipPath key=${lane.name}
+          id=${`pipeline-lane-clip-${product.id}-${lane.name}`}>
+          <rect x="0" y="0" width=${clipWidth} height=${height} />
+        </clipPath>`)}</defs>
         ${lanes.map((lane, laneIndex) => {
           const offset = laneIndex * height;
           const lineY = lane.threshold == null ? null : scale.y(lane.threshold);
           const thresholdText = lineY == null ? null : `delayed past ${formatLatency(lane.threshold)}`;
           const label = lineY == null ? null : {
             x: inside ? columns.width - 2 : columns.width + CHART_LABEL_GAP_PX,
-            y: scale.top - 6,
+            y: Math.max(12, lineY - 6),
             "text-anchor": inside ? "end" : "start",
           };
           const parkedLabels = parked[laneIndex].layout.labels;
@@ -2149,11 +2154,12 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
             ${scale.empty && laneIndex === 0
               ? html`<text x="0" y=${(scale.top + scale.bottom) / 2}>no completion time recorded</text>`
               : null}
-            ${scale.empty ? null : scale.yTicks.map((tick) => html`<g key=${tick} data-axis="y">
+            ${scale.empty ? null : scale.yTicks.filter((tick) => scale.y(tick) < scale.bottom - 8).map((tick) => html`<g key=${tick} data-axis="y">
               <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
             </g>`)}
             <line data-axis="x" x1="0" x2=${columns.width} y1=${scale.bottom} y2=${scale.bottom} />
-            ${lineY == null ? null : html`<g data-threshold="run">
+            ${lineY == null ? null : html`<g data-threshold="run"
+              clip-path=${`url(#pipeline-lane-clip-${product.id}-${lane.name})`}>
               <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
               <text ...${label}>${thresholdText}</text>
             </g>`}
