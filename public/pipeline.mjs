@@ -2141,6 +2141,21 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
             "text-anchor": inside ? "end" : "start",
           };
           const parkedLabels = parked[laneIndex].layout.labels;
+          const tickLabel = (tick) => {
+            const y = scale.y(tick);
+            const text = tickText(tick);
+            const attrs = lineLabel(y, inside, columns, scale, { em });
+            const box = labelBox(attrs, text, em);
+            if (lineY != null && lineY > box.top && lineY < box.bottom) return null;
+            if (label && boxesMeet(box, labelBox(label, thresholdText, em))) return null;
+            if (inside && lane.runs.some((run) => {
+              const cx = columns.x(columnOf.get(run.init.init_time));
+              const cy = run.elapsed && scale.pinned(run.seconds) ? parkedY(scale) : scale.y(run.seconds);
+              const r = markRadius(run);
+              return boxesMeet(box, { left: cx - r, right: cx + r, top: cy - r, bottom: cy + r });
+            })) return null;
+            return attrs;
+          };
           const counts = {
             onTime: lane.runs.filter((run) => run.timing === "on_time").length,
             delayed: lane.runs.filter((run) => run.timing === "delayed").length,
@@ -2154,9 +2169,13 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
             ${scale.empty && laneIndex === 0
               ? html`<text x="0" y=${(scale.top + scale.bottom) / 2}>no completion time recorded</text>`
               : null}
-            ${scale.empty ? null : scale.yTicks.filter((tick) => scale.y(tick) < scale.bottom - 8).map((tick) => html`<g key=${tick} data-axis="y">
-              <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
-            </g>`)}
+            ${scale.empty ? null : scale.yTicks.filter((tick) => scale.y(tick) < scale.bottom - 8).map((tick) => {
+              const attrs = tickLabel(tick);
+              return html`<g key=${tick} data-axis="y">
+                <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
+                ${attrs ? html`<text ...${attrs}>${tickText(tick)}</text>` : null}
+              </g>`;
+            })}
             <line data-axis="x" x1="0" x2=${columns.width} y1=${scale.bottom} y2=${scale.bottom} />
             ${lineY == null ? null : html`<g data-threshold="run"
               clip-path=${`url(#pipeline-lane-clip-${product.id}-${lane.name})`}>
@@ -2165,11 +2184,12 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
             </g>`}
             ${lane.slots.map((slot, index) => {
               const x = columns.x(index);
-              const title = slot.state === "missing"
+              const detail = slot.state === "missing"
                 ? `no measurement for ${lane.label} at ${initShort(slot.init.init_time, local)}`
                 : slot.state === "unobserved"
                   ? cellTitle({ kind: "lead", label: lane.label }, slot.init, { state: "unobserved" }, local)
                   : `${lane.label} · ${runTitle(slot.run, local)}${slot.run.timing == null ? " · not judged" : ""}`;
+              const title = `${detail}${slot.deadline == null ? "" : ` · deadline ${formatLatency(slot.deadline)} after init`}`;
               return html`<g key=${slot.init.init_time} data-slot-init=${slot.init.init_time}
                 tabindex="0" role="button" aria-label=${title}
                 onClick=${() => setSelected(title)}
@@ -2179,7 +2199,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
                     setSelected(title);
                   }
                 }}>
-                ${slot.deadline == null ? null : html`<line data-deadline="" x1=${x - 4} x2=${x + 4}
+                ${slot.deadline == null ? null : html`<line data-deadline="" x1=${x - 12} x2=${x - 7}
                   y1=${scale.y(slot.deadline)} y2=${scale.y(slot.deadline)}><title>${lane.label} · ${initShort(slot.init.init_time, local)} · deadline ${formatLatency(slot.deadline)} after init</title></line>`}
                 ${slot.state === "point" ? html`<circle data-init-time=${slot.init.init_time}
                   data-status=${slot.run.status} data-timing=${slot.run.timing}
@@ -2202,8 +2222,9 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
     <${RunKey} items=${[...key, ...parkedItems]} />
     <ul class="sr-only">${lanes.map((lane) => html`<li key=${lane.name}>${lane.label}: ${lane.slots.map((slot) => {
       const when = initShort(slot.init.init_time, local);
-      return slot.run ? `${when}, ${slot.run.noTime ? "no completion time recorded" : `${slot.run.elapsed ? "elapsed " : ""}${formatLatency(slot.run.seconds)}`}, ${slot.run.status}, ${slot.run.timing?.replaceAll("_", " ") ?? "not judged"}`
+      const detail = slot.run ? `${when}, ${slot.run.noTime ? "no completion time recorded" : `${slot.run.elapsed ? "elapsed " : ""}${formatLatency(slot.run.seconds)}`}, ${slot.run.status}, ${slot.run.timing?.replaceAll("_", " ") ?? "not judged"}`
         : `${when}, ${slot.state === "unobserved" ? "unobserved" : "no measurement"}`;
+      return `${detail}${slot.deadline == null ? "" : `, deadline ${formatLatency(slot.deadline)} after init`}`;
     }).join("; ")}</li>`)}</ul>
   </figure>`;
 }

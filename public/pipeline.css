@@ -445,7 +445,7 @@
 
 .pipeline-lead-lanes [data-deadline] {
   stroke: var(--muted-text);
-  stroke-width: 2;
+  stroke-width: 3;
 }
 
 .pipeline-lead-lanes circle[data-status="failed"] {
@@ -453,8 +453,10 @@
   stroke: var(--pipeline-failed);
 }
 
-.pipeline-lead-lanes circle:focus {
-  outline: 2px solid var(--text-color);
+.pipeline-lead-lanes [data-slot-init]:focus-visible circle,
+.pipeline-lead-lanes [data-slot-init]:focus-visible [data-slot-marker] {
+  stroke: var(--text-color);
+  stroke-width: 3;
 }
 
 .sr-only {

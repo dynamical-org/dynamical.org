@@ -1103,6 +1103,52 @@ test("per-init deadlines remain ticks and static null thresholds have no line", 
   await expect(chart.locator('[data-lane="f000"] [data-threshold]')).toHaveCount(1);
 });
 
+test("a deadline equal to its measurement stays visible and readable from the slot", async ({ page }) => {
+  await openPipeline(page, (payload) => {
+    const product = payload.groups[0].products.find((entry) => entry.id === "fixture-mixed-lead-lanes");
+    const init = product.recent_inits.find((entry) => entry.lead_groups?.some((group) => group.name === "f024" && group.deadline_s != null));
+    const group = init.lead_groups.find((entry) => entry.name === "f024");
+    group.deadline_s = group.latency_s;
+    return withRecentRun(payload, 60 * 60 * 1000);
+  });
+  const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
+  await row.locator('[data-slot="details-button"]').click();
+  const figure = row.locator(".pipeline-lead-lanes");
+  const slot = figure.locator('[data-lane="f024"] [data-slot-init]:has([data-deadline])');
+  const geometry = await slot.evaluate((node) => {
+    const tick = node.querySelector('[data-deadline]');
+    const point = node.querySelector('circle');
+    return { tickRight: +tick.getAttribute('x2'), pointLeft: +point.getAttribute('cx') - +point.getAttribute('r') };
+  });
+  expect(geometry.tickRight).toBeLessThan(geometry.pointLeft);
+  await expect(slot).toHaveAttribute("aria-label", /deadline .* after init/);
+  await slot.click();
+  await expect(figure.locator('[role="status"]')).toContainText(/deadline .* after init/);
+  await expect(figure.locator(".sr-only li").filter({ hasText: "1d:" })).toContainText(/deadline .* after init/);
+});
+
+test("shared seconds ticks are labelled without covering marks", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const row = await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+  await row.locator('[data-slot="details-button"]').click();
+  const chart = row.locator(".pipeline-lead-lanes");
+  const result = await chart.evaluate((node) => {
+    const labels = [...node.querySelectorAll('[data-axis="y"] text')];
+    const points = [...node.querySelectorAll('[data-lane] circle')];
+    return {
+      labels: labels.map((label) => label.textContent),
+      overlaps: labels.some((label) => points.some((point) => {
+        const a = label.getBoundingClientRect();
+        const b = point.getBoundingClientRect();
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      })),
+    };
+  });
+  expect(result.labels.length).toBeGreaterThan(0);
+  expect(result.labels.every((label) => /\d/.test(label))).toBe(true);
+  expect(result.overlaps).toBe(false);
+});
+
 test("stale in-flight groups park without compressing completed points", async ({ page }) => {
   const row = await openPipeline(page);
   await row.locator('[data-slot="details-button"]').click();
