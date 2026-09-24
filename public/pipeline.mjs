@@ -2156,6 +2156,19 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
             })) return null;
             return attrs;
           };
+          // Two ticks can land within one label height of each other near a
+          // lane's top, where labels clamp to the same y; keep the lower one.
+          const tickAttrs = new Map();
+          const keptTickBoxes = [];
+          for (const tick of scale.yTicks) {
+            if (!(scale.y(tick) < scale.bottom - 8)) continue;
+            const attrs = tickLabel(tick);
+            if (!attrs) continue;
+            const box = labelBox(attrs, tickText(tick), em);
+            if (keptTickBoxes.some((kept) => boxesMeet(box, kept))) continue;
+            keptTickBoxes.push(box);
+            tickAttrs.set(tick, attrs);
+          }
           const counts = {
             onTime: lane.runs.filter((run) => run.timing === "on_time").length,
             delayed: lane.runs.filter((run) => run.timing === "delayed").length,
@@ -2170,7 +2183,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
               ? html`<text x="0" y=${(scale.top + scale.bottom) / 2}>no completion time recorded</text>`
               : null}
             ${scale.empty ? null : scale.yTicks.filter((tick) => scale.y(tick) < scale.bottom - 8).map((tick) => {
-              const attrs = tickLabel(tick);
+              const attrs = tickAttrs.get(tick);
               return html`<g key=${tick} data-axis="y">
                 <line x1="0" x2=${columns.width} y1=${scale.y(tick)} y2=${scale.y(tick)} />
                 ${attrs ? html`<text ...${attrs}>${tickText(tick)}</text>` : null}

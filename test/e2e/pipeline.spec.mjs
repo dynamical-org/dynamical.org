@@ -1142,11 +1142,19 @@ test("shared seconds ticks are labelled without covering marks", async ({ page }
         const b = point.getBoundingClientRect();
         return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
       })),
+      // Ticks one label height apart near a lane's top would print over each
+      // other; the lane keeps only the lower label of such a pair.
+      labelOverlaps: labels.some((label, i) => labels.slice(i + 1).some((other) => {
+        const a = label.getBoundingClientRect();
+        const b = other.getBoundingClientRect();
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      })),
     };
   });
   expect(result.labels.length).toBeGreaterThan(0);
   expect(result.labels.every((label) => /\d/.test(label))).toBe(true);
   expect(result.overlaps).toBe(false);
+  expect(result.labelOverlaps).toBe(false);
 });
 
 test("stale in-flight groups park without compressing completed points", async ({ page }) => {
