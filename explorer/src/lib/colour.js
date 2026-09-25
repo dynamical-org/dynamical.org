@@ -101,3 +101,29 @@ export function formatValue(v) {
   if (a >= 1e5 || a < 1e-3) return v.toExponential(2);
   return String(Number(v.toPrecision(3)));
 }
+
+/**
+ * The colour range for a variable from its first sample. Celsius gets the fixed range.
+ * A sample that is empty or one value (e.g. all-zero precipitation) gives a provisional
+ * range: shown, but not frozen, so a later sample can replace it (see settleRange).
+ * @param {string} units
+ * @param {ArrayLike<number>} data
+ * @returns {{ min: number, max: number, kind: "fixed" | "sample", status?: string, provisional?: boolean }}
+ */
+export function initialRange(units, data) {
+  if (isCelsius(units)) return { min: CELSIUS_RANGE[0], max: CELSIUS_RANGE[1], kind: "fixed" };
+  const r = sampleRange(data);
+  return r.status === "ok" ? { ...r, kind: "sample" } : { ...r, kind: "sample", provisional: true };
+}
+
+/**
+ * A provisional range replaced by the first sample that varies, else null (keep the
+ * current range). Frozen ranges are never replaced.
+ * @param {{ provisional?: boolean } | null} current
+ * @param {ArrayLike<number>} data a newly loaded tile block
+ */
+export function settleRange(current, data) {
+  if (!current?.provisional) return null;
+  const r = sampleRange(data);
+  return r.status === "ok" ? { ...r, kind: "sample" } : null;
+}

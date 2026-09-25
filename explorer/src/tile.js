@@ -35,6 +35,7 @@ export class StaleTileError extends Error {
  *   track: (texture: import("@luma.gl/core").Texture) => void,
  *   take: (row: number, col: number) => Float32Array | undefined,
  *   onStart?: () => void,
+ *   onData?: (data: Float32Array) => void,
  * }} ctx
  */
 export function makeGetTileData(ctx) {
@@ -51,6 +52,7 @@ export function makeGetTileData(ctx) {
       data = toFloat32(chunk.data, ctx.info);
     }
     if (signal?.aborted || !ctx.live()) throw new StaleTileError("Tile belongs to a replaced layer");
+    ctx.onData?.(data);
     const depth = data.length / (width * height);
     const texture = device.createTexture({
       dimension: "2d-array",

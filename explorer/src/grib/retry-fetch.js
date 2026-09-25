@@ -1,4 +1,4 @@
-// icechunk-js FetchClient for virtual chunk reads that retries upstream throttling.
+// icechunk-js FetchClient for virtual chunk reads that retries failed upstream requests.
 //
 // About 5% of ecmwf-aifs-single-forecast-virtual's references (2024-11 to 2025-02) point at
 // s3://ecmwf-forecasts (eu-central-1). That bucket intermittently answers large range GETs
@@ -15,7 +15,7 @@
  * @param {typeof fetch} [options.fetchImpl] Defaults to globalThis.fetch (injectable for tests).
  * @param {(ms: number) => Promise<void>} [options.sleep] Injectable for tests.
  * @param {(info: { url: string, attempt: number, reason: string }) => void} [options.onRetry]
- *   Called before each retry, e.g. to show "upstream is throttling, retrying…".
+ *   Called before each retry, e.g. to show "Upstream request failed (host), retrying…".
  * @returns {FetchClient & { stats: { attempts: number, retries: number } }}
  */
 export function retryingFetchClient({

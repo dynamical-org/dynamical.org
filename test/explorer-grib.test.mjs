@@ -291,3 +291,36 @@ test("a trailing level dim (…, lat, lon, pressure_level) is moved before the g
   assert.deepEqual(reads, ["1,2,3"]);
   assert.throws(() => createTileFacade({ array, get }), /whole-grid chunks/);
 });
+
+test("cache keys carry the snapshot, the variable path and every non-spatial index", async () => {
+  // (init, member, lead, lat, lon, level): four non-spatial dims, level after the grid.
+  const array = { shape: [2, 3, 4, 6, 8, 5], chunks: [1, 1, 1, 6, 8, 1], dimensionNames: ["init_time", "ensemble_member", "lead_time", "latitude", "longitude", "pressure_level"], attrs: {}, dtype: "float64" };
+  const get = async () => ({ data: new Float64Array(48), shape: [6, 8] });
+  const f = createTileFacade({ array, get, spatial: [3, 4], tileSize: 4, keyPrefix: "SNAP1|/pressure_level/temperature" });
+  await f.get(f.view, [1, 2, slice(3, 4), 4, slice(0, 4), slice(0, 4)]);
+  await f.get(f.view, [1, 0, slice(3, 4), 4, slice(0, 4), slice(0, 4)]); // other member
+  await f.get(f.view, [1, 2, slice(3, 4), 1, slice(0, 4), slice(0, 4)]); // other level
+  assert.deepEqual(f.keys(), ["SNAP1|/pressure_level/temperature|1,2,3,4", "SNAP1|/pressure_level/temperature|1,0,3,4", "SNAP1|/pressure_level/temperature|1,2,3,1"]);
+  assert.equal(f.stats.reads, 3);
+});
+
+test("aborting one tile never cancels the read other tiles share", async () => {
+  const { array } = fakeArray();
+  let release;
+  const signals = [];
+  const get = async (arr, sel, opts) => {
+    signals.push(opts?.signal ?? null);
+    await new Promise((r) => (release = r));
+    return { data: new Float64Array(120).map((_, k) => k), shape: [10, 12] };
+  };
+  const f = createTileFacade({ array, get, tileSize: 4 });
+  const ac = new AbortController();
+  const a = f.get(f.view, [0, slice(0, 1), slice(0, 4), slice(0, 4)], { signal: ac.signal });
+  const b = f.get(f.view, [0, slice(0, 1), slice(4, 8), slice(0, 4)], { signal: new AbortController().signal });
+  await new Promise((r) => setImmediate(r));
+  ac.abort();
+  release();
+  await assert.rejects(a, { name: "AbortError" });
+  assert.equal((await b).data[0], 48);
+  assert.deepEqual(signals, [null], "one shared read, started without any tile's signal");
+});

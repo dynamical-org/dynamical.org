@@ -9,8 +9,11 @@ npm --prefix explorer ci            # exact versions from explorer/package-lock.
 npm --prefix explorer run build     # → public/explorer/explorer.js + lazy chunks
 ```
 
-The root `build` and `start` scripts run both. The bundle in `public/explorer/`
-is build output and is not committed.
+The site build does this itself. An `eleventy.before` hook in `.eleventy.js`
+builds the explorer once per Eleventy process, so after editing `explorer/`,
+restart `npm start`. The hook reruns `npm ci` when `explorer/package.json` or
+`package-lock.json` changes. The bundle in `public/explorer/` is build output
+and is not committed.
 
 ## API
 
@@ -24,7 +27,7 @@ const handle = mount(element, {
   initialView: { bounds: [w, s, e, n] },       // or { longitude, latitude, zoom }
   proj4: null,                                 // override the CF grid mapping
   maxTextureLayers: 128,                       // cap on slider steps per texture (tests set it low)
-  maxTextureBytes: 2e9,                        // GPU-memory budget for the tiles in view
+  maxTextureBytes: 2e9,                        // estimated GPU memory above which the status warns
 });
 handle.project([lon, lat]);                    // → [x, y] CSS px on the map canvas
 handle.destroy();
@@ -49,8 +52,9 @@ the only hard-coded colour.
   grids. Virtual chunks (the `*-virtual` stores' GRIB messages on NOAA's and
   ECMWF's buckets) are read through a retrying fetch client
   (`src/grib/retry-fetch.js`): `ecmwf-forecasts` intermittently answers with a
-  503 that has no CORS headers. The status line says "Upstream server busy …,
-  retrying". icechunk-js uses that client only for virtual chunks; reads from the
+  503 that has no CORS headers. The status line says "Upstream request failed
+  (host), retrying (attempt n)…". A CORS-hidden failure can't be diagnosed, so it
+  doesn't guess why. icechunk-js uses that client only for virtual chunks; reads from the
   dynamical buckets are unchanged.
   - Failed metadata, coordinate and grid reads are not cached (`src/lib/cache.js`),
     so Retry reads them again.
@@ -117,6 +121,9 @@ the only hard-coded colour.
       globe-sized tile then renders 1–3 cells off at mid-latitudes.
     - Each real chunk is read and decoded once, through a 4-entry LRU shared by
       the tiles, and cut into tiles.
+    - Cache keys are the snapshot, the variable path and every non-spatial index.
+    - The shared read carries no tile's abort signal, so one tile's abort only
+      rejects that tile.
     - The view also moves a level dim that follows the grid, e.g. `(…, latitude,
       longitude, pressure_level)`, in front of it, because deck.gl-zarr needs the
       spatial dims last.
@@ -133,26 +140,31 @@ the only hard-coded colour.
   - Unload aborts everything and frees the GPU; Load starts again.
     - A variable, level or step chosen while unloaded reads nothing.
     - Load applies it with a fresh abort controller.
-  - A GPU-memory warning, not a limit:
+  - A GPU-memory estimate, advisory only:
     - Tiles in view × block steps × tile cells × 4 B is estimated from the view's
       corners.
-    - Above `maxTextureBytes` (2 GB), the status names the need and the budget,
-      and a **Load anyway** button draws the view regardless. Views needing no
-      more than what was accepted then load without asking.
-    - IMERG at the global view needs about 2.5 GB, so it warns; GFS at the global
-      view needs about 0.44 GB, so it doesn't.
-    - The guard does not bound network or decode: MRMS at CONUS is 1,708 chunk
-      decodes (387 MB compressed) under budget.
+    - Above `maxTextureBytes` (2 GB, an application heuristic), a warning line
+      appears beside the status (`[data-warning="gpu"]`) and the view keeps
+      loading. It never sets the error state and never withholds layers.
+    - IMERG at the global view is estimated at about 2.5 GB, so it warns; GFS at
+      the global view is about 0.44 GB, so it doesn't.
+    - The estimate doesn't bound network or decode.
+  - The actual device limits are enforced: blocks never exceed
+    `MAX_ARRAY_TEXTURE_LAYERS`, and a tile wider than `MAX_TEXTURE_SIZE` is a
+    named error.
 - **Colour.** Turbo, with NaN and missing sentinels (`_FillValue`,
   `missing_value`, or a finite zarr `fill_value`) transparent.
   - Units that are recognisably Celsius use a fixed −40..50.
   - Everything else uses the 2nd–98th percentile of one fixed reference read: the
     block and chunk at the initial view's centre, sampled at a stride (≤100k
     values). The range is frozen per dataset + variable + pinned indices.
+  - A sample that is empty or all one value (e.g. no rain at the initial view) is
+    **not** frozen. The first loaded tile block whose values vary, after a pan,
+    zoom or step, sets the range and freezes it.
   - That reference read is handed to the tile that needs the same chunk, so it
     isn't fetched twice.
   - The legend says whether the range is fixed or sample-based, and says so when
-    the sample was empty or all one value.
+    the sample was empty or all one value (and that it will update).
 - **Basemap.** world-atlas `countries-50m` borders from jsdelivr, fetched lazily,
   drawn in the page's text colour with `wrapLongitude`.
 

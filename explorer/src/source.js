@@ -127,7 +127,7 @@ export function makeSource(store, config) {
     const tileSize = facadeTile(g);
     const facade =
       wholeGrid && (reorder || g.y.n > tileSize || g.x.n > tileSize)
-        ? createTileFacade({ array: arr, get: zarr.get, spatial: spatialIdx, tileSize })
+        ? createTileFacade({ array: arr, get: zarr.get, spatial: spatialIdx, tileSize, keyPrefix: `${store.snapshotId}|${path}` })
         : null;
     const node = facade ? facade.view : arr;
     const nodeDims = facade ? facade.view.dimensionNames : dimNames;

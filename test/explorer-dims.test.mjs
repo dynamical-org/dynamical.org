@@ -281,3 +281,21 @@ test("findLatestData searches the rest of the chunk, then earlier chunks; null w
   assert.deepEqual(reads, [[1200, 1500], [900, 1200], [600, 900]]);
   assert.equal(none.log.length, 3);
 });
+
+test("an all-one-value sample gives a provisional range that the first varying sample replaces", async () => {
+  const { initialRange, settleRange } = await import("../explorer/src/lib/colour.js");
+  const zeros = new Float32Array(1000); // MRMS at Houston with no rain
+  const first = initialRange("mm/h", zeros);
+  assert.equal(first.provisional, true);
+  assert.equal(first.status, "flat");
+  assert.equal(settleRange(first, new Float32Array(500)), null, "still constant: keep waiting");
+  assert.equal(settleRange(first, new Float32Array(10).fill(NaN)), null, "all missing: keep waiting");
+  const rain = Float32Array.from({ length: 1000 }, (_, i) => (i % 10 === 0 ? i / 100 : 0));
+  const settled = settleRange(first, rain);
+  assert.equal(settled.provisional, undefined);
+  assert.equal(settled.status, "ok");
+  assert.ok(settled.max > settled.min);
+  assert.equal(settleRange(settled, Float32Array.from([5, 6, 7])), null, "frozen once it varies");
+  assert.deepEqual(initialRange("degree_Celsius", zeros), { min: -40, max: 50, kind: "fixed" });
+  assert.equal(settleRange(initialRange("degree_Celsius", zeros), rain), null);
+});

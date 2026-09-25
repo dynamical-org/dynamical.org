@@ -13,7 +13,7 @@ import { mesh } from "topojson-client";
 import * as zarr from "zarrita";
 import { defineWebMercatorOver, lonLatToCell, makeResolver } from "./crs.js";
 import css from "./explorer.css?inline";
-import { CELSIUS_RANGE, formatValue, isCelsius, sampleRange } from "./lib/colour.js";
+import { formatValue, initialRange, isCelsius, settleRange } from "./lib/colour.js";
 import { absolutePath, blockRange, findLatestData, stepWithData } from "./lib/dims.js";
 import { shiftAttrs } from "./lib/grid.js";
 import { formatLead, formatUtc } from "./lib/time.js";
@@ -25,7 +25,10 @@ const BORDERS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50
 const COLORMAP = COLORMAP_INDEX.turbo;
 /** Default cap on slider steps held in one texture array (amendment: bounded window). */
 const DEFAULT_TEXTURE_LAYERS = 128;
-/** Default GPU-memory budget for the tiles in view; `maxTextureBytes` overrides it. */
+/**
+ * Estimated GPU memory for the tiles in view above which the status warns (it never stops
+ * loading); `maxTextureBytes` overrides it. An application heuristic, not a device limit.
+ */
 const DEFAULT_TEXTURE_BYTES = 2e9;
 /** Concurrent tile requests per layer: each decodes a whole inner chunk on the main thread. */
 const MAX_REQUESTS = 4;
@@ -82,7 +85,8 @@ export function mount(el, options) {
   const extrasEl = h("span", { className: "explorer-extras" });
   const unloadBtn = h("button", { type: "button", textContent: "Unload", disabled: true });
   const retryBtn = h("button", { type: "button", textContent: "Retry", hidden: true });
-  const loadAnywayBtn = h("button", { type: "button", textContent: "Load anyway", hidden: true });
+  // Advisory only: the view keeps loading while this is shown.
+  const gpuWarning = h("span", { className: "explorer-note", hidden: true, dataset: { warning: "gpu" } });
   const sliderLabelText = h("span", { textContent: "Lead time" });
   const slider = h("input", { type: "range", min: "0", max: "0", value: "0", step: "1", disabled: true, ariaLabel: "Lead time" });
   const sliderRow = h("label", { className: "explorer-slider" }, [sliderLabelText, slider]);
@@ -99,7 +103,7 @@ export function mount(el, options) {
       timesEl,
       h("span", { className: "explorer-legend" }, [legendMin, legendCanvas, legendMax, legendNote]),
     ]),
-    h("div", {}, [statusEl, loadAnywayBtn]),
+    h("div", {}, [statusEl, gpuWarning]),
   ]);
   el.classList.add("explorer");
   el.replaceChildren(mapEl, strip);
@@ -133,11 +137,8 @@ export function mount(el, options) {
     layerCallbacks: new Map(),
     resolvers: new Map(),
     error: false,
-    /** Cap on the data layer's GPU memory for one view (a device limit, not a zoom limit). */
-    textureBudget: opts.maxTextureBytes ?? DEFAULT_TEXTURE_BYTES,
-    overBudget: false,
-    /** GPU need the user accepted with "Load anyway"; views needing no more than this load. */
-    acceptedNeed: 0,
+    /** Estimated texture bytes for one view above which the status warns (advisory). */
+    textureWarnBytes: opts.maxTextureBytes ?? DEFAULT_TEXTURE_BYTES,
     /** A variable or level chosen while unloaded, applied by Load. */
     pending: /** @type {{ path: string, pinnedIdx: number[] | null } | null} */ (null),
     /** First-time phase marks (ms since mount) for the harness. */
@@ -154,7 +155,6 @@ export function mount(el, options) {
     s.error = state === "error";
     statusEl.textContent = msg;
     retryBtn.hidden = state !== "error";
-    loadAnywayBtn.hidden = true;
   }
 
   // ---- deck -----------------------------------------------------------------
@@ -227,6 +227,9 @@ export function mount(el, options) {
         getTileData: makeGetTileData({
           info,
           live,
+          onData: (data) => {
+            if (live()) settle(info, data);
+          },
           track: (t) => set.add(t),
           take: (r0, c0) => {
             const p = s.prefetch;
@@ -310,26 +313,19 @@ export function mount(el, options) {
     const layers = [];
     const ids = new Set();
     const { info, range } = s;
-    let overBudget = false;
+    // GPU-memory estimate: a warning beside the status, never a reason to stop loading.
+    let warn = false;
     if (info && range && s.colormap && !s.unloaded) {
       const { block } = selectionFor(info, s.pinnedIdx, s.stepIndex);
       const need = viewTextureBytes(info, block);
       s.textureNeed = need;
-      // A warning, not a limit: "Load anyway" accepts this view's need.
-      overBudget = need > s.textureBudget && need > s.acceptedNeed;
-      if (overBudget) {
-        setState(
-          "error",
-          `GPU memory: this view needs about ${(need / 1e9).toFixed(1)} GB for ${info.path.slice(1)} (budget ${(s.textureBudget / 1e9).toFixed(1)} GB), which may exhaust this device. Zoom in, or load it anyway.`,
-        );
-        retryBtn.hidden = true;
-        loadAnywayBtn.hidden = false;
-      } else if (s.overBudget) {
-        setState("loading", "Loading tiles…");
+      warn = need > s.textureWarnBytes;
+      if (warn) {
+        gpuWarning.textContent = `GPU memory: this view needs about ${(need / 1e9).toFixed(1)} GB for ${info.path.slice(1)}, which may be more than this device can hold. Loading anyway; zoom in if the page slows or the map goes blank.`;
       }
     }
-    s.overBudget = overBudget;
-    if (info && range && s.colormap && !s.unloaded && !overBudget) {
+    gpuWarning.hidden = !warn;
+    if (info && range && s.colormap && !s.unloaded) {
       const { sel, block } = selectionFor(info, s.pinnedIdx, s.stepIndex);
       const base = baseKey(info, s.pinnedIdx, block);
       const layerIndex = s.stepIndex - block.start;
@@ -428,9 +424,9 @@ export function mount(el, options) {
       range.kind === "fixed"
         ? "fixed range"
         : range.status === "empty"
-          ? "no values in the sample"
+          ? "no values in the sample; updates when the view shows more"
           : range.status === "flat"
-            ? "sample is one value"
+            ? "sample is one value; updates when the view shows more"
             : "2–98% of a sample";
   }
 
@@ -472,17 +468,30 @@ export function mount(el, options) {
     return { ...(await readTileBlock(info, sel, row, col, signal)), block };
   }
 
+  const rangeKey = (info, pinnedIdx) => `${opts.id}|${info.path}|${pinnedKey(pinnedIdx)}`;
+
+  /**
+   * Frozen per dataset + variable + pinned indices once the sample varies. A constant or
+   * empty sample (e.g. no rain at the initial view) is provisional and not frozen:
+   * settle() replaces it from the first varying tile after a pan, zoom or step.
+   */
   function rangeFor(info, pinnedIdx, ref) {
-    const key = `${opts.id}|${info.path}|${pinnedKey(pinnedIdx)}`;
-    if (!s.ranges.has(key)) {
-      s.ranges.set(
-        key,
-        isCelsius(info.units)
-          ? { min: CELSIUS_RANGE[0], max: CELSIUS_RANGE[1], kind: "fixed" }
-          : { ...sampleRange(ref.data), kind: "sample" },
-      );
-    }
-    return s.ranges.get(key);
+    const key = rangeKey(info, pinnedIdx);
+    if (s.ranges.has(key)) return s.ranges.get(key);
+    const r = initialRange(info.units, ref.data);
+    if (!r.provisional) s.ranges.set(key, r);
+    return r;
+  }
+
+  /** A loaded tile block for the current selection: settle a provisional range from it. */
+  function settle(info, data) {
+    if (info !== s.info) return;
+    const r = settleRange(s.range, data);
+    if (!r) return;
+    s.ranges.set(rangeKey(info, s.pinnedIdx), r);
+    s.range = r;
+    updateLegend();
+    render();
   }
 
   /** Commit a new (variable, pinned, step) atomically, or show why it failed. */
@@ -628,11 +637,7 @@ export function mount(el, options) {
       } else void apply(varSelect.value, null, "Opening variable…");
     }
   });
-  loadAnywayBtn.addEventListener("click", () => {
-    s.acceptedNeed = s.textureNeed ?? 0;
-    setState("loading", "Loading tiles…");
-    render();
-  });
+
 
   // ---- startup --------------------------------------------------------------
   async function initColormap(device) {
@@ -669,10 +674,10 @@ export function mount(el, options) {
     }
   }
 
-  /** A virtual chunk read is being retried (the upstream GRIB bucket throttled it). */
+  /** A virtual chunk read failed upstream and is being retried (the cause may be hidden by CORS). */
   function onUpstreamRetry({ url, attempt }) {
     if (s.destroyed || el.dataset.state !== "loading") return;
-    statusEl.textContent = `Upstream server busy (${new URL(url).host}), retrying (attempt ${attempt + 1})…`;
+    statusEl.textContent = `Upstream request failed (${new URL(url).host}), retrying (attempt ${attempt + 1})…`;
   }
 
   async function start() {
@@ -749,7 +754,8 @@ export function mount(el, options) {
         step: info?.step ? { name: info.step.name, index: s.stepIndex, n: info.step.n, chunk: info.step.chunk, log: info.step.log } : null,
         window: s.window,
         textureNeed: s.textureNeed ?? null,
-        textureBudget: s.textureBudget,
+        textureWarnBytes: s.textureWarnBytes,
+        gpuWarning: gpuWarning.hidden ? null : gpuWarning.textContent,
         marks: s.marks,
         range: s.range,
         layers: [...s.liveIds],

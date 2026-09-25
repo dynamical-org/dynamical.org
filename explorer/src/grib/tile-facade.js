@@ -63,8 +63,10 @@ function expand(sel, size) {
  * @param {number} [options.tileSize] Logical tile edge in cells (121 matches the materialized GFS store).
  * @param {number} [options.cacheSize] Decoded chunks kept (each is a full grid: 0.25° f64 ≈ 8.3 MB).
  * @param {number} [options.maxConcurrent] Real chunk reads in flight at once.
+ * @param {string} [options.keyPrefix] Identifies the array's data, e.g. "<snapshot>|<path>".
+ *   Cache keys are this plus every non-spatial index, so no two selections share an entry.
  */
-export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSize = 4, maxConcurrent = 4 }) {
+export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSize = 4, maxConcurrent = 4, keyPrefix = "" }) {
   const n = array.shape.length;
   const [iy, ix] = spatial ?? [n - 2, n - 1];
   if (!isWholeGridChunked(array, [iy, ix])) {
@@ -103,7 +105,7 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
 
   /** One full grid at the given non-spatial indices; shared by every tile that needs it. */
   function fullGrid(indices) {
-    const key = indices.join(",");
+    const key = `${keyPrefix}|${indices.join(",")}`;
     let p = cache.get(key);
     if (p) {
       stats.hits++;
@@ -175,6 +177,8 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
     view,
     get: read,
     stats,
+    /** Cached keys, oldest first (for tests). */
+    keys: () => [...cache.keys()],
     /** Drop cached grids, e.g. on variable switch or destroy. */
     clear: () => cache.clear(),
   };
