@@ -497,7 +497,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
   ]);
 });
 
-test("a dynamical row reads Behind source beside its arrival", async ({
+test("a dynamical row reads behind source beside its arrival", async ({
   page,
 }) => {
   await openPipeline(page);
@@ -518,11 +518,11 @@ test("a dynamical row reads Behind source beside its arrival", async ({
     "status",
     "time",
     "after init",
-    "Behind source",
+    "behind source",
     "status",
     "time",
     "after init",
-    "Behind source",
+    "behind source",
     "p50",
     "p95",
     "p99",

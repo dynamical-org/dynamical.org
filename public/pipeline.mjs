@@ -2292,11 +2292,11 @@ function Details({
           <th>status</th>
           <th>time</th>
           <th>after init</th>
-          ${afterSource && html`<th>Behind source</th>`}
+          ${afterSource && html`<th>behind source</th>`}
           <th>status</th>
           <th>time</th>
           <th>after init</th>
-          ${afterSource && html`<th>Behind source</th>`}
+          ${afterSource && html`<th>behind source</th>`}
           <th>p50</th>
           <th>p95</th>
           <th>p99</th>

@@ -1222,7 +1222,7 @@ function lagInit(init_time, pipeline_lag_s, status = "complete", latency_s) {
 }
 
 /* A source row beside the virtual: the same horizon, under the name the source
-   gives it. Its arrivals are what the "Behind source" column subtracts. */
+   gives it. Its arrivals are what the "behind source" column subtracts. */
 
 function lagSourceRow(inits, overrides = {}) {
   return {
