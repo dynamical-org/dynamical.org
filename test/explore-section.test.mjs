@@ -84,11 +84,12 @@ test("returns null for datasets without the explorer or an HTTPS store", () => {
 test("every enabled dataset in _data/explorer.js is well formed", () => {
   const enabled = require("../_data/explorer.js").datasets;
   assert.ok(enabled.length > 0);
+  assert.equal(new Set(enabled.map((d) => d.id)).size, enabled.length, "ids are unique");
   for (const dataset of enabled) {
     assert.match(dataset.id, /^[a-z0-9-]+$/);
     assert.equal(dataset.virtual === true || !dataset.id.includes("-virtual"), true, `${dataset.id} is virtual but not flagged`);
     assert.equal(typeof dataset.defaultVariable, "string");
-    assert.ok(Number.isFinite(dataset.firstViewMB) && dataset.firstViewMB > 0, `${dataset.id} firstViewMB`);
+    assert.ok(Number.isInteger(dataset.firstViewMB) && dataset.firstViewMB > 0, `${dataset.id} firstViewMB is a whole MB`);
     const { bounds } = dataset.initialView;
     assert.equal(bounds.length, 4);
     assert.ok(bounds[0] < bounds[2] && bounds[1] < bounds[3], `${dataset.id} bounds are west, south, east, north`);

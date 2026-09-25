@@ -129,7 +129,29 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
   return out;
 }
 
+// The catalog explorer (explorer/) is its own Vite package whose bundle lands
+// in public/explorer/. It is built here rather than in an npm script because
+// the Cloudflare Pages build doesn't run `npm run build`, so a script-only step
+// never reaches the deploy. Rebuilt only when the bundle is missing or older
+// than its sources, so a watch-mode rebuild doesn't pay for Vite each time.
+function buildExplorerIfStale() {
+  const root = path.join(__dirname, "explorer");
+  const bundle = path.join(__dirname, "public", "explorer", "explorer.js");
+  const newest = (p) => {
+    const stat = fs.statSync(p);
+    if (!stat.isDirectory()) return stat.mtimeMs;
+    return Math.max(0, ...fs.readdirSync(p).map((f) => newest(path.join(p, f))));
+  };
+  const sources = ["src", "package.json", "package-lock.json", "vite.config.js"].map((p) => path.join(root, p));
+  const built = fs.existsSync(bundle) ? fs.statSync(bundle).mtimeMs : 0;
+  if (built && built >= Math.max(...sources.map(newest))) return;
+  const { execFileSync } = require("child_process");
+  if (!fs.existsSync(path.join(root, "node_modules"))) execFileSync("npm", ["ci"], { cwd: root, stdio: "inherit" });
+  execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit" });
+}
+
 module.exports = function (eleventyConfig) {
+  eleventyConfig.on("eleventy.before", buildExplorerIfStale);
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
   // Gated on its own flag, not on STATUS_URL. STATUS_URL exists so the page can

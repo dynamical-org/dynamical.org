@@ -59,7 +59,7 @@ test.describe("explorer, offline", () => {
     await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
     await page.goto(PAGE);
     await expect(page.locator(".explore img")).toBeVisible();
-    await expect(page.locator(".explore figcaption")).toContainText("~7 MB (temperature_2m)");
+    await expect(page.locator(".explore figcaption")).toContainText("~9 MB (temperature_2m)");
     await page.waitForLoadState("networkidle");
     expect(bundle).toEqual([]);
 
