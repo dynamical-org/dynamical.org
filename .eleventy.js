@@ -134,6 +134,9 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
 // the Cloudflare Pages build doesn't run `npm run build`, so a script-only step
 // never reaches the deploy. Rebuilt only when the bundle is missing or older
 // than its sources, so a watch-mode rebuild doesn't pay for Vite each time.
+// `npm ci` reruns whenever package-lock.json differs from the one last
+// installed (its hash is kept in node_modules), so a dependency bump or a
+// half-finished install never builds with stale packages.
 function buildExplorerIfStale() {
   const root = path.join(__dirname, "explorer");
   const bundle = path.join(__dirname, "public", "explorer", "explorer.js");
@@ -146,7 +149,12 @@ function buildExplorerIfStale() {
   const built = fs.existsSync(bundle) ? fs.statSync(bundle).mtimeMs : 0;
   if (built && built >= Math.max(...sources.map(newest))) return;
   const { execFileSync } = require("child_process");
-  if (!fs.existsSync(path.join(root, "node_modules"))) execFileSync("npm", ["ci"], { cwd: root, stdio: "inherit" });
+  const lock = crypto.createHash("sha256").update(fs.readFileSync(path.join(root, "package-lock.json"))).digest("hex");
+  const installed = path.join(root, "node_modules", ".installed-lock-sha256");
+  if (!fs.existsSync(installed) || fs.readFileSync(installed, "utf8") !== lock) {
+    execFileSync("npm", ["ci"], { cwd: root, stdio: "inherit" });
+    fs.writeFileSync(installed, lock);
+  }
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit" });
 }
 
