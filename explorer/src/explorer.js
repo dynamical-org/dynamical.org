@@ -14,7 +14,7 @@ import * as zarr from "zarrita";
 import { defineWebMercatorOver, lonLatToCell, makeResolver } from "./crs.js";
 import css from "./explorer.css?inline";
 import { CELSIUS_RANGE, formatValue, isCelsius, sampleRange } from "./lib/colour.js";
-import { absolutePath, blockRange, stepWithData } from "./lib/dims.js";
+import { absolutePath, blockRange, findLatestData, stepWithData } from "./lib/dims.js";
 import { shiftAttrs } from "./lib/grid.js";
 import { formatLead, formatUtc } from "./lib/time.js";
 import { makeSource, unsupportedReason } from "./source.js";
@@ -82,6 +82,7 @@ export function mount(el, options) {
   const extrasEl = h("span", { className: "explorer-extras" });
   const unloadBtn = h("button", { type: "button", textContent: "Unload", disabled: true });
   const retryBtn = h("button", { type: "button", textContent: "Retry", hidden: true });
+  const loadAnywayBtn = h("button", { type: "button", textContent: "Load anyway", hidden: true });
   const sliderLabelText = h("span", { textContent: "Lead time" });
   const slider = h("input", { type: "range", min: "0", max: "0", value: "0", step: "1", disabled: true, ariaLabel: "Lead time" });
   const sliderRow = h("label", { className: "explorer-slider" }, [sliderLabelText, slider]);
@@ -98,7 +99,7 @@ export function mount(el, options) {
       timesEl,
       h("span", { className: "explorer-legend" }, [legendMin, legendCanvas, legendMax, legendNote]),
     ]),
-    h("div", {}, [statusEl]),
+    h("div", {}, [statusEl, loadAnywayBtn]),
   ]);
   el.classList.add("explorer");
   el.replaceChildren(mapEl, strip);
@@ -135,6 +136,10 @@ export function mount(el, options) {
     /** Cap on the data layer's GPU memory for one view (a device limit, not a zoom limit). */
     textureBudget: opts.maxTextureBytes ?? DEFAULT_TEXTURE_BYTES,
     overBudget: false,
+    /** GPU need the user accepted with "Load anyway"; views needing no more than this load. */
+    acceptedNeed: 0,
+    /** A variable or level chosen while unloaded, applied by Load. */
+    pending: /** @type {{ path: string, pinnedIdx: number[] | null } | null} */ (null),
     /** First-time phase marks (ms since mount) for the harness. */
     marks: /** @type {Record<string, number>} */ ({}),
   };
@@ -149,6 +154,7 @@ export function mount(el, options) {
     s.error = state === "error";
     statusEl.textContent = msg;
     retryBtn.hidden = state !== "error";
+    loadAnywayBtn.hidden = true;
   }
 
   // ---- deck -----------------------------------------------------------------
@@ -309,12 +315,15 @@ export function mount(el, options) {
       const { block } = selectionFor(info, s.pinnedIdx, s.stepIndex);
       const need = viewTextureBytes(info, block);
       s.textureNeed = need;
-      overBudget = need > s.textureBudget;
+      // A warning, not a limit: "Load anyway" accepts this view's need.
+      overBudget = need > s.textureBudget && need > s.acceptedNeed;
       if (overBudget) {
         setState(
           "error",
-          `GPU memory: this view needs about ${(need / 1e9).toFixed(1)} GB for ${info.path.slice(1)} (budget ${(s.textureBudget / 1e9).toFixed(1)} GB), so no data is loaded. Zoom in to load it.`,
+          `GPU memory: this view needs about ${(need / 1e9).toFixed(1)} GB for ${info.path.slice(1)} (budget ${(s.textureBudget / 1e9).toFixed(1)} GB), which may exhaust this device. Zoom in, or load it anyway.`,
         );
+        retryBtn.hidden = true;
+        loadAnywayBtn.hidden = false;
       } else if (s.overBudget) {
         setState("loading", "Loading tiles…");
       }
@@ -333,7 +342,8 @@ export function mount(el, options) {
             // One layer per (variable, run, pinned indices, block): leaving a
             // block drops its tiles, so an old field never sits under new labels.
             id,
-            node: info.arr,
+            // The tile facade's view for whole-grid chunks (virtual stores), else the array.
+            node: info.node,
             metadata: shiftAttrs(info.grid.attrs, offset),
             selection: sel,
             epsgResolver: resolverFor(info.grid),
@@ -477,6 +487,13 @@ export function mount(el, options) {
 
   /** Commit a new (variable, pinned, step) atomically, or show why it failed. */
   async function apply(path, pinnedIdx, busyMsg) {
+    if (s.unloaded) {
+      // No reads while unloaded (its controller is aborted): Load applies this choice.
+      s.pending = { path, pinnedIdx };
+      const v = variables.find((x) => x.path === path);
+      setState("ready", `Unloaded. Press Load to draw ${v?.name ?? path}.`);
+      return;
+    }
     const g = ++s.gen;
     setState("loading", busyMsg);
     unloadBtn.disabled = true;
@@ -489,14 +506,44 @@ export function mount(el, options) {
         throw new Error(`this device's GPU can't hold a ${info.tile.w}×${info.tile.h} tile (max texture size ${maxDim})`);
       }
       const idx = pinnedIdx ?? info.pinned.map(() => 0);
+      // A new variable or pinned level drops the decoded whole-grid chunks of the old one
+      // (virtual stores); slider steps of the same selection stay cached.
+      if (s.info?.facade && (info !== s.info || pinnedKey(idx) !== pinnedKey(s.pinnedIdx))) s.info.facade.clear();
       let stepIndex = info === s.info ? s.stepIndex : (info.step?.index ?? 0);
-      const ref = await reference(info, idx, stepIndex, s.abort.signal);
+      const signal = s.abort.signal;
+      let ref = await reference(info, idx, stepIndex, signal);
       if (g !== s.gen) return;
+      let noData = info.step?.noData ? `No data found for the latest ${info.step.name} (${info.step.log.join("; ")})` : null;
       if (info !== s.info && info.step) {
         // Open on a step that has data: 24 h means and accumulations are NaN at
         // +0 h, and an analysis's newest time can still be unwritten.
         const k = stepWithData(ref.data, ref.block.stop - ref.block.start, info.step.kind === "time" ? "last" : "first");
         if (k >= 0) stepIndex = ref.block.start + k;
+        else if (info.step.kind === "time" && !noData) {
+          // The probed chunk exists but this window is empty: search the rest of the
+          // chunk, then earlier chunks, and say so rather than draw a blank field.
+          const [row, col] = info.centerCell;
+          const found =
+            ref.block.start > 0
+              ? await findLatestData({
+                  index: ref.block.start - 1,
+                  chunkLen: info.step.chunk,
+                  readSteps: async (start, stop) => {
+                    const { sel } = selectionFor(info, idx, start);
+                    sel[info.step.name] = zarr.slice(start, stop);
+                    return (await readTileBlock(info, sel, row, col, signal)).data;
+                  },
+                })
+              : { index: null, log: [] };
+          if (g !== s.gen) return;
+          if (found.index === null) {
+            noData = `No data found in the latest ${info.step.name} values (steps ${ref.block.start}..${ref.block.stop - 1} are empty${found.log.length ? `; ${found.log.join("; ")}` : ""})`;
+          } else {
+            stepIndex = found.index;
+            ref = await reference(info, idx, stepIndex, signal);
+            if (g !== s.gen) return;
+          }
+        }
       }
       const range = rangeFor(info, idx, ref);
       s.prefetch = { base: baseKey(info, idx, ref.block), r0: ref.r0, c0: ref.c0, data: ref.data };
@@ -507,8 +554,8 @@ export function mount(el, options) {
       updateLabels();
       updateLegend();
       unloadBtn.disabled = false;
-      if (info.step?.noData) {
-        setState("error", `No data found for the latest ${info.step.name} (${info.step.log.join("; ")})`);
+      if (noData) {
+        setState("error", noData);
       } else {
         setState("loading", "Loading tiles…");
       }
@@ -525,6 +572,7 @@ export function mount(el, options) {
       const v = variables.find((x) => x.path === path);
       setState("error", `Could not load ${v?.name ?? path}: ${errText(e)}`);
       s.failed = { path, pinnedIdx };
+      unloadBtn.disabled = false;
     }
   }
 
@@ -541,6 +589,7 @@ export function mount(el, options) {
     s.stepIndex = i;
     slider.value = String(i);
     updateLabels();
+    if (s.unloaded) return; // Load draws it
     // A new block is a fresh layer, so it also retries after an error.
     if (newBlock || !s.error) setState("loading", newBlock ? "Loading tiles…" : "Loading…");
     render();
@@ -557,8 +606,9 @@ export function mount(el, options) {
   });
   unloadBtn.addEventListener("click", () => {
     if (!s.unloaded) {
-      // Cancel in-flight requests and release every texture.
+      // Cancel in-flight requests and release every texture and decoded chunk.
       s.unloaded = true;
+      s.info?.facade?.clear();
       s.gen++;
       s.abort.abort();
       render();
@@ -569,11 +619,19 @@ export function mount(el, options) {
       s.abort = new AbortController();
       s.retry++;
       unloadBtn.textContent = "Unload";
-      if (s.info && s.info.path === varSelect.value) {
+      const pending = s.pending;
+      s.pending = null;
+      if (pending) void apply(pending.path, pending.pinnedIdx, "Loading…");
+      else if (s.info && s.info.path === varSelect.value) {
         setState("loading", "Loading tiles…");
         render();
       } else void apply(varSelect.value, null, "Opening variable…");
     }
+  });
+  loadAnywayBtn.addEventListener("click", () => {
+    s.acceptedNeed = s.textureNeed ?? 0;
+    setState("loading", "Loading tiles…");
+    render();
   });
 
   // ---- startup --------------------------------------------------------------
@@ -611,13 +669,22 @@ export function mount(el, options) {
     }
   }
 
+  /** A virtual chunk read is being retried (the upstream GRIB bucket throttled it). */
+  function onUpstreamRetry({ url, attempt }) {
+    if (s.destroyed || el.dataset.state !== "loading") return;
+    statusEl.textContent = `Upstream server busy (${new URL(url).host}), retrying (attempt ${attempt + 1})…`;
+  }
+
   async function start() {
     const g = ++s.gen;
     setState("loading", "Opening the data store…");
     try {
       const device = await deviceReady;
       s.window = Math.max(1, Math.min(opts.maxTextureLayers ?? DEFAULT_TEXTURE_LAYERS, device.limits.maxTextureArrayLayers));
-      const [store] = await Promise.all([openStore(opts.href, { signal: s.abort.signal }), s.colormap ? null : initColormap(device)]);
+      const [store] = await Promise.all([
+        openStore(opts.href, { signal: s.abort.signal, onRetry: onUpstreamRetry }),
+        s.colormap ? null : initColormap(device),
+      ]);
       if (g !== s.gen) return;
       s.store = store;
       mark("storeOpen");
@@ -661,6 +728,7 @@ export function mount(el, options) {
       deck.finalize();
       for (const set of s.textures.values()) for (const t of set) t.destroy();
       s.textures.clear();
+      s.info?.facade?.clear();
       s.colormap?.destroy();
       el.replaceChildren();
       el.classList.remove("explorer");

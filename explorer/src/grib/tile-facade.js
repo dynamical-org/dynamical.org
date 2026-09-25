@@ -12,6 +12,11 @@
 // cache, and copies out each tile's window. Hook-up: pass `facade.view` as ZarrLayer's `node`,
 // and call `facade.get` where tile code calls `zarr.get`.
 //
+// The view also moves (y, x) to the end. Level variables in the virtual stores put their level
+// dim after the grid, e.g. (init_time, lead_time, latitude, longitude, pressure_level) with
+// chunk (1, 1, 721, 1440, 1), and deck.gl-zarr 0.8.1 requires the spatial dims last (it has no
+// transpose). Since every non-spatial chunk is 1 wide, reordering is only index bookkeeping.
+//
 // No zarrita import: the caller passes zarr.get in, so this module is testable offline.
 
 /**
@@ -25,11 +30,13 @@
  * stores' layout, which the facade expects.
  *
  * @param {{ shape: number[], chunks: number[] }} array
+ * @param {[number, number]} [spatial] indices of the (y, x) dims; default the last two
  */
-export function isWholeGridChunked(array) {
+export function isWholeGridChunked(array, spatial) {
   const n = array.shape.length;
-  if (n < 2) return false;
-  return array.chunks.every((c, i) => (i >= n - 2 ? c >= array.shape[i] : c === 1));
+  const [iy, ix] = spatial ?? [n - 2, n - 1];
+  if (n < 2 || !(iy >= 0 && iy < ix && ix < n)) return false;
+  return array.chunks.every((c, i) => (i === iy || i === ix ? c >= array.shape[i] : c === 1));
 }
 
 function abortError() {
@@ -52,20 +59,26 @@ function expand(sel, size) {
  * @param {{ shape: number[], chunks: number[], dimensionNames?: (string|null)[], attrs?: object, dtype?: string }} options.array
  *   The real zarrita array (whole-grid chunks, see isWholeGridChunked).
  * @param {GetFn} options.get zarrita's `get`.
+ * @param {[number, number]} [options.spatial] indices of the (y, x) dims in `array`; default the last two.
  * @param {number} [options.tileSize] Logical tile edge in cells (121 matches the materialized GFS store).
  * @param {number} [options.cacheSize] Decoded chunks kept (each is a full grid: 0.25° f64 ≈ 8.3 MB).
  * @param {number} [options.maxConcurrent] Real chunk reads in flight at once.
  */
-export function createTileFacade({ array, get, tileSize = 121, cacheSize = 4, maxConcurrent = 4 }) {
-  if (!isWholeGridChunked(array)) {
+export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSize = 4, maxConcurrent = 4 }) {
+  const n = array.shape.length;
+  const [iy, ix] = spatial ?? [n - 2, n - 1];
+  if (!isWholeGridChunked(array, [iy, ix])) {
     throw new Error(`tile facade needs whole-grid chunks, got chunks [${array.chunks}] for shape [${array.shape}]`);
   }
-  const n = array.shape.length;
-  const [H, W] = array.shape.slice(-2);
+  const H = array.shape[iy];
+  const W = array.shape[ix];
+  /** Real dim index of each view dim: the non-spatial dims in order, then y, x. */
+  const order = [...array.shape.keys()].filter((i) => i !== iy && i !== ix).concat(iy, ix);
+  const nonSpatial = order.slice(0, -2);
   const view = {
-    shape: array.shape,
-    chunks: [...array.chunks.slice(0, -2), Math.min(tileSize, H), Math.min(tileSize, W)],
-    dimensionNames: array.dimensionNames,
+    shape: order.map((i) => array.shape[i]),
+    chunks: [...nonSpatial.map(() => 1), Math.min(tileSize, H), Math.min(tileSize, W)],
+    dimensionNames: array.dimensionNames && order.map((i) => array.dimensionNames[i]),
     attrs: array.attrs,
     dtype: array.dtype,
   };
@@ -99,9 +112,11 @@ export function createTileFacade({ array, get, tileSize = 121, cacheSize = 4, ma
       return p;
     }
     // No signal: the read is shared, so one tile's abort must not fail the others.
+    const selection = new Array(n).fill(null);
+    nonSpatial.forEach((d, k) => (selection[d] = indices[k]));
     p = limited(() => {
       stats.reads++;
-      return get(array, [...indices, null, null]);
+      return get(array, selection);
     });
     p.catch(() => cache.delete(key));
     cache.set(key, p);
@@ -110,8 +125,9 @@ export function createTileFacade({ array, get, tileSize = 121, cacheSize = 4, ma
   }
 
   /**
-   * zarr.get-compatible read of `view` (the facade object is ignored; `array` is read).
-   * Numbers drop their dim, slices and null keep it, as in zarrita.
+   * zarr.get-compatible read of `view`, with the selection in the view's dim order (the
+   * facade object is ignored; `array` is read). Numbers drop their dim, slices and null
+   * keep it, as in zarrita.
    *
    * @param {unknown} _view
    * @param {DimSel[]} selection
@@ -122,7 +138,7 @@ export function createTileFacade({ array, get, tileSize = 121, cacheSize = 4, ma
     const { signal } = opts;
     signal?.throwIfAborted();
     if (selection.length !== n) throw new Error(`selection has ${selection.length} dims, array has ${n}`);
-    const lead = selection.slice(0, -2).map((sel, i) => expand(sel, array.shape[i]));
+    const lead = selection.slice(0, -2).map((sel, k) => expand(sel, array.shape[nonSpatial[k]]));
     const rows = expand(selection[n - 2], H);
     const cols = expand(selection[n - 1], W);
     if (!Array.isArray(rows) || !Array.isArray(cols)) throw new Error("tile facade: spatial dims must be slices");

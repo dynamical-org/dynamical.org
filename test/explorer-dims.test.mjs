@@ -9,6 +9,9 @@ import {
   classifyDims,
   decodeIndexEntry,
   dimLabel,
+  findLatestData,
+  latestWithChunk,
+  layoutOf,
   locateInner,
   probeCandidates,
   probeLatest,
@@ -195,4 +198,86 @@ test("probe picks the newest init whose centre chunk is written, reading only in
   const none = await probeLatest({ getRange: async () => undefined, path: "/t2m", meta: META, dimNames: META.dimension_names, probeDim: "init_time", at: {} });
   assert.equal(none.index, null);
   assert.equal(none.log.length, 4);
+});
+
+// --- virtual (whole-grid, GRIB) layouts ---
+
+const virtualMeta = (dims, shape, chunks) => ({
+  shape,
+  dimension_names: dims,
+  chunk_grid: { name: "regular", configuration: { chunk_shape: chunks } },
+  codecs: [{ name: "gribberish", configuration: { var: "TMP" } }],
+});
+
+test("classifyDims can find (y, x) before a trailing level dim when asked", () => {
+  const dims = ["init_time", "lead_time", "latitude", "longitude", "pressure_level"];
+  assert.throws(() => classifyDims(dims), /last two dimensions/);
+  const c = classifyDims(dims, { spatialAnywhere: true });
+  assert.deepEqual(c.spatial, ["latitude", "longitude"]);
+  assert.deepEqual([c.init, c.step, c.extras], ["init_time", "lead_time", ["pressure_level"]]);
+  assert.throws(() => classifyDims(["time", "longitude", "latitude"], { spatialAnywhere: true }), /No adjacent/);
+});
+
+test("layoutOf: materialized arrays as stored; virtual whole-grid arrays through the facade", () => {
+  const gfs = {
+    shape: [7895, 209, 721, 1440],
+    dimension_names: ["init_time", "lead_time", "latitude", "longitude"],
+    chunk_grid: { name: "regular", configuration: { chunk_shape: [1, 210, 726, 726] } },
+    codecs: [{ name: "sharding_indexed", configuration: { chunk_shape: [1, 105, 121, 121] } }],
+  };
+  assert.deepEqual(layoutOf(gfs).wholeGrid, false);
+  assert.deepEqual(layoutOf(gfs).spatialIdx, [2, 3]);
+  const v = layoutOf(virtualMeta(["init_time", "lead_time", "latitude", "longitude"], [7895, 209, 721, 1440], [1, 1, 721, 1440]));
+  assert.deepEqual([v.wholeGrid, v.spatialIdx], [true, [2, 3]]);
+  const aifsLevel = layoutOf(
+    virtualMeta(["init_time", "lead_time", "latitude", "longitude", "pressure_level"], [3631, 61, 721, 1440, 14], [1, 1, 721, 1440, 1]),
+  );
+  assert.deepEqual([aifsLevel.wholeGrid, aifsLevel.spatialIdx, aifsLevel.cls.extras], [true, [2, 3], ["pressure_level"]]);
+  const gefs = layoutOf(
+    virtualMeta(["init_time", "ensemble_member", "lead_time", "latitude", "longitude"], [2186, 31, 181, 361, 720], [1, 1, 1, 361, 720]),
+  );
+  assert.equal(gefs.cls.member, "ensemble_member");
+  // A trailing level dim is only allowed when every chunk is a whole grid.
+  assert.throws(
+    () => layoutOf(virtualMeta(["time", "latitude", "longitude", "pressure_level"], [10, 721, 1440, 4], [1, 121, 121, 1])),
+    /map dimensions are not the last two/,
+  );
+});
+
+test("latestWithChunk walks back from the end, at most max tries", async () => {
+  const seen = [];
+  const r = await latestWithChunk({ n: 20, label: "init_time", has: async (i) => (seen.push(i), i <= 17) });
+  assert.deepEqual(seen, [19, 18, 17]);
+  assert.deepEqual(r, { index: 17, log: ["init_time[19]: no chunk", "init_time[18]: no chunk", "init_time[17]: chunk present"] });
+  const none = await latestWithChunk({ n: 20, has: async () => false });
+  assert.equal(none.index, null);
+  assert.equal(none.log.length, 8);
+  assert.equal((await latestWithChunk({ n: 3, has: async () => false })).log.length, 3);
+});
+
+test("findLatestData searches the rest of the chunk, then earlier chunks; null when all empty", async () => {
+  // 300-step chunks, 1 value per step; data written through step 200 of chunk 1 (steps 300..599).
+  const written = (i) => i <= 500;
+  const reads = [];
+  const readSteps = async (start, stop) => {
+    reads.push([start, stop]);
+    return Array.from({ length: stop - start }, (_, k) => (written(start + k) ? 1 : NaN));
+  };
+  // The texture window 512..599 was empty, so the search starts at 511.
+  const r = await findLatestData({ index: 511, chunkLen: 300, readSteps });
+  assert.deepEqual(r, { index: 500, log: ["steps 300..511: data through 500"] });
+  assert.deepEqual(reads, [[300, 512]], "one read covers the rest of the chunk");
+
+  // Nothing in this chunk: the previous chunk is searched.
+  reads.length = 0;
+  const r2 = await findLatestData({ index: 599, chunkLen: 300, readSteps: async (a, b) => (reads.push([a, b]), Array.from({ length: b - a }, (_, k) => (a + k <= 250 ? 1 : NaN))) });
+  assert.equal(r2.index, 250);
+  assert.deepEqual(reads, [[300, 600], [0, 300]]);
+
+  // All empty: null, bounded by maxChunks.
+  reads.length = 0;
+  const none = await findLatestData({ index: 1499, chunkLen: 300, maxChunks: 3, readSteps: async (a, b) => (reads.push([a, b]), new Array(b - a).fill(NaN)) });
+  assert.equal(none.index, null);
+  assert.deepEqual(reads, [[1200, 1500], [900, 1200], [600, 900]]);
+  assert.equal(none.log.length, 3);
 });

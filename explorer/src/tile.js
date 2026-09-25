@@ -43,7 +43,8 @@ export function makeGetTileData(ctx) {
     const [rows, cols] = sliceSpec.slice(-2);
     let data = ctx.take(rows.start ?? 0, cols.start ?? 0);
     if (!data) {
-      const chunk = await zarr.get(arr, sliceSpec, { signal });
+      // info.read is zarr.get, or the tile facade's reader for whole-grid chunks.
+      const chunk = await ctx.info.read(arr, sliceSpec, { signal });
       if (chunk.shape.at(-2) !== height || chunk.shape.at(-1) !== width) {
         throw new Error(`Unexpected tile shape [${chunk.shape.join(", ")}]`);
       }
@@ -71,12 +72,13 @@ export async function readTileBlock(info, selection, row, col, signal) {
   const { h, w } = info.tile;
   const r0 = Math.floor(row / h) * h;
   const c0 = Math.floor(col / w) * w;
-  const spec = info.dimNames.map((name, i) => {
-    if (i === info.dimNames.length - 2) return zarr.slice(r0, Math.min(r0 + h, info.grid.y.n));
-    if (i === info.dimNames.length - 1) return zarr.slice(c0, Math.min(c0 + w, info.grid.x.n));
+  const dims = info.nodeDims;
+  const spec = dims.map((name, i) => {
+    if (i === dims.length - 2) return zarr.slice(r0, Math.min(r0 + h, info.grid.y.n));
+    if (i === dims.length - 1) return zarr.slice(c0, Math.min(c0 + w, info.grid.x.n));
     return selection[name];
   });
-  const chunk = await zarr.get(info.arr, spec, { signal });
+  const chunk = await info.read(info.node, spec, { signal });
   return { r0, c0, data: toFloat32(chunk.data, info) };
 }
 

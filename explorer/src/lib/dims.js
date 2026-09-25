@@ -2,6 +2,7 @@
 // get a select; the slider's texture blocks; and the latest-run probe that
 // reads only a shard index. Pure: the probe takes its range reader as an
 // argument so tests can feed it bytes.
+import { isWholeGridChunked } from "../grib/tile-facade.js";
 
 /** "temperature_2m", "/temperature_2m" or "//a/b/" → "/temperature_2m", "/a/b". */
 export function absolutePath(path) {
@@ -26,17 +27,58 @@ export function spatialDims(dimNames) {
 }
 
 /**
+ * The (y, x) dims wherever they are, as long as y comes directly before x. The virtual
+ * stores' level variables put the level after the grid: (…, latitude, longitude,
+ * pressure_level). Only whole-grid-chunked arrays may use this, because the tile facade
+ * (grib/tile-facade.js) moves the grid last for ZarrLayer.
+ * @param {string[]} dimNames
+ * @returns {[string, string]}
+ */
+export function spatialDimsAnywhere(dimNames) {
+  const iy = dimNames.findIndex((d) => Y_NAMES.has(String(d).toLowerCase()));
+  if (iy < 0 || !X_NAMES.has(String(dimNames[iy + 1]).toLowerCase())) {
+    throw new Error(`No adjacent (latitude, longitude) or (y, x) dimensions (got ${JSON.stringify(dimNames)})`);
+  }
+  return [dimNames[iy], dimNames[iy + 1]];
+}
+
+/**
+ * How a variable's dims map onto the layer, from metadata alone.
+ * - Spatial dims last: drawn as stored.
+ * - Whole-grid chunks (one GRIB message per chunk, the virtual stores): drawn through
+ *   the tile facade, which also allows a level dim after the grid.
+ * @param {Record<string, any>} meta
+ * @returns {{ cls: ReturnType<typeof classifyDims>, spatialIdx: [number, number], wholeGrid: boolean }}
+ */
+export function layoutOf(meta) {
+  const dimNames = meta.dimension_names ?? [];
+  const chunks = meta.chunk_grid?.configuration?.chunk_shape ?? [];
+  const sharded = (meta.codecs ?? []).some((c) => c.name === "sharding_indexed");
+  const at = (cls) => /** @type {[number, number]} */ (cls.spatial.map((d) => dimNames.indexOf(d)));
+  const whole = (idx) => !sharded && isWholeGridChunked({ shape: meta.shape, chunks }, idx);
+  try {
+    const cls = classifyDims(dimNames);
+    return { cls, spatialIdx: at(cls), wholeGrid: whole(at(cls)) };
+  } catch (e) {
+    const cls = classifyDims(dimNames, { spatialAnywhere: true }); // throws: no map dims at all
+    if (!whole(at(cls))) throw new Error(`the map dimensions are not the last two (${e.message})`);
+    return { cls, spatialIdx: at(cls), wholeGrid: true };
+  }
+}
+
+/**
  * Classify a variable's non-spatial dims.
  * - init_time: pinned to the latest usable run (see probeLatest)
  * - lead_time, else time: the slider
  * - ensemble_member: pinned (index 0 by default)
  * - anything else: its own select
  * @param {string[]} dimNames
+ * @param {{ spatialAnywhere?: boolean }} [options] allow (y, x) before other dims (see spatialDimsAnywhere)
  * @returns {{ init: string|null, step: string|null, stepKind: "lead"|"time"|null, member: string|null, extras: string[], spatial: [string, string] }}
  */
-export function classifyDims(dimNames) {
-  const spatial = spatialDims(dimNames);
-  const rest = dimNames.slice(0, -2);
+export function classifyDims(dimNames, { spatialAnywhere = false } = {}) {
+  const spatial = spatialAnywhere ? spatialDimsAnywhere(dimNames) : spatialDims(dimNames);
+  const rest = dimNames.filter((d) => !spatial.includes(d));
   const out = { init: null, step: null, stepKind: null, member: null, extras: [], spatial };
   for (const d of rest) {
     if (d === "init_time") out.init = d;
@@ -223,4 +265,48 @@ export async function probeLatest({ getRange, path, meta, dimNames, probeDim, at
     if (e.present) return { index: i, probed: true, log };
   }
   return { index: null, probed: true, log };
+}
+
+/**
+ * Newest index along a dim whose chunk `has` confirms, walking back from the end, at most
+ * `max` tries. The virtual stores use it with a 1-byte read of the chunk's GRIB message:
+ * an unwritten chunk has no reference, so the read comes back empty.
+ * @param {{ n: number, has: (index: number) => Promise<boolean>, max?: number, label?: string }} args
+ * @returns {Promise<{ index: number | null, log: string[] }>}
+ */
+export async function latestWithChunk({ n, has, max = 8, label = "index" }) {
+  const log = [];
+  for (let i = n - 1; i >= 0 && i >= n - max; i--) {
+    const ok = await has(i);
+    log.push(`${label}[${i}]: ${ok ? "chunk present" : "no chunk"}`);
+    if (ok) return { index: i, log };
+  }
+  return { index: null, log };
+}
+
+/**
+ * The newest step at or before `index` whose data isn't all missing, for an analysis whose
+ * latest chunk exists but whose tail may be unwritten. Reads the rest of `index`'s inner
+ * chunk in one go (a chunk decodes whole anyway), then whole earlier chunks, newest first.
+ * @param {{
+ *   index: number,
+ *   chunkLen: number,
+ *   readSteps: (start: number, stop: number) => Promise<ArrayLike<number>>,
+ *   maxChunks?: number,
+ * }} args `readSteps` returns the steps start..stop-1, step-major
+ * @returns {Promise<{ index: number | null, log: string[] }>}
+ */
+export async function findLatestData({ index, chunkLen, readSteps, maxChunks = 4 }) {
+  const log = [];
+  let stop = index + 1;
+  let start = Math.floor(index / chunkLen) * chunkLen;
+  for (let k = 0; k < maxChunks && stop > 0; k++) {
+    const data = await readSteps(start, stop);
+    const j = stepWithData(data, stop - start, "last");
+    log.push(`steps ${start}..${stop - 1}: ${j >= 0 ? `data through ${start + j}` : "all missing"}`);
+    if (j >= 0) return { index: start + j, log };
+    stop = start;
+    start = Math.max(0, start - chunkLen);
+  }
+  return { index: null, log };
 }

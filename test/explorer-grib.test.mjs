@@ -265,3 +265,29 @@ test("a failed read is not cached; an aborted tile doesn't cancel the shared rea
   pre.abort();
   await assert.rejects(f.get(f.view, sel, { signal: pre.signal }), { name: "AbortError" });
 });
+
+test("a trailing level dim (…, lat, lon, pressure_level) is moved before the grid in the view", async () => {
+  // (init, lead, lat, lon, level) with chunk (1, 1, 6, 8, 1), like AIFS pressure_level/*.
+  const array = { shape: [2, 3, 6, 8, 4], chunks: [1, 1, 6, 8, 1], dimensionNames: ["init_time", "lead_time", "latitude", "longitude", "pressure_level"], attrs: {}, dtype: "float64" };
+  const reads = [];
+  const get = async (arr, sel) => {
+    assert.equal(arr, array);
+    assert.equal(sel[2], null);
+    assert.equal(sel[3], null);
+    reads.push([sel[0], sel[1], sel[4]].join(","));
+    const [i, l, , , p] = sel;
+    return { data: new Float64Array(48).map((_, k) => i * 1e6 + l * 1e4 + p * 1e3 + Math.floor(k / 8) * 10 + (k % 8)), shape: [6, 8] };
+  };
+  assert.equal(isWholeGridChunked(array), false, "not with the default (last two) spatial dims");
+  assert.equal(isWholeGridChunked(array, [2, 3]), true);
+  const f = createTileFacade({ array, get, spatial: [2, 3], tileSize: 4 });
+  assert.deepEqual(f.view.dimensionNames, ["init_time", "lead_time", "pressure_level", "latitude", "longitude"]);
+  assert.deepEqual(f.view.shape, [2, 3, 4, 6, 8]);
+  assert.deepEqual(f.view.chunks, [1, 1, 1, 4, 4]);
+  // View order: init 1, lead slice 2..3, level 3, rows 4..6, cols 4..8.
+  const t = await f.get(f.view, [1, slice(2, 3), 3, slice(4, 6), slice(4, 8)]);
+  assert.deepEqual(t.shape, [1, 2, 4]);
+  assert.deepEqual(Array.from(t.data), [44, 45, 46, 47, 54, 55, 56, 57].map((v) => v + 1e6 + 2e4 + 3e3));
+  assert.deepEqual(reads, ["1,2,3"]);
+  assert.throws(() => createTileFacade({ array, get }), /whole-grid chunks/);
+});

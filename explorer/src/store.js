@@ -1,13 +1,20 @@
 // The one place stores are opened. An Icechunk repo is opened on its main
 // branch once; the session is pinned to the snapshot the branch pointed at, so
 // every later read (metadata, coordinates, chunks) comes from that snapshot.
-// Virtual-chunk options (fetchClient, validateChecksums, ...) belong here.
+//
+// Virtual chunks (the *-virtual stores' GRIB messages on NOAA/ECMWF buckets) are
+// read through a retrying fetch client: ecmwf-forecasts answers large range GETs
+// with intermittent "503 Slow Down" that carries no CORS headers (seen by the page
+// as a network error). icechunk-js uses the fetch client only for virtual chunks;
+// the dynamical buckets (metadata, native chunks) keep plain fetches.
 //
 // A plain zarr v3 URL (ending in .zarr) opens with zarrita's FetchStore, which
 // the verification harness uses for synthetic grids; anything else is Icechunk.
 import { HttpStorage, IcechunkStore, encodeObjectId12 } from "icechunk-js";
 import * as zarr from "zarrita";
 import { registerCodecs } from "./codecs.js";
+import { retryingFetchClient } from "./grib/retry-fetch.js";
+import { cachedPromise } from "./lib/cache.js";
 
 /**
  * @typedef {{
@@ -42,14 +49,19 @@ function revalidatingStorage(url) {
 
 /**
  * @param {string} href
- * @param {{ signal?: AbortSignal }} [opts]
+ * @param {{ signal?: AbortSignal, onRetry?: (info: { url: string, attempt: number, reason: string }) => void }} [opts]
+ *   `onRetry` is called before each retry of a virtual chunk read (for a status line).
  * @returns {Promise<Store>}
  */
-export async function openStore(href, { signal } = {}) {
+export async function openStore(href, { signal, onRetry } = {}) {
   registerCodecs();
   const url = href.replace(/\/$/, "");
   if (!/\.zarr$/.test(url)) {
-    const store = await IcechunkStore.open(revalidatingStorage(url), { branch: "main", signal });
+    const store = await IcechunkStore.open(revalidatingStorage(url), {
+      branch: "main",
+      signal,
+      fetchClient: retryingFetchClient({ onRetry }),
+    });
     const root = zarr.root(store);
     return {
       store,
@@ -64,16 +76,11 @@ export async function openStore(href, { signal } = {}) {
   return {
     store,
     snapshotId: null,
-    getMeta: (path) => {
-      if (!metaCache.has(path)) {
+    getMeta: (path) =>
+      cachedPromise(metaCache, path, () => {
         const key = /** @type {zarr.AbsolutePath} */ (`${path === "/" ? "" : path}/zarr.json`);
-        metaCache.set(
-          path,
-          store.get(key).then((b) => (b ? JSON.parse(new TextDecoder().decode(b)) : null)),
-        );
-      }
-      return metaCache.get(path);
-    },
+        return store.get(key).then((b) => (b ? JSON.parse(new TextDecoder().decode(b)) : null));
+      }),
     open: (path) => zarr.open(root.resolve(path), { kind: "array" }),
   };
 }

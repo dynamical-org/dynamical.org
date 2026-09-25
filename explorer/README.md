@@ -46,12 +46,24 @@ the only hard-coded colour.
   (`snapshots/`, `manifests/`, `chunks/`, `transactions/`) use the normal HTTP
   cache. A plain zarr v3 URL, i.e. one ending in `.zarr`, opens with zarrita's
   `FetchStore` instead; the test harness uses this for synthetic
-  grids. Virtual-chunk options belong in this module.
+  grids. Virtual chunks (the `*-virtual` stores' GRIB messages on NOAA's and
+  ECMWF's buckets) are read through a retrying fetch client
+  (`src/grib/retry-fetch.js`): `ecmwf-forecasts` intermittently answers with a
+  503 that has no CORS headers. The status line says "Upstream server busy …,
+  retrying". icechunk-js uses that client only for virtual chunks; reads from the
+  dynamical buckets are unchanged.
+  - Failed metadata, coordinate and grid reads are not cached (`src/lib/cache.js`),
+    so Retry reads them again.
 - **Codecs** (`src/codecs.js`). This is the single registration point. zarrita's
   defaults cover the materialized stores (sharding, blosc/zstd, crc32c,
-  scale_offset). The virtual stores' GRIB codec will be registered here. A
-  variable whose codecs have no browser decoder stays in the select, disabled,
-  with the reason.
+  scale_offset).
+  - The virtual stores add `gribberish`: gribberish (Rust) compiled to wasm, in
+    `src/grib/`. It is built from `explorer/gribwasm/`; see its README.
+  - Its factory imports the codec and its wasm (~150 KB gzip, one lazy chunk)
+    only when an array that declares it is first read, so a materialized page
+    never fetches it.
+  - A variable whose codecs have no browser decoder stays in the select,
+    disabled, with the reason.
 - **Grid** (`src/lib/grid.js`, pure). GeoZarr attributes are built from the
   store's 1-D coordinate arrays:
   - The spacing must be uniform (relative tolerance 1e-3 of a step), otherwise it
@@ -74,9 +86,17 @@ the only hard-coded colour.
     shard's index (~2 KB suffix range). The index layout is validated against the
     array's codec metadata, and an unexpected layout is a clear error. "Present"
     means that chunk exists, not that the run is complete.
+  - Virtual stores have no shard index. Instead, `init_time` is the newest run
+    whose **final** lead's chunk exists, so the whole slider has data. Each check
+    is a 1-byte read of that chunk's GRIB message; an unwritten chunk has no
+    reference, and the read comes back empty. At most 8 runs are checked, newest
+    first. Their analyses probe `time` the same way.
   - `lead_time`, or `time` for analyses, drives the slider. Analyses start at the
     newest time whose chunk the same probe finds, and show a no-data state if
     none is found.
+  - When that chunk exists but its newest texture window is empty, the rest of
+    the chunk is searched, then up to 3 earlier chunks. If all are empty, the
+    explorer reports no data rather than a blank "Ready".
   - `ensemble_member` is pinned to 0 and labelled "member 0". Every other dim
     gets its own select, labelled with coordinate values and units (e.g. "500 hPa").
 - **Texture blocks.** The ECMWF-example technique: one `ZarrLayer` per
@@ -89,6 +109,20 @@ the only hard-coded colour.
     re-upload when the slider leaves it.
   - Leaving a block replaces the layer, so an old field is never drawn under new
     labels.
+  - **Whole-grid chunks** (the virtual stores: one GRIB message per chunk,
+    e.g. 721×1440) go through the tile facade (`src/grib/tile-facade.js`).
+    - ZarrLayer is given a view of the array with small tiles: 121 cells, and on
+      lat/lon grids at most ~30° of latitude, so 61 on 0.5° grids.
+    - deck.gl-raster's mesh refinement stops at 10,000 iterations, and a
+      globe-sized tile then renders 1–3 cells off at mid-latitudes.
+    - Each real chunk is read and decoded once, through a 4-entry LRU shared by
+      the tiles, and cut into tiles.
+    - The view also moves a level dim that follows the grid, e.g. `(…, latitude,
+      longitude, pressure_level)`, in front of it, because deck.gl-zarr needs the
+      spatial dims last.
+    - A block is one step here, so each slider move reads one message
+      (0.14–1.2 MB).
+    - A new variable or level, Unload and destroy empty the LRU.
 - **Resources:**
   - 4 concurrent tile requests per layer (each decodes a whole inner chunk on the
     main thread) and 64 cached tiles.
@@ -97,13 +131,18 @@ the only hard-coded colour.
     explorer tracks textures per layer itself.
   - A tile that resolves after its layer was replaced creates no texture.
   - Unload aborts everything and frees the GPU; Load starts again.
-  - A GPU-memory guard: tiles in view × block steps × tile cells × 4 B is
-    estimated from the view's corners. Above `maxTextureBytes` (2 GB), no data
-    layer is drawn, and the status names the need and the budget. This is a
-    device limit, not a zoom limit. IMERG at the global view needs about
-    2.5 GB, so it trips the guard; GFS at the global view needs about
-    0.44 GB, so it doesn't. The guard does not bound network or decode:
-    MRMS at CONUS is 1,708 chunk decodes (387 MB compressed) under budget.
+    - A variable, level or step chosen while unloaded reads nothing.
+    - Load applies it with a fresh abort controller.
+  - A GPU-memory warning, not a limit:
+    - Tiles in view × block steps × tile cells × 4 B is estimated from the view's
+      corners.
+    - Above `maxTextureBytes` (2 GB), the status names the need and the budget,
+      and a **Load anyway** button draws the view regardless. Views needing no
+      more than what was accepted then load without asking.
+    - IMERG at the global view needs about 2.5 GB, so it warns; GFS at the global
+      view needs about 0.44 GB, so it doesn't.
+    - The guard does not bound network or decode: MRMS at CONUS is 1,708 chunk
+      decodes (387 MB compressed) under budget.
 - **Colour.** Turbo, with NaN and missing sentinels (`_FillValue`,
   `missing_value`, or a finite zarr `fill_value`) transparent.
   - Units that are recognisably Celsius use a fixed −40..50.
@@ -146,4 +185,11 @@ cover:
 - dims classification and block math;
 - CF time labels;
 - Float32 conversion, fill values and the colour range;
-- the shard-index probe on a byte fixture.
+- the shard-index probe on a byte fixture;
+- the empty-tail analysis search and the virtual latest-chunk walk-back;
+- layouts with a trailing level dim;
+- the failure-evicting promise cache;
+- the GRIB codec against gribberish's Python codec, on fixtures for DRS 5.0,
+  5.0 + bitmap, 5.3, 5.3 + bitmap and 5.42;
+- the retrying fetch client;
+- the tile facade.
