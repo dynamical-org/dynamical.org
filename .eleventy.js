@@ -132,34 +132,32 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
 // The catalog explorer (explorer/) is its own Vite package whose bundle lands
 // in public/explorer/. It is built here rather than in an npm script because
 // the Cloudflare Pages build doesn't run `npm run build`, so a script-only step
-// never reaches the deploy. Rebuilt only when the bundle is missing or older
-// than its sources, so a watch-mode rebuild doesn't pay for Vite each time.
-// `npm ci` reruns whenever package-lock.json differs from the one last
-// installed (its hash is kept in node_modules), so a dependency bump or a
-// half-finished install never builds with stale packages.
-function buildExplorerIfStale() {
-  const root = path.join(__dirname, "explorer");
-  const bundle = path.join(__dirname, "public", "explorer", "explorer.js");
-  const newest = (p) => {
-    const stat = fs.statSync(p);
-    if (!stat.isDirectory()) return stat.mtimeMs;
-    return Math.max(0, ...fs.readdirSync(p).map((f) => newest(path.join(p, f))));
-  };
-  const sources = ["src", "package.json", "package-lock.json", "vite.config.js"].map((p) => path.join(root, p));
-  const built = fs.existsSync(bundle) ? fs.statSync(bundle).mtimeMs : 0;
-  if (built && built >= Math.max(...sources.map(newest))) return;
+// never reaches the deploy. It builds once per Eleventy process (Vite takes
+// about a second); watch-mode rebuilds reuse it, so restart `npm start` after
+// editing explorer/. `npm ci` reruns whenever package.json or package-lock.json
+// differs from the last successful install, or Vite is missing, so a
+// dependency bump or a half-finished install never builds with stale packages.
+// A failed install or build fails the whole site build.
+let explorerBuilt = false;
+function buildExplorer() {
+  if (explorerBuilt) return;
   const { execFileSync } = require("child_process");
-  const lock = crypto.createHash("sha256").update(fs.readFileSync(path.join(root, "package-lock.json"))).digest("hex");
-  const installed = path.join(root, "node_modules", ".installed-lock-sha256");
-  if (!fs.existsSync(installed) || fs.readFileSync(installed, "utf8") !== lock) {
+  const root = path.join(__dirname, "explorer");
+  const hash = crypto.createHash("sha256");
+  for (const f of ["package.json", "package-lock.json"]) hash.update(fs.readFileSync(path.join(root, f)));
+  const want = hash.digest("hex");
+  const marker = path.join(root, "node_modules", ".installed-sha256");
+  const have = fs.existsSync(marker) ? fs.readFileSync(marker, "utf8") : null;
+  if (have !== want || !fs.existsSync(path.join(root, "node_modules", ".bin", "vite"))) {
     execFileSync("npm", ["ci"], { cwd: root, stdio: "inherit" });
-    fs.writeFileSync(installed, lock);
+    fs.writeFileSync(marker, want);
   }
   execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit" });
+  explorerBuilt = true;
 }
 
 module.exports = function (eleventyConfig) {
-  eleventyConfig.on("eleventy.before", buildExplorerIfStale);
+  eleventyConfig.on("eleventy.before", buildExplorer);
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
   // Gated on its own flag, not on STATUS_URL. STATUS_URL exists so the page can
