@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
+import { sourceBudgetProduct } from "./fixtures/pipeline-source-budget.mjs";
 import {
   agencySummary,
   bandsOf,
@@ -675,7 +676,7 @@ test("a nested square names its facet and the lead it arrived under", () => {
   };
   assert.equal(
     cellTitle(band, init, cellOf({ ...band, kind: "facet" }, init), false),
-    "pgrb2a.0p50 (component) · lead 10d · 07-26 00z · 200 / 400 files · processing · delayed",
+    "pgrb2a.0p50 (component) · lead 10d · 07-26 00z · 200 / 400 arrivals · processing · delayed",
   );
 });
 
@@ -765,7 +766,7 @@ test("names what a square measured, facet first, in its hover label", () => {
   };
   assert.equal(
     cellTitle(facetBand, init, cellOf(facetBand, init), false),
-    "pgrb2a.0p50 (component) · 07-26 00z · 200 / 400 files · processing · delayed",
+    "pgrb2a.0p50 (component) · 07-26 00z · 200 / 400 arrivals · processing · delayed",
   );
 
   const leadBand = bandsOf(product).find((band) => band.label === "1d");
@@ -774,15 +775,15 @@ test("names what a square measured, facet first, in its hover label", () => {
     "lead 1d · 07-26 00z · 100% · complete · on time",
   );
 
-  // the unit agrees with the total: a band holding one file is not "1 files",
-  // and an empty one is still "0 / 1 file"
+  // the unit agrees with the total: a band holding one arrival is not "1 arrivals",
+  // and an empty one is still "0 / 1 arrival"
   assert.match(
     cellTitle(facetBand, init, { ...cellOf(facetBand, init), available: 1, expected: 1 }, false),
-    /1 \/ 1 file ·/,
+    /1 \/ 1 arrival ·/,
   );
   assert.match(
     cellTitle(facetBand, init, { ...cellOf(facetBand, init), available: 0, expected: 1 }, false),
-    /0 \/ 1 file ·/,
+    /0 \/ 1 arrival ·/,
   );
 });
 
@@ -1221,7 +1222,7 @@ function lagInit(init_time, pipeline_lag_s, status = "complete", latency_s) {
 }
 
 /* A source row beside the virtual: the same horizon, under the name the source
-   gives it. Its arrivals are what the "after source" column subtracts. */
+   gives it. Its arrivals are what the "Behind source" column subtracts. */
 
 function lagSourceRow(inits, overrides = {}) {
   return {
@@ -2156,7 +2157,7 @@ test("lead lanes keep every init, group state, deadlines, and the unchanged run 
   const product = chartProduct({
     lead_groups: [{ name: "f000", label: "0h" }, { name: "f072", label: "3d" }],
     lead_group_stats: [
-      { name: "f000", delayed_threshold_s: null, delayed_threshold_source: "static" },
+      { name: "f000", delayed_threshold_s: null },
       { name: "f072", delayed_threshold_s: 7200 },
     ],
     recent_inits: [
@@ -2177,27 +2178,22 @@ test("lead lanes keep every init, group state, deadlines, and the unchanged run 
   assert.ok(lanes.domain.yMax >= 7200);
 });
 
-// Producer output: /tmp/claude-1000/-home-marsh-workspace-dynamical-org-wxopticon--claude-worktrees-latency-alerts/57013e40-0c04-40b5-9192-bce0133084b1/scratchpad/fixtures/static-dashboard.json
-test("producer static-budget payload renders deadlines without a constant threshold", () => {
-  const payload = validateDashboard(JSON.parse(readFileSync(
-    new URL("./fixtures/pipeline-static-dashboard.json", import.meta.url), "utf8",
-  )));
-  const product = payload.groups.flatMap((group) => group.products)
-    .find((entry) => entry.id === "noaa-hrrr-forecast-48-hour-virtual");
-  assert.ok(product.latency_budget);
-  const lanes = leadLaneSeries(product, Date.parse(payload.generated_at));
-  assert.equal(lanes.length, product.lead_groups.length + 1);
-  assert.ok(lanes.every((lane) => lane.threshold == null));
-  assert.deepEqual(lanes.at(-1).slots.map((slot) => slot.deadline), [7800, 7800]);
-  assert.deepEqual(lanes[0].slots.map((slot) => slot.deadline), [7800, 7800]);
-  assert.equal(lanes[0].slots[1].run.elapsed, true);
-  assert.equal(lanes[0].slots[1].run.timing, "delayed");
-  const pending = payload.groups.flatMap((group) => group.products)
-    .find((entry) => entry.id === "noaa-hrrr-forecast-18-hour-virtual");
-  const pendingLanes = leadLaneSeries(pending, Date.parse(payload.generated_at));
-  assert.equal(pendingLanes[0].slots[0].run.status, "pending");
-  assert.equal(pendingLanes[0].slots[0].run.elapsed, true);
-  assert.deepEqual(pendingLanes[0].slots.map((slot) => slot.deadline), [7800, null]);
+test("HRRR source budgets use each grain's deadline and preserve unjudged inits", () => {
+  for (const hours of [18, 48]) {
+    const product = sourceBudgetProduct(chartProduct(), hours);
+    const lanes = leadLaneSeries(product, Date.parse("2026-07-25T14:30:00Z"));
+    assert.ok(lanes.every((lane) => lane.threshold === null));
+    assert.deepEqual(lanes[0].slots.map((slot) => slot.deadline), [3600, null, null]);
+    assert.deepEqual(lanes[1].slots.map((slot) => slot.deadline), [4200, 4500, null]);
+    assert.deepEqual(lanes[0].runs.map((run) => run.timing), ["delayed", null, null]);
+    assert.equal(lanes[1].runs[0].timing, "on_time");
+    assert.equal(lanes[0].slots[2].run.elapsed, true);
+    // An absent grain must not inherit the whole run's deadline either.
+    delete product.recent_inits[0].lead_groups;
+    const missing = leadLaneSeries(product, Date.parse("2026-07-25T14:30:00Z"))[0].slots[0];
+    assert.equal(missing.state, "missing");
+    assert.equal(missing.deadline, null);
+  }
 });
 
 test("failed groups have red-mark state without inventing a latency", () => {

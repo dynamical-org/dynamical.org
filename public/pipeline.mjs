@@ -633,11 +633,11 @@ export function cellTitle(band, init, cell, local) {
   if (cell.state === "unobserved") {
     return `${band.label} · ${when} · no probe visibility; not a publication failure`;
   }
-  // the unit agrees with the total, so a band of one lead reads "1 / 1 file"
-  const files = cell.expected === 1 ? "file" : "files";
+  // the unit agrees with the total, so a band of one lead reads "1 / 1 arrival"
+  const arrivals = cell.expected === 1 ? "arrival" : "arrivals";
   const volume =
     cell.expected != null
-      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} ${files}`
+      ? `${cell.available.toLocaleString("en-US")} / ${cell.expected.toLocaleString("en-US")} ${arrivals}`
       : `${Math.round((cell.completion ?? 0) * 100)}%`;
   return [
     band.kind === "facet" ? `${band.label} (${band.dimension})` : `lead ${band.label}`,
@@ -1400,7 +1400,10 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
       : stats.get(band.key)?.delayed_threshold_s;
     const slots = inits.map((init) => {
       const entry = init.lead_groups?.find((group) => group.name === band.key);
-      const value = entry && Object.hasOwn(entry, "deadline_s") ? entry.deadline_s : init.deadline_s;
+      // Source-budget deadlines belong to this grain; retain the run fallback for older payloads.
+      const value = product.timing_baseline?.method === "source_budget"
+        ? entry?.deadline_s
+        : entry && Object.hasOwn(entry, "deadline_s") ? entry.deadline_s : init.deadline_s;
       const deadline = Number.isFinite(value) && value > 0 ? value : null;
       if (!entry) return { init, state: "missing", deadline };
       if (entry.status === "unobserved") return { init, state: "unobserved", deadline };
@@ -2289,11 +2292,11 @@ function Details({
           <th>status</th>
           <th>time</th>
           <th>after init</th>
-          ${afterSource && html`<th>after source</th>`}
+          ${afterSource && html`<th>Behind source</th>`}
           <th>status</th>
           <th>time</th>
           <th>after init</th>
-          ${afterSource && html`<th>after source</th>`}
+          ${afterSource && html`<th>Behind source</th>`}
           <th>p50</th>
           <th>p95</th>
           <th>p99</th>
@@ -2335,7 +2338,7 @@ function Details({
             <th>dimension</th>
             <th>group</th>
             <th>status</th>
-            <th>files</th>
+            <th>arrivals</th>
             <th>complete</th>
           </tr>
         </thead>

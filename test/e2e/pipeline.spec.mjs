@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 
+import { sourceBudgetProduct } from "../fixtures/pipeline-source-budget.mjs";
 import { expect, test } from "@playwright/test";
 
 // /status/pipeline/ is drawn entirely by measurement: lead rows are sized by each
@@ -496,7 +497,7 @@ test("details distinguish last, current or upcoming, and historical timings", as
   ]);
 });
 
-test("a dynamical row reads its lag beside the arrival it is a lag on", async ({
+test("a dynamical row reads Behind source beside its arrival", async ({
   page,
 }) => {
   await openPipeline(page);
@@ -517,11 +518,11 @@ test("a dynamical row reads its lag beside the arrival it is a lag on", async ({
     "status",
     "time",
     "after init",
-    "after source",
+    "Behind source",
     "status",
     "time",
     "after init",
-    "after source",
+    "Behind source",
     "p50",
     "p95",
     "p99",
@@ -1084,13 +1085,11 @@ test("mixed lead history keeps delayed, missing, unjudged, and run verdicts dist
   await expect(figure.locator('[role="status"]')).toContainText("delayed");
 });
 
-test("per-init deadlines remain ticks and static null thresholds have no line", async ({ page }) => {
+test("per-init deadlines remain ticks and null thresholds have no line", async ({ page }) => {
   await openPipeline(page, (payload) => {
     const product = payload.groups[0].products.find((entry) => entry.id === "fixture-mixed-lead-lanes");
     product.lead_group_stats.find((entry) => entry.name === "f024").delayed_threshold_s = null;
-    product.lead_group_stats.find((entry) => entry.name === "f024").delayed_threshold_source = "static";
     product.latency_stats.delayed_threshold_s = null;
-    product.latency_stats.delayed_threshold_source = "static";
     return withRecentRun(payload, 60 * 60 * 1000);
   });
   const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
@@ -1354,3 +1353,27 @@ test("a pending group is a hollow ring and keyboard activation shows its value",
   await expect(row.locator('.pipeline-lane-selection')).toContainText('pending');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 });
+
+for (const hours of [18, 48]) {
+  test(`HRRR ${hours}h source budgets show grain deadlines and unjudged inits`, async ({ page }) => {
+    await openPipeline(page, (payload) => {
+      payload.groups[0].products.push(sourceBudgetProduct(payload.groups[0].products[0], hours));
+      return withRecentRun(payload, 60 * 60 * 1000);
+    });
+    const row = page.locator(`[data-product-id="noaa-hrrr-forecast-${hours}-hour-virtual"]`);
+    await row.locator('[data-slot="details-button"]').click();
+    const chart = row.locator(".pipeline-lead-lanes");
+    await expect(chart.locator('[data-threshold]')).toHaveCount(0);
+    const lead = chart.locator('[data-lane="f018"]');
+    const run = chart.locator('[data-lane="run"]');
+    await expect(lead.locator('[data-deadline]')).toHaveCount(1);
+    await expect(run.locator('[data-deadline]')).toHaveCount(2);
+    await expect(lead.locator('circle[data-status="complete"]').first()).toHaveAttribute("data-timing", "delayed");
+    await expect(run.locator('circle[data-status="complete"]').first()).toHaveAttribute("data-timing", "on_time");
+    await expect(lead.locator('circle[data-status="complete"]').nth(1).locator('title')).toContainText("not judged");
+    await expect(lead.locator('circle[data-status="pending"] title')).not.toContainText("deadline");
+    await lead.locator('[data-slot-init]:has([data-deadline])').click();
+    await expect(chart.locator('[role="status"]')).toContainText("deadline 1h after init");
+    await expect(chart.locator('.sr-only')).toContainText("deadline 1h after init");
+  });
+}
