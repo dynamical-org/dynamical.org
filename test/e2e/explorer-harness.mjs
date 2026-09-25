@@ -13,30 +13,38 @@ const CORS = {
   "access-control-expose-headers": "content-range, content-length, etag",
 };
 
-// Every sharded array in the fixture has 8 inner chunks per shard: 2 lead (or
-// level) blocks × 2 × 2 spatial, C order, so chunks 0–3 are block 0. Reading
-// the index at the end of each chunk object (8 × (offset, nbytes) uint64 + a
-// crc32c) lets a spec tell which block a range read is for.
-const INDEX_BYTES = 8 * 16 + 4;
-const chunkBlocks = new Map();
+// Every sharded array in the fixture has 2 blocks along its first sharded
+// non-spatial dim (lead, or level) × 2 × 2 spatial inner chunks, in C order, so
+// chunks 0–3 are block 0; the analyses have 4 spatial chunks and one block.
+// Reading the index at the end of each chunk object ((offset, nbytes) uint64
+// pairs + a crc32c) tells a spec which inner chunk a range read is for.
+const chunkEntries = new Map();
 for (const name of readdirSync(new URL("chunks/", STORE))) {
   const body = readFileSync(new URL(`chunks/${name}`, STORE));
-  if (body.length < INDEX_BYTES) continue;
-  const index = body.subarray(body.length - INDEX_BYTES);
-  const entries = [];
-  for (let i = 0; i < 8; i += 1) {
-    entries.push([Number(index.readBigUInt64LE(i * 16)), Number(index.readBigUInt64LE(i * 16 + 8))]);
-  }
-  if (entries.every(([offset, n]) => offset + n <= body.length - INDEX_BYTES)) {
-    chunkBlocks.set(name, entries);
+  for (const n of [8, 4]) {
+    const size = n * 16 + 4;
+    if (body.length < size) continue;
+    const index = body.subarray(body.length - size);
+    const entries = [];
+    for (let i = 0; i < n; i += 1) {
+      entries.push([Number(index.readBigUInt64LE(i * 16)), Number(index.readBigUInt64LE(i * 16 + 8))]);
+    }
+    if (entries.every(([offset, nbytes]) => nbytes > 0 && offset + nbytes <= body.length - size)) {
+      chunkEntries.set(name, entries);
+      break;
+    }
   }
 }
 
-/** Which lead block a range read targets, or null for anything else. */
-export function blockOf(key, start) {
-  const entries = chunkBlocks.get(key.replace(/^chunks\//, ""));
-  const i = entries?.findIndex(([offset]) => offset === start) ?? -1;
-  return i < 0 ? null : Math.floor(i / 4);
+/** Whether a store key is a shard object (a data array's chunk), not a coordinate. */
+export const isShardKey = (key) => chunkEntries.has(key.replace(/^chunks\//, ""));
+
+/** The inner chunk a range read targets as { entry, block }, or nulls. */
+export function innerOf(key, start) {
+  const entries = chunkEntries.get(key.replace(/^chunks\//, ""));
+  const entry = entries?.findIndex(([offset]) => offset === start) ?? -1;
+  if (entry < 0) return { entry: null, block: null };
+  return { entry, block: entries.length === 8 ? Math.floor(entry / 4) : 0 };
 }
 
 function parseRange(header, size) {
@@ -49,10 +57,11 @@ function parseRange(header, size) {
 
 /**
  * A route handler that answers `…/*.icechunk/<key>` from the fixture, honouring
- * Range. `delayFor({ key, start, block })` returns milliseconds to hold a reply.
- * Every served read is appended to `log`.
+ * Range. `delayFor({ key, start, block, entry })` returns milliseconds to hold a
+ * reply, and `failFor` (same argument) true aborts it as a network error.
+ * Every read is appended to `log`, with `failed` set on the aborted ones.
  */
-export function storeRoute({ delayFor = () => 0, log = [] } = {}) {
+export function storeRoute({ delayFor = () => 0, failFor = () => false, log = [] } = {}) {
   return async (route) => {
     const request = route.request();
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { ...CORS, "access-control-allow-headers": "*" } });
@@ -61,9 +70,14 @@ export function storeRoute({ delayFor = () => 0, log = [] } = {}) {
     if (!key || !existsSync(file)) return route.fulfill({ status: 404, headers: CORS });
     const body = readFileSync(file);
     const range = parseRange(request.headers().range, body.length);
-    const block = range ? blockOf(key, range[0]) : null;
-    const ms = delayFor({ key, start: range?.[0], block });
-    log.push({ key, range, block, at: Date.now() });
+    const { entry, block } = range ? innerOf(key, range[0]) : { entry: null, block: null };
+    const read = { key, start: range?.[0], block, entry };
+    if (failFor(read)) {
+      log.push({ ...read, range, failed: true, at: Date.now() });
+      return route.abort("connectionreset").catch(() => {});
+    }
+    const ms = delayFor(read);
+    log.push({ ...read, range, at: Date.now() });
     if (ms) await new Promise((resolve) => setTimeout(resolve, ms));
     if (!range) return route.fulfill({ status: 200, headers: CORS, body }).catch(() => {});
     const [a, b] = range;
@@ -136,6 +150,16 @@ export const FIXTURE_VARIABLES = [
 ];
 export const ANALYSIS_VARIABLES = [
   { path: "temperature_2m_analysis", name: "temperature_2m_analysis", long_name: "2 metre temperature (analysis)", units: "degree_Celsius", dims: ["time", "latitude", "longitude"] },
+];
+
+export const PARTIAL_ANALYSIS_VARIABLES = [
+  {
+    path: "temperature_2m_analysis_partial",
+    name: "temperature_2m_analysis_partial",
+    long_name: "2 metre temperature (analysis, partly written)",
+    units: "degree_Celsius",
+    dims: ["time", "latitude", "longitude"],
+  },
 ];
 
 /** Click the load button and wait for the explorer to report a drawn frame. */

@@ -207,7 +207,10 @@ eleventyComputed:
   .explore figure {
     margin: 0;
   }
+  /* An explicit width, so on a phone min-height grows the box downward
+     rather than aspect-ratio widening it past the page. */
   .explore-map {
+    width: 100%;
     aspect-ratio: 16 / 9;
     min-height: 320px;
     border: 1px solid var(--border-color);
@@ -375,7 +378,7 @@ eleventyComputed:
           {% endif %}
           <button type="button">Load interactive map</button>
         </div>
-        <figcaption>{{ entry.variable_count }} variables · {{ "latest run" if entry.forecast_domain else "latest data" }} · reads the Icechunk store directly in your browser. Estimated weather data for the initial view: ~{{ explorerDataset.firstViewMB }} MB ({{ explorerOptions.defaultVariable }}); exploring loads more.</figcaption>
+        <figcaption>{{ entry.variable_count }} variables · {{ "latest run" if entry.forecast_domain else "latest data" }} {% if explorerOptions.virtual %}· reads the Icechunk store and the source GRIB files it points to, directly in your browser. Estimated download for the initial view (store metadata plus one GRIB message): ~{{ explorerDataset.firstViewMB }} MB{% else %}· reads the Icechunk store directly in your browser. Estimated weather data for the {{ explorerDataset.initialViewName + " " if explorerDataset.initialViewName }}initial view: ~{{ explorerDataset.firstViewMB }} MB{% endif %} ({{ explorerOptions.defaultVariable }}); exploring loads more.</figcaption>
       </figure>
       <p>The interactive map isn't enabled on small screens or touch-only devices in this preview.</p>
     </section>

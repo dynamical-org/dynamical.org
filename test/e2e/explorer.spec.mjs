@@ -3,10 +3,12 @@ import { expect, test } from "@playwright/test";
 import {
   ANALYSIS_VARIABLES,
   FIXTURE_VARIABLES,
+  PARTIAL_ANALYSIS_VARIABLES,
   PAGE,
   celsius,
   distance,
   expectState,
+  isShardKey,
   loadMap,
   nearest,
   offline,
@@ -50,6 +52,39 @@ async function moveSlider(page, keys) {
   for (const key of keys) await slider.press(key);
 }
 
+// What a pixel shows: the fixture value whose colour it is (within 40 of it),
+// or "blank" when it is no colormap colour at all (the background through an
+// undrawn tile).
+async function drawnValue(page, candidates, where = PLAIN) {
+  const rgb = await pixelAt(page, where.lon, where.lat);
+  const match = nearest(rgb, candidates);
+  return match.distance < 40 ? match.value : "blank";
+}
+
+async function expectBlank(page, where) {
+  const rgb = await pixelAt(page, where.lon, where.lat);
+  const scale = Array.from({ length: 256 }, (_, i) => celsius(-40 + (90 * i) / 255));
+  const off = Math.min(...scale.map((c) => distance(rgb, c)));
+  expect(off, `pixel at ${where.lon}, ${where.lat} should be blank but drew rgb(${rgb})`).toBeGreaterThan(60);
+}
+
+/** Poll until the pixel shows `value`: a Load or Retry need not pass through a
+ * state the spec could wait on first. */
+async function expectDrawnSoon(page, value, candidates, where = PLAIN) {
+  await expect.poll(() => drawnValue(page, candidates, where), { timeout: 20_000 }).toBe(value);
+}
+
+/** Drag the map west by `dx` CSS px (moving the view east). */
+async function dragWest(page, dx) {
+  const box = await page.locator(".explore-map canvas").first().boundingBox();
+  const y = box.y + box.height / 2;
+  const x = box.x + box.width / 2 + dx / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - dx, y, { steps: 12 });
+  await page.mouse.up();
+}
+
 test.describe("explorer, offline", () => {
   test("the explorer bundle is not requested until the button is clicked", async ({ page }) => {
     const bundle = [];
@@ -65,6 +100,24 @@ test.describe("explorer, offline", () => {
 
     await loadMap(page);
     expect(bundle.length).toBeGreaterThan(0);
+  });
+
+  test("a virtual store's caption names the GRIB reads and what its estimate covers", async ({ page }) => {
+    await offline(page);
+    await page.goto("/catalog/noaa-gfs-forecast-virtual/");
+    const caption = page.locator(".explore figcaption");
+    await expect(caption).toContainText("latest run");
+    await expect(caption).toContainText("source GRIB files");
+    await expect(caption).toContainText("(store metadata plus one GRIB message): ~7 MB (temperature_2m)");
+    await expect(page.getByRole("button", { name: "Load interactive map" })).toBeVisible();
+  });
+
+  test("a regional default view is named in the caption", async ({ page }) => {
+    await offline(page);
+    await page.goto("/catalog/noaa-mrms-conus-analysis-hourly/");
+    await expect(page.locator(".explore figcaption")).toContainText(
+      "Estimated weather data for the Houston-area initial view: ~9 MB (precipitation_surface)",
+    );
   });
 
   test("cells register on their coordinates and the latest init is drawn", async ({ page }) => {
@@ -222,10 +275,156 @@ test.describe("explorer, offline", () => {
     await expect(page.locator(".explore img")).toBeVisible();
     await expect(page.getByRole("button", { name: "Load interactive map" })).toBeHidden();
     await expect(page.locator(".explore > p")).toHaveText(/isn't enabled on small screens or touch-only devices/);
+    // the 16:9 box's 320px floor grows it downward, never wider than the page
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect((await page.locator(".explore-map").boundingBox()).width).toBeLessThanOrEqual(390);
 
     // the media query is re-checked as the window changes
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.getByRole("button", { name: "Load interactive map" })).toBeVisible();
     await expect(page.locator(".explore > p")).toBeHidden();
+  });
+});
+
+// Recovery after failures (review pass 1, findings 1, 2, 3 and 6): each
+// breaks something after the page has loaded, then checks the explorer draws
+// real data again rather than an error, a blank Ready or a stale field.
+test.describe("explorer, offline recovery", () => {
+  test("Retry recovers after a coordinate read fails", async ({ page }) => {
+    let failing = true;
+    await offline(page, {
+      store: storeRoute({ failFor: ({ key }) => failing && key.startsWith("chunks/") && !isShardKey(key) }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await page.getByRole("button", { name: "Load interactive map" }).click();
+    await expectState(page, "error");
+
+    failing = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expectDrawn(page, LEAD_C[0], LEAD_C);
+  });
+
+  test("changing variable or level while unloaded, then Load, draws the new selection", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await loadMap(page);
+    const unload = page.getByRole("button", { name: "Unload", exact: true });
+    const load = page.getByRole("button", { name: "Load", exact: true });
+    const variable = page.getByRole("combobox", { name: "Variable" });
+    const isobaric = [-30, 10, ...LEAD_C];
+
+    // Each selection below is read for the first time after Unload, so none
+    // comes from a cache.
+    await unload.click();
+    await expectBlank(page, PLAIN);
+    await variable.selectOption("temperature_isobaric");
+    await expect(load).toBeEnabled();
+    await load.click();
+    await expectDrawnSoon(page, -30, isobaric);
+    await expectState(page, "ready");
+
+    await unload.click();
+    await page.getByRole("combobox", { name: /pressure_level/i }).selectOption({ index: 1 });
+    await expect(load).toBeEnabled();
+    await load.click();
+    await expectDrawnSoon(page, 10, isobaric);
+    await expectState(page, "ready");
+
+    await unload.click();
+    await variable.selectOption("relative_humidity_2m");
+    await expect(load).toBeEnabled();
+    await load.click();
+    await expectState(page, "ready");
+    await expect(page.locator(".explore-map")).toContainText(/percent|%/);
+    // its range is sampled, so check it is drawn rather than which colour
+    await expect.poll(async () => {
+      const rgb = await pixelAt(page, PLAIN.lon, PLAIN.lat);
+      return Math.min(...Array.from({ length: 256 }, (_, i) => distance(rgb, celsius(-40 + (90 * i) / 255))));
+    }, { timeout: 20_000 }).toBeLessThan(40);
+  });
+
+  test("an analysis whose last written step is a window before its end opens on that step", async ({ page }) => {
+    await offline(page, {
+      overrides: {
+        variables: PARTIAL_ANALYSIS_VARIABLES,
+        defaultVariable: "temperature_2m_analysis_partial",
+        maxTextureLayers: 128,
+      },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    // written through t = 150 (2026-09-19 06:00, 5.15 °C); t = 151…299 are NaN
+    const step = (t) => -40 + (90 * t) / 299;
+    await expect(page.locator('.explore-map [data-label="time"]')).toContainText(/2026-09-19.*06:00/);
+    await expectDrawn(page, step(150), [step(0), step(100), step(150), step(200), step(299)]);
+  });
+
+  test("a failed pan within a block blanks only the new tiles, and Retry fills them", async ({ page }) => {
+    const log = [];
+    const served = new Set();
+    let failNew = false;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        failFor: ({ key, entry }) => failNew && entry !== null && !served.has(`${key}#${entry}`),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    for (const r of log) if (r.entry !== null && !r.failed) served.add(`${r.key}#${r.entry}`);
+
+    // The CONUS view sits inside one inner chunk (lon -185.625…-5.625). Pan
+    // east until the next chunk along longitude is on screen.
+    const kept = { lon: -11.25, lat: 42 };
+    const fresh = { lon: 22.5, lat: 42 };
+    failNew = true;
+    const onScreen = (p) =>
+      page.evaluate(([lon, lat]) => {
+        const canvas = document.querySelector(".explore-map canvas");
+        const [x, y] = window.__explorer.project([lon, lat]);
+        return x > 20 && y > 20 && x < canvas.clientWidth - 20 && y < canvas.clientHeight - 20;
+      }, [p.lon, p.lat]);
+    for (let i = 0; i < 8 && !(await onScreen(fresh)); i += 1) await dragWest(page, 300);
+    expect(await onScreen(fresh)).toBe(true);
+    expect(await onScreen(kept)).toBe(true);
+
+    await expectState(page, "error");
+    await expect(page.locator(".explore-map").getByRole("status")).toBeVisible();
+    expect(log.some((r) => r.failed)).toBe(true);
+    await expectBlank(page, fresh);
+    await expectDrawn(page, LEAD_C[0], LEAD_C, kept);
+
+    failNew = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expectDrawn(page, LEAD_C[0], LEAD_C, fresh);
+    await expectDrawn(page, LEAD_C[0], LEAD_C, kept);
+  });
+
+  test("a failed block change after the first frame shows no stale field, and Retry draws it", async ({ page }) => {
+    let failBlock1 = false;
+    await offline(page, {
+      store: storeRoute({ failFor: ({ block }) => failBlock1 && block === 1 }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    failBlock1 = true;
+    await moveSlider(page, ["ArrowRight", "ArrowRight", "ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(3));
+    await expectState(page, "error");
+    await expect(page.locator(".explore-map").getByRole("status")).toBeVisible();
+    await expectBlank(page, PLAIN);
+
+    failBlock1 = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expect(leadLabel(page)).toContainText(hours(3));
+    await expectDrawn(page, LEAD_C[3], LEAD_C);
   });
 });

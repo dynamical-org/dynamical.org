@@ -25,6 +25,10 @@ The other arrays each exercise one thing the explorer must handle:
 - temperature_2m_analysis: a time-only analysis array on its own `time` dim, 300
   hourly steps in one chunk, larger than a 128-step texture window. Step t is
   -40 + 90 * t / 299 °C, so the latest step is 50 °C and every step differs.
+- temperature_2m_analysis_partial: the same, but written only through step
+  PARTIAL_LAST (150); later steps are NaN inside the same written chunk. Its
+  newest data is more than a 128-step texture window before the last time, so
+  an explorer that trusts "the chunk exists" opens on a blank step.
 
 Icechunk writes random object ids, so rerunning rewrites every file. Run from the
 repo root:
@@ -68,6 +72,7 @@ SPHERE_WKT = (
     'UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],'
     'AXIS["Longitude",EAST],AXIS["Latitude",NORTH]]'
 )
+PARTIAL_LAST = 150
 
 
 def blosc(typesize: int) -> BloscCodec:
@@ -140,6 +145,12 @@ def temperature_analysis() -> np.ndarray:
         (len(ANALYSIS_TIMES), len(LATITUDE), len(LONGITUDE)), dtype="float32"
     )
     field[:] = steps[:, None, None]
+    return field
+
+
+def temperature_analysis_partial() -> np.ndarray:
+    field = temperature_analysis()
+    field[PARTIAL_LAST + 1 :] = np.nan
     return field
 
 
@@ -360,6 +371,23 @@ def main() -> None:
         shards=(300, 16, 32),
         attributes={
             "long_name": "2 metre temperature (analysis)",
+            "short_name": "2t",
+            "units": "degree_Celsius",
+            "step_type": "instant",
+            "coordinates": "spatial_ref",
+            "_FillValue": NAN_FILL,
+        },
+    )
+
+    data_array(
+        root,
+        "temperature_2m_analysis_partial",
+        temperature_analysis_partial(),
+        ["time", "latitude", "longitude"],
+        chunks=(300, 8, 16),
+        shards=(300, 16, 32),
+        attributes={
+            "long_name": "2 metre temperature (analysis, partly written)",
             "short_name": "2t",
             "units": "degree_Celsius",
             "step_type": "instant",

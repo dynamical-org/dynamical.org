@@ -8,6 +8,9 @@ const { explorerMountOptions } = require("../lib/explorer-config.js");
 //   CONUS; regional ones on their own domain. Bounds are [west, south, east,
 //   north]. A whole-globe or whole-CONUS view reads every tile of the grid,
 //   which is why the two heaviest analyses open on Houston instead.
+// - initialViewName: optional words for the caption ("the Houston-area initial
+//   view"), for a view that isn't the product's obvious one, so its estimate
+//   isn't read as the cost of the whole domain.
 // - proj4: overrides the grid mapping read from the store. None is needed:
 //   the explorer builds lcc and ob_tran strings from the stores' CF attrs (the
 //   strings it built are noted beside HRRR and HRDPS for provenance).
@@ -16,8 +19,10 @@ const { explorerMountOptions } = require("../lib/explorer-config.js");
 //   between open and the first complete frame of defaultVariable at
 //   initialView, store discovery included. Re-measure when a store's chunking
 //   or a default changes.
-// - virtual: set true for a -virtual (GRIB-referencing) store. None are enabled
-//   yet; they need the browser GRIB codec, and their own firstViewMB.
+// - virtual: true for a -virtual store, whose chunks are byte ranges of the
+//   upstream GRIB files (NOAA/ECMWF buckets), decoded in the browser. Their
+//   first view is mostly store metadata plus one GRIB message, and each lead or
+//   time step reads one more message (0.14–1.22 MB).
 //
 // Unless noted, firstViewMB is from the explorer's per-product run on
 // 2026-09-25 (headless Chromium, 758×345 CSS px map in a 1280-wide page,
@@ -73,6 +78,7 @@ const datasets = [
   {
     id: "noaa-hrrr-analysis",
     initialView: { bounds: HOUSTON },
+    initialViewName: "Houston-area",
     proj4: null,
     defaultVariable: "temperature_2m",
     // Re-measured at exactly HOUSTON on 2026-09-25 (snapshot
@@ -84,6 +90,7 @@ const datasets = [
   {
     id: "noaa-mrms-conus-analysis-hourly",
     initialView: { bounds: HOUSTON },
+    initialViewName: "Houston-area",
     proj4: null,
     defaultVariable: "precipitation_surface",
     // Re-measured at exactly HOUSTON on 2026-09-25 (snapshot
@@ -165,6 +172,106 @@ const datasets = [
     defaultVariable: "precipitation_surface",
     // 88.67 MB, time 2026-09-25 05:30.
     firstViewMB: 89,
+  },
+  // Virtual stores. firstViewMB is from the virtual hook-up run on 2026-09-25
+  // (same browser and map size as above, CONUS view): store metadata plus the
+  // latest-run probe and one GRIB message. Snapshots were recorded only for
+  // the four products checked for registration.
+  {
+    id: "noaa-gfs-forecast-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 7.17 MB (6.66 store + 0.51 GRIB), snapshot H5G8BVY2PBVRXA6A6VKG, init
+    // 2026-09-25 12Z (18Z's final lead wasn't in yet).
+    firstViewMB: 7,
+  },
+  {
+    id: "noaa-gfs-analysis-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 0.79 MB (0.28 store + 0.51 GRIB), time 2026-09-25 23:00.
+    firstViewMB: 1,
+  },
+  {
+    id: "noaa-gefs-forecast-10-day-0-25-degree-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 2.65 MB (2.21 store + 0.44 GRIB), init 2026-09-25 12Z, member 0.
+    firstViewMB: 3,
+  },
+  {
+    id: "noaa-gefs-forecast-16-day-0-5-degree-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 24.07 MB, almost all its 23.9 MB snapshot file; snapshot
+    // XEXMCCBSAEXMXQMWY0QG, init 2026-09-25 12Z, member 0.
+    firstViewMB: 24,
+  },
+  {
+    id: "noaa-gefs-forecast-35-day-0-5-degree-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 6.39 MB (6.25 store + 0.14 GRIB), init 2026-09-24 00Z (09-25 00Z's +840 h
+    // wasn't in yet), member 0.
+    firstViewMB: 6,
+  },
+  {
+    id: "noaa-gefs-analysis-0-25-degree-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 0.58 MB (0.15 store + 0.43 GRIB), time 2026-09-25 21:00.
+    firstViewMB: 1,
+  },
+  {
+    id: "noaa-hrrr-forecast-48-hour-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 2.79 MB (1.56 store + 1.23 GRIB), snapshot 7EKK9FHTNE8B8ZAN0TWG, init
+    // 2026-09-25 18Z. LCC grid; proj4 built from CF as for
+    // noaa-hrrr-forecast-48-hour.
+    firstViewMB: 3,
+  },
+  {
+    id: "noaa-hrrr-forecast-18-hour-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 3.75 MB (2.52 store + 1.22 GRIB), init 2026-09-25 20Z. LCC grid.
+    firstViewMB: 4,
+  },
+  {
+    id: "noaa-hrrr-analysis-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 1.68 MB (0.46 store + 1.22 GRIB), time 2026-09-25 21:00. LCC grid.
+    firstViewMB: 2,
+  },
+  {
+    id: "ecmwf-aifs-single-forecast-virtual",
+    virtual: true,
+    initialView: { bounds: CONUS },
+    proj4: null,
+    defaultVariable: "temperature_2m",
+    // 0.81 MB (0.19 store + 0.62 GRIB), snapshot X4G5D2WQDY7YXXM53XD0, init
+    // 2026-09-25 12Z.
+    firstViewMB: 1,
   },
 ];
 
