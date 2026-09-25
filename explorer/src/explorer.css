@@ -1,0 +1,81 @@
+/* Scoped to the mount element; colours come only from the site's tokens. */
+.explorer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.explorer-map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.explorer-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid var(--border-muted-color);
+  font-size: 0.8rem;
+}
+.explorer-strip > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 1rem;
+}
+.explorer-strip label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.explorer-strip label > span:first-child,
+.explorer-k,
+.explorer-note {
+  color: var(--muted-text);
+}
+.explorer-strip select,
+.explorer-strip button {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-color);
+  border: 1px solid var(--border-muted-color);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.3rem;
+}
+.explorer-strip button:not(:disabled) {
+  cursor: pointer;
+}
+.explorer-slider {
+  width: 100%;
+}
+.explorer-slider input {
+  flex: 1;
+  accent-color: var(--text-color);
+}
+.explorer-extras {
+  display: contents;
+}
+.explorer-times {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+}
+.explorer-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+.explorer-legend canvas {
+  width: 8rem;
+  height: 0.6rem;
+  image-rendering: pixelated;
+  border-radius: var(--radius-sm);
+}
+.explorer-status {
+  color: var(--muted-text);
+}
+.explorer[data-state="error"] .explorer-status {
+  color: var(--pill-down-bg);
+  font-weight: 600;
+}
