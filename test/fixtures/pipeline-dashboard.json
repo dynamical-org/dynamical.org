@@ -2134,6 +2134,243 @@
           ],
           "next_expected_init": "2026-07-25T06:00:00Z",
           "next_expected_completion_at": "2026-07-25T07:23:20Z"
+        },
+        {
+          "id": "fixture-mixed-lead-lanes",
+          "label": "NOAA GFS forecast",
+          "source": "s3://noaa-gfs-bdp-pds",
+          "source_label": "AWS",
+          "row_label": "Mixed lead lanes",
+          "cadence_hours": 6,
+          "init_hours": [
+            "00",
+            "06",
+            "12",
+            "18"
+          ],
+          "lead_groups": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "center_pct": 0.25
+            },
+            {
+              "name": "f024",
+              "label": "1d",
+              "leads_in_group": 5,
+              "center_pct": 1.5
+            },
+            {
+              "name": "f072",
+              "label": "3d",
+              "leads_in_group": 13,
+              "center_pct": 4.5
+            }
+          ],
+          "facet_groups": [
+            {
+              "dimension": "component",
+              "name": "component:pgrb2a",
+              "label": "pgrb2a"
+            },
+            {
+              "dimension": "component",
+              "name": "component:pgrb2b",
+              "label": "pgrb2b"
+            },
+            {
+              "dimension": "component",
+              "name": "component:pgrb2s",
+              "label": "pgrb2s"
+            },
+            {
+              "dimension": "member",
+              "name": "members:control",
+              "label": "control"
+            },
+            {
+              "dimension": "member",
+              "name": "members:perturbed",
+              "label": "perturbed"
+            }
+          ],
+          "latency_stats": {
+            "p50_s": 3600,
+            "p95_s": 5400,
+            "p99_s": 6000,
+            "sample_init_count": 30,
+            "sample_day_count": 30,
+            "delayed_threshold_s": 7200
+          },
+          "timing_baseline": {
+            "status": "established",
+            "history_days": 30,
+            "required_history_days": 30
+          },
+          "lead_group_stats": [
+            {
+              "name": "f000",
+              "label": "0h",
+              "leads_in_group": 1,
+              "p50_s": 900,
+              "p95_s": 1200,
+              "p99_s": 1500,
+              "delayed_threshold_s": 2100
+            },
+            {
+              "name": "f024",
+              "label": "1d",
+              "leads_in_group": 5,
+              "p50_s": 1800,
+              "p95_s": 2400,
+              "p99_s": 2700,
+              "delayed_threshold_s": 3300
+            },
+            {
+              "name": "f072",
+              "label": "3d",
+              "leads_in_group": 13,
+              "p50_s": 3600,
+              "p95_s": 5400,
+              "p99_s": 6000,
+              "delayed_threshold_s": 7200
+            }
+          ],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-24T18:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 3600,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 840,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "delayed",
+                  "completion_pct": 1,
+                  "latency_s": 1830,
+                  "leads_available": 5,
+                  "leads_expected": 5
+                },
+                {
+                  "name": "f072",
+                  "status": "complete",
+                  "timing": "delayed",
+                  "completion_pct": 1,
+                  "latency_s": 7500,
+                  "leads_available": 13,
+                  "leads_expected": 13
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "timing": "on_time",
+              "completion_pct": 1,
+              "latency_s": 5700,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 850,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 1900,
+                  "leads_available": 5,
+                  "leads_expected": 5
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T06:00:00Z",
+              "status": "failed",
+              "completion_pct": 0.38,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "completion_pct": 1,
+                  "latency_s": 900,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "delayed",
+                  "completion_pct": 1,
+                  "latency_s": 3400,
+                  "leads_available": 5,
+                  "leads_expected": 5
+                },
+                {
+                  "name": "f072",
+                  "status": "failed",
+                  "completion_pct": 0.38,
+                  "leads_available": 5,
+                  "leads_expected": 13
+                }
+              ]
+            },
+            {
+              "init_time": "2026-07-25T12:00:00Z",
+              "status": "in_flight",
+              "timing": "delayed",
+              "completion_pct": 0.38,
+              "lead_groups": [
+                {
+                  "name": "f000",
+                  "status": "complete",
+                  "timing": "on_time",
+                  "completion_pct": 1,
+                  "latency_s": 920,
+                  "leads_available": 1,
+                  "leads_expected": 1
+                },
+                {
+                  "name": "f024",
+                  "status": "complete",
+                  "timing": "delayed",
+                  "completion_pct": 1,
+                  "latency_s": 3500,
+                  "leads_available": 5,
+                  "leads_expected": 5,
+                  "deadline_s": 3500
+                },
+                {
+                  "name": "f072",
+                  "status": "in_flight",
+                  "timing": "delayed",
+                  "completion_pct": 0.38,
+                  "leads_available": 5,
+                  "leads_expected": 13
+                }
+              ],
+              "deadline_s": 7300
+            }
+          ],
+          "next_expected_init": "2026-07-25T18:00:00Z",
+          "next_expected_completion_at": "2026-07-25T19:30:00Z"
         }
       ]
     },
