@@ -1425,6 +1425,16 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
   });
   const runSeries = runChartSeries(product, now, inits);
   const runByInit = new Map(runSeries.runs.map((run) => [run.init.init_time, run]));
+  for (const init of inits) {
+    const ms = Date.parse(init.init_time);
+    if (init.status !== "failed" || !Number.isFinite(ms) || runByInit.has(init.init_time)) continue;
+    const run = {
+      init, ms, status: init.status, timing: init.timing ?? null,
+      seconds: 0, elapsed: false, noTime: true,
+    };
+    runByInit.set(init.init_time, run);
+    runSeries.runs.push(run);
+  }
   const runLane = {
     name: "run", label: "run", ...runSeries,
     slots: inits.map((init) => ({ init,

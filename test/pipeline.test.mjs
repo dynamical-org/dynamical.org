@@ -2196,7 +2196,7 @@ test("HRRR source budgets use each grain's deadline and preserve unjudged inits"
   }
 });
 
-test("failed groups have red-mark state without inventing a latency", () => {
+test("failed groups and whole runs have red-mark state without inventing a latency", () => {
   const product = chartProduct({
     lead_groups: [{ name: "f000", label: "0h" }],
     lead_group_stats: [],
@@ -2208,6 +2208,11 @@ test("failed groups have red-mark state without inventing a latency", () => {
   });
   const lanes = leadLaneSeries(product, Date.parse("2026-07-25T07:00:00Z"));
   assert.equal(lanes[0].slots[1].run.noTime, true);
+  const runLane = lanes.at(-1);
+  assert.equal(runLane.slots[1].state, "point");
+  assert.deepEqual(runLane.slots[1].run, lanes[0].slots[1].run);
+  assert.deepEqual(runLane.runs, [runLane.slots[1].run]);
+  assert.deepEqual(runChartSeries(product, Date.parse("2026-07-25T07:00:00Z")).runs, []);
   assert.ok(lanes.domain.yMin > 0);
 });
 
