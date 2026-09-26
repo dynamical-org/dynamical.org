@@ -28,6 +28,7 @@ const handle = mount(element, {
   proj4: null,                                 // override the CF grid mapping
   maxTextureLayers: 128,                       // cap on slider steps per texture (tests set it low)
   maxTextureBytes: 2e9,                        // estimated GPU memory above which the status warns
+  maxRequests: 4,                              // concurrent tile requests per layer (tests set it low)
 });
 handle.project([lon, lat]);                    // → [x, y] CSS px on the map canvas
 handle.destroy();
@@ -169,7 +170,7 @@ the only hard-coded colour.
       (0.14–1.2 MB).
     - A new variable, init, member or level, and destroy, empty the LRU.
 - **Resources:**
-  - 4 concurrent tile requests per layer (each decodes a whole inner chunk on the
+  - 4 concurrent tile requests per layer, or `maxRequests` (each decodes a whole inner chunk on the
     main thread) and 64 cached tiles.
   - Textures are destroyed on tile unload *and* when a layer is retired. deck's
     `Tileset2D.finalize` aborts requests but never calls `onTileUnload`, so the
@@ -185,13 +186,23 @@ the only hard-coded colour.
     - If a change fails, what was drawn stays. The dropdown, controls, labels and legend
       return to it, and the error says so. Retry retries the failed choice.
     - The dropdown always shows the selection being applied.
+    - A slider move while an init, member or level change of the same variable loads
+      becomes part of that change, which starts again. So its reference read, the step
+      it commits and a Retry after it fails all follow the last move.
   - **Stop loading** shows only while loading.
-    - It aborts every read in flight. The tiles' reads join their own signal with the
-      explorer's abort controller, which is then replaced.
+    - It aborts every read in flight (the tiles' reads join their own signal with the
+      explorer's abort controller) and clears the tile facade's queued reads.
+    - Until a resume, the explorer is stopped. A tile that deck had queued for a request
+      slot, or that a pan asks for, is refused before it reads, and a reply that lands
+      late isn't uploaded.
     - A change being applied is dropped, and the controls go back to what is drawn.
       What had loaded stays on the map.
-    - Retry resumes: it applies the stopped change, or reloads the layers. A new choice
-      also resumes. A tile that Stop aborted stays blank until then.
+    - Startup checks for Stop after each step (device, store, variable metadata), so a
+      Stop during startup holds.
+    - Retry resumes, as does any new choice (variable, init, member, level or step).
+      Resuming makes a fresh controller and fresh layers, so refused tiles load. Retry
+      runs startup again if it hadn't finished, applies a stopped change, or reloads the
+      layers.
   - The retry client's backoff wait ends as soon as its request is aborted.
   - A GPU-memory estimate, advisory only:
     - Tiles in view × block steps × tile cells × 4 B is estimated from the view's
@@ -205,17 +216,19 @@ the only hard-coded colour.
   - The actual device limits are enforced: blocks never exceed
     `MAX_ARRAY_TEXTURE_LAYERS`, and a tile wider than `MAX_TEXTURE_SIZE` is a
     named error.
-- **Missing data.** Each tile's texture is tracked together with the steps of its block
-  that hold any finite value.
-  - When every tile in view has loaded and none has a value at the chosen step, the
-    state is `empty`. The message names the selection, and says where values in view
+- **Missing data.** Each tile's content records which steps of its block hold any finite
+  value.
+  - `onViewportLoad` reports the tiles the viewport selected. It is called each time
+    that set changes and has loaded, including pans served from the cache.
+  - When none of those tiles has a value at the chosen step, the state is `empty`.
+    It is judged again when the view changes or the step moves. The message names the selection, and says where values in view
     end if they stop earlier in the block.
   - This is the case of a run that is still being written. Found on staging with GEFS
     35-day: the default run had its lead-0 chunk, but values only through +384 h. Its
     later lead chunks exist and are all NaN, so every later step was drawn blank under
     "Ready".
-  - Tiles cached from outside the view count too, so a step with values only off-screen
-    reads as `ready`.
+  - The unit is the whole tile: a tile at the edge of the view whose values lie only in
+    its off-screen part counts as having data.
 - **Colour.** Turbo, with NaN and missing sentinels (`_FillValue`,
   `missing_value`, or a finite zarr `fill_value`) transparent.
   - Units that are recognisably Celsius use a fixed −40..50.

@@ -31,7 +31,10 @@ const DEFAULT_TEXTURE_LAYERS = 128;
  * loading); `maxTextureBytes` overrides it. An application heuristic, not a device limit.
  */
 const DEFAULT_TEXTURE_BYTES = 2e9;
-/** Concurrent tile requests per layer: each decodes a whole inner chunk on the main thread. */
+/**
+ * Concurrent tile requests per layer (each decodes a whole inner chunk on the main thread);
+ * `maxRequests` overrides it (tests set it low).
+ */
 const MAX_REQUESTS = 4;
 /** Cached tiles per layer (eviction only: tiles in view always load). */
 const MAX_CACHE_TILES = 64;
@@ -69,6 +72,7 @@ function h(tag, props = {}, children = []) {
  *   proj4?: string | null,
  *   maxTextureLayers?: number,
  *   maxTextureBytes?: number,
+ *   maxRequests?: number,
  * }} options
  */
 export function mount(el, options) {
@@ -128,14 +132,20 @@ export function mount(el, options) {
     range: /** @type {{ min: number, max: number, kind: "fixed" | "sample", status?: string } | null} */ (null),
     ranges: new Map(),
     prefetch: /** @type {{ base: string, r0: number, c0: number, data: Float32Array } | null} */ (null),
-    /** Aborted by Stop loading (then replaced), and by destroy. */
+    /** Aborted by Stop loading (replaced on resume), and by destroy. */
     abort: new AbortController(),
+    /** Stop loading was pressed: no tile reads or uploads until Retry or a new selection. */
+    stopped: false,
+    /** Startup (device, store, variable metadata) completed; until then Retry restarts it. */
+    started: false,
     borders: null,
     lineColor: [0, 0, 0, 200],
     liveIds: new Set(),
     loadedIds: new Set(),
-    /** Per layer id: each tile texture → its stepFlags (which block steps hold values). */
+    /** Per layer id: the tile textures it owns (destroyed on unload and retirement). */
     textures: new Map(),
+    /** Per layer id: the stepFlags of the tiles its viewport selected, at its last load. */
+    viewTiles: new Map(),
     retiring: /** @type {string[]} */ ([]),
     layerCallbacks: new Map(),
     resolvers: new Map(),
@@ -203,24 +213,31 @@ export function mount(el, options) {
       // Back in the layer list before any frame went without it (e.g. two slider moves in
       // one frame, away from a block and back): deck kept that layer, tiles and all.
       if (s.liveIds.has(id)) continue;
-      for (const t of s.textures.get(id)?.keys() ?? []) t.destroy();
+      for (const t of s.textures.get(id) ?? []) t.destroy();
       s.textures.delete(id);
+      s.viewTiles.delete(id);
       s.layerCallbacks.delete(id);
       s.loadedIds.delete(id);
     }
-    // Not while a selection is being applied: the layers on screen are the previous one's.
-    if (el.dataset.state === "loading" && s.info && !s.error && !s.requested && s.liveIds.size > 0) {
-      if ([...s.liveIds].every((id) => s.loadedIds.has(id))) {
-        mark("ready");
-        // Loaded is not the same as drawn: a run still being written has chunks that
-        // hold only missing values past the lead it has reached.
-        const { block } = selectionFor(s.info, s.pinnedIdx, s.stepIndex);
-        const tiles = [...s.liveIds].flatMap((id) => [...(s.textures.get(id)?.values() ?? [])]);
-        const v = viewData(tiles, s.stepIndex - block.start);
-        if (v.state === "empty") setState("empty", emptyMessage(block, v.last));
-        else setState("ready", "Ready");
-      }
-    }
+    if (el.dataset.state === "loading") judgeView();
+  }
+
+  /**
+   * Once every live layer's viewport has loaded: `ready`, or `empty` when none of the
+   * tiles in view holds a value at the chosen step. Loaded is not the same as drawn: a run
+   * still being written has chunks that hold only missing values past the lead it has
+   * reached. Not while a selection is being applied: the layers on screen are the
+   * previous one's.
+   */
+  function judgeView() {
+    if (!s.info || s.error || s.requested || s.liveIds.size === 0) return;
+    if (![...s.liveIds].every((id) => s.loadedIds.has(id))) return;
+    mark("ready");
+    const { block } = selectionFor(s.info, s.pinnedIdx, s.stepIndex);
+    const tiles = [...s.liveIds].flatMap((id) => s.viewTiles.get(id) ?? []);
+    const v = viewData(tiles, s.stepIndex - block.start);
+    if (v.state === "empty") setState("empty", emptyMessage(block, v.last));
+    else setState("ready", "Ready");
   }
 
   // ---- layers ---------------------------------------------------------------
@@ -243,7 +260,7 @@ export function mount(el, options) {
   function callbacksFor(id, info) {
     if (!s.layerCallbacks.has(id)) {
       const live = () => s.liveIds.has(id);
-      const set = new Map();
+      const set = new Set();
       s.textures.set(id, set);
       s.layerCallbacks.set(id, {
         getTileData: makeGetTileData({
@@ -253,7 +270,8 @@ export function mount(el, options) {
             if (live()) settle(info, data);
           },
           stop: () => s.abort.signal,
-          track: (t, flags) => set.set(t, flags),
+          stopped: () => s.stopped,
+          track: (t) => set.add(t),
           take: (r0, c0) => {
             const p = s.prefetch;
             if (p && id.startsWith(`${p.base}|`) && p.r0 === r0 && p.c0 === c0) {
@@ -282,10 +300,15 @@ export function mount(el, options) {
           s.failed = null; // the error on screen is now this one; Retry retries tiles
           setState("error", `Some tiles failed to load (${errText(e)}). Areas shown blank have no data drawn.`);
         },
-        onViewportLoad: () => {
+        // Called with the tiles the viewport selected, each time that set changes and has
+        // loaded, pans served from the cache included.
+        onViewportLoad: (tiles) => {
           if (!live()) return;
           s.loadedIds.add(id);
+          s.viewTiles.set(id, (tiles ?? []).map((t) => t.content?.flags).filter(Boolean));
           mark("viewportLoaded");
+          // A pan within the cache doesn't pass through loading: judge the new view here.
+          if (el.dataset.state === "ready" || el.dataset.state === "empty") judgeView();
           deck.redraw();
         },
       });
@@ -376,7 +399,7 @@ export function mount(el, options) {
               max: range.max,
             }),
             updateTriggers: { renderTile: [layerIndex, range.min, range.max] },
-            maxRequests: MAX_REQUESTS,
+            maxRequests: opts.maxRequests ?? MAX_REQUESTS,
             maxCacheSize: MAX_CACHE_TILES,
             debounceTime: 50,
             onTileUnload: cb.onTileUnload,
@@ -567,6 +590,7 @@ export function mount(el, options) {
    * @param {string} busyMsg
    */
   async function apply(req, busyMsg) {
+    resume();
     // The dropdown always shows the selection being applied (Retry after a failed switch
     // re-applies a choice the dropdown had been restored away from).
     varSelect.value = req.path;
@@ -700,23 +724,46 @@ export function mount(el, options) {
   function setStep(i) {
     if (!s.info?.step) return;
     if (!stepAccepted(s.requested, committed())) return; // another variable is being loaded
-    s.failed = null; // moving on from a failed switch: Retry no longer means "retry that switch"
+    slider.value = String(i);
+    if (s.requested) {
+      // An init, member or level change of this variable is loading: the step becomes part
+      // of it, and it starts again, so its reference read, the step it commits and a Retry
+      // all follow this move.
+      const next = changeSelection(s.requested, committed(), { type: "step", path: s.info.path, index: i });
+      if (next) void apply(next, "Loading…");
+      return;
+    }
+    s.failed = null; // moving on from a failed change: Retry no longer means "retry that change"
     const { chunk, n } = s.info.step;
     const newBlock = blockRange(i, chunk, s.window, n).start !== blockRange(s.stepIndex, chunk, s.window, n).start;
+    const wasStopped = s.stopped;
+    resume(); // a new step is a new selection
     s.stepIndex = i;
-    slider.value = String(i);
     updateLabels();
-    // A new block is a fresh layer, so it also retries after an error or Stop. Within a
-    // stopped block, tiles that Stop aborted stay blank until Retry.
-    if (newBlock) setState("loading", "Loading tiles…");
-    else if (!s.error && el.dataset.state !== "stopped") setState("loading", "Loading…");
+    // A new block is a fresh layer, as is every layer after a resume, so either retries
+    // after an error or Stop.
+    if (newBlock || wasStopped) setState("loading", "Loading tiles…");
+    else if (!s.error) setState("loading", "Loading…");
     render();
+  }
+
+  /**
+   * Leave the stopped state: a fresh abort controller, and fresh layers (a new retry
+   * count), so tiles that Stop aborted or refused load again. Completed textures stay drawn
+   * until their replacements load.
+   */
+  function resume() {
+    if (!s.stopped) return;
+    s.stopped = false;
+    s.abort = new AbortController();
+    s.retry++;
   }
 
   varSelect.addEventListener("change", () => void apply(openVariable(varSelect.value), "Opening variable…"));
   slider.addEventListener("input", () => setStep(Number(slider.value)));
   retryBtn.addEventListener("click", () => {
-    if (!s.store) return void start();
+    resume();
+    if (!s.started) return void start();
     if (s.failed) return void apply(s.failed, "Retrying…");
     if (!s.info) return void apply(openVariable(varSelect.value), "Retrying…");
     s.retry++;
@@ -728,8 +775,10 @@ export function mount(el, options) {
     // by the generation bump) and keep what is drawn. Retry, or any new choice, resumes.
     const req = s.requested;
     s.gen++;
+    s.stopped = true;
     s.abort.abort();
-    s.abort = new AbortController();
+    // Running whole-grid reads abort now, and queued ones never start.
+    s.info?.facade?.clear();
     s.requested = null;
     if (req) s.failed = req;
     restoreControls();
@@ -786,16 +835,19 @@ export function mount(el, options) {
     setState("loading", "Opening the data store…");
     try {
       const device = await deviceReady;
+      if (g !== s.gen || s.destroyed) return;
       s.window = Math.max(1, Math.min(opts.maxTextureLayers ?? DEFAULT_TEXTURE_LAYERS, device.limits.maxTextureArrayLayers));
       const [store] = await Promise.all([
         openStore(opts.href, { signal: s.abort.signal, onRetry: onUpstreamRetry }),
         s.colormap ? null : initColormap(device),
       ]);
-      if (g !== s.gen) return;
+      if (g !== s.gen || s.destroyed) return;
       s.store = store;
       mark("storeOpen");
       s.source = makeSource(store, opts);
       const reasons = await Promise.all(variables.map(async (v) => unsupportedReason(await store.getMeta(v.path))));
+      // Stop (or destroy) while the metadata was read: stay stopped; Retry starts again.
+      if (g !== s.gen || s.destroyed) return;
       varSelect.replaceChildren(
         ...variables.map((v, i) =>
           h("option", {
@@ -813,6 +865,7 @@ export function mount(el, options) {
         usable[0];
       varSelect.value = first.path;
       varSelect.disabled = false;
+      s.started = true;
       await apply(openVariable(first.path), "Opening variable…");
     } catch (e) {
       if (g !== s.gen || s.destroyed) return;
@@ -832,7 +885,7 @@ export function mount(el, options) {
       s.abort.abort();
       scheme.removeEventListener("change", onScheme);
       deck.finalize();
-      for (const set of s.textures.values()) for (const t of set.keys()) t.destroy();
+      for (const set of s.textures.values()) for (const t of set) t.destroy();
       s.textures.clear();
       s.info?.facade?.clear();
       s.colormap?.destroy();

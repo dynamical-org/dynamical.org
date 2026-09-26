@@ -10,14 +10,16 @@
  */
 /**
  * @typedef {{ type: "pinned", path: string, i: number, j: number }
- *   | { type: "init", path: string, index: number }} Change
+ *   | { type: "init", path: string, index: number }
+ *   | { type: "step", path: string, index: number }} Change
  *   `path` is the variable whose control sent the change.
  */
 
 /**
- * A level, member or init change from a control of `path`, applied to the selection being
- * loaded (`requested`, if a switch or another change is in flight) or else to what is
- * loaded. Everything else in that selection (init, other dims, step) stays. Null when the
+ * A level, member, init or step change from a control of `path`, applied to the selection
+ * being loaded (`requested`, if a switch or another change is in flight) or else to what is
+ * loaded. Everything else in that selection (init, other dims, step) stays, so a slider
+ * move while an init loads becomes part of that init's selection. Null when the
  * control belongs to neither, e.g. the old variable's level select during a switch to
  * another variable: it must not undo the switch.
  * @param {Selection | null} requested
@@ -34,6 +36,7 @@ export function changeSelection(requested, committed, change) {
     stepIndex: target.stepIndex ?? committed?.stepIndex ?? null,
   };
   if (change.type === "init") return { ...next, initIndex: change.index, explicitInit: true };
+  if (change.type === "step") return { ...next, stepIndex: change.index };
   const idx = (next.pinnedIdx ?? []).slice();
   idx[change.i] = change.j;
   return { ...next, pinnedIdx: idx };

@@ -30,14 +30,17 @@ export class StaleTileError extends Error {
  * Fetch one tile's block and upload it. `live()` is checked after the await:
  * a tile that finishes for a layer that has since been replaced creates no
  * texture (and so can't leak or draw under newer labels). `stop()` is the
- * explorer's current abort signal (Stop loading), joined with the tile's own.
- * Each texture is tracked with its stepFlags, so the explorer can tell a loaded
+ * explorer's current abort signal (Stop loading), joined with the tile's own, and
+ * while `stopped()` a tile neither reads nor uploads: tiles deck had queued for a
+ * request slot start after Stop, and are refused until the explorer resumes.
+ * The content carries the block's stepFlags, so the explorer can tell a loaded
  * view that holds no values at the chosen step from one that does.
  * @param {{
  *   info: import("./source.js").VariableInfo,
  *   live: () => boolean,
  *   stop: () => AbortSignal,
- *   track: (texture: import("@luma.gl/core").Texture, flags: Uint8Array) => void,
+ *   stopped: () => boolean,
+ *   track: (texture: import("@luma.gl/core").Texture) => void,
  *   take: (row: number, col: number) => Float32Array | undefined,
  *   onStart?: () => void,
  *   onData?: (data: Float32Array) => void,
@@ -45,6 +48,7 @@ export class StaleTileError extends Error {
  */
 export function makeGetTileData(ctx) {
   return async (arr, { device, sliceSpec, width, height, signal: tileSignal }) => {
+    if (ctx.stopped()) throw new StaleTileError("Loading was stopped");
     ctx.onStart?.();
     const signal = tileSignal ? AbortSignal.any([tileSignal, ctx.stop()]) : ctx.stop();
     const [rows, cols] = sliceSpec.slice(-2);
@@ -57,7 +61,7 @@ export function makeGetTileData(ctx) {
       }
       data = toFloat32(chunk.data, ctx.info);
     }
-    if (signal.aborted || !ctx.live()) throw new StaleTileError("Tile belongs to a replaced layer");
+    if (signal.aborted || ctx.stopped() || !ctx.live()) throw new StaleTileError("Tile belongs to a replaced layer or a stopped load");
     ctx.onData?.(data);
     const depth = data.length / (width * height);
     const texture = device.createTexture({
@@ -70,8 +74,8 @@ export function makeGetTileData(ctx) {
       data,
       sampler: { minFilter: "nearest", magFilter: "nearest", addressModeU: "clamp-to-edge", addressModeV: "clamp-to-edge" },
     });
-    ctx.track(texture, stepFlags(data, depth));
-    return { texture, depth, width, height, byteLength: data.byteLength };
+    ctx.track(texture);
+    return { texture, depth, width, height, byteLength: data.byteLength, flags: stepFlags(data, depth) };
   };
 }
 

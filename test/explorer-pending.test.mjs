@@ -41,3 +41,14 @@ test("an init choice keeps the variable, its member and levels and the step, and
   assert.equal(next.explicitInit, true);
   assert.deepEqual(next.pinnedIdx, [5]);
 });
+
+test("a slider move while an init change loads becomes that selection's step", () => {
+  const loaded = sel("/temperature_2m", [0], { stepIndex: 0 });
+  const initInFlight = changeSelection(null, loaded, { type: "init", path: "/temperature_2m", index: 2 });
+  const next = changeSelection(initInFlight, loaded, { type: "step", path: "/temperature_2m", index: 4 });
+  assert.deepEqual(next, { path: "/temperature_2m", initIndex: 2, pinnedIdx: [0], stepIndex: 4, explicitInit: true });
+  // and a later member change keeps that step
+  assert.equal(changeSelection(next, loaded, { type: "pinned", path: "/temperature_2m", i: 0, j: 3 }).stepIndex, 4);
+  // a slider of another variable than the one being loaded changes nothing
+  assert.equal(changeSelection(next, loaded, { type: "step", path: "/other", index: 1 }), null);
+});

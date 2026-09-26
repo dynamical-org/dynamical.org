@@ -41,6 +41,24 @@ async function expectBlank(page, where = PLAIN) {
   expect(off, `pixel at ${where.lon}, ${where.lat} should be blank but drew rgb(${rgb})`).toBeGreaterThan(60);
 }
 
+const onScreen = (page, p) =>
+  page.evaluate(([lon, lat]) => {
+    const canvas = document.querySelector(".explore-map canvas");
+    const [x, y] = window.__explorer.project([lon, lat]);
+    return x > 20 && y > 20 && x < canvas.clientWidth - 20 && y < canvas.clientHeight - 20;
+  }, [p.lon, p.lat]);
+
+/** Drag the map west by `dx` CSS px (moving the view east). */
+async function dragWest(page, dx) {
+  const box = await page.locator(".explore-map canvas").first().boundingBox();
+  const y = box.y + box.height / 2;
+  const x = box.x + box.width / 2 + dx / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - dx, y, { steps: 12 });
+  await page.mouse.up();
+}
+
 async function moveSlider(page, keys) {
   const slider = page.getByRole("slider", { name: /lead time|time/i });
   await slider.focus();
@@ -196,5 +214,183 @@ test.describe("explorer, offline: missing data, init time, stop", () => {
     }, lead);
     await expectState(page, "ready", 10_000);
     await expect.poll(() => drawnValue(page, average)).toBe(average[lead - 1]);
+  });
+
+  // Review 4, finding 1: Stop must stop. Tiles deck had queued for a request slot started
+  // after Stop with a fresh controller and drew; a pan while stopped read new tiles.
+  test("after Stop, queued tiles neither read nor upload, and Retry loads them", async ({ page }) => {
+    const log = [];
+    let hold = true;
+    await offline(page, {
+      store: storeRoute({ log, delayFor: ({ entry }) => (hold && entry !== null ? 2_000 : 0) }),
+      // the whole grid: four tiles through one request slot, so three wait in deck's queue
+      overrides: { variables: FIXTURE_VARIABLES, maxRequests: 1, initialView: { bounds: [-170, -70, 170, 70] } },
+    });
+    await page.goto(PAGE);
+    await page.getByRole("button", { name: "Load interactive map" }).click();
+    // the reference read has landed and a tile read is held behind it
+    await expect.poll(() => log.filter((r) => r.entry !== null).length, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+    await page.getByRole("button", { name: "Stop loading" }).click();
+    const stopAt = Date.now();
+    await expectState(page, "stopped");
+    const textures = await page.evaluate(() => window.__explorer.debug().textures);
+
+    // every held reply settles, and the queue would have run by now
+    await page.waitForTimeout(5_000);
+    await expect(page.locator(".explore-map")).toHaveAttribute("data-state", "stopped");
+    expect(log.filter((r) => r.entry !== null && r.at > stopAt + 100)).toEqual([]);
+    expect(await page.evaluate(() => window.__explorer.debug().textures)).toBe(textures);
+
+    hold = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expect.poll(() => drawnValue(page, CANDIDATES)).toBe(LEAD_C[0]);
+  });
+
+  test("a pan while stopped reads nothing, and a new step resumes", async ({ page }) => {
+    const log = [];
+    let hold = false;
+    await offline(page, {
+      store: storeRoute({ log, delayFor: ({ entry }) => (hold && entry !== null ? 2_000 : 0) }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    hold = true;
+    await moveSlider(page, ["ArrowRight", "ArrowRight", "ArrowRight"]); // lead 3: a new block, held
+    await page.getByRole("button", { name: "Stop loading" }).click();
+    const stopAt = Date.now();
+    await expectState(page, "stopped");
+    // pan east until the next inner chunk along longitude is on screen
+    const fresh = { lon: 22.5, lat: 42 };
+    for (let i = 0; i < 8 && !(await onScreen(page, fresh)); i += 1) await dragWest(page, 300);
+    expect(await onScreen(page, fresh)).toBe(true);
+    await page.waitForTimeout(2_500);
+    await expect(page.locator(".explore-map")).toHaveAttribute("data-state", "stopped");
+    expect(log.filter((r) => r.entry !== null && r.at > stopAt + 100)).toEqual([]);
+
+    hold = false;
+    await moveSlider(page, ["ArrowLeft"]); // lead 2: a new selection resumes loading
+    await expectState(page, "ready");
+    await expect.poll(() => drawnValue(page, CANDIDATES, fresh)).toBe(LEAD_C[2]);
+  });
+
+  // Review 4, finding 2: a slider move while an init change loads was overwritten when
+  // the held change landed, with the step it had captured.
+  test("a slider move while an init loads is the step that init draws", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({ log, delayFor: ({ key }) => (seen !== null && isShardKey(key) && !seen.has(key) ? 2_000 : 0) }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
+    const [, older] = await initSelect(page).locator("option").allTextContents();
+
+    await initSelect(page).selectOption({ label: older });
+    await moveSlider(page, ["ArrowRight", "ArrowRight", "ArrowRight"]);
+    await expectState(page, "ready", 20_000);
+    await expect(page.locator('.explore-map [data-label="init"]')).toHaveText(older);
+    await expect(page.locator('.explore-map [data-label="lead"]')).toContainText(/\b3\s*h/);
+    await expect(page.getByRole("slider", { name: /lead time/i })).toHaveValue("3");
+    await expect.poll(() => drawnValue(page, CANDIDATES)).toBe(OLDER_INIT_C[3]);
+    // no reply still in flight takes it back to lead 0
+    await page.waitForTimeout(2_500);
+    await expect(page.locator('.explore-map [data-label="lead"]')).toContainText(/\b3\s*h/);
+    expect(await drawnValue(page, CANDIDATES)).toBe(OLDER_INIT_C[3]);
+  });
+
+  test("a slider move while an init loads is part of what Retry applies after it fails", async ({ page }) => {
+    let seen = null;
+    let fail = true;
+    const log = [];
+    const store = storeRoute({ log });
+    await offline(page, {
+      // the older init's reads are held, then fail
+      store: async (route) => {
+        const key = new URL(route.request().url()).pathname.split(".icechunk/")[1] ?? "";
+        if (fail && seen !== null && route.request().method() !== "OPTIONS" && isShardKey(key) && !seen.has(key)) {
+          await new Promise((resolve) => setTimeout(resolve, 1_500));
+          return route.abort("connectionreset").catch(() => {});
+        }
+        return store(route);
+      },
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
+    const [, older] = await initSelect(page).locator("option").allTextContents();
+
+    await initSelect(page).selectOption({ label: older });
+    await moveSlider(page, ["ArrowRight", "ArrowRight", "ArrowRight"]);
+    await expectState(page, "error", 20_000);
+
+    fail = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expect(initSelect(page)).toHaveValue("0");
+    await expect(page.locator('.explore-map [data-label="lead"]')).toContainText(/\b3\s*h/);
+    await expect.poll(() => drawnValue(page, CANDIDATES)).toBe(OLDER_INIT_C[3]);
+  });
+
+  // Review 4, finding 3: Stop while startup read the variables' metadata was undone when
+  // the metadata arrived. A plain zarr store reads each zarr.json over the network, so its
+  // metadata read can be held (the Icechunk fixture's metadata is in its snapshot).
+  test("Stop while startup reads metadata stays stopped, and Retry starts up again", async ({ page }) => {
+    const requests = [];
+    let hold = true;
+    const meta = {
+      zarr_format: 3,
+      node_type: "array",
+      shape: [2, 4],
+      data_type: "float32",
+      chunk_grid: { name: "regular", configuration: { chunk_shape: [2, 4] } },
+      chunk_key_encoding: { name: "default", configuration: { separator: "/" } },
+      fill_value: "NaN",
+      codecs: [{ name: "bytes", configuration: { endian: "little" } }],
+      dimension_names: ["latitude", "longitude"],
+      attributes: {},
+    };
+    await offline(page, {
+      overrides: {
+        href: "https://fixture.test/store.zarr",
+        variables: [{ path: "t", name: "t", dims: ["latitude", "longitude"] }],
+        defaultVariable: "t",
+      },
+    });
+    await page.route(/fixture\.test\//, async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      requests.push({ path, at: Date.now() });
+      const headers = { "access-control-allow-origin": "*" };
+      if (path === "/store.zarr/t/zarr.json") {
+        if (hold) await new Promise((resolve) => setTimeout(resolve, 2_000));
+        return route.fulfill({ status: 200, headers, contentType: "application/json", body: JSON.stringify(meta) }).catch(() => {});
+      }
+      return route.fulfill({ status: 404, headers }).catch(() => {});
+    });
+    await page.goto(PAGE);
+    await page.getByRole("button", { name: "Load interactive map" }).click();
+    await expect.poll(() => requests.length, { timeout: 15_000 }).toBeGreaterThan(0);
+    await page.getByRole("button", { name: "Stop loading" }).click();
+    const stopAt = Date.now();
+    await expectState(page, "stopped");
+
+    await page.waitForTimeout(3_000); // the metadata reply lands
+    await expect(page.locator(".explore-map")).toHaveAttribute("data-state", "stopped");
+    expect(requests.filter((r) => r.at > stopAt + 100)).toEqual([]);
+    await expect(page.getByRole("combobox", { name: "Variable" })).toBeDisabled();
+
+    hold = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    // startup runs again: the variables are read and listed, and loading moves on (to
+    // an error here: this store has no coordinates)
+    await expect(page.getByRole("combobox", { name: "Variable" })).toBeEnabled();
+    await expect(page.getByRole("combobox", { name: "Variable" })).toHaveValue("/t");
+    await expectState(page, "error");
+    await expect(status(page)).toContainText(/latitude/);
   });
 });
