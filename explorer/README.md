@@ -133,6 +133,13 @@ the only hard-coded colour.
       tile waits any more, and a queued read that nobody needs never starts.
     - `clear()` (variable or level change, Unload, destroy) aborts running reads,
       drops queued ones and discards late results.
+    - Each clear starts a new generation with its own concurrency limiter, so reads
+      it abandoned can't hold up the next generation.
+    - Within a generation, a running read gives its slot back exactly once, on its
+      settle or its abort, whichever is first. So a read that never settles can't
+      keep a slot.
+    - Slots refill after the current task, so a burst of tile aborts removes the
+      queued reads it leaves unwanted before they can start.
     - A result or failure is only ever recorded for the entry still registered
       under its key.
     - The view also moves a level dim that follows the grid, e.g. `(…, latitude,
@@ -148,6 +155,13 @@ the only hard-coded colour.
     `Tileset2D.finalize` aborts requests but never calls `onTileUnload`, so the
     explorer tracks textures per layer itself.
   - A tile that resolves after its layer was replaced creates no texture.
+  - Switching variable while loaded:
+    - The old variable's level selects and slider are removed or disabled at once.
+      Level and step events count only for the selection being loaded (`requested`),
+      which is tracked apart from what is drawn.
+    - If the switch fails, what was drawn stays. The dropdown, controls, labels and
+      legend return to it, and the error says so; Retry retries the failed choice.
+    - The dropdown always shows the selection being applied.
   - Unload aborts everything and frees the GPU; Load starts again.
     - Variable, level and step changes while unloaded read no weather data. They
       compose into one pending selection.

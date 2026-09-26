@@ -94,47 +94,63 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
   /** @type {Map<string, GetResult>} insertion order = LRU order */
   const done = new Map();
   const stats = { reads: 0, hits: 0, cancelled: 0 };
-  let owner = new AbortController();
-  let active = 0;
-  /** @type {{ run: () => void, signal: AbortSignal, reject: (e: unknown) => void }[]} */
-  const queue = [];
 
-  function pump() {
-    while (active < maxConcurrent && queue.length) queue.shift().run();
-  }
-
-  /** Run `fn` when a slot is free; a job aborted while queued never starts. */
-  function limited(fn, signal) {
-    return new Promise((resolve, reject) => {
-      if (signal.aborted) return reject(abortError());
-      const job = {
-        signal,
-        reject,
-        run: () => {
-          signal.removeEventListener("abort", onAbort);
-          if (signal.aborted) return reject(abortError());
-          active++;
-          Promise.resolve()
-            .then(fn)
-            .then(resolve, reject)
-            .finally(() => {
+  /**
+   * A concurrency limiter. A running job holds its slot until its promise settles or its
+   * signal aborts, whichever comes first, and gives it back exactly once, so an abandoned
+   * read that never settles can't keep a slot. Its late result is still observed (and
+   * discarded by the caller). A job aborted while queued never starts.
+   */
+  function makeLimiter(max) {
+    let active = 0;
+    /** @type {{ run: () => void }[]} */
+    const queue = [];
+    const pump = () => {
+      while (active < max && queue.length) queue.shift().run();
+    };
+    function limited(fn, signal) {
+      return new Promise((resolve, reject) => {
+        if (signal.aborted) return reject(abortError());
+        const onQueuedAbort = () => {
+          const i = queue.indexOf(job);
+          if (i >= 0) {
+            queue.splice(i, 1);
+            reject(abortError());
+          }
+        };
+        const job = {
+          run: () => {
+            signal.removeEventListener("abort", onQueuedAbort);
+            if (signal.aborted) return reject(abortError());
+            active++;
+            let held = true;
+            const retire = () => {
+              if (!held) return;
+              held = false;
+              signal.removeEventListener("abort", retire);
               active--;
-              pump();
-            });
-        },
-      };
-      const onAbort = () => {
-        const i = queue.indexOf(job);
-        if (i >= 0) {
-          queue.splice(i, 1);
-          reject(abortError());
-        }
-      };
-      signal.addEventListener("abort", onAbort, { once: true });
-      queue.push(job);
-      pump();
-    });
+              // After the current task: deck aborts a burst of tiles synchronously, and
+              // queued reads that burst leaves unwanted must be gone before a slot refills.
+              queueMicrotask(pump);
+            };
+            signal.addEventListener("abort", retire, { once: true });
+            Promise.resolve().then(fn).then(resolve, reject).finally(retire);
+          },
+        };
+        signal.addEventListener("abort", onQueuedAbort, { once: true });
+        queue.push(job);
+        pump();
+      });
+    }
+    return { limited, active: () => active, queued: () => queue.length };
   }
+
+  /**
+   * The owner generation: its controller aborts every read it started, and it has its own
+   * limiter, so work abandoned by clear() can never hold up the next generation's reads.
+   */
+  const newGeneration = () => ({ controller: new AbortController(), limiter: makeLimiter(maxConcurrent) });
+  let gen = newGeneration();
 
   /**
    * One full grid at the given non-spatial indices, shared by every tile that needs it.
@@ -154,13 +170,13 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
     if (entry) stats.hits++;
     else {
       const controller = new AbortController();
-      const signal = AbortSignal.any([owner.signal, controller.signal]);
+      const owner = gen;
+      const signal = AbortSignal.any([owner.controller.signal, controller.signal]);
       const selection = new Array(n).fill(null);
       nonSpatial.forEach((d, k) => (selection[d] = indices[k]));
-      const gen = owner;
       // Settles as soon as the read is abandoned, whether or not `get` honours its signal.
       const promise = untilAborted(
-        limited(() => {
+        owner.limiter.limited(() => {
           stats.reads++;
           return get(array, selection, { signal });
         }, signal),
@@ -174,7 +190,7 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
           mine.settled = true;
           // Only the entry still registered under this key, in the same owner generation, is kept.
           if (inflight.get(key) === mine) inflight.delete(key);
-          if (gen !== owner || signal.aborted) return;
+          if (owner !== gen || signal.aborted) return;
           done.set(key, grid);
           while (done.size > cacheSize) done.delete(done.keys().next().value);
         },
@@ -273,6 +289,8 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
     keys: () => [...done.keys()],
     /** Keys of reads in flight or queued (for tests). */
     pending: () => [...inflight.keys()],
+    /** Slots held and jobs queued in the current generation's limiter (for tests). */
+    load: () => ({ active: gen.limiter.active(), queued: gen.limiter.queued() }),
     /**
      * Drop decoded grids and abandon all work: queued reads never start, running ones are
      * aborted, and their late results are discarded. Used on variable/level change,
@@ -280,8 +298,8 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
      */
     clear() {
       stats.cancelled += inflight.size;
-      owner.abort();
-      owner = new AbortController();
+      gen.controller.abort();
+      gen = newGeneration();
       inflight.clear();
       done.clear();
     },

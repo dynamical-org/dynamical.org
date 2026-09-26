@@ -418,3 +418,114 @@ test("aborting during the backoff ends the wait at once", async () => {
   assert.ok(Date.now() - t0 < 5_000, "did not wait out the 60 s backoff");
   assert.equal(client.stats.attempts, 1);
 });
+
+// --- scheduler: abandoned reads that never settle must not hold slots (review pass 3, #2) ---
+
+/** get() that never settles for the listed leads (and ignores its signal), else resolves. */
+function stuckGet(stuckLeads, H = 10, W = 12) {
+  const started = [];
+  let active = 0, peak = 0;
+  const get = (arr, sel) => {
+    const lead = sel[1];
+    started.push(lead);
+    if (stuckLeads.includes(lead)) return new Promise(() => {});
+    active++;
+    peak = Math.max(peak, active);
+    return new Promise((r) => setTimeout(r, 5)).then(() => {
+      active--;
+      return { data: new Float64Array(H * W).fill(lead), shape: [H, W] };
+    });
+  };
+  return { get, started, peak: () => peak };
+}
+const tileAt = (f, lead, opts) => f.get(f.view, [0, slice(lead, lead + 1), slice(0, 4), slice(0, 4)], opts);
+
+test("clear() with every slot held by a never-settling read: the replacement read starts and completes", async () => {
+  const { array } = fakeArray({ shape: [1, 6, 10, 12] });
+  const { get, started } = stuckGet([0, 1, 2, 3]);
+  const f = createTileFacade({ array, get, tileSize: 4, maxConcurrent: 4 });
+  const stuck = [0, 1, 2, 3].map((l) => tileAt(f, l).catch((e) => e.name));
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(f.load(), { active: 4, queued: 0 }, "every slot held");
+  f.clear();
+  assert.deepEqual(await Promise.all(stuck), Array(4).fill("AbortError"));
+  const t = await tileAt(f, 4);
+  assert.equal(t.data[0], 4, "the replacement completed");
+  assert.deepEqual(started, [0, 1, 2, 3, 4]);
+  assert.deepEqual(f.load(), { active: 0, queued: 0 });
+});
+
+test("without clear(): when a never-settling read loses its last tile, its slot goes to the next read", async () => {
+  const { array } = fakeArray({ shape: [1, 6, 10, 12] });
+  const { get, started } = stuckGet([0]);
+  const f = createTileFacade({ array, get, tileSize: 4, maxConcurrent: 1 });
+  const ac = new AbortController();
+  const a = tileAt(f, 0, { signal: ac.signal }).catch((e) => e.name);
+  const b = tileAt(f, 1); // queued behind the stuck read
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, [0]);
+  ac.abort();
+  assert.equal(await a, "AbortError");
+  assert.equal((await b).data[0], 1, "the queued read ran once the stuck one was abandoned");
+  assert.deepEqual(started, [0, 1]);
+});
+
+test("a retired slot is returned exactly once, even when the abandoned read settles late", async () => {
+  const { array } = fakeArray({ shape: [1, 8, 10, 12] });
+  const settle = new Map();
+  const started = [];
+  let active = 0, peak = 0;
+  const get = (arr, sel) => {
+    const lead = sel[1];
+    started.push(lead);
+    active++;
+    peak = Math.max(peak, active);
+    return new Promise((resolve) =>
+      settle.set(lead, () => {
+        active--;
+        resolve({ data: new Float64Array(120).fill(lead), shape: [10, 12] });
+      }),
+    );
+  };
+  const f = createTileFacade({ array, get, tileSize: 4, maxConcurrent: 1 });
+  const ac = new AbortController();
+  const a = tileAt(f, 0, { signal: ac.signal }).catch((e) => e.name);
+  await new Promise((r) => setImmediate(r));
+  ac.abort(); // lead 0 is abandoned; its slot is retired now
+  assert.equal(await a, "AbortError");
+  const b = tileAt(f, 1);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, [0, 1]);
+  settle.get(0)(); // lead 0's upstream finally settles: must not free a second slot
+  await new Promise((r) => setImmediate(r));
+  const c = tileAt(f, 2);
+  const d = tileAt(f, 3);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, [0, 1], "lead 1 still holds the only slot; 2 and 3 wait");
+  assert.deepEqual(f.load(), { active: 1, queued: 2 });
+  settle.get(1)();
+  assert.equal((await b).data[0], 1);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, [0, 1, 2]);
+  settle.get(2)();
+  assert.equal((await c).data[0], 2);
+  await new Promise((r) => setImmediate(r));
+  settle.get(3)();
+  assert.equal((await d).data[0], 3);
+  assert.deepEqual(f.keys(), ["|0,1", "|0,2", "|0,3"], "the late lead-0 result was not cached");
+  assert.equal(peak, 2, "only the abandoned read overlapped one live read");
+  assert.deepEqual(f.load(), { active: 0, queued: 0 });
+});
+
+test("a new generation gets its full concurrency even while the old one's reads hang", async () => {
+  const { array } = fakeArray({ shape: [1, 6, 10, 12] });
+  const { get, started, peak } = stuckGet([0, 1]);
+  const f = createTileFacade({ array, get, tileSize: 4, maxConcurrent: 2 });
+  [0, 1].forEach((l) => tileAt(f, l).catch(() => {}));
+  await new Promise((r) => setImmediate(r));
+  f.clear();
+  const [x, y] = await Promise.all([tileAt(f, 2), tileAt(f, 3)]);
+  assert.deepEqual([x.data[0], y.data[0]], [2, 3]);
+  assert.equal(peak(), 2, "both new reads ran side by side");
+  assert.deepEqual(started, [0, 1, 2, 3]);
+});

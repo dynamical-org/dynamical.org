@@ -16,7 +16,7 @@ import css from "./explorer.css?inline";
 import { formatValue, initialRange, isCelsius, settleRange } from "./lib/colour.js";
 import { absolutePath, blockRange, findFirstData, findLatestData, stepWithData } from "./lib/dims.js";
 import { shiftAttrs } from "./lib/grid.js";
-import { composePending } from "./lib/pending.js";
+import { composePending, loadedPinned, stepAccepted } from "./lib/pending.js";
 import { formatLead, formatUtc } from "./lib/time.js";
 import { makeSource, unsupportedReason } from "./source.js";
 import { openStore } from "./store.js";
@@ -145,6 +145,12 @@ export function mount(el, options) {
     /** Controls (levels, slider) of the pending variable, read from metadata only. */
     pendingControls: /** @type {{ path: string, pinned: any[], step: { name: string, kind: string, n: number } | null } | null} */ (null),
     pendingGen: 0,
+    /**
+     * The selection being loaded right now (a variable switch or level change in flight),
+     * tracked apart from `info`, which stays the committed one until the switch lands.
+     * Level and step controls act on this, not on `info`.
+     */
+    requested: /** @type {{ path: string, pinnedIdx: number[] | null } | null} */ (null),
     /** First-time phase marks (ms since mount) for the harness. */
     marks: /** @type {Record<string, number>} */ ({}),
   };
@@ -260,6 +266,7 @@ export function mount(el, options) {
         onTileError: (e) => {
           if (!live() || isAbort(e)) return;
           console.error("[explorer] tile", e);
+          s.failed = null; // the error on screen is now this one; Retry retries tiles
           setState("error", `Some tiles failed to load (${errText(e)}). Areas shown blank have no data drawn.`);
         },
         onViewportLoad: () => {
@@ -520,6 +527,9 @@ export function mount(el, options) {
 
   /** Commit a new (variable, pinned, step) atomically, or show why it failed. */
   async function apply(path, pinnedIdx, busyMsg, stepOverride = null) {
+    // The dropdown always shows the selection being applied (Retry after a failed switch
+    // re-applies a choice the dropdown had been restored away from).
+    varSelect.value = path;
     if (s.unloaded) {
       // No reads while unloaded (its controller is aborted): Load applies this choice.
       s.pending = pinnedIdx ? { path, pinnedIdx, stepIndex: stepOverride } : composePending(committed(), s.pending, { type: "variable", path });
@@ -527,6 +537,13 @@ export function mount(el, options) {
       return;
     }
     const g = ++s.gen;
+    s.requested = { path, pinnedIdx };
+    if (path !== s.info?.path) {
+      // Switching variable: the old variable's level selects and slider go at once, so
+      // they can't change a selection that is no longer the requested one.
+      extrasEl.replaceChildren();
+      slider.disabled = true;
+    }
     setState("loading", busyMsg);
     unloadBtn.disabled = true;
     try {
@@ -589,7 +606,7 @@ export function mount(el, options) {
       const range = rangeFor(info, idx, ref);
       s.prefetch = { base: baseKey(info, idx, ref.block), r0: ref.r0, c0: ref.c0, data: ref.data };
       mark("rangeReady");
-      Object.assign(s, { info, pinnedIdx: idx, stepIndex, range });
+      Object.assign(s, { info, pinnedIdx: idx, stepIndex, range, requested: null, failed: null });
       s.retry++;
       buildControls();
       updateLabels();
@@ -604,16 +621,29 @@ export function mount(el, options) {
     } catch (e) {
       if (g !== s.gen || s.destroyed) return;
       console.error("[explorer]", e);
-      // Never leave the previous variable's field or colours under the new choice.
+      const v = variables.find((x) => x.path === path);
+      s.requested = null;
+      s.failed = { path, pinnedIdx };
+      unloadBtn.disabled = false;
+      if (s.info) {
+        // Something is loaded: it stays, and the dropdown, level selects, slider, labels
+        // and legend all go back to it, so they describe what is drawn. Retry retries
+        // the failed choice.
+        varSelect.value = s.info.path;
+        buildControls();
+        updateLabels();
+        updateLegend();
+        render();
+        setState("error", `Could not load ${v?.name ?? path}: ${errText(e)}. Still showing the previous selection.`);
+        return;
+      }
+      // Nothing loaded (first load): no field, no colours, and the error names the choice.
       Object.assign(s, { info: null, range: null });
       buildControls();
       updateLabels();
       updateLegend();
       render();
-      const v = variables.find((x) => x.path === path);
       setState("error", `Could not load ${v?.name ?? path}: ${errText(e)}`);
-      s.failed = { path, pinnedIdx };
-      unloadBtn.disabled = false;
     }
   }
 
@@ -623,10 +653,10 @@ export function mount(el, options) {
       pendingChanged();
       return;
     }
-    if (forPath !== s.info?.path) return; // a control of a variable that is no longer shown
-    const idx = s.pinnedIdx.slice();
-    idx[i] = j;
-    return apply(s.info.path, idx, "Loading…");
+    // Only a control of the requested selection counts (see loadedPinned).
+    const next = loadedPinned(s.requested, committed(), { path: forPath, i, j });
+    if (!next) return;
+    return apply(next.path, next.pinnedIdx, "Loading…");
   }
 
   /** What is loaded, as a selection (null if nothing is). */
@@ -668,6 +698,8 @@ export function mount(el, options) {
       return;
     }
     if (!s.info?.step) return;
+    if (!s.unloaded && !stepAccepted(s.requested, committed())) return; // another variable is being loaded
+    s.failed = null; // moving on from a failed switch: Retry no longer means "retry that switch"
     const { chunk, n } = s.info.step;
     const newBlock = blockRange(i, chunk, s.window, n).start !== blockRange(s.stepIndex, chunk, s.window, n).start;
     s.stepIndex = i;
@@ -683,7 +715,8 @@ export function mount(el, options) {
   slider.addEventListener("input", () => setStep(Number(slider.value)));
   retryBtn.addEventListener("click", () => {
     if (!s.store) return void start();
-    if (!s.info) return void apply(s.failed?.path ?? varSelect.value, s.failed?.pinnedIdx ?? null, "Retrying…");
+    if (s.failed) return void apply(s.failed.path, s.failed.pinnedIdx, "Retrying…");
+    if (!s.info) return void apply(varSelect.value, null, "Retrying…");
     s.retry++;
     setState("loading", "Retrying…");
     render();
@@ -692,12 +725,17 @@ export function mount(el, options) {
     if (!s.unloaded) {
       // Cancel in-flight requests and release every texture and decoded chunk.
       s.unloaded = true;
+      // A switch still in flight becomes the pending choice (Unload is disabled during
+      // one, so this is only a safeguard): the dropdown keeps describing what Load draws.
+      if (s.requested && s.requested.path !== s.info?.path) s.pending = { ...s.requested, stepIndex: null };
+      s.requested = null;
       s.info?.facade?.clear();
       s.gen++;
       s.abort.abort();
       render();
       unloadBtn.textContent = "Load";
       setState("ready", "Unloaded. Weather data released; borders only.");
+      if (s.pending) pendingChanged();
     } else {
       s.unloaded = false;
       s.abort = new AbortController();

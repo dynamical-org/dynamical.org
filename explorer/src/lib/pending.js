@@ -32,3 +32,31 @@ export function composePending(committed, pending, change) {
   }
   return { path: base.path, pinnedIdx: base.pinnedIdx, stepIndex: change.index };
 }
+
+/**
+ * While loaded: a level change from a control of `path`, applied to the selection being
+ * loaded (`requested`, if a switch or level change is in flight) or else to what is
+ * loaded. Null when the control belongs to neither, e.g. the old variable's level select
+ * during a switch to another variable: it must not undo the switch.
+ * @param {Selection | null} requested
+ * @param {Selection | null} committed
+ * @param {{ path: string, i: number, j: number }} change
+ * @returns {Selection | null}
+ */
+export function loadedPinned(requested, committed, { path, i, j }) {
+  const target = requested ?? committed;
+  if (!target || target.path !== path) return null;
+  const idx = (target.pinnedIdx ?? committed?.pinnedIdx ?? []).slice();
+  idx[i] = j;
+  return { path, pinnedIdx: idx };
+}
+
+/**
+ * Whether the slider may change the step: not while another variable is being loaded
+ * (its slider isn't built yet; the old one belongs to the variable being replaced).
+ * @param {Selection | null} requested
+ * @param {Selection | null} committed
+ */
+export function stepAccepted(requested, committed) {
+  return !requested || (committed !== null && requested.path === committed.path);
+}

@@ -36,3 +36,21 @@ test("nothing loaded (e.g. after a failure): a variable choice is pending", () =
   assert.deepEqual(p, { path: "/a", pinnedIdx: null, stepIndex: null });
   assert.equal(composePending(null, null, { type: "pinned", path: "/a", i: 0, j: 1, count: 1 }), null);
 });
+
+test("loaded switch: the old variable's level select can't undo a switch in flight", async () => {
+  const { loadedPinned, stepAccepted } = await import("../explorer/src/lib/pending.js");
+  const loaded = { path: "/temperature_isobaric", pinnedIdx: [0] };
+  const switching = { path: "/relative_humidity_2m", pinnedIdx: null };
+  assert.equal(loadedPinned(switching, loaded, { path: "/temperature_isobaric", i: 0, j: 1 }), null, "old control rejected");
+  assert.equal(stepAccepted(switching, loaded), false, "old slider rejected");
+  // No switch in flight: level changes apply to what is loaded.
+  assert.deepEqual(loadedPinned(null, loaded, { path: "/temperature_isobaric", i: 0, j: 1 }), { path: "/temperature_isobaric", pinnedIdx: [1] });
+  assert.equal(stepAccepted(null, loaded), true);
+  // A level change in flight for the same variable: a second one composes onto it.
+  const levelInFlight = { path: "/temperature_isobaric", pinnedIdx: [1, 0] };
+  const two = { path: "/temperature_isobaric", pinnedIdx: [0, 0] };
+  assert.deepEqual(loadedPinned(levelInFlight, two, { path: "/temperature_isobaric", i: 1, j: 2 }), { path: "/temperature_isobaric", pinnedIdx: [1, 2] });
+  assert.equal(stepAccepted(levelInFlight, two), true);
+  // Nothing loaded yet (first load or after a failure): no level control applies.
+  assert.equal(loadedPinned(null, null, { path: "/a", i: 0, j: 1 }), null);
+});
