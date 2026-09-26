@@ -9,6 +9,7 @@ import {
   classifyDims,
   decodeIndexEntry,
   dimLabel,
+  findFirstData,
   findLatestData,
   latestWithChunk,
   layoutOf,
@@ -248,7 +249,7 @@ test("latestWithChunk walks back from the end, at most max tries", async () => {
   const seen = [];
   const r = await latestWithChunk({ n: 20, label: "init_time", has: async (i) => (seen.push(i), i <= 17) });
   assert.deepEqual(seen, [19, 18, 17]);
-  assert.deepEqual(r, { index: 17, log: ["init_time[19]: no chunk", "init_time[18]: no chunk", "init_time[17]: chunk present"] });
+  assert.deepEqual(r, { index: 17, failed: 0, log: ["init_time[19]: no chunk", "init_time[18]: no chunk", "init_time[17]: chunk present"] });
   const none = await latestWithChunk({ n: 20, has: async () => false });
   assert.equal(none.index, null);
   assert.equal(none.log.length, 8);
@@ -298,4 +299,29 @@ test("an all-one-value sample gives a provisional range that the first varying s
   assert.equal(settleRange(settled, Float32Array.from([5, 6, 7])), null, "frozen once it varies");
   assert.deepEqual(initialRange("degree_Celsius", zeros), { min: -40, max: 50, kind: "fixed" });
   assert.equal(settleRange(initialRange("degree_Celsius", zeros), rain), null);
+});
+
+test("findFirstData: a forecast whose opening step is empty moves to the first step with data", async () => {
+  const reads = [];
+  // One-step blocks (virtual store); +0 h of an accumulation is missing, +1 h has data.
+  const r = await findFirstData({ from: 0, n: 209, blockLen: 1, readSteps: async (a, b) => (reads.push([a, b]), a === 0 ? [NaN, NaN] : [0, 0.2]) });
+  assert.deepEqual(r, { index: 1, log: ["steps 0..0: all missing", "steps 1..1: data from 1"] });
+  // Bounded: gives up after maxReads blocks.
+  reads.length = 0;
+  const none = await findFirstData({ from: 0, n: 209, blockLen: 1, maxReads: 4, readSteps: async (a, b) => (reads.push([a, b]), [NaN]) });
+  assert.equal(none.index, null);
+  assert.deepEqual(reads, [[0, 1], [1, 2], [2, 3], [3, 4]]);
+  // Materialized-style blocks: reads whole blocks, starting mid-block.
+  reads.length = 0;
+  const blk = await findFirstData({ from: 3, n: 20, blockLen: 8, readSteps: async (a, b) => (reads.push([a, b]), Array.from({ length: b - a }, (_, k) => (a + k >= 10 ? 1 : NaN))) });
+  assert.equal(blk.index, 10);
+  assert.deepEqual(reads, [[3, 8], [8, 16]]);
+});
+
+test("latestWithChunk: a failed probe is reported as failed, not as a missing run", async () => {
+  const r = await latestWithChunk({ n: 5, label: "init_time", has: async (i) => { if (i >= 3) throw new TypeError("Failed to fetch"); return i === 2; } });
+  assert.deepEqual(r, { index: 2, failed: 2, log: ["init_time[4]: probe failed (Failed to fetch)", "init_time[3]: probe failed (Failed to fetch)", "init_time[2]: chunk present"] });
+  const all = await latestWithChunk({ n: 3, has: async () => { throw new Error("503"); } });
+  assert.equal(all.index, null);
+  assert.equal(all.failed, 3);
 });

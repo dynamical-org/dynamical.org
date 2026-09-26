@@ -13,7 +13,8 @@
  * @param {number} [options.maxAttempts] Total tries per request, including the first.
  * @param {number} [options.baseMs] Backoff before retry n is baseMs * 2^(n-1), jittered 0.5–1.5×.
  * @param {typeof fetch} [options.fetchImpl] Defaults to globalThis.fetch (injectable for tests).
- * @param {(ms: number) => Promise<void>} [options.sleep] Injectable for tests.
+ * @param {(ms: number, signal?: AbortSignal) => Promise<void>} [options.sleep] Backoff wait; rejects when
+ *   `signal` aborts. Injectable for tests.
  * @param {(info: { url: string, attempt: number, reason: string }) => void} [options.onRetry]
  *   Called before each retry, e.g. to show "Upstream request failed (host), retrying…".
  * @returns {FetchClient & { stats: { attempts: number, retries: number } }}
@@ -22,7 +23,19 @@ export function retryingFetchClient({
   maxAttempts = 6,
   baseMs = 250,
   fetchImpl = (...args) => globalThis.fetch(...args),
-  sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  sleep = (ms, signal) =>
+    new Promise((resolve, reject) => {
+      const t = setTimeout(done, ms);
+      function done() {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }
+      function onAbort() {
+        clearTimeout(t);
+        reject(signal.reason ?? new DOMException("The operation was aborted.", "AbortError"));
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
+    }),
   onRetry,
 } = {}) {
   const stats = { attempts: 0, retries: 0 };
@@ -44,7 +57,8 @@ export function retryingFetchClient({
         }
         stats.retries++;
         onRetry?.({ url, attempt, reason });
-        await sleep(baseMs * 2 ** (attempt - 1) * (0.5 + Math.random()));
+        // The backoff ends early, with an AbortError, when the request is aborted.
+        await sleep(baseMs * 2 ** (attempt - 1) * (0.5 + Math.random()), init?.signal);
         init?.signal?.throwIfAborted();
       }
     },

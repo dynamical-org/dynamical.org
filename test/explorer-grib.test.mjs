@@ -315,12 +315,106 @@ test("aborting one tile never cancels the read other tiles share", async () => {
   };
   const f = createTileFacade({ array, get, tileSize: 4 });
   const ac = new AbortController();
+  const live = new AbortController();
   const a = f.get(f.view, [0, slice(0, 1), slice(0, 4), slice(0, 4)], { signal: ac.signal });
-  const b = f.get(f.view, [0, slice(0, 1), slice(4, 8), slice(0, 4)], { signal: new AbortController().signal });
+  const b = f.get(f.view, [0, slice(0, 1), slice(4, 8), slice(0, 4)], { signal: live.signal });
   await new Promise((r) => setImmediate(r));
   ac.abort();
+  await assert.rejects(a, { name: "AbortError" }, "the aborted tile rejects at once, before the read ends");
+  assert.equal(signals.length, 1, "one shared read");
+  assert.ok(signals[0] !== ac.signal && signals[0] !== live.signal, "the read has its own signal");
+  assert.equal(signals[0].aborted, false, "still needed by the live tile");
   release();
-  await assert.rejects(a, { name: "AbortError" });
   assert.equal((await b).data[0], 48);
-  assert.deepEqual(signals, [null], "one shared read, started without any tile's signal");
+  assert.equal(f.stats.cancelled, 0);
+});
+
+/** A get() whose reads the test finishes by hand; records starts and each read's signal. */
+function manualGet(H = 10, W = 12) {
+  const started = [];
+  const pending = new Map();
+  const get = (arr, sel, opts) =>
+    new Promise((resolve, reject) => {
+      const key = sel.slice(0, -2).join(",");
+      started.push(key);
+      pending.set(key, { resolve: () => resolve({ data: new Float64Array(H * W), shape: [H, W] }), reject, signal: opts?.signal });
+    });
+  return { get, started, pending };
+}
+
+test("when every tile waiting for a read aborts, the read is aborted and queued reads never start", async () => {
+  const { array } = fakeArray();
+  const { get, started, pending } = manualGet();
+  const f = createTileFacade({ array, get, tileSize: 4, maxConcurrent: 1 });
+  const controllers = [0, 1, 2, 3, 4].map(() => new AbortController());
+  const tiles = controllers.map((ac, l) => f.get(f.view, [0, slice(l % 3, l % 3 + 1), slice(0, 4), slice(0, 4)], { signal: ac.signal }).catch((e) => e.name));
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ["0,0"], "one slot, the rest queued");
+  controllers.forEach((ac) => ac.abort());
+  assert.deepEqual(await Promise.all(tiles), Array(5).fill("AbortError"), "every tile rejects without waiting for upstream");
+  assert.equal(pending.get("0,0").signal.aborted, true, "the running read is aborted");
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ["0,0"], "queued reads never start");
+  assert.deepEqual(f.pending(), []);
+  assert.deepEqual(f.keys(), []);
+});
+
+test("clear() aborts running reads, drops queued ones, and discards late results", async () => {
+  const { array } = fakeArray();
+  const { get, started, pending } = manualGet();
+  const f = createTileFacade({ array, get, tileSize: 4, maxConcurrent: 2 });
+  const tiles = [0, 1, 2, 0].map((l) => f.get(f.view, [0, slice(l, l + 1), slice(0, 4), slice(0, 4)], { signal: new AbortController().signal }).catch((e) => e.name));
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ["0,0", "0,1"]);
+  assert.deepEqual(f.pending().length, 3);
+  f.clear();
+  assert.equal(pending.get("0,0").signal.aborted, true);
+  assert.equal(pending.get("0,1").signal.aborted, true);
+  pending.get("0,0").resolve(); // a late result from before clear()
+  assert.deepEqual(await Promise.all(tiles), ["AbortError", "AbortError", "AbortError", "AbortError"]);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, ["0,0", "0,1"], "the queued read (lead 2) never started");
+  assert.deepEqual(f.keys(), [], "the late result is not cached");
+  // Still usable afterwards.
+  const again = f.get(f.view, [0, slice(0, 1), slice(0, 4), slice(0, 4)]);
+  await new Promise((r) => setImmediate(r));
+  pending.get("0,0").resolve();
+  assert.deepEqual((await again).shape, [1, 4, 4]);
+  assert.deepEqual(f.keys(), ["|0,0"]);
+});
+
+test("an old read that fails after a replacement started never removes the replacement", async () => {
+  const { array } = fakeArray();
+  const reads = [];
+  // Each read is a deferred the test settles; the fake ignores its abort signal, like a
+  // fetch whose failure was already on the wire.
+  const get = () => new Promise((resolve, reject) => reads.push({ resolve: () => resolve({ data: new Float64Array(120), shape: [10, 12] }), reject }));
+  const f = createTileFacade({ array, get, tileSize: 4 });
+  const sel = [0, slice(0, 1), slice(0, 4), slice(0, 4)];
+  const a = f.get(f.view, sel).catch((e) => e.name);
+  await new Promise((r) => setImmediate(r));
+  f.clear(); // A is abandoned
+  const b = f.get(f.view, sel);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(f.pending(), ["|0,0"], "B is in flight under the same key");
+  reads[0].reject(new Error("upstream 503")); // A fails late
+  await new Promise((r) => setImmediate(r));
+  assert.equal(await a, "AbortError");
+  assert.deepEqual(f.pending(), ["|0,0"], "A's failure left B's entry alone");
+  reads[1].resolve();
+  await b;
+  assert.deepEqual(f.keys(), ["|0,0"], "B is cached");
+  await f.get(f.view, [0, slice(0, 1), slice(4, 8), slice(0, 4)]);
+  assert.equal(reads.length, 2, "and reused: no third read");
+});
+
+test("aborting during the backoff ends the wait at once", async () => {
+  const ac = new AbortController();
+  const client = retryingFetchClient({ baseMs: 60_000, fetchImpl: async () => new Response(null, { status: 503 }) });
+  const t0 = Date.now();
+  const p = client.fetch("u", { signal: ac.signal });
+  setTimeout(() => ac.abort(), 20);
+  await assert.rejects(p, { name: "AbortError" });
+  assert.ok(Date.now() - t0 < 5_000, "did not wait out the 60 s backoff");
+  assert.equal(client.stats.attempts, 1);
 });

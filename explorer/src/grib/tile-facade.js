@@ -23,6 +23,7 @@
  * @typedef {number | null | { start: number | null, stop: number | null, step?: number | null }} DimSel
  * @typedef {{ data: ArrayLike<number> & { length: number, constructor: any }, shape: number[] }} GetResult
  * @typedef {(arr: any, selection: DimSel[], opts?: { signal?: AbortSignal }) => Promise<GetResult>} GetFn
+ *   Called with the read's own signal (aborted when no tile needs the grid any more, or on clear).
  */
 
 /**
@@ -85,45 +86,131 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
     dtype: array.dtype,
   };
 
-  /** @type {Map<string, Promise<GetResult>>} insertion order = LRU order */
-  const cache = new Map();
-  const stats = { reads: 0, hits: 0 };
+  // Two maps: reads in flight (deduplicated, cancellable) and decoded grids (the LRU).
+  // A read is owned by the facade, not by any tile: it gets its own controller, which is
+  // aborted when nobody waits for it any more, or by clear()/destroy() (the owner).
+  /** @type {Map<string, { promise: Promise<GetResult>, controller: AbortController, waiters: number, settled: boolean }>} */
+  const inflight = new Map();
+  /** @type {Map<string, GetResult>} insertion order = LRU order */
+  const done = new Map();
+  const stats = { reads: 0, hits: 0, cancelled: 0 };
+  let owner = new AbortController();
   let active = 0;
-  /** @type {(() => void)[]} */
+  /** @type {{ run: () => void, signal: AbortSignal, reject: (e: unknown) => void }[]} */
   const queue = [];
 
-  async function limited(fn) {
-    if (active >= maxConcurrent) await new Promise((resolve) => queue.push(resolve));
-    active++;
-    try {
-      return await fn();
-    } finally {
-      active--;
-      queue.shift()?.();
-    }
+  function pump() {
+    while (active < maxConcurrent && queue.length) queue.shift().run();
   }
 
-  /** One full grid at the given non-spatial indices; shared by every tile that needs it. */
-  function fullGrid(indices) {
-    const key = `${keyPrefix}|${indices.join(",")}`;
-    let p = cache.get(key);
-    if (p) {
-      stats.hits++;
-      cache.delete(key); // refresh LRU position
-      cache.set(key, p);
-      return p;
-    }
-    // No signal: the read is shared, so one tile's abort must not fail the others.
-    const selection = new Array(n).fill(null);
-    nonSpatial.forEach((d, k) => (selection[d] = indices[k]));
-    p = limited(() => {
-      stats.reads++;
-      return get(array, selection);
+  /** Run `fn` when a slot is free; a job aborted while queued never starts. */
+  function limited(fn, signal) {
+    return new Promise((resolve, reject) => {
+      if (signal.aborted) return reject(abortError());
+      const job = {
+        signal,
+        reject,
+        run: () => {
+          signal.removeEventListener("abort", onAbort);
+          if (signal.aborted) return reject(abortError());
+          active++;
+          Promise.resolve()
+            .then(fn)
+            .then(resolve, reject)
+            .finally(() => {
+              active--;
+              pump();
+            });
+        },
+      };
+      const onAbort = () => {
+        const i = queue.indexOf(job);
+        if (i >= 0) {
+          queue.splice(i, 1);
+          reject(abortError());
+        }
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      queue.push(job);
+      pump();
     });
-    p.catch(() => cache.delete(key));
-    cache.set(key, p);
-    while (cache.size > cacheSize) cache.delete(cache.keys().next().value);
-    return p;
+  }
+
+  /**
+   * One full grid at the given non-spatial indices, shared by every tile that needs it.
+   * Returns the grid (or its pending read) and a `release` the caller must call when it
+   * stops waiting; the last release of an unfinished read aborts it.
+   */
+  function acquire(indices) {
+    const key = `${keyPrefix}|${indices.join(",")}`;
+    const hit = done.get(key);
+    if (hit) {
+      stats.hits++;
+      done.delete(key); // refresh LRU position
+      done.set(key, hit);
+      return { promise: Promise.resolve(hit), release: () => {} };
+    }
+    let entry = inflight.get(key);
+    if (entry) stats.hits++;
+    else {
+      const controller = new AbortController();
+      const signal = AbortSignal.any([owner.signal, controller.signal]);
+      const selection = new Array(n).fill(null);
+      nonSpatial.forEach((d, k) => (selection[d] = indices[k]));
+      const gen = owner;
+      // Settles as soon as the read is abandoned, whether or not `get` honours its signal.
+      const promise = untilAborted(
+        limited(() => {
+          stats.reads++;
+          return get(array, selection, { signal });
+        }, signal),
+        signal,
+      );
+      entry = { promise, controller, waiters: 0, settled: false };
+      const mine = entry;
+      inflight.set(key, mine);
+      promise.then(
+        (grid) => {
+          mine.settled = true;
+          // Only the entry still registered under this key, in the same owner generation, is kept.
+          if (inflight.get(key) === mine) inflight.delete(key);
+          if (gen !== owner || signal.aborted) return;
+          done.set(key, grid);
+          while (done.size > cacheSize) done.delete(done.keys().next().value);
+        },
+        () => {
+          mine.settled = true;
+          if (inflight.get(key) === mine) inflight.delete(key);
+        },
+      );
+    }
+    entry.waiters++;
+    const e = entry;
+    let released = false;
+    return {
+      promise: e.promise,
+      release: () => {
+        if (released) return;
+        released = true;
+        e.waiters--;
+        if (e.waiters === 0 && !e.settled) {
+          stats.cancelled++;
+          e.controller.abort();
+          if (inflight.get(key) === e) inflight.delete(key);
+        }
+      },
+    };
+  }
+
+  /** `p`, or an AbortError as soon as `signal` aborts (without waiting for `p`). */
+  function untilAborted(p, signal) {
+    if (!signal) return p;
+    return new Promise((resolve, reject) => {
+      const onAbort = () => reject(abortError());
+      if (signal.aborted) return onAbort();
+      signal.addEventListener("abort", onAbort, { once: true });
+      p.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+    });
   }
 
   /**
@@ -149,8 +236,13 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
     /** @type {number[][]} */
     let combos = [[]];
     for (const l of lead) combos = combos.flatMap((c) => (Array.isArray(l) ? l : [l]).map((i) => [...c, i]));
-    const grids = await Promise.all(combos.map((c) => fullGrid(c)));
-    if (signal?.aborted) throw abortError();
+    const handles = combos.map((c) => acquire(c));
+    let grids;
+    try {
+      grids = await untilAborted(Promise.all(handles.map((x) => x.promise)), signal);
+    } finally {
+      handles.forEach((x) => x.release());
+    }
     const h = rows.length, w = cols.length;
     const Ctor = grids[0]?.data.constructor ?? Float64Array;
     const out = new Ctor(combos.length * h * w);
@@ -177,9 +269,21 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
     view,
     get: read,
     stats,
-    /** Cached keys, oldest first (for tests). */
-    keys: () => [...cache.keys()],
-    /** Drop cached grids, e.g. on variable switch or destroy. */
-    clear: () => cache.clear(),
+    /** Decoded grids' keys, oldest first (for tests). */
+    keys: () => [...done.keys()],
+    /** Keys of reads in flight or queued (for tests). */
+    pending: () => [...inflight.keys()],
+    /**
+     * Drop decoded grids and abandon all work: queued reads never start, running ones are
+     * aborted, and their late results are discarded. Used on variable/level change,
+     * Unload and destroy. The facade stays usable.
+     */
+    clear() {
+      stats.cancelled += inflight.size;
+      owner.abort();
+      owner = new AbortController();
+      inflight.clear();
+      done.clear();
+    },
   };
 }

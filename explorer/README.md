@@ -95,12 +95,18 @@ the only hard-coded colour.
     is a 1-byte read of that chunk's GRIB message; an unwritten chunk has no
     reference, and the read comes back empty. At most 8 runs are checked, newest
     first. Their analyses probe `time` the same way.
+    - A probe read that fails (e.g. an upstream outage) is reported as "the
+      upstream probe failed", not as "no run with data".
   - `lead_time`, or `time` for analyses, drives the slider. Analyses start at the
     newest time whose chunk the same probe finds, and show a no-data state if
     none is found.
   - When that chunk exists but its newest texture window is empty, the rest of
     the chunk is searched, then up to 3 earlier chunks. If all are empty, the
     explorer reports no data rather than a blank "Ready".
+  - A forecast whose opening block is empty searches the following blocks, at most
+    6 reads: e.g. an accumulation at +0 h, where a virtual store's block is that
+    one step. Labels, reference read and colour range move to the step found
+    together. If none has data, the explorer says so.
   - `ensemble_member` is pinned to 0 and labelled "member 0". Every other dim
     gets its own select, labelled with coordinate values and units (e.g. "500 hPa").
 - **Texture blocks.** The ECMWF-example technique: one `ZarrLayer` per
@@ -119,11 +125,16 @@ the only hard-coded colour.
       lat/lon grids at most ~30° of latitude, so 61 on 0.5° grids.
     - deck.gl-raster's mesh refinement stops at 10,000 iterations, and a
       globe-sized tile then renders 1–3 cells off at mid-latitudes.
-    - Each real chunk is read and decoded once, through a 4-entry LRU shared by
-      the tiles, and cut into tiles.
-    - Cache keys are the snapshot, the variable path and every non-spatial index.
-    - The shared read carries no tile's abort signal, so one tile's abort only
-      rejects that tile.
+    - Each real chunk is read and decoded once and cut into tiles.
+    - Reads in flight (deduplicated) are kept apart from decoded grids (a 4-entry
+      LRU). Keys are the snapshot, the variable path and every non-spatial index.
+    - Each read has its own abort controller and counts the tiles waiting for it.
+      A tile that aborts stops waiting at once; the read is aborted only when no
+      tile waits any more, and a queued read that nobody needs never starts.
+    - `clear()` (variable or level change, Unload, destroy) aborts running reads,
+      drops queued ones and discards late results.
+    - A result or failure is only ever recorded for the entry still registered
+      under its key.
     - The view also moves a level dim that follows the grid, e.g. `(…, latitude,
       longitude, pressure_level)`, in front of it, because deck.gl-zarr needs the
       spatial dims last.
@@ -138,8 +149,13 @@ the only hard-coded colour.
     explorer tracks textures per layer itself.
   - A tile that resolves after its layer was replaced creates no texture.
   - Unload aborts everything and frees the GPU; Load starts again.
-    - A variable, level or step chosen while unloaded reads nothing.
-    - Load applies it with a fresh abort controller.
+    - Variable, level and step changes while unloaded read no weather data. They
+      compose into one pending selection.
+    - A newly chosen variable's level selects and slider are rebuilt from its
+      metadata and coordinates. The old variable's controls can't change the
+      pending one.
+    - Load applies the selection with a fresh abort controller.
+  - The retry client's backoff wait ends as soon as its request is aborted.
   - A GPU-memory estimate, advisory only:
     - Tiles in view × block steps × tile cells × 4 B is estimated from the view's
       corners.

@@ -14,8 +14,9 @@ import * as zarr from "zarrita";
 import { defineWebMercatorOver, lonLatToCell, makeResolver } from "./crs.js";
 import css from "./explorer.css?inline";
 import { formatValue, initialRange, isCelsius, settleRange } from "./lib/colour.js";
-import { absolutePath, blockRange, findLatestData, stepWithData } from "./lib/dims.js";
+import { absolutePath, blockRange, findFirstData, findLatestData, stepWithData } from "./lib/dims.js";
 import { shiftAttrs } from "./lib/grid.js";
+import { composePending } from "./lib/pending.js";
 import { formatLead, formatUtc } from "./lib/time.js";
 import { makeSource, unsupportedReason } from "./source.js";
 import { openStore } from "./store.js";
@@ -139,8 +140,11 @@ export function mount(el, options) {
     error: false,
     /** Estimated texture bytes for one view above which the status warns (advisory). */
     textureWarnBytes: opts.maxTextureBytes ?? DEFAULT_TEXTURE_BYTES,
-    /** A variable or level chosen while unloaded, applied by Load. */
-    pending: /** @type {{ path: string, pinnedIdx: number[] | null } | null} */ (null),
+    /** The variable, levels and step chosen while unloaded (one selection), applied by Load. */
+    pending: /** @type {import("./lib/pending.js").Selection | null} */ (null),
+    /** Controls (levels, slider) of the pending variable, read from metadata only. */
+    pendingControls: /** @type {{ path: string, pinned: any[], step: { name: string, kind: string, n: number } | null } | null} */ (null),
+    pendingGen: 0,
     /** First-time phase marks (ms since mount) for the harness. */
     marks: /** @type {Record<string, number>} */ ({}),
   };
@@ -430,28 +434,48 @@ export function mount(el, options) {
             : "2–98% of a sample";
   }
 
+  /**
+   * What the level selects and slider show: the pending variable's own controls while
+   * unloaded with another variable chosen (null while they are being read), else the
+   * loaded variable's, with any pending levels/step.
+   */
+  function controlSpec() {
+    const p = s.unloaded ? s.pending : null;
+    if (p && p.path !== s.info?.path) {
+      const c = s.pendingControls?.path === p.path ? s.pendingControls : null;
+      if (!c) return { path: p.path, loading: true };
+      const n = c.step?.n ?? 1;
+      return { path: p.path, pinned: c.pinned, step: c.step, pinnedIdx: p.pinnedIdx ?? c.pinned.map(() => 0), stepIndex: Math.min(p.stepIndex ?? 0, n - 1) };
+    }
+    if (!s.info) return null;
+    return { path: s.info.path, pinned: s.info.pinned, step: s.info.step, pinnedIdx: p?.pinnedIdx ?? s.pinnedIdx, stepIndex: s.stepIndex };
+  }
+
   function buildControls() {
-    const { info } = s;
+    const spec = controlSpec();
     extrasEl.replaceChildren();
-    if (!info) {
+    if (!spec) {
       slider.disabled = true;
       return;
     }
-    info.pinned.forEach((p, i) => {
+    // Pending controls still being read: the old variable's level selects are gone; the
+    // slider stays and its moves go to the pending selection.
+    if (spec.loading) return;
+    spec.pinned.forEach((p, i) => {
       if (!p.select) return;
       const sel = h(
         "select",
         { ariaLabel: p.name },
-        p.labels.map((text, j) => h("option", { value: String(j), textContent: text, selected: j === s.pinnedIdx[i] })),
+        p.labels.map((text, j) => h("option", { value: String(j), textContent: text, selected: j === spec.pinnedIdx[i] })),
       );
-      sel.addEventListener("change", () => void setPinned(i, Number(sel.value)));
+      sel.addEventListener("change", () => void setPinned(i, Number(sel.value), spec.path, spec.pinned.length));
       extrasEl.append(h("label", {}, [h("span", { textContent: p.name }), sel]));
     });
-    sliderRow.hidden = !info.step;
-    if (info.step) {
-      sliderLabelText.textContent = slider.ariaLabel = info.step.kind === "time" ? "Time" : "Lead time";
-      slider.max = String(info.step.n - 1);
-      slider.value = String(s.stepIndex);
+    sliderRow.hidden = !spec.step;
+    if (spec.step) {
+      sliderLabelText.textContent = slider.ariaLabel = spec.step.kind === "time" ? "Time" : "Lead time";
+      slider.max = String(spec.step.n - 1);
+      slider.value = String(spec.stepIndex);
       slider.disabled = false;
     }
   }
@@ -495,12 +519,11 @@ export function mount(el, options) {
   }
 
   /** Commit a new (variable, pinned, step) atomically, or show why it failed. */
-  async function apply(path, pinnedIdx, busyMsg) {
+  async function apply(path, pinnedIdx, busyMsg, stepOverride = null) {
     if (s.unloaded) {
       // No reads while unloaded (its controller is aborted): Load applies this choice.
-      s.pending = { path, pinnedIdx };
-      const v = variables.find((x) => x.path === path);
-      setState("ready", `Unloaded. Press Load to draw ${v?.name ?? path}.`);
+      s.pending = pinnedIdx ? { path, pinnedIdx, stepIndex: stepOverride } : composePending(committed(), s.pending, { type: "variable", path });
+      pendingChanged();
       return;
     }
     const g = ++s.gen;
@@ -518,40 +541,49 @@ export function mount(el, options) {
       // A new variable or pinned level drops the decoded whole-grid chunks of the old one
       // (virtual stores); slider steps of the same selection stay cached.
       if (s.info?.facade && (info !== s.info || pinnedKey(idx) !== pinnedKey(s.pinnedIdx))) s.info.facade.clear();
-      let stepIndex = info === s.info ? s.stepIndex : (info.step?.index ?? 0);
+      // A step chosen while unloaded wins; otherwise keep the step, or open at the default.
+      let stepIndex = stepOverride ?? (info === s.info ? s.stepIndex : (info.step?.index ?? 0));
+      if (info.step) stepIndex = Math.min(stepIndex, info.step.n - 1);
       const signal = s.abort.signal;
       let ref = await reference(info, idx, stepIndex, signal);
       if (g !== s.gen) return;
       let noData = info.step?.noData ? `No data found for the latest ${info.step.name} (${info.step.log.join("; ")})` : null;
-      if (info !== s.info && info.step) {
+      if (info !== s.info && info.step && stepOverride === null) {
         // Open on a step that has data: 24 h means and accumulations are NaN at
         // +0 h, and an analysis's newest time can still be unwritten.
         const k = stepWithData(ref.data, ref.block.stop - ref.block.start, info.step.kind === "time" ? "last" : "first");
+        const [row, col] = info.centerCell;
+        const readSteps = async (start, stop) => {
+          const { sel } = selectionFor(info, idx, start);
+          sel[info.step.name] = zarr.slice(start, stop);
+          return (await readTileBlock(info, sel, row, col, signal)).data;
+        };
+        let found = null;
         if (k >= 0) stepIndex = ref.block.start + k;
         else if (info.step.kind === "time" && !noData) {
           // The probed chunk exists but this window is empty: search the rest of the
           // chunk, then earlier chunks, and say so rather than draw a blank field.
-          const [row, col] = info.centerCell;
-          const found =
+          found =
             ref.block.start > 0
-              ? await findLatestData({
-                  index: ref.block.start - 1,
-                  chunkLen: info.step.chunk,
-                  readSteps: async (start, stop) => {
-                    const { sel } = selectionFor(info, idx, start);
-                    sel[info.step.name] = zarr.slice(start, stop);
-                    return (await readTileBlock(info, sel, row, col, signal)).data;
-                  },
-                })
+              ? await findLatestData({ index: ref.block.start - 1, chunkLen: info.step.chunk, readSteps })
               : { index: null, log: [] };
-          if (g !== s.gen) return;
           if (found.index === null) {
             noData = `No data found in the latest ${info.step.name} values (steps ${ref.block.start}..${ref.block.stop - 1} are empty${found.log.length ? `; ${found.log.join("; ")}` : ""})`;
-          } else {
-            stepIndex = found.index;
-            ref = await reference(info, idx, stepIndex, signal);
-            if (g !== s.gen) return;
           }
+        } else if (info.step.kind === "lead" && !noData) {
+          // The opening block is empty (e.g. an accumulation at +0 h; a virtual store's
+          // block is that one step): a bounded search of the following steps.
+          found = await findFirstData({ from: ref.block.stop, n: info.step.n, blockLen: Math.min(info.step.chunk, s.window), readSteps });
+          if (found.index === null) {
+            noData = `No usable data in the first ${info.step.name} steps (steps ${ref.block.start}..${ref.block.stop - 1} are empty${found.log.length ? `; ${found.log.join("; ")}` : ""})`;
+          }
+        }
+        if (g !== s.gen) return;
+        if (found?.index != null) {
+          // Labels, reference (prefetch) and colour range all follow the new step.
+          stepIndex = found.index;
+          ref = await reference(info, idx, stepIndex, signal);
+          if (g !== s.gen) return;
         }
       }
       const range = rangeFor(info, idx, ref);
@@ -585,13 +617,56 @@ export function mount(el, options) {
     }
   }
 
-  function setPinned(i, j) {
+  function setPinned(i, j, forPath = s.info?.path, count = s.pinnedIdx.length) {
+    if (s.unloaded) {
+      s.pending = composePending(committed(), s.pending, { type: "pinned", path: forPath, i, j, count });
+      pendingChanged();
+      return;
+    }
+    if (forPath !== s.info?.path) return; // a control of a variable that is no longer shown
     const idx = s.pinnedIdx.slice();
     idx[i] = j;
     return apply(s.info.path, idx, "Loading…");
   }
 
+  /** What is loaded, as a selection (null if nothing is). */
+  function committed() {
+    return s.info ? { path: s.info.path, pinnedIdx: s.pinnedIdx } : null;
+  }
+
+  /**
+   * While unloaded: show the pending selection's controls. Another variable's level
+   * selects and slider are built from its metadata and coordinates (no weather data).
+   */
+  function pendingChanged() {
+    const path = s.pending?.path ?? s.info?.path;
+    const v = variables.find((x) => x.path === path);
+    setState("ready", `Unloaded. Press Load to draw ${v?.name ?? "the map"}.`);
+    if (s.pending && s.pending.path !== s.info?.path && s.pendingControls?.path !== s.pending.path) {
+      const g = ++s.pendingGen;
+      const want = s.pending.path;
+      s.source.controls(want).then(
+        (c) => {
+          if (g !== s.pendingGen || !s.unloaded || s.pending?.path !== want) return;
+          s.pendingControls = c;
+          buildControls();
+        },
+        (e) => {
+          if (g !== s.pendingGen || !s.unloaded) return;
+          setState("ready", `Unloaded. Couldn't read ${v?.name ?? want}'s levels (${errText(e)}); Load will try again.`);
+        },
+      );
+    }
+    buildControls();
+  }
+
   function setStep(i) {
+    if (s.unloaded && s.pending && s.pending.path !== s.info?.path) {
+      // A step for the pending variable: remembered, applied by Load.
+      s.pending = composePending(committed(), s.pending, { type: "step", path: s.pending.path, index: i });
+      slider.value = String(i);
+      return;
+    }
     if (!s.info?.step) return;
     const { chunk, n } = s.info.step;
     const newBlock = blockRange(i, chunk, s.window, n).start !== blockRange(s.stepIndex, chunk, s.window, n).start;
@@ -630,7 +705,9 @@ export function mount(el, options) {
       unloadBtn.textContent = "Unload";
       const pending = s.pending;
       s.pending = null;
-      if (pending) void apply(pending.path, pending.pinnedIdx, "Loading…");
+      s.pendingControls = null;
+      s.pendingGen++;
+      if (pending) void apply(pending.path, pending.pinnedIdx, "Loading…", pending.stepIndex ?? null);
       else if (s.info && s.info.path === varSelect.value) {
         setState("loading", "Loading tiles…");
         render();

@@ -103,6 +103,40 @@ export function makeSource(store, config) {
     });
   }
 
+  /** Pinned and selectable dims, each with labels from its coordinate (metadata only). */
+  async function pinnedDims(group, meta, cls) {
+    const dimNames = meta.dimension_names;
+    const out = [];
+    for (const name of [cls.member, ...cls.extras].filter(Boolean)) {
+      const c = (await coord(group, name)) ?? { values: Array.from({ length: meta.shape[dimNames.indexOf(name)] }, (_, i) => i), attrs: {} };
+      out.push({
+        name,
+        select: name !== cls.member,
+        values: c.values,
+        labels: c.values.map((v) => dimLabel(name, v, c.attrs.units)),
+      });
+    }
+    return out;
+  }
+
+  const controlsCache = new Map();
+  /**
+   * What a variable's controls need (its level selects and slider) from metadata and
+   * coordinates alone: no probe, no weather data. Used while the map is unloaded.
+   * @param {string} path
+   */
+  function controls(path) {
+    return cachedPromise(controlsCache, path, async () => {
+      const meta = await store.getMeta(path);
+      const reason = unsupportedReason(meta);
+      if (reason) throw new Error(reason);
+      const { cls } = layoutOf(meta);
+      const pinned = await pinnedDims(parentOf(path), meta, cls);
+      const step = cls.step ? { name: cls.step, kind: cls.stepKind, n: meta.shape[meta.dimension_names.indexOf(cls.step)] } : null;
+      return { path, pinned, step };
+    });
+  }
+
   /**
    * @param {string} path
    * @param {{ center: [number, number], signal?: AbortSignal }} opts
@@ -133,36 +167,19 @@ export function makeSource(store, config) {
     const nodeDims = facade ? facade.view.dimensionNames : dimNames;
 
     // Virtual stores: a chunk exists when a 1-byte read of its GRIB message returns a
-    // byte (an unwritten chunk has no reference, so icechunk-js returns nothing).
+    // byte (an unwritten chunk has no reference, so icechunk-js returns nothing). A read
+    // that fails throws: that's a failed probe, not a missing chunk (see latestWithChunk).
     const sep = meta.chunk_key_encoding?.configuration?.separator ?? "/";
     const hasChunk = async (at) => {
       const coords = dimNames.map((name, i) => (i === spatialIdx[0] || i === spatialIdx[1] ? 0 : (at[name] ?? 0)));
       const key = `${absolutePath(path)}/c${sep}${coords.join(sep)}`;
-      try {
-        const b = await store.store.getRange(/** @type {any} */ (key), { offset: 0, length: 1 });
-        return Boolean(b && b.length === 1);
-      } catch (e) {
-        console.warn("[explorer] chunk probe", key, e);
-        return false;
-      }
+      const b = await store.store.getRange(/** @type {any} */ (key), { offset: 0, length: 1 });
+      return Boolean(b && b.length === 1);
     };
+    const probeFailed = (dim, r) =>
+      new Error(`Could not check for the latest ${dim}: the upstream probe failed (${r.log.join("; ")})`);
 
-    const coordOf = async (name) => {
-      const c = await coord(group, name);
-      return c ?? { values: Array.from({ length: meta.shape[d(name)] }, (_, i) => i), attrs: {} };
-    };
-
-    // Pinned and selectable dims, each with labels from its coordinate.
-    const pinned = [];
-    for (const name of [cls.member, ...cls.extras].filter(Boolean)) {
-      const c = await coordOf(name);
-      pinned.push({
-        name,
-        select: name !== cls.member,
-        values: c.values,
-        labels: c.values.map((v) => dimLabel(name, v, c.attrs.units)),
-      });
-    }
+    const pinned = await pinnedDims(group, meta, cls);
 
     const probe = (probeDim, at) =>
       probeLatest({
@@ -184,6 +201,7 @@ export function makeSource(store, config) {
       const r = virtual
         ? await latestWithChunk({ n: meta.shape[d(cls.init)], label: cls.init, has: (i) => hasChunk({ ...lastLead, [cls.init]: i }) })
         : await probe(cls.init, cls.step ? { [cls.step]: 0 } : {});
+      if (r.index === null && r.failed) throw probeFailed(cls.init, r);
       if (r.index === null) throw new Error(`No run with data in the last ${r.log.length} ${cls.init} values (${r.log.join("; ")})`);
       init = { name: cls.init, times: decodeCf(c.values, c.attrs.units), index: r.index, log: r.log };
     }
@@ -201,6 +219,7 @@ export function makeSource(store, config) {
           ? await latestWithChunk({ n: ms.length, label: cls.step, has: (i) => hasChunk({ [cls.step]: i }) })
           : await probe(cls.step, {});
         log = r.log;
+        if (r.index === null && r.failed) throw probeFailed(cls.step, r);
         if (r.index === null) noData = true;
         index = r.index ?? ms.length - 1;
       }
@@ -234,7 +253,7 @@ export function makeSource(store, config) {
     };
   }
 
-  return { describe };
+  return { describe, controls };
 }
 
 /** @typedef {Awaited<ReturnType<ReturnType<typeof makeSource>["describe"]>>} VariableInfo */

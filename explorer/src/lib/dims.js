@@ -271,17 +271,27 @@ export async function probeLatest({ getRange, path, meta, dimNames, probeDim, at
  * Newest index along a dim whose chunk `has` confirms, walking back from the end, at most
  * `max` tries. The virtual stores use it with a 1-byte read of the chunk's GRIB message:
  * an unwritten chunk has no reference, so the read comes back empty.
+ * `has` may throw; that candidate counts as `failed`, not as absent.
  * @param {{ n: number, has: (index: number) => Promise<boolean>, max?: number, label?: string }} args
- * @returns {Promise<{ index: number | null, log: string[] }>}
+ * @returns {Promise<{ index: number | null, log: string[], failed: number }>}
  */
 export async function latestWithChunk({ n, has, max = 8, label = "index" }) {
   const log = [];
+  let failed = 0;
   for (let i = n - 1; i >= 0 && i >= n - max; i--) {
-    const ok = await has(i);
+    let ok;
+    try {
+      ok = await has(i);
+    } catch (e) {
+      // A failed probe (network, upstream outage) says nothing about whether the chunk exists.
+      failed++;
+      log.push(`${label}[${i}]: probe failed (${e instanceof Error ? e.message : String(e)})`);
+      continue;
+    }
     log.push(`${label}[${i}]: ${ok ? "chunk present" : "no chunk"}`);
-    if (ok) return { index: i, log };
+    if (ok) return { index: i, log, failed };
   }
-  return { index: null, log };
+  return { index: null, log, failed };
 }
 
 /**
@@ -307,6 +317,33 @@ export async function findLatestData({ index, chunkLen, readSteps, maxChunks = 4
     if (j >= 0) return { index: start + j, log };
     stop = start;
     start = Math.max(0, start - chunkLen);
+  }
+  return { index: null, log };
+}
+
+/**
+ * The first step at or after `from` whose data isn't all missing, for a forecast whose
+ * opening step is empty (e.g. an accumulation at +0 h in a one-step virtual block). Reads
+ * block by block, at most `maxReads` blocks.
+ * @param {{
+ *   from: number,
+ *   n: number,
+ *   blockLen: number,
+ *   readSteps: (start: number, stop: number) => Promise<ArrayLike<number>>,
+ *   maxReads?: number,
+ * }} args
+ * @returns {Promise<{ index: number | null, log: string[] }>}
+ */
+export async function findFirstData({ from, n, blockLen, readSteps, maxReads = 6 }) {
+  const log = [];
+  let start = from;
+  for (let k = 0; k < maxReads && start < n; k++) {
+    const stop = Math.min(n, (Math.floor(start / blockLen) + 1) * blockLen);
+    const data = await readSteps(start, stop);
+    const j = stepWithData(data, stop - start, "first");
+    log.push(`steps ${start}..${stop - 1}: ${j >= 0 ? `data from ${start + j}` : "all missing"}`);
+    if (j >= 0) return { index: start + j, log };
+    start = stop;
   }
   return { index: null, log };
 }
