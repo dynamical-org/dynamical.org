@@ -14,9 +14,9 @@ import * as zarr from "zarrita";
 import { defineWebMercatorOver, lonLatToCell, makeResolver } from "./crs.js";
 import css from "./explorer.css?inline";
 import { formatValue, initialRange, isCelsius, settleRange } from "./lib/colour.js";
-import { absolutePath, blockRange, findFirstData, findLatestData, stepWithData } from "./lib/dims.js";
+import { absolutePath, blockRange, findFirstData, findLatestData, initOptions, stepWithData, viewData } from "./lib/dims.js";
 import { shiftAttrs } from "./lib/grid.js";
-import { composePending, loadedPinned, stepAccepted } from "./lib/pending.js";
+import { changeSelection, stepAccepted } from "./lib/pending.js";
 import { formatLead, formatUtc } from "./lib/time.js";
 import { makeSource, unsupportedReason } from "./source.js";
 import { openStore } from "./store.js";
@@ -84,7 +84,8 @@ export function mount(el, options) {
   // would fold the selected option's text into it.
   const varSelect = h("select", { disabled: true, ariaLabel: "Variable" });
   const extrasEl = h("span", { className: "explorer-extras" });
-  const unloadBtn = h("button", { type: "button", textContent: "Unload", disabled: true });
+  // Shown only while loading: aborts the reads in flight and keeps what is drawn.
+  const stopBtn = h("button", { type: "button", textContent: "Stop loading", hidden: true });
   const retryBtn = h("button", { type: "button", textContent: "Retry", hidden: true });
   // Advisory only: the view keeps loading while this is shown.
   const gpuWarning = h("span", { className: "explorer-note", hidden: true, dataset: { warning: "gpu" } });
@@ -98,7 +99,7 @@ export function mount(el, options) {
   const legendNote = h("span", { className: "explorer-note" });
   const statusEl = h("span", { className: "explorer-status", role: "status" });
   const strip = h("div", { className: "explorer-strip" }, [
-    h("div", {}, [h("label", {}, [h("span", { textContent: "Variable" }), varSelect]), extrasEl, unloadBtn, retryBtn]),
+    h("div", {}, [h("label", {}, [h("span", { textContent: "Variable" }), varSelect]), extrasEl, stopBtn, retryBtn]),
     sliderRow,
     h("div", {}, [
       timesEl,
@@ -127,12 +128,13 @@ export function mount(el, options) {
     range: /** @type {{ min: number, max: number, kind: "fixed" | "sample", status?: string } | null} */ (null),
     ranges: new Map(),
     prefetch: /** @type {{ base: string, r0: number, c0: number, data: Float32Array } | null} */ (null),
-    unloaded: false,
+    /** Aborted by Stop loading (then replaced), and by destroy. */
     abort: new AbortController(),
     borders: null,
     lineColor: [0, 0, 0, 200],
     liveIds: new Set(),
     loadedIds: new Set(),
+    /** Per layer id: each tile texture → its stepFlags (which block steps hold values). */
     textures: new Map(),
     retiring: /** @type {string[]} */ ([]),
     layerCallbacks: new Map(),
@@ -140,17 +142,16 @@ export function mount(el, options) {
     error: false,
     /** Estimated texture bytes for one view above which the status warns (advisory). */
     textureWarnBytes: opts.maxTextureBytes ?? DEFAULT_TEXTURE_BYTES,
-    /** The variable, levels and step chosen while unloaded (one selection), applied by Load. */
-    pending: /** @type {import("./lib/pending.js").Selection | null} */ (null),
-    /** Controls (levels, slider) of the pending variable, read from metadata only. */
-    pendingControls: /** @type {{ path: string, pinned: any[], step: { name: string, kind: string, n: number } | null } | null} */ (null),
-    pendingGen: 0,
     /**
-     * The selection being loaded right now (a variable switch or level change in flight),
-     * tracked apart from `info`, which stays the committed one until the switch lands.
-     * Level and step controls act on this, not on `info`.
+     * The selection being loaded right now (a variable switch, or an init, member or level
+     * change in flight), tracked apart from `info`, which stays the committed one until the
+     * change lands. Init, level and step controls act on this, not on `info`.
      */
-    requested: /** @type {{ path: string, pinnedIdx: number[] | null } | null} */ (null),
+    requested: /** @type {import("./lib/pending.js").Selection | null} */ (null),
+    /** The selection Retry applies: one that failed or was stopped while loading. */
+    failed: /** @type {import("./lib/pending.js").Selection | null} */ (null),
+    /** The init time (ms) the user chose, kept across variable switches; null: latest usable. */
+    explicitInit: /** @type {number | null} */ (null),
     /** First-time phase marks (ms since mount) for the harness. */
     marks: /** @type {Record<string, number>} */ ({}),
   };
@@ -164,7 +165,8 @@ export function mount(el, options) {
     el.dataset.state = state;
     s.error = state === "error";
     statusEl.textContent = msg;
-    retryBtn.hidden = state !== "error";
+    retryBtn.hidden = state !== "error" && state !== "stopped";
+    stopBtn.hidden = state !== "loading";
   }
 
   // ---- deck -----------------------------------------------------------------
@@ -198,15 +200,22 @@ export function mount(el, options) {
     // Destroy the textures of layers that left the layer list (deck's tileset
     // aborts their requests on finalize but never calls onTileUnload).
     for (const id of s.retiring.splice(0)) {
-      for (const t of s.textures.get(id) ?? []) t.destroy();
+      for (const t of s.textures.get(id)?.keys() ?? []) t.destroy();
       s.textures.delete(id);
       s.layerCallbacks.delete(id);
       s.loadedIds.delete(id);
     }
-    if (el.dataset.state === "loading" && s.info && !s.error && !s.unloaded && s.liveIds.size > 0) {
+    // Not while a selection is being applied: the layers on screen are the previous one's.
+    if (el.dataset.state === "loading" && s.info && !s.error && !s.requested && s.liveIds.size > 0) {
       if ([...s.liveIds].every((id) => s.loadedIds.has(id))) {
         mark("ready");
-        setState("ready", "Ready");
+        // Loaded is not the same as drawn: a run still being written has chunks that
+        // hold only missing values past the lead it has reached.
+        const { block } = selectionFor(s.info, s.pinnedIdx, s.stepIndex);
+        const tiles = [...s.liveIds].flatMap((id) => [...(s.textures.get(id)?.values() ?? [])]);
+        const v = viewData(tiles, s.stepIndex - block.start);
+        if (v.state === "empty") setState("empty", emptyMessage(block, v.last));
+        else setState("ready", "Ready");
       }
     }
   }
@@ -231,7 +240,7 @@ export function mount(el, options) {
   function callbacksFor(id, info) {
     if (!s.layerCallbacks.has(id)) {
       const live = () => s.liveIds.has(id);
-      const set = new Set();
+      const set = new Map();
       s.textures.set(id, set);
       s.layerCallbacks.set(id, {
         getTileData: makeGetTileData({
@@ -240,7 +249,8 @@ export function mount(el, options) {
           onData: (data) => {
             if (live()) settle(info, data);
           },
-          track: (t) => set.add(t),
+          stop: () => s.abort.signal,
+          track: (t, flags) => set.set(t, flags),
           take: (r0, c0) => {
             const p = s.prefetch;
             if (p && id.startsWith(`${p.base}|`) && p.r0 === r0 && p.c0 === c0) {
@@ -253,7 +263,7 @@ export function mount(el, options) {
             if (!live()) return;
             mark("firstTileRequested");
             s.loadedIds.delete(id);
-            if (el.dataset.state === "ready") setState("loading", "Loading tiles…");
+            if (el.dataset.state === "ready" || el.dataset.state === "empty") setState("loading", "Loading tiles…");
           },
         }),
         onTileUnload: (tile) => {
@@ -326,7 +336,7 @@ export function mount(el, options) {
     const { info, range } = s;
     // GPU-memory estimate: a warning beside the status, never a reason to stop loading.
     let warn = false;
-    if (info && range && s.colormap && !s.unloaded) {
+    if (info && range && s.colormap) {
       const { block } = selectionFor(info, s.pinnedIdx, s.stepIndex);
       const need = viewTextureBytes(info, block);
       s.textureNeed = need;
@@ -336,7 +346,7 @@ export function mount(el, options) {
       }
     }
     gpuWarning.hidden = !warn;
-    if (info && range && s.colormap && !s.unloaded) {
+    if (info && range && s.colormap) {
       const { sel, block } = selectionFor(info, s.pinnedIdx, s.stepIndex);
       const base = baseKey(info, s.pinnedIdx, block);
       const layerIndex = s.stepIndex - block.start;
@@ -363,7 +373,6 @@ export function mount(el, options) {
               max: range.max,
             }),
             updateTriggers: { renderTile: [layerIndex, range.min, range.max] },
-            signal: s.abort.signal,
             maxRequests: MAX_REQUESTS,
             maxCacheSize: MAX_CACHE_TILES,
             debounceTime: 50,
@@ -415,8 +424,8 @@ export function mount(el, options) {
     } else if (info.step?.kind === "time") {
       parts.push(label("Time", formatUtc(info.step.ms[s.stepIndex])));
     }
-    const member = info.pinned.find((p) => !p.select);
-    if (member) parts.push(h("span", { textContent: member.labels[s.pinnedIdx[info.pinned.indexOf(member)]], dataset: { label: "member" } }));
+    const m = info.pinned.findIndex((p) => p.name === info.cls.member);
+    if (m >= 0) parts.push(h("span", { textContent: info.pinned[m].labels[s.pinnedIdx[m]], dataset: { label: "member" } }));
     timesEl.replaceChildren(...parts);
   }
 
@@ -441,50 +450,64 @@ export function mount(el, options) {
             : "2–98% of a sample";
   }
 
-  /**
-   * What the level selects and slider show: the pending variable's own controls while
-   * unloaded with another variable chosen (null while they are being read), else the
-   * loaded variable's, with any pending levels/step.
-   */
-  function controlSpec() {
-    const p = s.unloaded ? s.pending : null;
-    if (p && p.path !== s.info?.path) {
-      const c = s.pendingControls?.path === p.path ? s.pendingControls : null;
-      if (!c) return { path: p.path, loading: true };
-      const n = c.step?.n ?? 1;
-      return { path: p.path, pinned: c.pinned, step: c.step, pinnedIdx: p.pinnedIdx ?? c.pinned.map(() => 0), stepIndex: Math.min(p.stepIndex ?? 0, n - 1) };
-    }
-    if (!s.info) return null;
-    return { path: s.info.path, pinned: s.info.pinned, step: s.info.step, pinnedIdx: p?.pinnedIdx ?? s.pinnedIdx, stepIndex: s.stepIndex };
+  /** A select in the controls row, labelled like the other controls. */
+  function selectControl(name, options, onChange) {
+    const sel = h("select", { ariaLabel: name }, options.map(([value, text, selected]) => h("option", { value: String(value), textContent: text, selected })));
+    sel.addEventListener("change", () => onChange(Number(sel.value)));
+    extrasEl.append(h("label", {}, [h("span", { textContent: name }), sel]));
   }
 
+  /** The init, member and level selects and the slider, for what is drawn. */
   function buildControls() {
-    const spec = controlSpec();
+    const { info } = s;
     extrasEl.replaceChildren();
-    if (!spec) {
+    if (!info) {
       slider.disabled = true;
       return;
     }
-    // Pending controls still being read: the old variable's level selects are gone; the
-    // slider stays and its moves go to the pending selection.
-    if (spec.loading) return;
-    spec.pinned.forEach((p, i) => {
-      if (!p.select) return;
-      const sel = h(
-        "select",
-        { ariaLabel: p.name },
-        p.labels.map((text, j) => h("option", { value: String(j), textContent: text, selected: j === spec.pinnedIdx[i] })),
-      );
-      sel.addEventListener("change", () => void setPinned(i, Number(sel.value), spec.path, spec.pinned.length));
-      extrasEl.append(h("label", {}, [h("span", { textContent: p.name }), sel]));
+    const path = info.path;
+    if (info.init) {
+      const { times, index } = info.init;
+      const options = initOptions(times.length, info.init.default).map((j) => [j, formatUtc(times[j]), j === index]);
+      selectControl("Init time", options, (j) => void change({ type: "init", path, index: j }));
+    }
+    info.pinned.forEach((p, i) => {
+      const options = p.labels.map((text, j) => [j, text, j === s.pinnedIdx[i]]);
+      selectControl(p.name, options, (j) => void change({ type: "pinned", path, i, j }));
     });
-    sliderRow.hidden = !spec.step;
-    if (spec.step) {
-      sliderLabelText.textContent = slider.ariaLabel = spec.step.kind === "time" ? "Time" : "Lead time";
-      slider.max = String(spec.step.n - 1);
-      slider.value = String(spec.stepIndex);
+    sliderRow.hidden = !info.step;
+    if (info.step) {
+      sliderLabelText.textContent = slider.ariaLabel = info.step.kind === "time" ? "Time" : "Lead time";
+      slider.max = String(info.step.n - 1);
+      slider.value = String(s.stepIndex);
       slider.disabled = false;
     }
+  }
+
+  /** The drawn selection in words, e.g. "temperature_2m, init 2026-09-25 00:00 UTC, member 0, lead +480 h". */
+  function selectionText() {
+    const { info } = s;
+    const v = variables.find((x) => x.path === info.path);
+    const parts = [v?.name ?? info.path.slice(1)];
+    if (info.init) parts.push(`init ${formatUtc(info.init.times[info.init.index])}`);
+    info.pinned.forEach((p, i) => parts.push(p.labels[s.pinnedIdx[i]]));
+    if (info.step) parts.push(stepText(s.stepIndex));
+    return parts.join(", ");
+  }
+
+  const stepText = (i) => (s.info.step.kind === "lead" ? `lead ${formatLead(s.info.step.ms[i])}` : `time ${formatUtc(s.info.step.ms[i])}`);
+
+  /**
+   * Every tile in view loaded, and none holds a value at the chosen step. `last` is the
+   * block's last step with values in view (-1 if none), for a hint when the data stops
+   * part way through, as it does in a run that is still being written.
+   */
+  function emptyMessage(block, last) {
+    const { info } = s;
+    let msg = `No data for ${selectionText()}: nothing in view has values at this step.`;
+    if (info.step && last >= 0 && block.start + last < s.stepIndex) msg += ` Values in view end at ${stepText(block.start + last)}.`;
+    if (info.init && info.step?.kind === "lead") msg += " This run may not be written this far yet; an earlier init time may have it.";
+    return msg;
   }
 
   // ---- actions --------------------------------------------------------------
@@ -525,49 +548,65 @@ export function mount(el, options) {
     render();
   }
 
-  /** Commit a new (variable, pinned, step) atomically, or show why it failed. */
-  async function apply(path, pinnedIdx, busyMsg, stepOverride = null) {
+  /** What is drawn, as a selection (null if nothing is). */
+  function committed() {
+    return s.info ? { path: s.info.path, initIndex: s.info.init?.index ?? null, pinnedIdx: s.pinnedIdx, stepIndex: s.stepIndex } : null;
+  }
+
+  /** A variable switch: its defaults, and the init the user chose if it has that run. */
+  const openVariable = (path) => ({ path, initIndex: null, pinnedIdx: null, stepIndex: null });
+
+  /**
+   * Commit a selection atomically, or show why it failed. Null fields take their defaults:
+   * the probed latest usable init (or the init time the user chose, if this variable has
+   * it), each dim's default index, and for a new variable an opening step with data.
+   * @param {import("./lib/pending.js").Selection} req
+   * @param {string} busyMsg
+   */
+  async function apply(req, busyMsg) {
     // The dropdown always shows the selection being applied (Retry after a failed switch
     // re-applies a choice the dropdown had been restored away from).
-    varSelect.value = path;
-    if (s.unloaded) {
-      // No reads while unloaded (its controller is aborted): Load applies this choice.
-      s.pending = pinnedIdx ? { path, pinnedIdx, stepIndex: stepOverride } : composePending(committed(), s.pending, { type: "variable", path });
-      pendingChanged();
-      return;
-    }
+    varSelect.value = req.path;
     const g = ++s.gen;
-    s.requested = { path, pinnedIdx };
-    if (path !== s.info?.path) {
-      // Switching variable: the old variable's level selects and slider go at once, so
-      // they can't change a selection that is no longer the requested one.
+    s.requested = req;
+    const newVar = req.path !== s.info?.path;
+    if (newVar) {
+      // Switching variable: the old variable's selects and slider go at once, so they
+      // can't change a selection that is no longer the requested one.
       extrasEl.replaceChildren();
       slider.disabled = true;
     }
     setState("loading", busyMsg);
-    unloadBtn.disabled = true;
     try {
-      const info = path === s.info?.path ? s.info : await s.source.describe(path, { center });
+      let info = newVar ? await s.source.describe(req.path, { center }) : s.info;
       if (g !== s.gen) return;
       mark("described");
       const maxDim = s.device.limits.maxTextureDimension2D;
       if (info.tile.w > maxDim || info.tile.h > maxDim) {
         throw new Error(`this device's GPU can't hold a ${info.tile.w}×${info.tile.h} tile (max texture size ${maxDim})`);
       }
-      const idx = pinnedIdx ?? info.pinned.map(() => 0);
-      // A new variable or pinned level drops the decoded whole-grid chunks of the old one
-      // (virtual stores); slider steps of the same selection stay cached.
-      if (s.info?.facade && (info !== s.info || pinnedKey(idx) !== pinnedKey(s.pinnedIdx))) s.info.facade.clear();
-      // A step chosen while unloaded wins; otherwise keep the step, or open at the default.
-      let stepIndex = stepOverride ?? (info === s.info ? s.stepIndex : (info.step?.index ?? 0));
+      let initIndex = req.initIndex;
+      if (initIndex === null && info.init && s.explicitInit !== null) {
+        const j = info.init.times.indexOf(s.explicitInit);
+        if (j >= 0) initIndex = j;
+      }
+      if (info.init && initIndex !== null && initIndex !== info.init.index) info = { ...info, init: { ...info.init, index: initIndex } };
+      const idx = req.pinnedIdx ?? info.pinned.map((p) => p.default);
+      // A new variable, init, member or level drops the decoded whole-grid chunks of the
+      // old one (virtual stores); slider steps of the same selection stay cached.
+      const sameSlice = !newVar && info.init?.index === s.info.init?.index && pinnedKey(idx) === pinnedKey(s.pinnedIdx);
+      if (s.info?.facade && !sameSlice) s.info.facade.clear();
+      // A chosen step (same variable: the step shown) is kept; a new variable opens at its default.
+      let stepIndex = req.stepIndex ?? (newVar ? (info.step?.index ?? 0) : s.stepIndex);
       if (info.step) stepIndex = Math.min(stepIndex, info.step.n - 1);
       const signal = s.abort.signal;
       let ref = await reference(info, idx, stepIndex, signal);
       if (g !== s.gen) return;
       let noData = info.step?.noData ? `No data found for the latest ${info.step.name} (${info.step.log.join("; ")})` : null;
-      if (info !== s.info && info.step && stepOverride === null) {
+      if (newVar && info.step && req.stepIndex === null) {
         // Open on a step that has data: 24 h means and accumulations are NaN at
-        // +0 h, and an analysis's newest time can still be unwritten.
+        // +0 h, and an analysis's newest time can still be unwritten. Only when opening a
+        // variable: an init, member or level the user chose keeps the step they are on.
         const k = stepWithData(ref.data, ref.block.stop - ref.block.start, info.step.kind === "time" ? "last" : "first");
         const [row, col] = info.centerCell;
         const readSteps = async (start, stop) => {
@@ -607,13 +646,13 @@ export function mount(el, options) {
       s.prefetch = { base: baseKey(info, idx, ref.block), r0: ref.r0, c0: ref.c0, data: ref.data };
       mark("rangeReady");
       Object.assign(s, { info, pinnedIdx: idx, stepIndex, range, requested: null, failed: null });
+      if (req.explicitInit && info.init) s.explicitInit = info.init.times[info.init.index];
       s.retry++;
       buildControls();
       updateLabels();
       updateLegend();
-      unloadBtn.disabled = false;
       if (noData) {
-        setState("error", noData);
+        setState("empty", noData);
       } else {
         setState("loading", "Loading tiles…");
       }
@@ -621,136 +660,80 @@ export function mount(el, options) {
     } catch (e) {
       if (g !== s.gen || s.destroyed) return;
       console.error("[explorer]", e);
-      const v = variables.find((x) => x.path === path);
+      const v = variables.find((x) => x.path === req.path);
       s.requested = null;
-      s.failed = { path, pinnedIdx };
-      unloadBtn.disabled = false;
+      s.failed = req;
       if (s.info) {
-        // Something is loaded: it stays, and the dropdown, level selects, slider, labels
-        // and legend all go back to it, so they describe what is drawn. Retry retries
-        // the failed choice.
-        varSelect.value = s.info.path;
-        buildControls();
-        updateLabels();
-        updateLegend();
-        render();
-        setState("error", `Could not load ${v?.name ?? path}: ${errText(e)}. Still showing the previous selection.`);
+        // Something is drawn: it stays, and the dropdown, selects, slider, labels and
+        // legend all go back to it, so they describe what is drawn. Retry retries the
+        // failed choice.
+        restoreControls();
+        setState("error", `Could not load ${v?.name ?? req.path}: ${errText(e)}. Still showing the previous selection.`);
         return;
       }
       // Nothing loaded (first load): no field, no colours, and the error names the choice.
       Object.assign(s, { info: null, range: null });
-      buildControls();
-      updateLabels();
-      updateLegend();
-      render();
-      setState("error", `Could not load ${v?.name ?? path}: ${errText(e)}`);
+      restoreControls();
+      setState("error", `Could not load ${v?.name ?? req.path}: ${errText(e)}`);
     }
   }
 
-  function setPinned(i, j, forPath = s.info?.path, count = s.pinnedIdx.length) {
-    if (s.unloaded) {
-      s.pending = composePending(committed(), s.pending, { type: "pinned", path: forPath, i, j, count });
-      pendingChanged();
-      return;
-    }
-    // Only a control of the requested selection counts (see loadedPinned).
-    const next = loadedPinned(s.requested, committed(), { path: forPath, i, j });
-    if (!next) return;
-    return apply(next.path, next.pinnedIdx, "Loading…");
-  }
-
-  /** What is loaded, as a selection (null if nothing is). */
-  function committed() {
-    return s.info ? { path: s.info.path, pinnedIdx: s.pinnedIdx } : null;
-  }
-
-  /**
-   * While unloaded: show the pending selection's controls. Another variable's level
-   * selects and slider are built from its metadata and coordinates (no weather data).
-   */
-  function pendingChanged() {
-    const path = s.pending?.path ?? s.info?.path;
-    const v = variables.find((x) => x.path === path);
-    setState("ready", `Unloaded. Press Load to draw ${v?.name ?? "the map"}.`);
-    if (s.pending && s.pending.path !== s.info?.path && s.pendingControls?.path !== s.pending.path) {
-      const g = ++s.pendingGen;
-      const want = s.pending.path;
-      s.source.controls(want).then(
-        (c) => {
-          if (g !== s.pendingGen || !s.unloaded || s.pending?.path !== want) return;
-          s.pendingControls = c;
-          buildControls();
-        },
-        (e) => {
-          if (g !== s.pendingGen || !s.unloaded) return;
-          setState("ready", `Unloaded. Couldn't read ${v?.name ?? want}'s levels (${errText(e)}); Load will try again.`);
-        },
-      );
-    }
+  /** Controls, labels, legend and layers back to what is drawn (after a failure or Stop). */
+  function restoreControls() {
+    if (s.info) varSelect.value = s.info.path;
     buildControls();
+    updateLabels();
+    updateLegend();
+    render();
+  }
+
+  /** An init, member or level choice: applied to the selection being loaded, if any. */
+  function change(c) {
+    const next = changeSelection(s.requested, committed(), c);
+    if (!next) return;
+    return apply(next, "Loading…");
   }
 
   function setStep(i) {
-    if (s.unloaded && s.pending && s.pending.path !== s.info?.path) {
-      // A step for the pending variable: remembered, applied by Load.
-      s.pending = composePending(committed(), s.pending, { type: "step", path: s.pending.path, index: i });
-      slider.value = String(i);
-      return;
-    }
     if (!s.info?.step) return;
-    if (!s.unloaded && !stepAccepted(s.requested, committed())) return; // another variable is being loaded
+    if (!stepAccepted(s.requested, committed())) return; // another variable is being loaded
     s.failed = null; // moving on from a failed switch: Retry no longer means "retry that switch"
     const { chunk, n } = s.info.step;
     const newBlock = blockRange(i, chunk, s.window, n).start !== blockRange(s.stepIndex, chunk, s.window, n).start;
     s.stepIndex = i;
     slider.value = String(i);
     updateLabels();
-    if (s.unloaded) return; // Load draws it
-    // A new block is a fresh layer, so it also retries after an error.
-    if (newBlock || !s.error) setState("loading", newBlock ? "Loading tiles…" : "Loading…");
+    // A new block is a fresh layer, so it also retries after an error or Stop. Within a
+    // stopped block, tiles that Stop aborted stay blank until Retry.
+    if (newBlock) setState("loading", "Loading tiles…");
+    else if (!s.error && el.dataset.state !== "stopped") setState("loading", "Loading…");
     render();
   }
 
-  varSelect.addEventListener("change", () => void apply(varSelect.value, null, "Opening variable…"));
+  varSelect.addEventListener("change", () => void apply(openVariable(varSelect.value), "Opening variable…"));
   slider.addEventListener("input", () => setStep(Number(slider.value)));
   retryBtn.addEventListener("click", () => {
     if (!s.store) return void start();
-    if (s.failed) return void apply(s.failed.path, s.failed.pinnedIdx, "Retrying…");
-    if (!s.info) return void apply(varSelect.value, null, "Retrying…");
+    if (s.failed) return void apply(s.failed, "Retrying…");
+    if (!s.info) return void apply(openVariable(varSelect.value), "Retrying…");
     s.retry++;
     setState("loading", "Retrying…");
     render();
   });
-  unloadBtn.addEventListener("click", () => {
-    if (!s.unloaded) {
-      // Cancel in-flight requests and release every texture and decoded chunk.
-      s.unloaded = true;
-      // A switch still in flight becomes the pending choice (Unload is disabled during
-      // one, so this is only a safeguard): the dropdown keeps describing what Load draws.
-      if (s.requested && s.requested.path !== s.info?.path) s.pending = { ...s.requested, stepIndex: null };
-      s.requested = null;
-      s.info?.facade?.clear();
-      s.gen++;
-      s.abort.abort();
-      render();
-      unloadBtn.textContent = "Load";
-      setState("ready", "Unloaded. Weather data released; borders only.");
-      if (s.pending) pendingChanged();
-    } else {
-      s.unloaded = false;
-      s.abort = new AbortController();
-      s.retry++;
-      unloadBtn.textContent = "Unload";
-      const pending = s.pending;
-      s.pending = null;
-      s.pendingControls = null;
-      s.pendingGen++;
-      if (pending) void apply(pending.path, pending.pinnedIdx, "Loading…", pending.stepIndex ?? null);
-      else if (s.info && s.info.path === varSelect.value) {
-        setState("loading", "Loading tiles…");
-        render();
-      } else void apply(varSelect.value, null, "Opening variable…");
-    }
+  stopBtn.addEventListener("click", () => {
+    // Abort every read in flight (tiles, the reference read, probes' results are dropped
+    // by the generation bump) and keep what is drawn. Retry, or any new choice, resumes.
+    const req = s.requested;
+    s.gen++;
+    s.abort.abort();
+    s.abort = new AbortController();
+    s.requested = null;
+    if (req) s.failed = req;
+    restoreControls();
+    setState(
+      "stopped",
+      s.info ? "Stopped. What had loaded stays; Retry loads the rest." : "Stopped before anything was drawn. Retry to load the map.",
+    );
   });
 
 
@@ -827,7 +810,7 @@ export function mount(el, options) {
         usable[0];
       varSelect.value = first.path;
       varSelect.disabled = false;
-      await apply(first.path, null, "Opening variable…");
+      await apply(openVariable(first.path), "Opening variable…");
     } catch (e) {
       if (g !== s.gen || s.destroyed) return;
       console.error("[explorer]", e);
@@ -846,7 +829,7 @@ export function mount(el, options) {
       s.abort.abort();
       scheme.removeEventListener("change", onScheme);
       deck.finalize();
-      for (const set of s.textures.values()) for (const t of set) t.destroy();
+      for (const set of s.textures.values()) for (const t of set.keys()) t.destroy();
       s.textures.clear();
       s.info?.facade?.clear();
       s.colormap?.destroy();
@@ -865,7 +848,9 @@ export function mount(el, options) {
       return {
         snapshotId: s.store?.snapshotId ?? null,
         variable: info?.path ?? null,
-        init: info?.init ? { index: info.init.index, log: info.init.log } : null,
+        init: info?.init ? { index: info.init.index, default: info.init.default, log: info.init.log } : null,
+        pinnedIdx: info ? s.pinnedIdx : null,
+        requested: s.requested,
         step: info?.step ? { name: info.step.name, index: s.stepIndex, n: info.step.n, chunk: info.step.chunk, log: info.step.log } : null,
         window: s.window,
         textureNeed: s.textureNeed ?? null,

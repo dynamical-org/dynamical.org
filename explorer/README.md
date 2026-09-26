@@ -33,10 +33,15 @@ handle.project([lon, lat]);                    // → [x, y] CSS px on the map c
 handle.destroy();
 ```
 
-Nothing is fetched before `mount()`. It sets `element.dataset.state` to `loading`,
-`ready` (the active layer's viewport has loaded and a frame is drawn for the
-current labels) or `error`, and writes a readable message into the `role="status"`
-line. It styles itself only with the site's CSS custom properties; the colormap is
+Nothing is fetched before `mount()`. It sets `element.dataset.state` to one of:
+- `loading`;
+- `ready`: the active layer's viewport has loaded, and a frame is drawn for the current
+  labels;
+- `empty`: loaded, but the chosen selection has no values in view (see Missing data);
+- `stopped`: Stop loading was pressed;
+- `error`: a read failed. Retry shows for `error` and `stopped`.
+
+It writes a readable message into the `role="status"` line. It styles itself only with the site's CSS custom properties; the colormap is
 the only hard-coded colour.
 
 ## How it works
@@ -85,7 +90,7 @@ the only hard-coded colour.
     via `ob_tran`), with x/y in the grid's own units. No datum shift here either.
   - `src/crs.js` resolves both locally. There is no epsg.io fetch.
 - **Dims** (`src/lib/dims.js`, pure):
-  - `init_time` is pinned to the newest run whose chunk at the domain centre
+  - `init_time` opens on the newest run whose chunk at the domain centre
     exists. At most 4 candidates are checked, and each check reads only that
     shard's index (~2 KB suffix range). The index layout is validated against the
     array's codec metadata, and an unexpected layout is a clear error. "Present"
@@ -107,8 +112,23 @@ the only hard-coded colour.
     6 reads: e.g. an accumulation at +0 h, where a virtual store's block is that
     one step. Labels, reference read and colour range move to the step found
     together. If none has data, the explorer says so.
-  - `ensemble_member` is pinned to 0 and labelled "member 0". Every other dim
-    gets its own select, labelled with coordinate values and units (e.g. "500 hPa").
+  - **Init time** (forecasts): a select listing the newest 20 values of the variable's
+    decoded `init_time` coordinate, newest first, plus the default run if it is older
+    than those. Options are not marked as available; nothing is probed until one is
+    chosen.
+    - A chosen init keeps the variable, member, levels and lead index. It never falls
+      back to another run, and never moves to another lead to find data. (Opening a
+      variable still may: see the opening-step searches above.)
+    - The init is part of the selection, so it is in the layer ids and the tile
+      facade's keys. It is kept across a variable switch when the new variable has that
+      init time.
+    - A read that fails is an error that names the choice. Retry applies that exact
+      selection. A run with no values at the chosen lead is the `empty` state (Missing
+      data), not an error.
+  - `ensemble_member` gets a select like every other dim. It opens on the member whose
+    coordinate value is 0, or the first if none is. Its options are labelled from
+    coordinate values ("member 5"). Other dims are labelled with their coordinate values
+    and units (e.g. "500 hPa").
 - **Texture blocks.** The ECMWF-example technique: one `ZarrLayer` per
   (variable, run, pinned indices, block). Every step of the block goes into one
   `r32float` 2D-array texture, and the shader picks the step, so scrubbing inside
@@ -131,7 +151,7 @@ the only hard-coded colour.
     - Each read has its own abort controller and counts the tiles waiting for it.
       A tile that aborts stops waiting at once; the read is aborted only when no
       tile waits any more, and a queued read that nobody needs never starts.
-    - `clear()` (variable or level change, Unload, destroy) aborts running reads,
+    - `clear()` (a variable, init, member or level change, or destroy) aborts running reads,
       drops queued ones and discards late results.
     - Each clear starts a new generation with its own concurrency limiter, so reads
       it abandoned can't hold up the next generation.
@@ -147,7 +167,7 @@ the only hard-coded colour.
       spatial dims last.
     - A block is one step here, so each slider move reads one message
       (0.14–1.2 MB).
-    - A new variable or level, Unload and destroy empty the LRU.
+    - A new variable, init, member or level, and destroy, empty the LRU.
 - **Resources:**
   - 4 concurrent tile requests per layer (each decodes a whole inner chunk on the
     main thread) and 64 cached tiles.
@@ -155,20 +175,23 @@ the only hard-coded colour.
     `Tileset2D.finalize` aborts requests but never calls `onTileUnload`, so the
     explorer tracks textures per layer itself.
   - A tile that resolves after its layer was replaced creates no texture.
-  - Switching variable while loaded:
-    - The old variable's level selects and slider are removed or disabled at once.
-      Level and step events count only for the selection being loaded (`requested`),
-      which is tracked apart from what is drawn.
-    - If the switch fails, what was drawn stays. The dropdown, controls, labels and
-      legend return to it, and the error says so; Retry retries the failed choice.
+  - Changing variable, init, member or level:
+    - One selection (variable, init, member and other dims, step) drives the layer ids,
+      the facade keys, the labels, the reference read and Retry.
+    - On a variable switch, the old variable's selects and slider are removed or
+      disabled at once. Init, level and step events count only for the selection being
+      loaded (`requested`), which is tracked apart from what is drawn. The status
+      doesn't say `ready` or `empty` until the change lands.
+    - If a change fails, what was drawn stays. The dropdown, controls, labels and legend
+      return to it, and the error says so. Retry retries the failed choice.
     - The dropdown always shows the selection being applied.
-  - Unload aborts everything and frees the GPU; Load starts again.
-    - Variable, level and step changes while unloaded read no weather data. They
-      compose into one pending selection.
-    - A newly chosen variable's level selects and slider are rebuilt from its
-      metadata and coordinates. The old variable's controls can't change the
-      pending one.
-    - Load applies the selection with a fresh abort controller.
+  - **Stop loading** shows only while loading.
+    - It aborts every read in flight. The tiles' reads join their own signal with the
+      explorer's abort controller, which is then replaced.
+    - A change being applied is dropped, and the controls go back to what is drawn.
+      What had loaded stays on the map.
+    - Retry resumes: it applies the stopped change, or reloads the layers. A new choice
+      also resumes. A tile that Stop aborted stays blank until then.
   - The retry client's backoff wait ends as soon as its request is aborted.
   - A GPU-memory estimate, advisory only:
     - Tiles in view × block steps × tile cells × 4 B is estimated from the view's
@@ -182,6 +205,17 @@ the only hard-coded colour.
   - The actual device limits are enforced: blocks never exceed
     `MAX_ARRAY_TEXTURE_LAYERS`, and a tile wider than `MAX_TEXTURE_SIZE` is a
     named error.
+- **Missing data.** Each tile's texture is tracked together with the steps of its block
+  that hold any finite value.
+  - When every tile in view has loaded and none has a value at the chosen step, the
+    state is `empty`. The message names the selection, and says where values in view
+    end if they stop earlier in the block.
+  - This is the case of a run that is still being written. Found on staging with GEFS
+    35-day: the default run had its lead-0 chunk, but values only through +384 h. Its
+    later lead chunks exist and are all NaN, so every later step was drawn blank under
+    "Ready".
+  - Tiles cached from outside the view count too, so a step with values only off-screen
+    reads as `ready`.
 - **Colour.** Turbo, with NaN and missing sentinels (`_FillValue`,
   `missing_value`, or a finite zarr `fill_value`) transparent.
   - Units that are recognisably Celsius use a fixed −40..50.
@@ -228,6 +262,8 @@ cover:
 - CF time labels;
 - Float32 conversion, fill values and the colour range;
 - the shard-index probe on a byte fixture;
+- missing-step detection (`stepFlags`, `viewData`), the init list, the member default,
+  and control changes against the requested selection (`pending.js`);
 - the empty-tail analysis search and the virtual latest-chunk walk-back;
 - layouts with a trailing level dim;
 - the failure-evicting promise cache;

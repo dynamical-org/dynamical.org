@@ -5,6 +5,7 @@
 import { Colormap, LinearRescale } from "@developmentseed/deck.gl-raster/gpu-modules";
 import * as zarr from "zarrita";
 import { toFloat32 } from "./lib/colour.js";
+import { stepFlags } from "./lib/dims.js";
 
 const SampleTexture2DArray = {
   name: "sampleTexture2DArray",
@@ -28,19 +29,24 @@ export class StaleTileError extends Error {
 /**
  * Fetch one tile's block and upload it. `live()` is checked after the await:
  * a tile that finishes for a layer that has since been replaced creates no
- * texture (and so can't leak or draw under newer labels).
+ * texture (and so can't leak or draw under newer labels). `stop()` is the
+ * explorer's current abort signal (Stop loading), joined with the tile's own.
+ * Each texture is tracked with its stepFlags, so the explorer can tell a loaded
+ * view that holds no values at the chosen step from one that does.
  * @param {{
  *   info: import("./source.js").VariableInfo,
  *   live: () => boolean,
- *   track: (texture: import("@luma.gl/core").Texture) => void,
+ *   stop: () => AbortSignal,
+ *   track: (texture: import("@luma.gl/core").Texture, flags: Uint8Array) => void,
  *   take: (row: number, col: number) => Float32Array | undefined,
  *   onStart?: () => void,
  *   onData?: (data: Float32Array) => void,
  * }} ctx
  */
 export function makeGetTileData(ctx) {
-  return async (arr, { device, sliceSpec, width, height, signal }) => {
+  return async (arr, { device, sliceSpec, width, height, signal: tileSignal }) => {
     ctx.onStart?.();
+    const signal = tileSignal ? AbortSignal.any([tileSignal, ctx.stop()]) : ctx.stop();
     const [rows, cols] = sliceSpec.slice(-2);
     let data = ctx.take(rows.start ?? 0, cols.start ?? 0);
     if (!data) {
@@ -51,7 +57,7 @@ export function makeGetTileData(ctx) {
       }
       data = toFloat32(chunk.data, ctx.info);
     }
-    if (signal?.aborted || !ctx.live()) throw new StaleTileError("Tile belongs to a replaced layer");
+    if (signal.aborted || !ctx.live()) throw new StaleTileError("Tile belongs to a replaced layer");
     ctx.onData?.(data);
     const depth = data.length / (width * height);
     const texture = device.createTexture({
@@ -64,7 +70,7 @@ export function makeGetTileData(ctx) {
       data,
       sampler: { minFilter: "nearest", magFilter: "nearest", addressModeU: "clamp-to-edge", addressModeV: "clamp-to-edge" },
     });
-    ctx.track(texture);
+    ctx.track(texture, stepFlags(data, depth));
     return { texture, depth, width, height, byteLength: data.byteLength };
   };
 }

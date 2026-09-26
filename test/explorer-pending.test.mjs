@@ -1,56 +1,43 @@
-// Offline tests of explorer/src/lib/pending.js: changes made while unloaded compose onto one
-// pending selection (review pass 2, finding 1).
+// Offline tests of explorer/src/lib/pending.js: a control change applies to the selection
+// being loaded, never undoes a variable switch in flight, and keeps the rest of the
+// selection (review pass 2, finding 1; the init and member controls).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { composePending } from "../explorer/src/lib/pending.js";
+import { changeSelection, stepAccepted } from "../explorer/src/lib/pending.js";
 
-const loaded = { path: "/temperature_isobaric", pinnedIdx: [0, 0] };
+const sel = (path, pinnedIdx, extra = {}) => ({ path, initIndex: 7, pinnedIdx, stepIndex: 4, ...extra });
 
-test("variable, then its own level and step: all compose", () => {
-  let p = composePending(loaded, null, { type: "variable", path: "/rh_isobaric" });
-  assert.deepEqual(p, { path: "/rh_isobaric", pinnedIdx: null, stepIndex: null });
-  p = composePending(loaded, p, { type: "pinned", path: "/rh_isobaric", i: 0, j: 1, count: 1 });
-  p = composePending(loaded, p, { type: "step", path: "/rh_isobaric", index: 2 });
-  assert.deepEqual(p, { path: "/rh_isobaric", pinnedIdx: [1], stepIndex: 2 });
-});
-
-test("the old variable's level select can't revert the pending variable", () => {
-  let p = composePending(loaded, null, { type: "variable", path: "/relative_humidity_2m" });
-  p = composePending(loaded, p, { type: "pinned", path: "/temperature_isobaric", i: 0, j: 1, count: 2 });
-  assert.deepEqual(p, { path: "/relative_humidity_2m", pinnedIdx: null, stepIndex: null });
-  p = composePending(loaded, p, { type: "step", path: "/temperature_isobaric", index: 5 });
-  assert.equal(p.stepIndex, null);
-});
-
-test("several level changes compose; returning to the loaded variable keeps its levels", () => {
-  let p = composePending(loaded, null, { type: "pinned", path: "/temperature_isobaric", i: 0, j: 1, count: 2 });
-  p = composePending(loaded, p, { type: "pinned", path: "/temperature_isobaric", i: 1, j: 3, count: 2 });
-  assert.deepEqual(p, { path: "/temperature_isobaric", pinnedIdx: [1, 3], stepIndex: null });
-  p = composePending(loaded, p, { type: "variable", path: "/relative_humidity_2m" });
-  p = composePending(loaded, p, { type: "variable", path: "/temperature_isobaric" });
-  assert.deepEqual(p, { path: "/temperature_isobaric", pinnedIdx: [0, 0], stepIndex: null }, "back to what is loaded");
-});
-
-test("nothing loaded (e.g. after a failure): a variable choice is pending", () => {
-  const p = composePending(null, null, { type: "variable", path: "/a" });
-  assert.deepEqual(p, { path: "/a", pinnedIdx: null, stepIndex: null });
-  assert.equal(composePending(null, null, { type: "pinned", path: "/a", i: 0, j: 1, count: 1 }), null);
-});
-
-test("loaded switch: the old variable's level select can't undo a switch in flight", async () => {
-  const { loadedPinned, stepAccepted } = await import("../explorer/src/lib/pending.js");
-  const loaded = { path: "/temperature_isobaric", pinnedIdx: [0] };
-  const switching = { path: "/relative_humidity_2m", pinnedIdx: null };
-  assert.equal(loadedPinned(switching, loaded, { path: "/temperature_isobaric", i: 0, j: 1 }), null, "old control rejected");
+test("loaded switch: the old variable's level select can't undo a switch in flight", () => {
+  const loaded = sel("/temperature_isobaric", [0]);
+  const switching = { path: "/relative_humidity_2m", initIndex: null, pinnedIdx: null, stepIndex: null };
+  assert.equal(changeSelection(switching, loaded, { type: "pinned", path: "/temperature_isobaric", i: 0, j: 1 }), null, "old control rejected");
+  assert.equal(changeSelection(switching, loaded, { type: "init", path: "/temperature_isobaric", index: 3 }), null, "old init select rejected");
   assert.equal(stepAccepted(switching, loaded), false, "old slider rejected");
-  // No switch in flight: level changes apply to what is loaded.
-  assert.deepEqual(loadedPinned(null, loaded, { path: "/temperature_isobaric", i: 0, j: 1 }), { path: "/temperature_isobaric", pinnedIdx: [1] });
+  // No switch in flight: level changes apply to what is loaded, keeping init and step.
+  assert.deepEqual(changeSelection(null, loaded, { type: "pinned", path: "/temperature_isobaric", i: 0, j: 1 }), sel("/temperature_isobaric", [1]));
   assert.equal(stepAccepted(null, loaded), true);
   // A level change in flight for the same variable: a second one composes onto it.
-  const levelInFlight = { path: "/temperature_isobaric", pinnedIdx: [1, 0] };
-  const two = { path: "/temperature_isobaric", pinnedIdx: [0, 0] };
-  assert.deepEqual(loadedPinned(levelInFlight, two, { path: "/temperature_isobaric", i: 1, j: 2 }), { path: "/temperature_isobaric", pinnedIdx: [1, 2] });
+  const levelInFlight = sel("/temperature_isobaric", [1, 0]);
+  const two = sel("/temperature_isobaric", [0, 0]);
+  assert.deepEqual(changeSelection(levelInFlight, two, { type: "pinned", path: "/temperature_isobaric", i: 1, j: 2 }).pinnedIdx, [1, 2]);
   assert.equal(stepAccepted(levelInFlight, two), true);
-  // Nothing loaded yet (first load or after a failure): no level control applies.
-  assert.equal(loadedPinned(null, null, { path: "/a", i: 0, j: 1 }), null);
+  // Nothing loaded yet (first load or after a failure): no control applies.
+  assert.equal(changeSelection(null, null, { type: "pinned", path: "/a", i: 0, j: 1 }), null);
+});
+
+test("an init choice keeps the variable, its member and levels and the step, and is marked explicit", () => {
+  const loaded = sel("/temperature_2m", [3]);
+  assert.deepEqual(changeSelection(null, loaded, { type: "init", path: "/temperature_2m", index: 2 }), {
+    path: "/temperature_2m",
+    initIndex: 2,
+    pinnedIdx: [3],
+    stepIndex: 4,
+    explicitInit: true,
+  });
+  // A member change while that init loads keeps the requested init, not the drawn one.
+  const initInFlight = changeSelection(null, loaded, { type: "init", path: "/temperature_2m", index: 2 });
+  const next = changeSelection(initInFlight, loaded, { type: "pinned", path: "/temperature_2m", i: 0, j: 5 });
+  assert.equal(next.initIndex, 2);
+  assert.equal(next.explicitInit, true);
+  assert.deepEqual(next.pinnedIdx, [5]);
 });

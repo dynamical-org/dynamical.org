@@ -8,7 +8,7 @@ import { lonLatToCell, projectionDef } from "./crs.js";
 import { createTileFacade } from "./grib/tile-facade.js";
 import { cachedPromise } from "./lib/cache.js";
 import { missingSentinels } from "./lib/colour.js";
-import { absolutePath, dimLabel, latestWithChunk, layoutOf, probeLatest } from "./lib/dims.js";
+import { absolutePath, defaultIndex, dimLabel, latestWithChunk, layoutOf, probeLatest } from "./lib/dims.js";
 import { buildGrid } from "./lib/grid.js";
 import { decodeCf } from "./lib/time.js";
 
@@ -103,7 +103,10 @@ export function makeSource(store, config) {
     });
   }
 
-  /** Pinned and selectable dims, each with labels from its coordinate (metadata only). */
+  /**
+   * The selected dims (ensemble member, levels), each with labels from its coordinate
+   * values and the index it opens at (metadata only).
+   */
   async function pinnedDims(group, meta, cls) {
     const dimNames = meta.dimension_names;
     const out = [];
@@ -111,30 +114,12 @@ export function makeSource(store, config) {
       const c = (await coord(group, name)) ?? { values: Array.from({ length: meta.shape[dimNames.indexOf(name)] }, (_, i) => i), attrs: {} };
       out.push({
         name,
-        select: name !== cls.member,
         values: c.values,
         labels: c.values.map((v) => dimLabel(name, v, c.attrs.units)),
+        default: defaultIndex(name, c.values),
       });
     }
     return out;
-  }
-
-  const controlsCache = new Map();
-  /**
-   * What a variable's controls need (its level selects and slider) from metadata and
-   * coordinates alone: no probe, no weather data. Used while the map is unloaded.
-   * @param {string} path
-   */
-  function controls(path) {
-    return cachedPromise(controlsCache, path, async () => {
-      const meta = await store.getMeta(path);
-      const reason = unsupportedReason(meta);
-      if (reason) throw new Error(reason);
-      const { cls } = layoutOf(meta);
-      const pinned = await pinnedDims(parentOf(path), meta, cls);
-      const step = cls.step ? { name: cls.step, kind: cls.stepKind, n: meta.shape[meta.dimension_names.indexOf(cls.step)] } : null;
-      return { path, pinned, step };
-    });
   }
 
   /**
@@ -203,7 +188,8 @@ export function makeSource(store, config) {
         : await probe(cls.init, cls.step ? { [cls.step]: 0 } : {});
       if (r.index === null && r.failed) throw probeFailed(cls.init, r);
       if (r.index === null) throw new Error(`No run with data in the last ${r.log.length} ${cls.init} values (${r.log.join("; ")})`);
-      init = { name: cls.init, times: decodeCf(c.values, c.attrs.units), index: r.index, log: r.log };
+      // `index` is the run drawn; `default` stays the probed one (the init select always lists it).
+      init = { name: cls.init, times: decodeCf(c.values, c.attrs.units), index: r.index, default: r.index, log: r.log };
     }
 
     let step = null;
@@ -253,7 +239,7 @@ export function makeSource(store, config) {
     };
   }
 
-  return { describe, controls };
+  return { describe };
 }
 
 /** @typedef {Awaited<ReturnType<ReturnType<typeof makeSource>["describe"]>>} VariableInfo */

@@ -70,7 +70,7 @@ export function layoutOf(meta) {
  * Classify a variable's non-spatial dims.
  * - init_time: pinned to the latest usable run (see probeLatest)
  * - lead_time, else time: the slider
- * - ensemble_member: pinned (index 0 by default)
+ * - ensemble_member: its own select, opening at member 0 (see defaultIndex)
  * - anything else: its own select
  * @param {string[]} dimNames
  * @param {{ spatialAnywhere?: boolean }} [options] allow (y, x) before other dims (see spatialDimsAnywhere)
@@ -104,6 +104,30 @@ export function dimLabel(dim, value, units) {
 }
 
 /**
+ * The index a selected dim opens at: for ensemble_member the member whose coordinate value
+ * is 0 (the first when there is none), else the first.
+ * @param {string} dim
+ * @param {number[]} values coordinate values
+ */
+export function defaultIndex(dim, values) {
+  return dim === "ensemble_member" ? Math.max(0, values.indexOf(0)) : 0;
+}
+
+/**
+ * The init_time indices the init select lists, newest first: the newest `max`, plus the
+ * default (the probed latest usable run) when it is older than those.
+ * @param {number} n length of the init_time coordinate
+ * @param {number} fallback the default index
+ * @param {number} [max]
+ */
+export function initOptions(n, fallback, max = 20) {
+  const out = [];
+  for (let i = n - 1; i >= 0 && out.length < max; i--) out.push(i);
+  if (!out.includes(fallback)) out.push(fallback);
+  return out;
+}
+
+/**
  * The block of slider steps uploaded as one texture array: never more than the
  * texture window, never across an inner-chunk boundary (a block that straddled
  * two chunks would decode both).
@@ -119,6 +143,41 @@ export function blockRange(index, chunkLen, window, n) {
   const cEnd = Math.min(c0 + chunkLen, n);
   const start = c0 + Math.floor((index - c0) / w) * w;
   return { start, stop: Math.min(start + w, cEnd) };
+}
+
+/**
+ * Per step of a decoded block laid out step-major: 1 when the step has any finite value.
+ * @param {ArrayLike<number>} data
+ * @param {number} depth steps in the block
+ */
+export function stepFlags(data, depth) {
+  const size = data.length / depth;
+  const flags = new Uint8Array(depth);
+  for (let k = 0; k < depth; k++) {
+    for (let i = k * size; i < (k + 1) * size; i++) {
+      if (Number.isFinite(data[i])) {
+        flags[k] = 1;
+        break;
+      }
+    }
+  }
+  return flags;
+}
+
+/**
+ * What the loaded tiles of a block hold at step `k` of the block, from each tile's
+ * stepFlags: "data" if any tile has a value there, "empty" if tiles loaded and none has
+ * (e.g. a run not yet written this far: its chunks exist but hold only missing values),
+ * "none" if no tile loaded. `last` is the block's last step with data in any tile, or -1.
+ * @param {Uint8Array[]} tiles
+ * @param {number} k
+ * @returns {{ state: "data" | "empty" | "none", last: number }}
+ */
+export function viewData(tiles, k) {
+  let last = -1;
+  for (const f of tiles) for (let j = f.length - 1; j > last; j--) if (f[j]) last = j;
+  if (!tiles.length) return { state: "none", last };
+  return { state: tiles.some((f) => f[k]) ? "data" : "empty", last };
 }
 
 /**

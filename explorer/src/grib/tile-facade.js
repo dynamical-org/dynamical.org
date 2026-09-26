@@ -293,8 +293,8 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
     load: () => ({ active: gen.limiter.active(), queued: gen.limiter.queued() }),
     /**
      * Drop decoded grids and abandon all work: queued reads never start, running ones are
-     * aborted, and their late results are discarded. Used on variable/level change,
-     * Unload and destroy. The facade stays usable.
+     * aborted, and their late results are discarded. Used on a variable, init, member or
+     * level change, and on destroy. The facade stays usable.
      */
     clear() {
       stats.cancelled += inflight.size;

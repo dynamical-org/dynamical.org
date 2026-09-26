@@ -8,16 +8,20 @@ import {
   blockRange,
   classifyDims,
   decodeIndexEntry,
+  defaultIndex,
   dimLabel,
   findFirstData,
   findLatestData,
+  initOptions,
   latestWithChunk,
   layoutOf,
   locateInner,
   probeCandidates,
   probeLatest,
   shardLayout,
+  stepFlags,
   stepWithData,
+  viewData,
 } from "../explorer/src/lib/dims.js";
 import { decodeCf, formatLead, formatUtc, parseCfUnits } from "../explorer/src/lib/time.js";
 
@@ -324,4 +328,44 @@ test("latestWithChunk: a failed probe is reported as failed, not as a missing ru
   const all = await latestWithChunk({ n: 3, has: async () => { throw new Error("503"); } });
   assert.equal(all.index, null);
   assert.equal(all.failed, 3);
+});
+
+// GEFS 35-day, snapshot CK4GXTYJMFJ45PASK97G: the newest run (init 2026-09-25 00Z) had its
+// lead-0 chunk (so it is the default) but values only through lead index 104 (+384 h).
+// Lead chunks are 64 steps, so block 64..127 is written with steps 105..127 all NaN, and
+// block 128..180 all NaN. Before this check the explorer said "Ready" over a blank map at
+// every step past the written ones.
+test("a loaded block whose later steps hold no values is empty there, not ready", () => {
+  const cells = 6;
+  const depth = 64; // steps 64..127
+  const block = new Float32Array(depth * cells).fill(Number.NaN);
+  for (let k = 0; k <= 104 - 64; k++) block.fill(k, k * cells, (k + 1) * cells);
+  block[3 * cells + 2] = Number.NaN; // a missing cell doesn't make a step empty
+  const flags = stepFlags(block, depth);
+  assert.equal(flags[0], 1);
+  assert.equal(flags[104 - 64], 1);
+  assert.equal(flags[105 - 64], 0);
+  // Two tiles in view, one of them all ocean-NaN at every step: data comes from either.
+  const blank = stepFlags(new Float32Array(depth * cells).fill(Number.NaN), depth);
+  assert.deepEqual(viewData([blank, flags], 81 - 64), { state: "data", last: 104 - 64 });
+  assert.deepEqual(viewData([blank, flags], 120 - 64), { state: "empty", last: 104 - 64 });
+  // The next block has nothing at all; with no tile loaded there is nothing to judge.
+  const tail = stepFlags(new Float32Array(53 * cells).fill(Number.NaN), 53);
+  assert.deepEqual(viewData([tail], 0), { state: "empty", last: -1 });
+  assert.deepEqual(viewData([], 0), { state: "none", last: -1 });
+});
+
+test("the init select lists the newest runs and always the default", () => {
+  assert.deepEqual(initOptions(5, 3), [4, 3, 2, 1, 0]);
+  assert.deepEqual(initOptions(2186, 2185, 3), [2185, 2184, 2183]);
+  // A default older than the newest `max` (e.g. several unwritten newer runs) is appended.
+  assert.deepEqual(initOptions(100, 50, 3), [99, 98, 97, 50]);
+});
+
+test("the member select opens at member 0 by coordinate value, else the first", () => {
+  assert.equal(defaultIndex("ensemble_member", [0, 1, 2]), 0);
+  assert.equal(defaultIndex("ensemble_member", [1, 2, 0]), 2);
+  assert.equal(defaultIndex("ensemble_member", [1, 2, 3]), 0);
+  assert.equal(defaultIndex("pressure_level", [1000, 500]), 0);
+  assert.equal(dimLabel("ensemble_member", 30, "1"), "member 30");
 });

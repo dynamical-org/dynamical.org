@@ -1,54 +1,42 @@
-// The selection a user builds while the map is unloaded: nothing is read until Load, and
-// every change composes onto the one pending selection. Pure.
+// The selection being loaded (`requested`) versus what is drawn (`committed`): a control
+// change applies to the one being loaded, and a control of another variable can't undo a
+// switch. Pure.
 
-/** @typedef {{ path: string, pinnedIdx: number[] | null, stepIndex?: number | null }} Selection */
 /**
- * @typedef {{ type: "variable", path: string }
- *   | { type: "pinned", path: string, i: number, j: number, count: number }
- *   | { type: "step", path: string, index: number }} Change
- *   `path` on a level or step change is the variable whose control sent it.
+ * One selection: the variable, its init_time index (null: the probed latest usable run),
+ * the index of each selected dim (null: their defaults), the slider step (null: open on a
+ * step with data), and whether the init was chosen by the user.
+ * @typedef {{ path: string, initIndex: number | null, pinnedIdx: number[] | null, stepIndex: number | null, explicitInit?: boolean }} Selection
+ */
+/**
+ * @typedef {{ type: "pinned", path: string, i: number, j: number }
+ *   | { type: "init", path: string, index: number }} Change
+ *   `path` is the variable whose control sent the change.
  */
 
 /**
- * @param {Selection | null} committed what is loaded (null if nothing is)
- * @param {Selection | null} pending
+ * A level, member or init change from a control of `path`, applied to the selection being
+ * loaded (`requested`, if a switch or another change is in flight) or else to what is
+ * loaded. Everything else in that selection (init, other dims, step) stays. Null when the
+ * control belongs to neither, e.g. the old variable's level select during a switch to
+ * another variable: it must not undo the switch.
+ * @param {Selection | null} requested
+ * @param {Selection | null} committed
  * @param {Change} change
  * @returns {Selection | null}
  */
-export function composePending(committed, pending, change) {
-  const base = pending ?? committed;
-  if (change.type === "variable") {
-    // Back to the loaded variable keeps its levels; any other variable opens at its defaults.
-    if (committed && change.path === committed.path) return { path: committed.path, pinnedIdx: committed.pinnedIdx, stepIndex: null };
-    return { path: change.path, pinnedIdx: null, stepIndex: null };
-  }
-  // A control that belongs to another variable than the pending one (e.g. the old
-  // variable's level select, still on screen for a moment) must not change it.
-  if (!base || change.path !== base.path) return pending;
-  if (change.type === "pinned") {
-    const idx = base.pinnedIdx ? base.pinnedIdx.slice() : new Array(change.count).fill(0);
-    idx[change.i] = change.j;
-    return { path: base.path, pinnedIdx: idx, stepIndex: base.stepIndex ?? null };
-  }
-  return { path: base.path, pinnedIdx: base.pinnedIdx, stepIndex: change.index };
-}
-
-/**
- * While loaded: a level change from a control of `path`, applied to the selection being
- * loaded (`requested`, if a switch or level change is in flight) or else to what is
- * loaded. Null when the control belongs to neither, e.g. the old variable's level select
- * during a switch to another variable: it must not undo the switch.
- * @param {Selection | null} requested
- * @param {Selection | null} committed
- * @param {{ path: string, i: number, j: number }} change
- * @returns {Selection | null}
- */
-export function loadedPinned(requested, committed, { path, i, j }) {
+export function changeSelection(requested, committed, change) {
   const target = requested ?? committed;
-  if (!target || target.path !== path) return null;
-  const idx = (target.pinnedIdx ?? committed?.pinnedIdx ?? []).slice();
-  idx[i] = j;
-  return { path, pinnedIdx: idx };
+  if (!target || target.path !== change.path) return null;
+  const next = {
+    ...target,
+    pinnedIdx: target.pinnedIdx ?? committed?.pinnedIdx ?? null,
+    stepIndex: target.stepIndex ?? committed?.stepIndex ?? null,
+  };
+  if (change.type === "init") return { ...next, initIndex: change.index, explicitInit: true };
+  const idx = (next.pinnedIdx ?? []).slice();
+  idx[change.i] = change.j;
+  return { ...next, pinnedIdx: idx };
 }
 
 /**
