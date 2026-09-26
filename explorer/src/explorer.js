@@ -200,6 +200,9 @@ export function mount(el, options) {
     // Destroy the textures of layers that left the layer list (deck's tileset
     // aborts their requests on finalize but never calls onTileUnload).
     for (const id of s.retiring.splice(0)) {
+      // Back in the layer list before any frame went without it (e.g. two slider moves in
+      // one frame, away from a block and back): deck kept that layer, tiles and all.
+      if (s.liveIds.has(id)) continue;
       for (const t of s.textures.get(id)?.keys() ?? []) t.destroy();
       s.textures.delete(id);
       s.layerCallbacks.delete(id);

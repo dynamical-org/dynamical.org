@@ -176,4 +176,25 @@ test.describe("explorer, offline: missing data, init time, stop", () => {
     await expect(initSelect(page)).toHaveValue("0");
     await expect.poll(() => drawnValue(page, CANDIDATES)).toBe(OLDER_INIT_C[0]);
   });
+
+  // explorer.spec's "a slow lead the slider has left" hung now and then at its
+  // Home, ArrowRight: when both moves land in one frame, the layer on screen leaves the
+  // layer list and comes back before deck draws. Deck keeps it, loaded; the explorer
+  // retired it anyway (textures destroyed, not counted as loaded) and never left loading.
+  test("away from the drawn block and back within one frame, the field stays drawn and Ready", async ({ page }) => {
+    // average_temperature_2m: one-step blocks through the whole-grid facade
+    const average = [-20, -5, 10, 25, 40];
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "average_temperature_2m" } });
+    await page.goto(PAGE);
+    await loadMap(page);
+    const lead = await page.evaluate(() => window.__explorer.debug().step.index);
+    await expect.poll(() => drawnValue(page, average)).toBe(average[lead - 1]);
+
+    await page.evaluate((i) => {
+      window.__explorer.setStep(i + 1);
+      window.__explorer.setStep(i);
+    }, lead);
+    await expectState(page, "ready", 10_000);
+    await expect.poll(() => drawnValue(page, average)).toBe(average[lead - 1]);
+  });
 });
