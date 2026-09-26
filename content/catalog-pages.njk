@@ -202,8 +202,9 @@ eleventyComputed:
     border-radius: var(--radius-sm);
     background: var(--surface-muted);
   }
-  /* Explore: the preview (example image, its label, the load button) stacks in
-     one grid cell of the map box until the explorer mounts into that box. */
+  /* Explore: the preview (an empty map of the initial view, built as SVG, and the
+     load button) stacks in one grid cell of the map box until the explorer
+     mounts into that box. */
   .explore figure {
     margin: 0;
   }
@@ -224,19 +225,9 @@ eleventyComputed:
   .explore-map:has(> button) > * {
     grid-area: 1 / 1;
   }
-  .explore-map > img {
+  .explore-map > svg {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-  }
-  .explore-map > span {
-    place-self: start;
-    margin: 0.6rem;
-    padding: 0 0.6rem;
-    border-radius: var(--radius-sm);
-    background: var(--bg-color);
-    color: var(--muted-text);
-    font-size: 1.2rem;
   }
   .explore-map > button {
     place-self: center;
@@ -372,10 +363,7 @@ eleventyComputed:
       <h2 id="explore-heading">Explore</h2>
       <figure>
         <div class="explore-map">
-          {% if entry.thumbnail %}
-            <img src="/assets/catalog-thumbnails/{{ entry.id }}.jpg" width="400" height="300" alt="Example map image from {{ entry.title }}">
-            <span>Example image</span>
-          {% endif %}
+          {{ explorer.preview(entry.id) | safe }}
           <button type="button">Load interactive map</button>
         </div>
         <figcaption>{{ entry.variable_count }} variables · {{ "latest run" if entry.forecast_domain else "latest data" }} {% if explorerOptions.virtual %}· reads the Icechunk store and the source GRIB files it points to, directly in your browser. Estimated download for the initial view (store metadata plus one GRIB message): ~{{ explorerDataset.firstViewMB }} MB{% else %}· reads the Icechunk store directly in your browser. Estimated weather data for the {{ explorerDataset.initialViewName + " " if explorerDataset.initialViewName }}initial view: ~{{ explorerDataset.firstViewMB }} MB{% endif %} ({{ explorerOptions.defaultVariable }}); exploring loads more.</figcaption>

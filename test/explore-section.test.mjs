@@ -96,3 +96,68 @@ test("every enabled dataset in _data/explorer.js is well formed", () => {
     assert.ok(bounds[0] < bounds[2] && bounds[1] < bounds[3], `${dataset.id} bounds are west, south, east, north`);
   }
 });
+
+const { borderPath, fitBounds, previewSvg } = require("../lib/explorer-preview.js");
+
+const near = (actual, expected) =>
+  assert.ok(
+    actual.every((v, i) => Math.abs(v - expected[i]) < 0.01),
+    `${actual.join(", ")} is not ${expected.join(", ")}`,
+  );
+
+test("the preview's projection fits bounds into the frame as mount() does", () => {
+  // A box of ±45° on the equator in 1000 × 1000 less 20 of padding: height
+  // limits it (Mercator stretches latitude), centred.
+  const box = { width: 1000, height: 1000, padding: 20 };
+  const square = fitBounds([-45, -45, 45, 45], box);
+  near(square([0, 0]), [500, 500]);
+  // y = (1 - ln(tan(67.5°)) / π) / 2 = 0.359725 of the world, so 45° is
+  // 0.140275 of it above the equator, and that spans 480 units
+  const scale = 480 / 0.140275;
+  near(square([0, 45]), [500, 20]);
+  near(square([0, -45]), [500, 980]);
+  near(square([45, 0]), [500 + scale / 8, 500]);
+
+  // A wide box is limited by width instead: its west and east edges sit on the
+  // padding.
+  const wide = fitBounds([-60, -5, 60, 5], { width: 778, height: 356, padding: 20 });
+  near(wide([-60, 0]), [20, 178]);
+  near(wide([60, 0]), [758, 178]);
+
+  // Below zoom 0 (the world narrower than 512) mount() holds zoom 0.
+  const world = fitBounds([-180, -85, 180, 85], { width: 400, height: 300, padding: 20 });
+  near(world([-180, 0]), [200 - 256, 150]);
+  near(world([180, 0]), [200 + 256, 150]);
+});
+
+test("the preview's borders are cut to the frame", () => {
+  const project = ([x, y]) => [x, y];
+  const frame = { width: 100, height: 100 };
+  // one line in, across and out; one wholly outside; one whose middle point is
+  // too close to the last kept one; one that rounds to a single point
+  const d = borderPath(
+    [
+      [[-50, 50], [-20, 50], [10, 50], [50, 50], [90, 50], [130, 50], [160, 50]],
+      [[200, 200], [300, 300]],
+      [[10.2, 10.4], [11, 10], [20, 5]],
+      [[50.2, 60], [50.4, 60.3]],
+    ],
+    project,
+    frame,
+  );
+  assert.equal(d, "M-20 50l30 0 40 0 40 0 40 0M10 10l10-5");
+});
+
+test("the preview is an SVG path of the topology's borders in the site's colours", () => {
+  const topology = {
+    type: "Topology",
+    objects: { countries: { type: "GeometryCollection", geometries: [{ type: "Polygon", arcs: [[0]] }] } },
+    arcs: [[[-100, 30], [-90, 30], [-90, 40], [-100, 40], [-100, 30]]],
+  };
+  const svg = previewSvg(topology, [-125, 24, -66, 50]);
+  assert.match(svg, /^<svg viewBox="0 0 778 437"[^>]* aria-hidden="true"/);
+  // a move then relative lines: the square's corners, all in the frame
+  const [, d] = /<path d="(M\d+ \d+l[-\d ]+)"/.exec(svg);
+  assert.equal(d.match(/-?\d+/g).length, 10);
+  assert.match(svg, /stroke="var\(--text-color\)"/);
+});

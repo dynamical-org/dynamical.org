@@ -107,20 +107,50 @@ async function dragWest(page, dx) {
 }
 
 test.describe("explorer, offline", () => {
-  test("the explorer bundle is not requested until the button is clicked", async ({ page }) => {
-    const bundle = [];
+  test("the page shows an empty map, with no explorer bundle or weather reads before activation", async ({ page }) => {
+    // The explorer bundle, the stores (ours and the GRIB buckets are all S3),
+    // ECMWF's bucket and the explorer's own borders file.
+    const early = [];
     page.on("request", (request) => {
-      if (new URL(request.url()).pathname.startsWith("/explorer/")) bundle.push(request.url());
+      const url = new URL(request.url());
+      if (
+        url.pathname.startsWith("/explorer/") ||
+        /amazonaws\.com$|ecmwf/.test(url.hostname) ||
+        url.pathname.includes("world-atlas")
+      ) {
+        early.push(request.url());
+      }
     });
     await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
     await page.goto(PAGE);
-    await expect(page.locator(".explore img")).toBeVisible();
+    // the preview is the initial view's borders, drawn at build time
+    const preview = page.locator(".explore-map > svg");
+    await expect(preview).toBeVisible();
+    expect(await preview.locator("path").getAttribute("d")).toMatch(/^M\d+ \d+l-?\d/);
+    await expect(page.locator(".explore img")).toHaveCount(0);
+    // decorative: out of the accessibility tree, leaving the button as the one control
+    await expect(preview).toHaveAttribute("aria-hidden", "true");
+    const button = page.getByRole("button", { name: "Load interactive map" });
+    await expect(button).toBeVisible();
     await expect(page.locator(".explore figcaption")).toContainText("~9 MB (temperature_2m)");
     await page.waitForLoadState("networkidle");
-    expect(bundle).toEqual([]);
+    expect(early).toEqual([]);
 
-    await loadMap(page);
-    expect(bundle.length).toBeGreaterThan(0);
+    // activating it (from the keyboard) mounts the explorer in the same box,
+    // which draws as before
+    const size = async () => {
+      const { width, height } = await page.locator(".explore-map").boundingBox();
+      return { width, height };
+    };
+    const before = await size();
+    await button.focus();
+    await page.keyboard.press("Enter");
+    await expectState(page, "ready");
+    expect(early.some((url) => new URL(url).pathname.startsWith("/explorer/"))).toBe(true);
+    expect(early.some((url) => url.includes("amazonaws.com"))).toBe(true);
+    await expect(preview).toHaveCount(0);
+    expect(await size()).toEqual(before);
+    await expectDrawn(page, LEAD_C[0], [...LEAD_C, ...OLDER_INIT_C]);
   });
 
   test("a virtual store's caption names the GRIB reads and what its estimate covers", async ({ page }) => {
@@ -293,7 +323,7 @@ test.describe("explorer, offline", () => {
     await offline(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(PAGE);
-    await expect(page.locator(".explore img")).toBeVisible();
+    await expect(page.locator(".explore-map > svg path")).toBeVisible();
     await expect(page.getByRole("button", { name: "Load interactive map" })).toBeHidden();
     await expect(page.locator(".explore > p")).toHaveText(/isn't enabled on small screens or touch-only devices/);
     // the 16:9 box's 320px floor grows it downward, never wider than the page
@@ -327,43 +357,62 @@ test.describe("explorer, offline recovery", () => {
     await expectDrawn(page, LEAD_C[0], LEAD_C);
   });
 
-  test("changing variable or level while unloaded, then Load, draws the new selection", async ({ page }) => {
-    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+  test("a variable replaced by another before it draws never draws, and the last one does", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        // once armed, hold every shard object not read on load, so the first
+        // choice is still loading when it is replaced
+        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
     await page.goto(PAGE);
     await loadMap(page);
-    const unload = page.getByRole("button", { name: "Unload", exact: true });
-    const load = page.getByRole("button", { name: "Load", exact: true });
+    seen = new Set(log.map((r) => r.key));
     const variable = page.getByRole("combobox", { name: "Variable" });
-    const isobaric = [-30, 10, ...LEAD_C];
 
-    // Each selection below is read for the first time after Unload, so none
-    // comes from a cache.
-    await unload.click();
-    await expectBlank(page, PLAIN);
     await variable.selectOption("temperature_isobaric");
-    await expect(load).toBeEnabled();
-    await load.click();
-    await expectDrawnSoon(page, -30, isobaric);
-    await expectState(page, "ready");
-
-    await unload.click();
-    await page.getByRole("combobox", { name: /pressure_level/i }).selectOption({ index: 1 });
-    await expect(load).toBeEnabled();
-    await load.click();
-    await expectDrawnSoon(page, 10, isobaric);
-    await expectState(page, "ready");
-
-    await unload.click();
+    await expect.poll(() => log.some((r) => isShardKey(r.key) && !seen.has(r.key)), { timeout: 5_000 }).toBe(true);
     await variable.selectOption("relative_humidity_2m");
-    await expect(load).toBeEnabled();
-    await load.click();
-    await expectState(page, "ready");
-    await expect(page.locator(".explore-map")).toContainText(/percent|%/);
-    // its range is sampled, so check it is drawn rather than which colour
-    await expect.poll(async () => {
-      const rgb = await pixelAt(page, PLAIN.lon, PLAIN.lat);
-      return Math.min(...Array.from({ length: 256 }, (_, i) => distance(rgb, celsius(-40 + (90 * i) / 255))));
-    }, { timeout: 20_000 }).toBeLessThan(40);
+
+    await expectState(page, "ready", 15_000);
+    await expectHumidityDrawn(page);
+    // after the isobaric replies would have landed, nothing has switched back
+    await page.waitForTimeout(2_000);
+    await expectHumidityDrawn(page);
+  });
+
+  test("destroy while loading stops every read and empties the box", async ({ page }) => {
+    const log = [];
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error));
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
+
+    await page.getByRole("combobox", { name: "Variable" }).selectOption("temperature_isobaric");
+    await expect.poll(() => log.some((r) => isShardKey(r.key) && !seen.has(r.key)), { timeout: 5_000 }).toBe(true);
+    await page.evaluate(() => window.__explorer.destroy());
+    const destroyedAt = Date.now();
+
+    // the held replies land after this; nothing new is requested, drawn or thrown
+    await page.waitForTimeout(3_000);
+    expect(log.filter((r) => r.at > destroyedAt + 200)).toEqual([]);
+    expect(errors).toEqual([]);
+    const map = page.locator(".explore-map");
+    await expect(map).not.toHaveAttribute("data-state");
+    expect(await map.evaluate((el) => el.childElementCount)).toBe(0);
   });
 
   test("an analysis whose last written step is a window before its end opens on that step", async ({ page }) => {
@@ -450,22 +499,30 @@ test.describe("explorer, offline recovery", () => {
   });
 });
 
-// Review pass 2: selections changed while unloaded (finding 1), a whole-grid
-// forecast whose first lead is empty (finding 3), the advisory GPU estimate
-// (pass 1, finding 4), and stale draws through the whole-grid facade.
+// Review pass 2: selections changed while a new variable loads (finding 1, first
+// found through the since-removed Unload), a whole-grid forecast whose first
+// lead is empty (finding 3), the advisory GPU estimate (pass 1, finding 4), and
+// stale draws through the whole-grid facade.
 test.describe("explorer, offline review pass 2", () => {
-  test("a variable and then a level chosen while unloaded load together", async ({ page }) => {
-    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+  test("a level chosen while a new variable loads is the one drawn", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        // once armed, hold every shard object not read on load: the isobaric ones
+        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
     await page.goto(PAGE);
     await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
     const variable = page.getByRole("combobox", { name: "Variable" });
 
-    await page.getByRole("button", { name: "Unload", exact: true }).click();
     await variable.selectOption("temperature_isobaric");
-    // the new variable's level select must be offered before any data is read
     const level = page.getByRole("combobox", { name: /pressure_level/i });
     await level.selectOption({ index: 1 }, { timeout: 10_000 });
-    await page.getByRole("button", { name: "Load", exact: true }).click();
 
     await expectDrawnSoon(page, 10, [-30, 10, ...LEAD_C]);
     await expectState(page, "ready");
@@ -473,25 +530,35 @@ test.describe("explorer, offline review pass 2", () => {
     await expect(level).toHaveValue(await level.locator("option").nth(1).getAttribute("value"));
   });
 
-  test("a variable chosen while unloaded is not undone by the old variable's level select or a step", async ({ page }) => {
-    await offline(page, { overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" } });
+  test("a new variable is not undone by the old variable's level select or a step while it loads", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        // once armed, hold every shard object not read on load: the humidity ones
+        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" },
+    });
     await page.goto(PAGE);
     await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
     const variable = page.getByRole("combobox", { name: "Variable" });
     const level = page.getByRole("combobox", { name: /pressure_level/i });
+    const slider = page.getByRole("slider", { name: /lead time|time/i });
 
-    await page.getByRole("button", { name: "Unload", exact: true }).click();
     await variable.selectOption("relative_humidity_2m");
     // The reported failure: the old variable's level select, still on screen,
-    // replaced the pending humidity selection with temperature. Hiding or
-    // disabling it is a fix too, so change it only if it can be changed.
+    // replaced the humidity selection with temperature. Hiding or disabling a
+    // control is a fix too, so each is changed only if it can be.
     if ((await level.isVisible()) && (await level.isEnabled())) await level.selectOption({ index: 1 });
-    await moveSlider(page, ["ArrowRight", "ArrowRight"]);
-    await page.getByRole("button", { name: "Load", exact: true }).click();
+    const stepped = await slider.isEnabled();
+    if (stepped) await moveSlider(page, ["ArrowRight", "ArrowRight"]);
 
-    await expectState(page, "ready");
+    await expectState(page, "ready", 15_000);
     await expect(variable).toHaveValue(/relative_humidity_2m$/);
-    await expect(leadLabel(page)).toContainText(hours(2));
+    if (stepped) await expect(leadLabel(page)).toContainText(hours(2));
     await expectHumidityDrawn(page);
   });
 

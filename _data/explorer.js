@@ -1,4 +1,9 @@
+const fetch = require("@11ty/eleventy-fetch");
 const { explorerMountOptions } = require("../lib/explorer-config.js");
+const { previewSvg } = require("../lib/explorer-preview.js");
+
+// The file the explorer draws its borders from (explorer/src/explorer.js).
+const BORDERS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json";
 
 // Catalog datasets whose page offers the in-browser map explorer (explorer/,
 // mounted by the Explore section of content/catalog-pages.njk). An id missing
@@ -275,8 +280,19 @@ const datasets = [
   },
 ];
 
-module.exports = {
-  datasets,
-  // The template calls explorer.mountOptions(entry); null means no Explore section.
-  mountOptions: (entry) => explorerMountOptions(entry, datasets),
-};
+// Eleventy awaits the function; `datasets` is also on it for tests that
+// require this file directly.
+module.exports = Object.assign(
+  async () => {
+    const topology = await fetch(BORDERS_URL, { duration: "1d", type: "json" });
+    const previews = new Map(datasets.map((d) => [d.id, previewSvg(topology, d.initialView.bounds)]));
+    return {
+      datasets,
+      // The template calls explorer.mountOptions(entry); null means no Explore section.
+      mountOptions: (entry) => explorerMountOptions(entry, datasets),
+      // The empty map shown until the explorer loads, as inline SVG.
+      preview: (id) => previews.get(id),
+    };
+  },
+  { datasets },
+);
