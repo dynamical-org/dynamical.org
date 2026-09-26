@@ -244,18 +244,6 @@ eleventyComputed:
     color: var(--muted-text);
     font-size: 1.25rem;
   }
-  /* Phones and touch-only devices keep the preview; the map is desktop-only for now. */
-  .explore > p {
-    display: none;
-  }
-  @media (max-width: 700px), (any-pointer: coarse) and (not (any-pointer: fine)) {
-    .explore-map > button {
-      display: none;
-    }
-    .explore > p {
-      display: block;
-    }
-  }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 {% macro variableTable(variables, groupName) %}
@@ -368,7 +356,6 @@ eleventyComputed:
         </div>
         <figcaption>{{ entry.variable_count }} variables · {{ "latest run" if entry.forecast_domain else "latest data" }} {% if explorerOptions.virtual %}· reads the Icechunk store and the source GRIB files it points to, directly in your browser. Estimated download for the initial view (store metadata plus one GRIB message): ~{{ explorerDataset.firstViewMB }} MB{% else %}· reads the Icechunk store directly in your browser. Estimated weather data for the {{ explorerDataset.initialViewName + " " if explorerDataset.initialViewName }}initial view: ~{{ explorerDataset.firstViewMB }} MB{% endif %} ({{ explorerOptions.defaultVariable }}); exploring loads more.</figcaption>
       </figure>
-      <p>The interactive map isn't enabled on small screens or touch-only devices in this preview.</p>
     </section>
     <script type="module">
       // The explorer (explorer/, built to /explorer/) and its data load only on this click.

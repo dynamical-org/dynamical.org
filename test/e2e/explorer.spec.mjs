@@ -320,21 +320,23 @@ test.describe("explorer, offline", () => {
     await expect(status).not.toContainText(/undefined|\[object/);
   });
 
-  test("small screens get the preview and a note instead of the button", async ({ page }) => {
+  test("small screens get the button too, and the map draws within the page width", async ({ page }) => {
     await offline(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(PAGE);
     await expect(page.locator(".explore-map > svg path")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Load interactive map" })).toBeHidden();
-    await expect(page.locator(".explore > p")).toHaveText(/isn't enabled on small screens or touch-only devices/);
+    const button = page.getByRole("button", { name: "Load interactive map" });
+    await expect(button).toBeVisible();
     // the 16:9 box's 320px floor grows it downward, never wider than the page
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-    expect((await page.locator(".explore-map").boundingBox()).width).toBeLessThanOrEqual(390);
-
-    // the media query is re-checked as the window changes
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(page.getByRole("button", { name: "Load interactive map" })).toBeVisible();
-    await expect(page.locator(".explore > p")).toBeHidden();
+    const noOverflow = async () => {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      expect((await page.locator(".explore-map").boundingBox()).width).toBeLessThanOrEqual(390);
+    };
+    await noOverflow();
+    await button.click();
+    await expectState(page, "ready");
+    await expectDrawn(page, LEAD_C[0], [...LEAD_C, ...OLDER_INIT_C]);
+    await noOverflow();
   });
 });
 
