@@ -147,6 +147,8 @@ export const FIXTURE_VARIABLES = [
     dims: ["init_time", "lead_time", "pressure_level", "latitude", "longitude"],
   },
   { path: "total_cloud_cover_atmosphere", name: "total_cloud_cover_atmosphere", long_name: "Total cloud cover", units: "percent", dims: FORECAST },
+  // one-step whole-grid chunks, as in the virtual stores: drawn through the tile facade
+  { path: "average_temperature_2m", name: "average_temperature_2m", long_name: "Time-mean 2 metre temperature", units: "degree_Celsius", dims: FORECAST },
 ];
 export const ANALYSIS_VARIABLES = [
   { path: "temperature_2m_analysis", name: "temperature_2m_analysis", long_name: "2 metre temperature (analysis)", units: "degree_Celsius", dims: ["time", "latitude", "longitude"] },

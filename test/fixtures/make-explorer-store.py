@@ -29,6 +29,11 @@ The other arrays each exercise one thing the explorer must handle:
   PARTIAL_LAST (150); later steps are NaN inside the same written chunk. Its
   newest data is more than a 128-step texture window before the last time, so
   an explorer that trusts "the chunk exists" opens on a blank step.
+- average_temperature_2m: a forecast array in unsharded one-step chunks,
+  (1, 1, 16, 32), the layout of the virtual stores, so the explorer draws it
+  through its whole-grid tile facade. Like a mean over the previous hour, lead
+  0 is all NaN; lead k >= 1 is AVERAGE_C[k] at the latest init (the older init
+  7.5 °C warmer), uniform.
 
 Icechunk writes random object ids, so rerunning rewrites every file. Run from the
 repo root:
@@ -73,6 +78,7 @@ SPHERE_WKT = (
     'AXIS["Longitude",EAST],AXIS["Latitude",NORTH]]'
 )
 PARTIAL_LAST = 150
+AVERAGE_C = [np.nan, -20.0, -5.0, 10.0, 25.0, 40.0]
 
 
 def blosc(typesize: int) -> BloscCodec:
@@ -154,13 +160,21 @@ def temperature_analysis_partial() -> np.ndarray:
     return field
 
 
+def average_temperature() -> np.ndarray:
+    field = np.empty(forecast_shape(), dtype="float32")
+    for lead, value in enumerate(AVERAGE_C):
+        field[1, lead] = value
+        field[0, lead] = value + OLDER_INIT_OFFSET_C
+    return field
+
+
 def data_array(
     group: zarr.Group,
     name: str,
     data: np.ndarray,
     dims: list[str],
     chunks: tuple[int, ...],
-    shards: tuple[int, ...],
+    shards: tuple[int, ...] | None,
     attributes: dict,
     fill_value: float = np.nan,
 ) -> None:
@@ -392,6 +406,23 @@ def main() -> None:
             "units": "degree_Celsius",
             "step_type": "instant",
             "coordinates": "spatial_ref",
+            "_FillValue": NAN_FILL,
+        },
+    )
+
+    data_array(
+        root,
+        "average_temperature_2m",
+        average_temperature(),
+        FORECAST_DIMS,
+        chunks=(1, 1, 16, 32),
+        shards=None,
+        attributes={
+            "long_name": "Time-mean 2 metre temperature",
+            "short_name": "avg_2t",
+            "units": "degree_Celsius",
+            "step_type": "avg",
+            "coordinates": "spatial_ref valid_time",
             "_FillValue": NAN_FILL,
         },
     )

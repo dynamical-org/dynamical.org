@@ -28,6 +28,11 @@ import {
 // Colours are read back from the page and matched to the nearest fixture value
 // on the turbo scale, so a check names the value that drew rather than a hex.
 
+// average_temperature_2m (one-step chunks, the whole-grid facade path): lead 0
+// is NaN, then uniform per lead.
+const AVERAGE_C = [null, -20, -5, 10, 25, 40];
+const AVERAGE_CANDIDATES = [...AVERAGE_C.slice(1), ...AVERAGE_C.slice(1).map((v) => v + 7.5)];
+
 // temperature_2m at the latest init: uniform per lead, one cold cell.
 const LEAD_C = [-25, -10, 5, 20, 35, 50];
 const OLDER_INIT_C = LEAD_C.map((v) => v + 7.5);
@@ -426,5 +431,119 @@ test.describe("explorer, offline recovery", () => {
     await expectState(page, "ready");
     await expect(leadLabel(page)).toContainText(hours(3));
     await expectDrawn(page, LEAD_C[3], LEAD_C);
+  });
+});
+
+// Review pass 2: selections changed while unloaded (finding 1), a whole-grid
+// forecast whose first lead is empty (finding 3), the advisory GPU estimate
+// (pass 1, finding 4), and stale draws through the whole-grid facade.
+test.describe("explorer, offline review pass 2", () => {
+  test("a variable and then a level chosen while unloaded load together", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await loadMap(page);
+    const variable = page.getByRole("combobox", { name: "Variable" });
+
+    await page.getByRole("button", { name: "Unload", exact: true }).click();
+    await variable.selectOption("temperature_isobaric");
+    // the new variable's level select must be offered before any data is read
+    const level = page.getByRole("combobox", { name: /pressure_level/i });
+    await level.selectOption({ index: 1 }, { timeout: 10_000 });
+    await page.getByRole("button", { name: "Load", exact: true }).click();
+
+    await expectDrawnSoon(page, 10, [-30, 10, ...LEAD_C]);
+    await expectState(page, "ready");
+    await expect(variable).toHaveValue(/temperature_isobaric$/);
+    await expect(level).toHaveValue(await level.locator("option").nth(1).getAttribute("value"));
+  });
+
+  test("a variable chosen while unloaded is not undone by the old variable's level select or a step", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" } });
+    await page.goto(PAGE);
+    await loadMap(page);
+    const variable = page.getByRole("combobox", { name: "Variable" });
+    const level = page.getByRole("combobox", { name: /pressure_level/i });
+
+    await page.getByRole("button", { name: "Unload", exact: true }).click();
+    await variable.selectOption("relative_humidity_2m");
+    // The reported failure: the old variable's level select, still on screen,
+    // replaced the pending humidity selection with temperature. Hiding or
+    // disabling it is a fix too, so change it only if it can be changed.
+    if ((await level.isVisible()) && (await level.isEnabled())) await level.selectOption({ index: 1 });
+    await moveSlider(page, ["ArrowRight", "ArrowRight"]);
+    await page.getByRole("button", { name: "Load", exact: true }).click();
+
+    await expectState(page, "ready");
+    await expect(variable).toHaveValue(/relative_humidity_2m$/);
+    await expect(leadLabel(page)).toContainText(hours(2));
+    await expect(page.locator(".explore-map")).toContainText(/percent|%/);
+    // drawn, and not in either temperature_isobaric level's colour
+    await expect.poll(async () => {
+      const rgb = await pixelAt(page, PLAIN.lon, PLAIN.lat);
+      const scale = Array.from({ length: 256 }, (_, i) => celsius(-40 + (90 * i) / 255));
+      const drawn = Math.min(...scale.map((c) => distance(rgb, c))) < 40;
+      const isobaric = Math.min(distance(rgb, celsius(-30)), distance(rgb, celsius(10))) < 25;
+      return drawn && !isobaric;
+    }, { timeout: 20_000 }).toBe(true);
+  });
+
+  test("a one-step-chunk forecast whose first lead is empty opens on the next lead", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    await page.getByRole("combobox", { name: "Variable" }).selectOption("average_temperature_2m");
+    await expectState(page, "ready");
+    await expect(leadLabel(page)).toContainText(hours(1));
+    await expectDrawn(page, AVERAGE_C[1], AVERAGE_CANDIDATES);
+  });
+
+  test("a view over the GPU-memory estimate still loads, with a warning", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES, maxTextureBytes: 1000 } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    await expect(page.locator('.explore-map [data-warning="gpu"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: /load anyway/i })).toHaveCount(0);
+    await expectDrawn(page, LEAD_C[0], LEAD_C);
+    await expectDrawn(page, KNOWN.c, [KNOWN.c, LEAD_C[0]], KNOWN);
+  });
+
+  test("through the whole-grid facade, a slow lead the slider has left never draws", async ({ page }) => {
+    // Hold the first data read after the slider moves (lead 2) well past the
+    // next one (lead 4). Whole-grid chunk objects are the non-shard reads left
+    // once the map has drawn, since the coordinates are read by then.
+    let armed = false;
+    let held = 0;
+    await offline(page, {
+      store: storeRoute({
+        delayFor: ({ key }) => {
+          if (!armed || !key.startsWith("chunks/") || isShardKey(key) || held > 0) return 0;
+          held += 1;
+          return 2_500;
+        },
+      }),
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "average_temperature_2m" },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    // start from lead 1 explicitly, whichever lead the variable opened on
+    await moveSlider(page, ["Home", "ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(1));
+    await expectState(page, "ready");
+    await expectDrawn(page, AVERAGE_C[1], AVERAGE_CANDIDATES);
+
+    armed = true;
+    await moveSlider(page, ["ArrowRight"]);
+    await moveSlider(page, ["ArrowRight", "ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(4));
+    await expectState(page, "ready", 15_000);
+    await expectDrawn(page, AVERAGE_C[4], AVERAGE_CANDIDATES);
+    expect(held).toBe(1);
+
+    // let the held lead-2 reply land, then check nothing repainted
+    await page.waitForTimeout(3_000);
+    await expect(leadLabel(page)).toContainText(hours(4));
+    await expectDrawn(page, AVERAGE_C[4], AVERAGE_CANDIDATES);
   });
 });
