@@ -79,6 +79,22 @@ async function expectDrawnSoon(page, value, candidates, where = PLAIN) {
   await expect.poll(() => drawnValue(page, candidates, where), { timeout: 20_000 }).toBe(value);
 }
 
+/** The Variable dropdown, the legend and the drawn field all say humidity:
+ * the legend is in percent, and the pixel is drawn but in neither
+ * temperature_isobaric level's colour (humidity's range is sampled, so its
+ * exact colour isn't fixed). */
+async function expectHumidityDrawn(page) {
+  await expect(page.getByRole("combobox", { name: "Variable" })).toHaveValue(/relative_humidity_2m$/);
+  await expect(page.locator(".explore-map")).toContainText(/percent|%/);
+  await expect.poll(async () => {
+    const rgb = await pixelAt(page, PLAIN.lon, PLAIN.lat);
+    const scale = Array.from({ length: 256 }, (_, i) => celsius(-40 + (90 * i) / 255));
+    const drawn = Math.min(...scale.map((c) => distance(rgb, c))) < 40;
+    const isobaric = Math.min(distance(rgb, celsius(-30)), distance(rgb, celsius(10))) < 25;
+    return drawn && !isobaric;
+  }, { timeout: 20_000 }).toBe(true);
+}
+
 /** Drag the map west by `dx` CSS px (moving the view east). */
 async function dragWest(page, dx) {
   const box = await page.locator(".explore-map canvas").first().boundingBox();
@@ -476,15 +492,7 @@ test.describe("explorer, offline review pass 2", () => {
     await expectState(page, "ready");
     await expect(variable).toHaveValue(/relative_humidity_2m$/);
     await expect(leadLabel(page)).toContainText(hours(2));
-    await expect(page.locator(".explore-map")).toContainText(/percent|%/);
-    // drawn, and not in either temperature_isobaric level's colour
-    await expect.poll(async () => {
-      const rgb = await pixelAt(page, PLAIN.lon, PLAIN.lat);
-      const scale = Array.from({ length: 256 }, (_, i) => celsius(-40 + (90 * i) / 255));
-      const drawn = Math.min(...scale.map((c) => distance(rgb, c))) < 40;
-      const isobaric = Math.min(distance(rgb, celsius(-30)), distance(rgb, celsius(10))) < 25;
-      return drawn && !isobaric;
-    }, { timeout: 20_000 }).toBe(true);
+    await expectHumidityDrawn(page);
   });
 
   test("a one-step-chunk forecast whose first lead is empty opens on the next lead", async ({ page }) => {
@@ -545,5 +553,46 @@ test.describe("explorer, offline review pass 2", () => {
     await page.waitForTimeout(3_000);
     await expect(leadLabel(page)).toContainText(hours(4));
     await expectDrawn(page, AVERAGE_C[4], AVERAGE_CANDIDATES);
+  });
+});
+
+// Final review, finding 1: the loaded counterpart of pass 2's finding 1. A
+// level change on the old variable's select while a new variable is still
+// loading must not commit the old variable under the new one's name.
+test.describe("explorer, offline final review", () => {
+  test("changing the old level while a new variable loads still draws the new variable", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    let held = 0;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        // once armed, hold every read of a shard object not read before: the
+        // humidity shards, since the isobaric ones were all read on load
+        delayFor: ({ key }) => {
+          if (!seen || !isShardKey(key) || seen.has(key)) return 0;
+          held += 1;
+          return 2_000;
+        },
+      }),
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    await expectDrawn(page, -30, [-30, 10, ...LEAD_C]);
+    seen = new Set(log.map((r) => r.key));
+
+    await page.getByRole("combobox", { name: "Variable" }).selectOption("relative_humidity_2m");
+    await expect.poll(() => held, { timeout: 5_000 }).toBeGreaterThan(0);
+    // Hiding or disabling the old select is also a fix, so change it only if
+    // it can still be changed.
+    const level = page.getByRole("combobox", { name: /pressure_level/i });
+    if ((await level.isVisible()) && (await level.isEnabled())) await level.selectOption({ index: 1 });
+
+    await expectState(page, "ready", 15_000);
+    await expectHumidityDrawn(page);
+    // after every held reply has landed, nothing has switched back
+    await page.waitForTimeout(2_500);
+    await expectHumidityDrawn(page);
   });
 });
