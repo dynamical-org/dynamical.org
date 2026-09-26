@@ -150,6 +150,16 @@ export const FIXTURE_VARIABLES = [
   // one-step whole-grid chunks, as in the virtual stores: drawn through the tile facade
   { path: "average_temperature_2m", name: "average_temperature_2m", long_name: "Time-mean 2 metre temperature", units: "degree_Celsius", dims: FORECAST },
 ];
+// GEFS-shaped: members 0, 10 and 20 (see make-explorer-store.py)
+export const ENSEMBLE_VARIABLES = [
+  {
+    path: "temperature_ensemble",
+    name: "temperature_ensemble",
+    long_name: "2 metre temperature (ensemble)",
+    units: "degree_Celsius",
+    dims: ["init_time", "ensemble_member", "lead_time", "latitude", "longitude"],
+  },
+];
 export const ANALYSIS_VARIABLES = [
   { path: "temperature_2m_analysis", name: "temperature_2m_analysis", long_name: "2 metre temperature (analysis)", units: "degree_Celsius", dims: ["time", "latitude", "longitude"] },
 ];

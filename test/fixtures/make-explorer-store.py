@@ -34,6 +34,11 @@ The other arrays each exercise one thing the explorer must handle:
   through its whole-grid tile facade. Like a mean over the previous hour, lead
   0 is all NaN; lead k >= 1 is AVERAGE_C[k] at the latest init (the older init
   7.5 °C warmer), uniform.
+- temperature_ensemble: GEFS-shaped (init_time, ensemble_member, lead_time,
+  latitude, longitude), for the member select. Members are 0, 10 and 20 (not
+  0, 1, 2, so a label that shows an index instead of the coordinate value is
+  caught); member m is ENSEMBLE_C[m] at the latest init (the older init 7.5 °C
+  warmer), uniform over leads and cells.
 
 Icechunk writes random object ids, so rerunning rewrites every file. Run from the
 repo root:
@@ -79,6 +84,8 @@ SPHERE_WKT = (
 )
 PARTIAL_LAST = 150
 AVERAGE_C = [np.nan, -20.0, -5.0, 10.0, 25.0, 40.0]
+ENSEMBLE_MEMBERS = np.array([0, 10, 20], dtype="int64")
+ENSEMBLE_C = [-20.0, 0.0, 20.0]
 
 
 def blosc(typesize: int) -> BloscCodec:
@@ -165,6 +172,21 @@ def average_temperature() -> np.ndarray:
     for lead, value in enumerate(AVERAGE_C):
         field[1, lead] = value
         field[0, lead] = value + OLDER_INIT_OFFSET_C
+    return field
+
+
+def temperature_ensemble() -> np.ndarray:
+    shape = (
+        len(INIT_TIMES),
+        len(ENSEMBLE_MEMBERS),
+        len(LEAD_HOURS),
+        len(LATITUDE),
+        len(LONGITUDE),
+    )
+    field = np.empty(shape, dtype="float32")
+    for member, value in enumerate(ENSEMBLE_C):
+        field[1, member] = value
+        field[0, member] = value + OLDER_INIT_OFFSET_C
     return field
 
 
@@ -301,6 +323,13 @@ def main() -> None:
     )
     coordinate(
         root,
+        "ensemble_member",
+        ENSEMBLE_MEMBERS,
+        ["ensemble_member"],
+        {"long_name": "Ensemble member", "units": "realization"},
+    )
+    coordinate(
+        root,
         "time",
         ANALYSIS_TIMES.astype("int64"),
         ["time"],
@@ -422,6 +451,23 @@ def main() -> None:
             "short_name": "avg_2t",
             "units": "degree_Celsius",
             "step_type": "avg",
+            "coordinates": "spatial_ref valid_time",
+            "_FillValue": NAN_FILL,
+        },
+    )
+
+    data_array(
+        root,
+        "temperature_ensemble",
+        temperature_ensemble(),
+        ["init_time", "ensemble_member", "lead_time", "latitude", "longitude"],
+        chunks=(1, 1, 3, 8, 16),
+        shards=(1, 3, 6, 16, 32),
+        attributes={
+            "long_name": "2 metre temperature (ensemble)",
+            "short_name": "2t",
+            "units": "degree_Celsius",
+            "step_type": "instant",
             "coordinates": "spatial_ref valid_time",
             "_FillValue": NAN_FILL,
         },

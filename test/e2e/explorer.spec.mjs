@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   ANALYSIS_VARIABLES,
+  ENSEMBLE_VARIABLES,
   FIXTURE_VARIABLES,
   PARTIAL_ANALYSIS_VARIABLES,
   PAGE,
@@ -504,30 +505,46 @@ test.describe("explorer, offline recovery", () => {
 // lead is empty (finding 3), the advisory GPU estimate (pass 1, finding 4), and
 // stale draws through the whole-grid facade.
 test.describe("explorer, offline review pass 2", () => {
-  test("a level chosen while a new variable loads is the one drawn", async ({ page }) => {
+  test("a level changed again while the first change is loading draws the last choice", async ({ page }) => {
+    // Both levels live in one shard object per init, so a level's reads are
+    // told apart by range: once armed, every range not read on load (the
+    // 850 hPa inner chunks) is held, so the change to 850 hPa is still at its
+    // reference read when the level goes back to 500 hPa.
     const log = [];
     let seen = null;
+    let held = 0;
     await offline(page, {
       store: storeRoute({
         log,
-        // once armed, hold every shard object not read on load: the isobaric ones
-        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+        delayFor: ({ key, start }) => {
+          if (!seen || start === undefined || seen.has(`${key}@${start}`)) return 0;
+          held += 1;
+          return 2_000;
+        },
       }),
-      overrides: { variables: FIXTURE_VARIABLES },
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" },
     });
     await page.goto(PAGE);
     await loadMap(page);
-    seen = new Set(log.map((r) => r.key));
-    const variable = page.getByRole("combobox", { name: "Variable" });
-
-    await variable.selectOption("temperature_isobaric");
+    const levels = [-30, 10, ...LEAD_C];
+    await expectDrawn(page, -30, levels);
+    seen = new Set(log.map((r) => `${r.key}@${r.start}`));
     const level = page.getByRole("combobox", { name: /pressure_level/i });
-    await level.selectOption({ index: 1 }, { timeout: 10_000 });
+    const first = await level.locator("option").nth(0).getAttribute("value");
 
-    await expectDrawnSoon(page, 10, [-30, 10, ...LEAD_C]);
+    await level.selectOption({ index: 1 });
+    await expect.poll(() => held, { timeout: 5_000 }).toBeGreaterThan(0);
+    await expect(page.locator(".explore-map")).toHaveAttribute("data-state", "loading");
+    await level.selectOption({ index: 0 });
+
+    await expectState(page, "ready", 15_000);
+    await expect(level).toHaveValue(first);
+    await expectDrawn(page, -30, levels);
+    // after the held 850 hPa replies have landed, nothing has switched to them
+    await page.waitForTimeout(2_500);
+    await expect(level).toHaveValue(first);
     await expectState(page, "ready");
-    await expect(variable).toHaveValue(/temperature_isobaric$/);
-    await expect(level).toHaveValue(await level.locator("option").nth(1).getAttribute("value"));
+    await expectDrawn(page, -30, levels);
   });
 
   test("a new variable is not undone by the old variable's level select or a step while it loads", async ({ page }) => {
@@ -661,5 +678,34 @@ test.describe("explorer, offline final review", () => {
     // after every held reply has landed, nothing has switched back
     await page.waitForTimeout(2_500);
     await expectHumidityDrawn(page);
+  });
+});
+
+// The member select on a GEFS-shaped array: each member draws its own values,
+// and the select and the label name the member's coordinate value.
+test.describe("explorer, offline ensemble", () => {
+  test("switching member draws that member and labels its coordinate value", async ({ page }) => {
+    await offline(page, { overrides: { variables: ENSEMBLE_VARIABLES, defaultVariable: "temperature_ensemble" } });
+    await page.goto(PAGE);
+    await loadMap(page);
+    // members 0, 10, 20 at the latest init, and the older init 7.5 °C warmer
+    const MEMBER_C = [-20, 0, 20];
+    const candidates = [...MEMBER_C, ...MEMBER_C.map((v) => v + 7.5)];
+    const member = page.getByRole("combobox", { name: "ensemble_member" });
+    const label = page.locator('.explore-map [data-label="member"]');
+
+    await expect(member.locator("option")).toHaveText(["member 0", "member 10", "member 20"]);
+    await expect(label).toHaveText("member 0");
+    await expectDrawn(page, -20, candidates);
+
+    await member.selectOption({ label: "member 20" });
+    await expectState(page, "ready");
+    await expect(label).toHaveText("member 20");
+    await expectDrawn(page, 20, candidates);
+
+    await member.selectOption({ label: "member 10" });
+    await expectState(page, "ready");
+    await expect(label).toHaveText("member 10");
+    await expectDrawn(page, 0, candidates);
   });
 });
