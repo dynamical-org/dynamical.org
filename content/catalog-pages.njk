@@ -202,6 +202,48 @@ eleventyComputed:
     border-radius: var(--radius-sm);
     background: var(--surface-muted);
   }
+  /* Explore: the preview (an empty map of the initial view, built as SVG, and the
+     load button) stacks in one grid cell of the map box until the explorer
+     mounts into that box. */
+  .explore figure {
+    margin: 0;
+  }
+  /* An explicit width, so on a phone min-height grows the box downward
+     rather than aspect-ratio widening it past the page. */
+  .explore-map {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 320px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--surface-muted);
+  }
+  .explore-map:has(> button) {
+    display: grid;
+  }
+  .explore-map:has(> button) > * {
+    grid-area: 1 / 1;
+  }
+  .explore-map > svg {
+    width: 100%;
+    height: 100%;
+  }
+  .explore-map > button {
+    place-self: center;
+    padding: 0.8rem 1.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: inherit;
+    cursor: pointer;
+  }
+  .explore figcaption {
+    margin-top: 0.5rem;
+    color: var(--muted-text);
+    font-size: 1.25rem;
+  }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
 {% macro variableTable(variables, groupName) %}
@@ -302,6 +344,41 @@ eleventyComputed:
     <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
   {% endif %}
   <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
+  {% set explorerOptions = explorer.mountOptions(entry) %}
+  {% if explorerOptions %}
+    {% set explorerDataset = explorer.datasets | find('id', entry.id) %}
+    <section class="explore" aria-labelledby="explore-heading" data-options="{{ explorerOptions | dump | escape }}">
+      <h2 id="explore-heading">Explore</h2>
+      <figure>
+        <div class="explore-map">
+          {{ explorer.preview(entry.id) | safe }}
+          <button type="button">Load interactive map</button>
+        </div>
+        <figcaption>{{ entry.variable_count }} variables · {{ "latest run" if entry.forecast_domain else "latest data" }} {% if explorerOptions.virtual %}· reads the Icechunk store and the source GRIB files it points to, directly in your browser. Estimated download for the initial view (store metadata plus one GRIB message): ~{{ explorerDataset.firstViewMB }} MB{% else %}· reads the Icechunk store directly in your browser. Estimated weather data for the {{ explorerDataset.initialViewName + " " if explorerDataset.initialViewName }}initial view: ~{{ explorerDataset.firstViewMB }} MB{% endif %} ({{ explorerOptions.defaultVariable }}); exploring loads more.</figcaption>
+      </figure>
+    </section>
+    <script type="module">
+      // The explorer (explorer/, built to /explorer/) and its data load only on this click.
+      const section = document.querySelector(".explore");
+      const map = section.querySelector(".explore-map");
+      const button = map.querySelector("button");
+      const preview = [...map.children];
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        button.textContent = "Loading…";
+        try {
+          const { mount } = await import("/explorer/explorer.js");
+          map.replaceChildren();
+          mount(map, JSON.parse(section.dataset.options));
+        } catch (error) {
+          console.error(error);
+          map.replaceChildren(...preview);
+          button.disabled = false;
+          button.textContent = "Couldn't load the map. Try again";
+        }
+      });
+    </script>
+  {% endif %}
   {% if model.datasets.length > 1 %}
     <h3>Related Datasets</h3>
     <ul class="related-datasets">

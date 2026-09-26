@@ -6,3 +6,5 @@ docs
 .claude/
 test-results
 playwright-report
+public/explorer/
+!explorer/package-lock.json

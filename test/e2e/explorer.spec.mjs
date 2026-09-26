@@ -1,0 +1,713 @@
+import { expect, test } from "@playwright/test";
+
+import {
+  ANALYSIS_VARIABLES,
+  ENSEMBLE_VARIABLES,
+  FIXTURE_VARIABLES,
+  PARTIAL_ANALYSIS_VARIABLES,
+  PAGE,
+  celsius,
+  distance,
+  expectState,
+  isShardKey,
+  loadMap,
+  nearest,
+  offline,
+  pixelAt,
+  storeRoute,
+} from "./explorer-harness.mjs";
+
+// The Explore section on a catalog page lazy-loads the map explorer (explorer/)
+// and reads an Icechunk store straight from S3. Offline, every request is
+// stubbed: S3 from test/fixtures/explorer-store/ (a tiny GFS-shaped repo, see
+// test/fixtures/make-explorer-store.py for its values) and the borders from a
+// one-country topology. What only a browser can show, and so what this checks:
+// the bundle stays unloaded until asked for, cells land where their coordinates
+// say, a lead or time step draws that step's data, a slow reply never paints an
+// older block under newer labels, and failures read as failures.
+//
+// Colours are read back from the page and matched to the nearest fixture value
+// on the turbo scale, so a check names the value that drew rather than a hex.
+
+// average_temperature_2m (one-step chunks, the whole-grid facade path): lead 0
+// is NaN, then uniform per lead.
+const AVERAGE_C = [null, -20, -5, 10, 25, 40];
+const AVERAGE_CANDIDATES = [...AVERAGE_C.slice(1), ...AVERAGE_C.slice(1).map((v) => v + 7.5)];
+
+// temperature_2m at the latest init: uniform per lead, one cold cell.
+const LEAD_C = [-25, -10, 5, 20, 35, 50];
+const OLDER_INIT_C = LEAD_C.map((v) => v + 7.5);
+const KNOWN = { lon: -101.25, lat: 42, c: -40 };
+// Away from the known cell and the stub border, inside the CONUS view.
+const PLAIN = { lon: -78.75, lat: 30 };
+
+async function expectDrawn(page, value, candidates, where = PLAIN) {
+  const rgb = await pixelAt(page, where.lon, where.lat);
+  const match = nearest(rgb, candidates);
+  expect(match.value, `pixel at ${where.lon}, ${where.lat} is rgb(${rgb}) — nearest ${match.value}`).toBe(value);
+  expect(match.distance).toBeLessThan(40);
+}
+
+const leadLabel = (page) => page.locator('.explore-map [data-label="lead"]');
+const hours = (n) => new RegExp(`\\b${n}\\s*h`);
+const validLabel = (page) => page.locator('.explore-map [data-label="valid"]');
+
+async function moveSlider(page, keys) {
+  const slider = page.getByRole("slider", { name: /lead time|time/i });
+  await slider.focus();
+  for (const key of keys) await slider.press(key);
+}
+
+// What a pixel shows: the fixture value whose colour it is (within 40 of it),
+// or "blank" when it is no colormap colour at all (the background through an
+// undrawn tile).
+async function drawnValue(page, candidates, where = PLAIN) {
+  const rgb = await pixelAt(page, where.lon, where.lat);
+  const match = nearest(rgb, candidates);
+  return match.distance < 40 ? match.value : "blank";
+}
+
+async function expectBlank(page, where) {
+  const rgb = await pixelAt(page, where.lon, where.lat);
+  const scale = Array.from({ length: 256 }, (_, i) => celsius(-40 + (90 * i) / 255));
+  const off = Math.min(...scale.map((c) => distance(rgb, c)));
+  expect(off, `pixel at ${where.lon}, ${where.lat} should be blank but drew rgb(${rgb})`).toBeGreaterThan(60);
+}
+
+/** Poll until the pixel shows `value`: a Load or Retry need not pass through a
+ * state the spec could wait on first. */
+async function expectDrawnSoon(page, value, candidates, where = PLAIN) {
+  await expect.poll(() => drawnValue(page, candidates, where), { timeout: 20_000 }).toBe(value);
+}
+
+/** The Variable dropdown, the legend and the drawn field all say humidity:
+ * the legend is in percent, and the pixel is drawn but in neither
+ * temperature_isobaric level's colour (humidity's range is sampled, so its
+ * exact colour isn't fixed). */
+async function expectHumidityDrawn(page) {
+  await expect(page.getByRole("combobox", { name: "Variable" })).toHaveValue(/relative_humidity_2m$/);
+  await expect(page.locator(".explore-map")).toContainText(/percent|%/);
+  await expect.poll(async () => {
+    const rgb = await pixelAt(page, PLAIN.lon, PLAIN.lat);
+    const scale = Array.from({ length: 256 }, (_, i) => celsius(-40 + (90 * i) / 255));
+    const drawn = Math.min(...scale.map((c) => distance(rgb, c))) < 40;
+    const isobaric = Math.min(distance(rgb, celsius(-30)), distance(rgb, celsius(10))) < 25;
+    return drawn && !isobaric;
+  }, { timeout: 20_000 }).toBe(true);
+}
+
+/** Drag the map west by `dx` CSS px (moving the view east). */
+async function dragWest(page, dx) {
+  const box = await page.locator(".explore-map canvas").first().boundingBox();
+  const y = box.y + box.height / 2;
+  const x = box.x + box.width / 2 + dx / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - dx, y, { steps: 12 });
+  await page.mouse.up();
+}
+
+test.describe("explorer, offline", () => {
+  test("the page shows an empty map, with no explorer bundle or weather reads before activation", async ({ page }) => {
+    // The explorer bundle, the stores (ours and the GRIB buckets are all S3),
+    // ECMWF's bucket and the explorer's own borders file.
+    const early = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (
+        url.pathname.startsWith("/explorer/") ||
+        /amazonaws\.com$|ecmwf/.test(url.hostname) ||
+        url.pathname.includes("world-atlas")
+      ) {
+        early.push(request.url());
+      }
+    });
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    // the preview is the initial view's borders, drawn at build time
+    const preview = page.locator(".explore-map > svg");
+    await expect(preview).toBeVisible();
+    expect(await preview.locator("path").getAttribute("d")).toMatch(/^M\d+ \d+l-?\d/);
+    await expect(page.locator(".explore img")).toHaveCount(0);
+    // decorative: out of the accessibility tree, leaving the button as the one control
+    await expect(preview).toHaveAttribute("aria-hidden", "true");
+    const button = page.getByRole("button", { name: "Load interactive map" });
+    await expect(button).toBeVisible();
+    await expect(page.locator(".explore figcaption")).toContainText("~9 MB (temperature_2m)");
+    await page.waitForLoadState("networkidle");
+    expect(early).toEqual([]);
+
+    // activating it (from the keyboard) mounts the explorer in the same box,
+    // which draws as before
+    const size = async () => {
+      const { width, height } = await page.locator(".explore-map").boundingBox();
+      return { width, height };
+    };
+    const before = await size();
+    await button.focus();
+    await page.keyboard.press("Enter");
+    await expectState(page, "ready");
+    expect(early.some((url) => new URL(url).pathname.startsWith("/explorer/"))).toBe(true);
+    expect(early.some((url) => new URL(url).hostname.endsWith(".amazonaws.com"))).toBe(true);
+    await expect(preview).toHaveCount(0);
+    expect(await size()).toEqual(before);
+    await expectDrawn(page, LEAD_C[0], [...LEAD_C, ...OLDER_INIT_C]);
+  });
+
+  test("a virtual store's caption names the GRIB reads and what its estimate covers", async ({ page }) => {
+    await offline(page);
+    await page.goto("/catalog/noaa-gfs-forecast-virtual/");
+    const caption = page.locator(".explore figcaption");
+    await expect(caption).toContainText("latest run");
+    await expect(caption).toContainText("source GRIB files");
+    await expect(caption).toContainText("(store metadata plus one GRIB message): ~7 MB (temperature_2m)");
+    await expect(page.getByRole("button", { name: "Load interactive map" })).toBeVisible();
+  });
+
+  test("a regional default view is named in the caption", async ({ page }) => {
+    await offline(page);
+    await page.goto("/catalog/noaa-mrms-conus-analysis-hourly/");
+    await expect(page.locator(".explore figcaption")).toContainText(
+      "Estimated weather data for the Houston-area initial view: ~9 MB (precipitation_surface)",
+    );
+  });
+
+  test("cells register on their coordinates and the latest init is drawn", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    await expect(page.locator('.explore-map [data-label="init"]')).toContainText(/2026-09-25.*12:00/);
+    await expectDrawn(page, LEAD_C[0], [...LEAD_C, ...OLDER_INIT_C]);
+
+    // The cold cell spans 36–48° N and 106.875–95.625° W. Points 35% of a cell
+    // from its centre are inside it; 65% out are in the neighbours. A field
+    // shifted by half a cell (edge rather than centre registration) fails one
+    // side of each pair.
+    const inside = [
+      [KNOWN.lon, KNOWN.lat],
+      [KNOWN.lon - 3.94, KNOWN.lat],
+      [KNOWN.lon + 3.94, KNOWN.lat],
+      [KNOWN.lon, KNOWN.lat - 4.2],
+      [KNOWN.lon, KNOWN.lat + 4.2],
+    ];
+    const outside = [
+      [KNOWN.lon - 7.31, KNOWN.lat],
+      [KNOWN.lon + 7.31, KNOWN.lat],
+      [KNOWN.lon, KNOWN.lat - 7.8],
+      [KNOWN.lon, KNOWN.lat + 7.8],
+    ];
+    for (const [lon, lat] of inside) await expectDrawn(page, KNOWN.c, [KNOWN.c, LEAD_C[0]], { lon, lat });
+    for (const [lon, lat] of outside) await expectDrawn(page, LEAD_C[0], [KNOWN.c, LEAD_C[0]], { lon, lat });
+  });
+
+  test("the lead slider crosses a block boundary and draws that lead", async ({ page }) => {
+    const log = [];
+    await offline(page, { store: storeRoute({ log }), overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    await moveSlider(page, ["ArrowRight", "ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(2));
+    await expectDrawn(page, LEAD_C[2], LEAD_C);
+    expect(log.some((r) => r.block === 1)).toBe(false);
+
+    await moveSlider(page, ["ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(3));
+    await expect(validLabel(page)).toContainText("15:00");
+    await expectState(page, "ready");
+    await expectDrawn(page, LEAD_C[3], LEAD_C);
+    expect(log.some((r) => r.block === 1)).toBe(true);
+  });
+
+  for (const scenario of [
+    {
+      name: "a slow block the slider has already left never draws",
+      slow: 1,
+      keys: [["End"], ["Home", "ArrowRight"]],
+      lead: 1,
+    },
+    {
+      name: "a slow older block never draws under a newer lead",
+      slow: 0,
+      keys: [["ArrowRight", "ArrowRight", "ArrowRight", "ArrowRight"], ["Home", "ArrowRight", "ArrowRight"], ["End"]],
+      lead: 5,
+    },
+  ]) {
+    test(`rapid slider moves: ${scenario.name}`, async ({ page }) => {
+      let slowBlock = null;
+      await offline(page, {
+        store: storeRoute({ delayFor: ({ block }) => (block !== null && block === slowBlock ? 2_000 : 0) }),
+        overrides: { variables: FIXTURE_VARIABLES },
+      });
+      await page.goto(PAGE);
+      await loadMap(page);
+      slowBlock = scenario.slow;
+
+      for (const keys of scenario.keys) await moveSlider(page, keys);
+      await expect(leadLabel(page)).toContainText(hours(scenario.lead));
+      await expectState(page, "ready", 15_000);
+      await expectDrawn(page, LEAD_C[scenario.lead], LEAD_C);
+
+      // let every held reply land, then check nothing repainted under the labels
+      await page.waitForTimeout(2_500);
+      await expect(leadLabel(page)).toContainText(hours(scenario.lead));
+      await expectDrawn(page, LEAD_C[scenario.lead], LEAD_C);
+    });
+  }
+
+  test("switching variable and pressure level redraws with the new data", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    const variable = page.getByRole("combobox", { name: "Variable" });
+    await variable.selectOption("relative_humidity_2m");
+    await expectState(page, "ready");
+    await expect(page.locator(".explore-map")).toContainText(/percent|%/);
+
+    await variable.selectOption("temperature_isobaric");
+    await expectState(page, "ready");
+    const level = page.getByRole("combobox", { name: /pressure_level/i });
+    await expect(level).toBeVisible();
+    await expectDrawn(page, -30, [-30, 10, ...LEAD_C]);
+    await level.selectOption({ index: 1 });
+    await expectState(page, "ready");
+    await expectDrawn(page, 10, [-30, 10, ...LEAD_C]);
+  });
+
+  test("an integer field's fill_value sentinel is left undrawn", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "total_cloud_cover_atmosphere" } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    const hole = await pixelAt(page, KNOWN.lon, KNOWN.lat);
+    const filled = await pixelAt(page, KNOWN.lon + 11.25, KNOWN.lat);
+    // The filled neighbour is drawn in the colormap; the -1 cell shows the map
+    // background through it, which is far from every turbo colour.
+    const nearestTurbo = Math.min(...Array.from({ length: 256 }, (_, i) => distance(hole, celsius(-40 + (90 * i) / 255))));
+    expect(nearestTurbo, `fill cell drew rgb(${hole})`).toBeGreaterThan(60);
+    expect(distance(hole, filled)).toBeGreaterThan(60);
+  });
+
+  test("an analysis longer than the texture window scrubs its whole time range", async ({ page }) => {
+    await offline(page, {
+      overrides: { variables: ANALYSIS_VARIABLES, defaultVariable: "temperature_2m_analysis", maxTextureLayers: 128 },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    // step t is -40 + 90 t / 299 °C; the latest (t = 299) is 50 °C
+    const step = (t) => -40 + (90 * t) / 299;
+    const candidates = [step(0), step(100), step(170), step(299)];
+    await expectDrawn(page, step(299), candidates);
+    await expect(page.locator('.explore-map [data-label="time"]')).toContainText("2026-09-25");
+
+    await moveSlider(page, ["Home"]);
+    await expectState(page, "ready");
+    await expect(page.locator('.explore-map [data-label="time"]')).toContainText("2026-09-13");
+    await expectDrawn(page, step(0), candidates);
+  });
+
+  test("with S3 unreachable the explorer says so", async ({ page }) => {
+    await offline(page, { store: (route) => route.abort("connectionrefused"), overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await page.getByRole("button", { name: "Load interactive map" }).click();
+    await expectState(page, "error");
+    const status = page.locator(".explore-map").getByRole("status");
+    await expect(status).toBeVisible();
+    await expect(status).toHaveText(/\w{4,}.*\w{4,}/);
+    await expect(status).not.toContainText(/undefined|\[object/);
+  });
+
+  test("small screens get the button too, and the map draws within the page width", async ({ page }) => {
+    await offline(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(PAGE);
+    await expect(page.locator(".explore-map > svg path")).toBeVisible();
+    const button = page.getByRole("button", { name: "Load interactive map" });
+    await expect(button).toBeVisible();
+    // the 16:9 box's 320px floor grows it downward, never wider than the page
+    const noOverflow = async () => {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      expect((await page.locator(".explore-map").boundingBox()).width).toBeLessThanOrEqual(390);
+    };
+    await noOverflow();
+    await button.click();
+    await expectState(page, "ready");
+    await expectDrawn(page, LEAD_C[0], [...LEAD_C, ...OLDER_INIT_C]);
+    await noOverflow();
+  });
+});
+
+// Recovery after failures (review pass 1, findings 1, 2, 3 and 6): each
+// breaks something after the page has loaded, then checks the explorer draws
+// real data again rather than an error, a blank Ready or a stale field.
+test.describe("explorer, offline recovery", () => {
+  test("Retry recovers after a coordinate read fails", async ({ page }) => {
+    let failing = true;
+    await offline(page, {
+      store: storeRoute({ failFor: ({ key }) => failing && key.startsWith("chunks/") && !isShardKey(key) }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await page.getByRole("button", { name: "Load interactive map" }).click();
+    await expectState(page, "error");
+
+    failing = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expectDrawn(page, LEAD_C[0], LEAD_C);
+  });
+
+  test("a variable replaced by another before it draws never draws, and the last one does", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        // once armed, hold every shard object not read on load, so the first
+        // choice is still loading when it is replaced
+        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
+    const variable = page.getByRole("combobox", { name: "Variable" });
+
+    await variable.selectOption("temperature_isobaric");
+    await expect.poll(() => log.some((r) => isShardKey(r.key) && !seen.has(r.key)), { timeout: 5_000 }).toBe(true);
+    await variable.selectOption("relative_humidity_2m");
+
+    await expectState(page, "ready", 15_000);
+    await expectHumidityDrawn(page);
+    // after the isobaric replies would have landed, nothing has switched back
+    await page.waitForTimeout(2_000);
+    await expectHumidityDrawn(page);
+  });
+
+  test("destroy while loading stops every read and empties the box", async ({ page }) => {
+    const log = [];
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error));
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
+
+    await page.getByRole("combobox", { name: "Variable" }).selectOption("temperature_isobaric");
+    await expect.poll(() => log.some((r) => isShardKey(r.key) && !seen.has(r.key)), { timeout: 5_000 }).toBe(true);
+    await page.evaluate(() => window.__explorer.destroy());
+    const destroyedAt = Date.now();
+
+    // the held replies land after this; nothing new is requested, drawn or thrown
+    await page.waitForTimeout(3_000);
+    expect(log.filter((r) => r.at > destroyedAt + 200)).toEqual([]);
+    expect(errors).toEqual([]);
+    const map = page.locator(".explore-map");
+    await expect(map).not.toHaveAttribute("data-state");
+    expect(await map.evaluate((el) => el.childElementCount)).toBe(0);
+  });
+
+  test("an analysis whose last written step is a window before its end opens on that step", async ({ page }) => {
+    await offline(page, {
+      overrides: {
+        variables: PARTIAL_ANALYSIS_VARIABLES,
+        defaultVariable: "temperature_2m_analysis_partial",
+        maxTextureLayers: 128,
+      },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    // written through t = 150 (2026-09-19 06:00, 5.15 °C); t = 151…299 are NaN
+    const step = (t) => -40 + (90 * t) / 299;
+    await expect(page.locator('.explore-map [data-label="time"]')).toContainText(/2026-09-19.*06:00/);
+    await expectDrawn(page, step(150), [step(0), step(100), step(150), step(200), step(299)]);
+  });
+
+  test("a failed pan within a block blanks only the new tiles, and Retry fills them", async ({ page }) => {
+    const log = [];
+    const served = new Set();
+    let failNew = false;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        failFor: ({ key, entry }) => failNew && entry !== null && !served.has(`${key}#${entry}`),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    for (const r of log) if (r.entry !== null && !r.failed) served.add(`${r.key}#${r.entry}`);
+
+    // The CONUS view sits inside one inner chunk (lon -185.625…-5.625). Pan
+    // east until the next chunk along longitude is on screen.
+    const kept = { lon: -11.25, lat: 42 };
+    const fresh = { lon: 22.5, lat: 42 };
+    failNew = true;
+    const onScreen = (p) =>
+      page.evaluate(([lon, lat]) => {
+        const canvas = document.querySelector(".explore-map canvas");
+        const [x, y] = window.__explorer.project([lon, lat]);
+        return x > 20 && y > 20 && x < canvas.clientWidth - 20 && y < canvas.clientHeight - 20;
+      }, [p.lon, p.lat]);
+    for (let i = 0; i < 8 && !(await onScreen(fresh)); i += 1) await dragWest(page, 300);
+    expect(await onScreen(fresh)).toBe(true);
+    expect(await onScreen(kept)).toBe(true);
+
+    await expectState(page, "error");
+    await expect(page.locator(".explore-map").getByRole("status")).toBeVisible();
+    expect(log.some((r) => r.failed)).toBe(true);
+    await expectBlank(page, fresh);
+    await expectDrawn(page, LEAD_C[0], LEAD_C, kept);
+
+    failNew = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expectDrawn(page, LEAD_C[0], LEAD_C, fresh);
+    await expectDrawn(page, LEAD_C[0], LEAD_C, kept);
+  });
+
+  test("a failed block change after the first frame shows no stale field, and Retry draws it", async ({ page }) => {
+    let failBlock1 = false;
+    await offline(page, {
+      store: storeRoute({ failFor: ({ block }) => failBlock1 && block === 1 }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    failBlock1 = true;
+    await moveSlider(page, ["ArrowRight", "ArrowRight", "ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(3));
+    await expectState(page, "error");
+    await expect(page.locator(".explore-map").getByRole("status")).toBeVisible();
+    await expectBlank(page, PLAIN);
+
+    failBlock1 = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expect(leadLabel(page)).toContainText(hours(3));
+    await expectDrawn(page, LEAD_C[3], LEAD_C);
+  });
+});
+
+// Review pass 2: selections changed while a new variable loads (finding 1, first
+// found through the since-removed Unload), a whole-grid forecast whose first
+// lead is empty (finding 3), the advisory GPU estimate (pass 1, finding 4), and
+// stale draws through the whole-grid facade.
+test.describe("explorer, offline review pass 2", () => {
+  test("a level changed again while the first change is loading draws the last choice", async ({ page }) => {
+    // Both levels live in one shard object per init, so a level's reads are
+    // told apart by range: once armed, every range not read on load (the
+    // 850 hPa inner chunks) is held, so the change to 850 hPa is still at its
+    // reference read when the level goes back to 500 hPa.
+    const log = [];
+    let seen = null;
+    let held = 0;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        delayFor: ({ key, start }) => {
+          if (!seen || start === undefined || seen.has(`${key}@${start}`)) return 0;
+          held += 1;
+          return 2_000;
+        },
+      }),
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    const levels = [-30, 10, ...LEAD_C];
+    await expectDrawn(page, -30, levels);
+    seen = new Set(log.map((r) => `${r.key}@${r.start}`));
+    const level = page.getByRole("combobox", { name: /pressure_level/i });
+    const first = await level.locator("option").nth(0).getAttribute("value");
+
+    await level.selectOption({ index: 1 });
+    await expect.poll(() => held, { timeout: 5_000 }).toBeGreaterThan(0);
+    await expect(page.locator(".explore-map")).toHaveAttribute("data-state", "loading");
+    await level.selectOption({ index: 0 });
+
+    await expectState(page, "ready", 15_000);
+    await expect(level).toHaveValue(first);
+    await expectDrawn(page, -30, levels);
+    // after the held 850 hPa replies have landed, nothing has switched to them
+    await page.waitForTimeout(2_500);
+    await expect(level).toHaveValue(first);
+    await expectState(page, "ready");
+    await expectDrawn(page, -30, levels);
+  });
+
+  test("a new variable is not undone by the old variable's level select or a step while it loads", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        // once armed, hold every shard object not read on load: the humidity ones
+        delayFor: ({ key }) => (seen && isShardKey(key) && !seen.has(key) ? 1_500 : 0),
+      }),
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    seen = new Set(log.map((r) => r.key));
+    const variable = page.getByRole("combobox", { name: "Variable" });
+    const level = page.getByRole("combobox", { name: /pressure_level/i });
+    const slider = page.getByRole("slider", { name: /lead time|time/i });
+
+    await variable.selectOption("relative_humidity_2m");
+    // The reported failure: the old variable's level select, still on screen,
+    // replaced the humidity selection with temperature. Hiding or disabling a
+    // control is a fix too, so each is changed only if it can be.
+    if ((await level.isVisible()) && (await level.isEnabled())) await level.selectOption({ index: 1 });
+    const stepped = await slider.isEnabled();
+    if (stepped) await moveSlider(page, ["ArrowRight", "ArrowRight"]);
+
+    await expectState(page, "ready", 15_000);
+    await expect(variable).toHaveValue(/relative_humidity_2m$/);
+    if (stepped) await expect(leadLabel(page)).toContainText(hours(2));
+    await expectHumidityDrawn(page);
+  });
+
+  test("a one-step-chunk forecast whose first lead is empty opens on the next lead", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    await page.getByRole("combobox", { name: "Variable" }).selectOption("average_temperature_2m");
+    await expectState(page, "ready");
+    await expect(leadLabel(page)).toContainText(hours(1));
+    await expectDrawn(page, AVERAGE_C[1], AVERAGE_CANDIDATES);
+  });
+
+  test("a view over the GPU-memory estimate still loads, with a warning", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES, maxTextureBytes: 1000 } });
+    await page.goto(PAGE);
+    await loadMap(page);
+
+    await expect(page.locator('.explore-map [data-warning="gpu"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: /load anyway/i })).toHaveCount(0);
+    await expectDrawn(page, LEAD_C[0], LEAD_C);
+    await expectDrawn(page, KNOWN.c, [KNOWN.c, LEAD_C[0]], KNOWN);
+  });
+
+  test("through the whole-grid facade, a slow lead the slider has left never draws", async ({ page }) => {
+    // Hold the first data read after the slider moves (lead 2) well past the
+    // next one (lead 4). Whole-grid chunk objects are the non-shard reads left
+    // once the map has drawn, since the coordinates are read by then.
+    let armed = false;
+    let held = 0;
+    await offline(page, {
+      store: storeRoute({
+        delayFor: ({ key }) => {
+          if (!armed || !key.startsWith("chunks/") || isShardKey(key) || held > 0) return 0;
+          held += 1;
+          return 2_500;
+        },
+      }),
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "average_temperature_2m" },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    // start from lead 1 explicitly, whichever lead the variable opened on
+    await moveSlider(page, ["Home", "ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(1));
+    await expectState(page, "ready");
+    await expectDrawn(page, AVERAGE_C[1], AVERAGE_CANDIDATES);
+
+    armed = true;
+    await moveSlider(page, ["ArrowRight"]);
+    await moveSlider(page, ["ArrowRight", "ArrowRight"]);
+    await expect(leadLabel(page)).toContainText(hours(4));
+    await expectState(page, "ready", 15_000);
+    await expectDrawn(page, AVERAGE_C[4], AVERAGE_CANDIDATES);
+    expect(held).toBe(1);
+
+    // let the held lead-2 reply land, then check nothing repainted
+    await page.waitForTimeout(3_000);
+    await expect(leadLabel(page)).toContainText(hours(4));
+    await expectDrawn(page, AVERAGE_C[4], AVERAGE_CANDIDATES);
+  });
+});
+
+// Final review, finding 1: the loaded counterpart of pass 2's finding 1. A
+// level change on the old variable's select while a new variable is still
+// loading must not commit the old variable under the new one's name.
+test.describe("explorer, offline final review", () => {
+  test("changing the old level while a new variable loads still draws the new variable", async ({ page }) => {
+    const log = [];
+    let seen = null;
+    let held = 0;
+    await offline(page, {
+      store: storeRoute({
+        log,
+        // once armed, hold every read of a shard object not read before: the
+        // humidity shards, since the isobaric ones were all read on load
+        delayFor: ({ key }) => {
+          if (!seen || !isShardKey(key) || seen.has(key)) return 0;
+          held += 1;
+          return 2_000;
+        },
+      }),
+      overrides: { variables: FIXTURE_VARIABLES, defaultVariable: "temperature_isobaric" },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    await expectDrawn(page, -30, [-30, 10, ...LEAD_C]);
+    seen = new Set(log.map((r) => r.key));
+
+    await page.getByRole("combobox", { name: "Variable" }).selectOption("relative_humidity_2m");
+    await expect.poll(() => held, { timeout: 5_000 }).toBeGreaterThan(0);
+    // Hiding or disabling the old select is also a fix, so change it only if
+    // it can still be changed.
+    const level = page.getByRole("combobox", { name: /pressure_level/i });
+    if ((await level.isVisible()) && (await level.isEnabled())) await level.selectOption({ index: 1 });
+
+    await expectState(page, "ready", 15_000);
+    await expectHumidityDrawn(page);
+    // after every held reply has landed, nothing has switched back
+    await page.waitForTimeout(2_500);
+    await expectHumidityDrawn(page);
+  });
+});
+
+// The member select on a GEFS-shaped array: each member draws its own values,
+// and the select and the label name the member's coordinate value.
+test.describe("explorer, offline ensemble", () => {
+  test("switching member draws that member and labels its coordinate value", async ({ page }) => {
+    await offline(page, { overrides: { variables: ENSEMBLE_VARIABLES, defaultVariable: "temperature_ensemble" } });
+    await page.goto(PAGE);
+    await loadMap(page);
+    // members 0, 10, 20 at the latest init, and the older init 7.5 °C warmer
+    const MEMBER_C = [-20, 0, 20];
+    const candidates = [...MEMBER_C, ...MEMBER_C.map((v) => v + 7.5)];
+    const member = page.getByRole("combobox", { name: "ensemble_member" });
+    const label = page.locator('.explore-map [data-label="member"]');
+
+    await expect(member.locator("option")).toHaveText(["member 0", "member 10", "member 20"]);
+    await expect(label).toHaveText("member 0");
+    await expectDrawn(page, -20, candidates);
+
+    await member.selectOption({ label: "member 20" });
+    await expectState(page, "ready");
+    await expect(label).toHaveText("member 20");
+    await expectDrawn(page, 20, candidates);
+
+    await member.selectOption({ label: "member 10" });
+    await expectState(page, "ready");
+    await expect(label).toHaveText("member 10");
+    await expectDrawn(page, 0, candidates);
+  });
+});

@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build:explorer": "npm --prefix explorer ci && npm --prefix explorer run build",
     "build": "STAC_CACHE_DURATION=0s npx @11ty/eleventy",
     "test": "node --test test/*.test.mjs",
     "test:e2e": "playwright test",
