@@ -147,7 +147,7 @@ test.describe("explorer, offline", () => {
     await page.keyboard.press("Enter");
     await expectState(page, "ready");
     expect(early.some((url) => new URL(url).pathname.startsWith("/explorer/"))).toBe(true);
-    expect(early.some((url) => url.includes("amazonaws.com"))).toBe(true);
+    expect(early.some((url) => new URL(url).hostname.endsWith(".amazonaws.com"))).toBe(true);
     await expect(preview).toHaveCount(0);
     expect(await size()).toEqual(before);
     await expectDrawn(page, LEAD_C[0], [...LEAD_C, ...OLDER_INIT_C]);
