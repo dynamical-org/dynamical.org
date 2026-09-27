@@ -302,33 +302,46 @@ test.describe("explorer, offline: play", () => {
   });
 
   test("a pan that loads during a frame's dwell restarts the dwell once the view has drawn", async ({ page }) => {
-    // A long dwell, so the pan (several drags, reads held 300 ms) surely lands inside it.
+    // A long dwell, so the pan and its held reads (300 ms) land well inside it. The pan is one
+    // jump of the view rather than mouse drags: in CI's software WebGL each drag took ~2 s,
+    // and the dwell ended before the new tiles were asked for.
     const DWELL = 4_000;
     const served = new Set();
     let hold = false;
     const log = [];
+    const held = (r) => r.entry !== null && !served.has(`${r.key}#${r.entry}`);
     await offline(page, {
-      store: storeRoute({ log, delayFor: ({ key, entry }) => (hold && entry !== null && !served.has(`${key}#${entry}`) ? 300 : 0) }),
+      store: storeRoute({ log, delayFor: (r) => (hold && held(r) ? 300 : 0) }),
       overrides: { variables: FIXTURE_VARIABLES, playDwellMs: DWELL },
     });
     await page.goto(PAGE);
     await loadMap(page);
     for (const r of log) if (r.entry !== null) served.add(`${r.key}#${r.entry}`);
+    expect(await onScreen(page, FRESH), "the next chunk starts off screen").toBe(false);
     await recordStates(page);
 
     hold = true;
     await playButton(page).click();
     await expect.poll(async () => (await states(page)).some((x) => x.step === 1 && x.state === "ready")).toBe(true);
     const drawn = (await states(page)).find((x) => x.step === 1 && x.state === "ready").at;
-    // pan into uncached tiles right after lead 1 drew
-    for (let i = 0; i < 8 && !(await onScreen(page, FRESH)); i += 1) await dragWest(page, 300);
+    // Pan east right after lead 1 drew, centring a point in the next inner chunk: uncached tiles.
+    await page.evaluate((lon) => {
+      const { deck } = window.__explorer;
+      const { latitude, zoom } = deck.getViewports()[0];
+      deck.setProps({ initialViewState: { longitude: lon, latitude, zoom, pitch: 0, bearing: 0, minZoom: 0, maxPitch: 0 } });
+    }, FRESH.lon);
+    // the pan asked for the new chunk (a held read started) and the view went back to loading
+    await expect.poll(() => log.some((r) => held(r))).toBe(true);
+    await expect.poll(async () => (await states(page)).some((x) => x.step === 1 && x.state === "loading" && x.at > drawn)).toBe(true);
+    expect(await onScreen(page, FRESH)).toBe(true);
     await expect.poll(async () => (await states(page)).some((x) => x.step === 2), { timeout: 3 * DWELL }).toBe(true);
 
     const list = await states(page);
     const next = list.find((x) => x.step === 2).at;
     const panLoading = list.find((x) => x.step === 1 && x.state === "loading" && x.at > drawn);
-    expect(panLoading, "the pan loaded new tiles during the dwell").toBeTruthy();
+    expect(panLoading.at - drawn, "the pan started loading inside the first dwell").toBeLessThan(DWELL);
     const settled = list.filter((x) => x.step === 1 && x.state === "ready" && x.at < next).at(-1).at;
+    expect(settled).toBeGreaterThan(panLoading.at);
     expect(settled - drawn, "the pan finished before the first dwell would have ended").toBeLessThan(DWELL);
     expect(next - settled, "the settled view got a full dwell").toBeGreaterThanOrEqual(DWELL - 50);
     await playButton(page).click();
