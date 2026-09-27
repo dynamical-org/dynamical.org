@@ -205,9 +205,6 @@ eleventyComputed:
   /* Explore: the preview (an empty map of the initial view, built as SVG, and the
      load button) stacks in one grid cell of the map box until the explorer
      mounts into that box. */
-  .explore figure {
-    margin: 0;
-  }
   /* An explicit width, so on a phone min-height grows the box downward
      rather than aspect-ratio widening it past the page. */
   .explore-map {
@@ -218,6 +215,13 @@ eleventyComputed:
     border-radius: var(--radius-sm);
     overflow: hidden;
     background: var(--surface-muted);
+  }
+  /* Once mounted, the explorer sizes itself: its map keeps the preview's 16:9
+     box (at least 240px tall) and the control strip goes below, so the strip
+     can wrap without shrinking the map or moving it from the preview. */
+  .explore-map.explorer {
+    aspect-ratio: auto;
+    min-height: 0;
   }
   .explore-map:has(> button) {
     display: grid;
@@ -238,11 +242,6 @@ eleventyComputed:
     color: var(--text-color);
     font: inherit;
     cursor: pointer;
-  }
-  .explore figcaption {
-    margin-top: 0.5rem;
-    color: var(--muted-text);
-    font-size: 1.25rem;
   }
 </style>
 <script type="application/ld+json">{{ entry.jsonld | dump | safe }}</script>
@@ -346,16 +345,12 @@ eleventyComputed:
   <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
   {% set explorerOptions = explorer.mountOptions(entry) %}
   {% if explorerOptions %}
-    {% set explorerDataset = explorer.datasets | find('id', entry.id) %}
     <section class="explore" aria-labelledby="explore-heading" data-options="{{ explorerOptions | dump | escape }}">
       <h2 id="explore-heading">Explore</h2>
-      <figure>
-        <div class="explore-map">
-          {{ explorer.preview(entry.id) | safe }}
-          <button type="button">Load interactive map</button>
-        </div>
-        <figcaption>{{ entry.variable_count }} variables · {{ "latest run" if entry.forecast_domain else "latest data" }} {% if explorerOptions.virtual %}· reads the Icechunk store and the source GRIB files it points to, directly in your browser. Estimated download for the initial view (store metadata plus one GRIB message): ~{{ explorerDataset.firstViewMB }} MB{% else %}· reads the Icechunk store directly in your browser. Estimated weather data for the {{ explorerDataset.initialViewName + " " if explorerDataset.initialViewName }}initial view: ~{{ explorerDataset.firstViewMB }} MB{% endif %} ({{ explorerOptions.defaultVariable }}); exploring loads more.</figcaption>
-      </figure>
+      <div class="explore-map">
+        {{ explorer.preview(entry.id) | safe }}
+        <button type="button">Load interactive map</button>
+      </div>
     </section>
     <script type="module">
       // The explorer (explorer/, built to /explorer/) and its data load only on this click.

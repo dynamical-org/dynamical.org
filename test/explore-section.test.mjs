@@ -40,7 +40,6 @@ const datasets = [
     initialView: { bounds: [-125, 24, -66, 50] },
     proj4: null,
     defaultVariable: "temperature_2m",
-    firstViewMB: 7,
   },
 ];
 
@@ -89,8 +88,6 @@ test("every enabled dataset in _data/explorer.js is well formed", () => {
     assert.match(dataset.id, /^[a-z0-9-]+$/);
     assert.equal(dataset.virtual === true || !dataset.id.includes("-virtual"), true, `${dataset.id} is virtual but not flagged`);
     assert.equal(typeof dataset.defaultVariable, "string");
-    assert.ok(Number.isInteger(dataset.firstViewMB) && dataset.firstViewMB > 0, `${dataset.id} firstViewMB is a whole MB`);
-    if ("initialViewName" in dataset) assert.equal(typeof dataset.initialViewName, "string");
     const { bounds } = dataset.initialView;
     assert.equal(bounds.length, 4);
     assert.ok(bounds[0] < bounds[2] && bounds[1] < bounds[3], `${dataset.id} bounds are west, south, east, north`);

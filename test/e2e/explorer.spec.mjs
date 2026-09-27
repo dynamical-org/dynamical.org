@@ -133,43 +133,31 @@ test.describe("explorer, offline", () => {
     await expect(preview).toHaveAttribute("aria-hidden", "true");
     const button = page.getByRole("button", { name: "Load interactive map" });
     await expect(button).toBeVisible();
-    await expect(page.locator(".explore figcaption")).toContainText("~9 MB (temperature_2m)");
     await page.waitForLoadState("networkidle");
     expect(early).toEqual([]);
 
-    // activating it (from the keyboard) mounts the explorer in the same box,
-    // which draws as before
-    const size = async () => {
-      const { width, height } = await page.locator(".explore-map").boundingBox();
-      return { width, height };
-    };
-    const before = await size();
+    // activating it (from the keyboard) mounts the explorer in the same box: its
+    // map takes the preview's place at the same size (the strip goes below), and
+    // it draws as before
+    // in page coordinates: focusing the button scrolls it into view
+    const pageBox = (locator) =>
+      locator.evaluate((node) => {
+        const r = node.getBoundingClientRect();
+        return { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height };
+      });
+    const previewBox = await pageBox(preview);
     await button.focus();
     await page.keyboard.press("Enter");
     await expectState(page, "ready");
     expect(early.some((url) => new URL(url).pathname.startsWith("/explorer/"))).toBe(true);
     expect(early.some((url) => new URL(url).hostname.endsWith(".amazonaws.com"))).toBe(true);
     await expect(preview).toHaveCount(0);
-    expect(await size()).toEqual(before);
+    const mapBox = await pageBox(page.locator(".explorer-map"));
+    expect(Math.abs(mapBox.x - previewBox.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mapBox.y - previewBox.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mapBox.width - previewBox.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mapBox.height - previewBox.height)).toBeLessThanOrEqual(1);
     await expectDrawn(page, LEAD_C[0], [...LEAD_C, ...OLDER_INIT_C]);
-  });
-
-  test("a virtual store's caption names the GRIB reads and what its estimate covers", async ({ page }) => {
-    await offline(page);
-    await page.goto("/catalog/noaa-gfs-forecast-virtual/");
-    const caption = page.locator(".explore figcaption");
-    await expect(caption).toContainText("latest run");
-    await expect(caption).toContainText("source GRIB files");
-    await expect(caption).toContainText("(store metadata plus one GRIB message): ~7 MB (temperature_2m)");
-    await expect(page.getByRole("button", { name: "Load interactive map" })).toBeVisible();
-  });
-
-  test("a regional default view is named in the caption", async ({ page }) => {
-    await offline(page);
-    await page.goto("/catalog/noaa-mrms-conus-analysis-hourly/");
-    await expect(page.locator(".explore figcaption")).toContainText(
-      "Estimated weather data for the Houston-area initial view: ~9 MB (precipitation_surface)",
-    );
   });
 
   test("cells register on their coordinates and the latest init is drawn", async ({ page }) => {
