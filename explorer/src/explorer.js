@@ -13,9 +13,10 @@ import { mesh } from "topojson-client";
 import * as zarr from "zarrita";
 import { defineWebMercatorOver, lonLatToCell, makeResolver } from "./crs.js";
 import css from "./explorer.css?inline";
-import { formatValue, initialRange, isCelsius, settleRange } from "./lib/colour.js";
+import { initialRange, legendParts, settleRange } from "./lib/colour.js";
 import { absolutePath, blockRange, findFirstData, findLatestData, initOptions, stepWithData, viewData } from "./lib/dims.js";
 import { shiftAttrs } from "./lib/grid.js";
+import { formatMB } from "./lib/meter.js";
 import { changeSelection, stepAccepted } from "./lib/pending.js";
 import { formatLead, formatUtc } from "./lib/time.js";
 import { makeSource, unsupportedReason } from "./source.js";
@@ -38,6 +39,10 @@ const DEFAULT_TEXTURE_BYTES = 2e9;
 const MAX_REQUESTS = 4;
 /** Cached tiles per layer (eviction only: tiles in view always load). */
 const MAX_CACHE_TILES = 64;
+/** How long Play shows each drawn step before moving to the next. */
+const PLAY_DWELL_MS = 500;
+/** The "MB received" readout updates at most this often. */
+const BYTES_UPDATE_MS = 250;
 
 let styleInjected = false;
 function injectStyle() {
@@ -88,28 +93,28 @@ export function mount(el, options) {
   // would fold the selected option's text into it.
   const varSelect = h("select", { disabled: true, ariaLabel: "Variable" });
   const extrasEl = h("span", { className: "explorer-extras" });
+  // Steps through the slider, one drawn frame at a time (see Play below).
+  const playBtn = h("button", { type: "button", textContent: "Play", hidden: true });
   // Shown only while loading: aborts the reads in flight and keeps what is drawn.
   const stopBtn = h("button", { type: "button", textContent: "Stop loading", hidden: true });
   const retryBtn = h("button", { type: "button", textContent: "Retry", hidden: true });
   // Advisory only: the view keeps loading while this is shown.
-  const gpuWarning = h("span", { className: "explorer-note", hidden: true, dataset: { warning: "gpu" } });
-  const sliderLabelText = h("span", { textContent: "Lead time" });
+  const gpuWarning = h("span", { className: "dim", hidden: true, dataset: { warning: "gpu" } });
+  const sliderLabelText = h("span", { className: "dim", textContent: "Lead time" });
   const slider = h("input", { type: "range", min: "0", max: "0", value: "0", step: "1", disabled: true, ariaLabel: "Lead time" });
-  const sliderRow = h("label", { className: "explorer-slider" }, [sliderLabelText, slider]);
-  const timesEl = h("span", { className: "explorer-times" });
-  const legendCanvas = h("canvas", { width: 256, height: 1 });
+  const sliderRow = h("div", {}, [playBtn, sliderLabelText, slider]);
+  const timesEl = h("span");
+  const legendCanvas = h("canvas", { width: 256, height: 1, hidden: true });
   const legendMin = h("span");
   const legendMax = h("span");
-  const legendNote = h("span", { className: "explorer-note" });
-  const statusEl = h("span", { className: "explorer-status", role: "status" });
+  const statusEl = h("span", { role: "status" });
+  // Outside the live region, so its updates aren't announced.
+  const bytesEl = h("span", { className: "dim", dataset: { bytes: "" } });
   const strip = h("div", { className: "explorer-strip" }, [
-    h("div", {}, [h("label", {}, [h("span", { textContent: "Variable" }), varSelect]), extrasEl, stopBtn, retryBtn]),
+    h("div", {}, [h("label", {}, [h("span", { className: "dim", textContent: "Variable" }), " ", varSelect]), extrasEl]),
     sliderRow,
-    h("div", {}, [
-      timesEl,
-      h("span", { className: "explorer-legend" }, [legendMin, legendCanvas, legendMax, legendNote]),
-    ]),
-    h("div", {}, [statusEl, gpuWarning]),
+    h("div", {}, [timesEl, h("span", { className: "explorer-legend" }, [legendMin, legendCanvas, legendMax])]),
+    h("div", {}, [statusEl, bytesEl, stopBtn, retryBtn, gpuWarning]),
   ]);
   el.classList.add("explorer");
   el.replaceChildren(mapEl, strip);
@@ -164,6 +169,8 @@ export function mount(el, options) {
     explicitInit: /** @type {number | null} */ (null),
     /** First-time phase marks (ms since mount) for the harness. */
     marks: /** @type {Record<string, number>} */ ({}),
+    /** Response body bytes received this mount, on every read path (see store.js). */
+    bytes: 0,
   };
   const t0 = performance.now();
   const mark = (k) => {
@@ -174,9 +181,62 @@ export function mount(el, options) {
     if (s.destroyed) return;
     el.dataset.state = state;
     s.error = state === "error";
-    statusEl.textContent = msg;
+    statusEl.textContent = play.on && state === "loading" ? "Buffering…" : msg;
     retryBtn.hidden = state !== "error" && state !== "stopped";
     stopBtn.hidden = state !== "loading";
+    if (state === "error" || state === "stopped") pause();
+    else if (state === "ready" || state === "empty") frameShown();
+  }
+
+  // ---- data received ----------------------------------------------------------
+  let bytesTimer = 0;
+  function onBytes(n) {
+    s.bytes += n;
+    if (bytesTimer || s.destroyed) return;
+    bytesTimer = setTimeout(() => {
+      bytesTimer = 0;
+      bytesEl.textContent = `· ${formatMB(s.bytes)} received`;
+    }, BYTES_UPDATE_MS);
+  }
+
+  // ---- play -------------------------------------------------------------------
+  // One loop: ask for the next step, and once that step has drawn (the ready/empty
+  // judgement for this selection), show it for PLAY_DWELL_MS and ask for the one after. A
+  // slow step holds the loop ("Buffering…"); there is no catching up. An empty step is a
+  // drawn frame. Every pause bumps the token, so a timer armed before it does nothing.
+  const play = { on: false, token: 0, want: -1, timer: 0 };
+
+  function setPlaying(on) {
+    play.on = on;
+    play.token++;
+    clearTimeout(play.timer);
+    play.timer = 0;
+    play.want = -1;
+    playBtn.textContent = on ? "Pause" : "Play";
+  }
+
+  function pause() {
+    if (play.on) setPlaying(false);
+  }
+
+  /** The step Play asked for has drawn: after the dwell, move on (or stop at the end). */
+  function frameShown() {
+    if (!play.on || play.timer || s.requested || s.stepIndex !== play.want) return;
+    const token = play.token;
+    play.timer = setTimeout(() => {
+      play.timer = 0;
+      if (token !== play.token) return;
+      // Still drawn? (A pan may have started loading again: wait for its frame.)
+      const shown = el.dataset.state === "ready" || el.dataset.state === "empty";
+      if (!shown || s.requested || s.stepIndex !== play.want) return;
+      if (s.stepIndex >= s.info.step.n - 1) return setPlaying(false);
+      playStep(s.stepIndex + 1);
+    }, PLAY_DWELL_MS);
+  }
+
+  function playStep(i) {
+    play.want = i;
+    moveStep(i);
   }
 
   // ---- deck -----------------------------------------------------------------
@@ -431,7 +491,7 @@ export function mount(el, options) {
 
   // ---- labels, legend, controls --------------------------------------------
   function label(name, text) {
-    return h("span", {}, [h("span", { className: "explorer-k", textContent: `${name} ` }), h("span", { textContent: text, dataset: { label: name.toLowerCase() } })]);
+    return h("span", {}, [h("span", { className: "dim", textContent: `${name} ` }), h("span", { textContent: text, dataset: { label: name.toLowerCase() } })]);
   }
 
   function updateLabels() {
@@ -452,35 +512,27 @@ export function mount(el, options) {
     }
     const m = info.pinned.findIndex((p) => p.name === info.cls.member);
     if (m >= 0) parts.push(h("span", { textContent: info.pinned[m].labels[s.pinnedIdx[m]], dataset: { label: "member" } }));
-    timesEl.replaceChildren(...parts);
+    timesEl.replaceChildren(...parts.flatMap((part, i) => (i ? [" · ", part] : [part])));
   }
 
+  /** Low value, colour bar, high value and units; one value for a constant sample. */
   function updateLegend() {
     const { info, range } = s;
-    if (!info || !range) {
-      legendMin.textContent = legendMax.textContent = legendNote.textContent = "";
-      legendCanvas.hidden = true;
-      return;
-    }
-    legendCanvas.hidden = false;
-    legendMin.textContent = formatValue(range.min);
-    const units = isCelsius(info.units) ? "°C" : info.units;
-    legendMax.textContent = `${formatValue(range.max)}${units ? ` ${units}` : ""}`;
-    legendNote.textContent =
-      range.kind === "fixed"
-        ? "fixed range"
-        : range.status === "empty"
-          ? "no values in the sample; updates when the view shows more"
-          : range.status === "flat"
-            ? "sample is one value; updates when the view shows more"
-            : "2–98% of a sample";
+    const p = info && range ? legendParts(range, info.units) : null;
+    const withUnits = (v, u) => (u ? `${v} ${u}` : v);
+    legendCanvas.hidden = p?.kind !== "range";
+    legendMin.textContent = !p ? "" : p.kind === "none" ? "No data" : p.kind === "single" ? withUnits(p.value, p.units) : p.low;
+    legendMax.textContent = p?.kind === "range" ? withUnits(p.high, p.units) : "";
   }
 
   /** A select in the controls row, labelled like the other controls. */
   function selectControl(name, options, onChange) {
     const sel = h("select", { ariaLabel: name }, options.map(([value, text, selected]) => h("option", { value: String(value), textContent: text, selected })));
-    sel.addEventListener("change", () => onChange(Number(sel.value)));
-    extrasEl.append(h("label", {}, [h("span", { textContent: name }), sel]));
+    sel.addEventListener("change", () => {
+      pause();
+      onChange(Number(sel.value));
+    });
+    extrasEl.append(h("label", {}, [h("span", { className: "dim", textContent: name }), " ", sel]));
   }
 
   /** The init, member and level selects and the slider, for what is drawn. */
@@ -488,7 +540,7 @@ export function mount(el, options) {
     const { info } = s;
     extrasEl.replaceChildren();
     if (!info) {
-      slider.disabled = true;
+      slider.disabled = playBtn.disabled = true;
       return;
     }
     const path = info.path;
@@ -506,8 +558,9 @@ export function mount(el, options) {
       sliderLabelText.textContent = slider.ariaLabel = info.step.kind === "time" ? "Time" : "Lead time";
       slider.max = String(info.step.n - 1);
       slider.value = String(s.stepIndex);
-      slider.disabled = false;
+      slider.disabled = playBtn.disabled = false;
     }
+    playBtn.hidden = !(info.step?.n >= 2);
   }
 
   /** The drawn selection in words, e.g. "temperature_2m, init 2026-09-25 00:00 UTC, member 0, lead +480 h". */
@@ -601,7 +654,7 @@ export function mount(el, options) {
       // Switching variable: the old variable's selects and slider go at once, so they
       // can't change a selection that is no longer the requested one.
       extrasEl.replaceChildren();
-      slider.disabled = true;
+      slider.disabled = playBtn.disabled = true;
     }
     setState("loading", busyMsg);
     try {
@@ -721,7 +774,13 @@ export function mount(el, options) {
     return apply(next, "Loading…");
   }
 
+  /** A step chosen by hand (the slider, or the handle): pauses Play. */
   function setStep(i) {
+    pause();
+    moveStep(i);
+  }
+
+  function moveStep(i) {
     if (!s.info?.step) return;
     if (!stepAccepted(s.requested, committed())) return; // another variable is being loaded
     slider.value = String(i);
@@ -759,9 +818,25 @@ export function mount(el, options) {
     s.retry++;
   }
 
-  varSelect.addEventListener("change", () => void apply(openVariable(varSelect.value), "Opening variable…"));
+  varSelect.addEventListener("change", () => {
+    pause();
+    void apply(openVariable(varSelect.value), "Opening variable…");
+  });
   slider.addEventListener("input", () => setStep(Number(slider.value)));
+  playBtn.addEventListener("click", () => {
+    if (play.on) return pause();
+    if (!(s.info?.step?.n >= 2) || s.requested) return;
+    setPlaying(true);
+    // From the last step (where an analysis opens), play from the start once.
+    playStep(s.stepIndex >= s.info.step.n - 1 ? 0 : s.stepIndex + 1);
+  });
+  // An unattended tab doesn't keep walking the archive.
+  const onVisibility = () => {
+    if (document.hidden) pause();
+  };
+  document.addEventListener("visibilitychange", onVisibility);
   retryBtn.addEventListener("click", () => {
+    pause(); // an error or Stop already paused; Retry doesn't restart play
     resume();
     if (!s.started) return void start();
     if (s.failed) return void apply(s.failed, "Retrying…");
@@ -771,6 +846,7 @@ export function mount(el, options) {
     render();
   });
   stopBtn.addEventListener("click", () => {
+    pause();
     // Abort every read in flight (tiles, the reference read, probes' results are dropped
     // by the generation bump) and keep what is drawn. Retry, or any new choice, resumes.
     const req = s.requested;
@@ -838,7 +914,7 @@ export function mount(el, options) {
       if (g !== s.gen || s.destroyed) return;
       s.window = Math.max(1, Math.min(opts.maxTextureLayers ?? DEFAULT_TEXTURE_LAYERS, device.limits.maxTextureArrayLayers));
       const [store] = await Promise.all([
-        openStore(opts.href, { signal: s.abort.signal, onRetry: onUpstreamRetry }),
+        openStore(opts.href, { signal: s.abort.signal, onRetry: onUpstreamRetry, onBytes }),
         s.colormap ? null : initColormap(device),
       ]);
       if (g !== s.gen || s.destroyed) return;
@@ -879,9 +955,12 @@ export function mount(el, options) {
 
   return {
     destroy() {
+      pause();
       s.destroyed = true;
       s.gen++;
       cancelAnimationFrame(budgetFrame);
+      clearTimeout(bytesTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
       s.abort.abort();
       scheme.removeEventListener("change", onScheme);
       deck.finalize();
@@ -914,6 +993,8 @@ export function mount(el, options) {
         gpuWarning: gpuWarning.hidden ? null : gpuWarning.textContent,
         marks: s.marks,
         range: s.range,
+        bytes: s.bytes,
+        playing: play.on,
         layers: [...s.liveIds],
         textures: [...s.textures.values()].reduce((n, set) => n + set.size, 0),
         grid: info ? { attrs: info.grid.attrs, crs: info.grid.crs, wrapOffsets: info.grid.wrapOffsets } : null,

@@ -42,8 +42,18 @@ Nothing is fetched before `mount()`. It sets `element.dataset.state` to one of:
 - `stopped`: Stop loading was pressed;
 - `error`: a read failed. Retry shows for `error` and `stopped`.
 
-It writes a readable message into the `role="status"` line. It styles itself only with the site's CSS custom properties; the colormap is
-the only hard-coded colour.
+It writes a readable message into the `role="status"` line. Beside it, outside that live
+region, is the data received so far ("· 12.4 MB received"), then Stop loading and Retry.
+
+It takes its type and form controls from the page (main.css), and its colours only from
+the site's CSS custom properties; the colormap is the only hard-coded colour.
+`src/explorer.css` only lays the widget out. Play, Stop loading and Retry are buttons
+styled as links, like the copy link on agent prompts.
+
+The map keeps 16:9 and at least 240 px; the control strip sits below it. On a phone the
+strip wraps to several lines, so the page's box has to let the widget grow: the catalog
+page's `.explore-map` needs `.explore-map.explorer { aspect-ratio: auto; min-height: 0; }`.
+In a box of fixed height the map shrinks to fit, down to that floor.
 
 ## How it works
 
@@ -189,7 +199,7 @@ the only hard-coded colour.
     - A slider move while an init, member or level change of the same variable loads
       becomes part of that change, which starts again. So its reference read, the step
       it commits and a Retry after it fails all follow the last move.
-  - **Stop loading** shows only while loading.
+  - **Stop loading** shows only while loading, as a link beside the status.
     - It aborts every read in flight (the tiles' reads join their own signal with the
       explorer's abort controller) and clears the tile facade's queued reads.
     - Until a resume, the explorer is stopped. A tile that deck had queued for a request
@@ -229,19 +239,62 @@ the only hard-coded colour.
     "Ready".
   - The unit is the whole tile: a tile at the edge of the view whose values lie only in
     its off-screen part counts as having data.
+- **Play** (hidden with fewer than 2 steps) steps the slider forward, one drawn frame at a
+  time. It is one loop: it asks for the next step, and shows "Buffering…" while that step
+  loads. Once the step has drawn (the `ready` or `empty` judgement for that selection), it
+  keeps it on screen for 500 ms, then asks for the next.
+  - A slow step holds the loop. There is no catching up afterwards, and no step is asked
+    for before the one before it has drawn.
+  - An empty step is a drawn frame: its No data message shows for the dwell, and play
+    continues.
+  - The timer checks again when it fires: a pan that started loading in the meantime
+    holds the loop until its frame is drawn.
+  - It stops at the last step. From the last step (where an analysis opens), Play starts
+    again at the first step and plays through once.
+  - Any manual change (slider, variable, init, member, level), Stop, an error, a hidden
+    tab and destroy pause it. Retry doesn't restart it. A pause invalidates the pending
+    timer, so a frame that draws after it doesn't advance anything.
+  - Nothing is prefetched: each step is read when Play asks for it, through the same
+    paths as a slider move.
+  - Each step gets the same wall-clock time, so irregular lead spacing plays unevenly in
+    forecast hours.
+- **Data received.** The total of response bodies read this mount, in decimal MB, counted
+  as they stream in (so a large snapshot counts up while it downloads). The readout
+  updates at most every 250 ms, and it keeps its value through variable changes, Stop,
+  Retry and errors.
+  - It is counted on every path the store reads through (`src/lib/meter.js`, wired in
+    `src/store.js`):
+    - the store's own objects (repo, snapshot, manifests, native chunks), through an
+      `HttpStorage` whose fetch is metered;
+    - upstream virtual chunks, through the retrying fetch client, where a retried read
+      counts again;
+    - a plain `.zarr` URL, through `FetchStore`'s fetch option.
+  - A read served from the tile facade's cache, or a step within a drawn block, reads
+    nothing and adds nothing.
+  - It is the body as fetch delivers it: after content decoding, and possibly from the
+    browser's HTTP cache. It excludes headers, the explorer's JS and WASM, the colormap
+    and the borders. So it is data received, not exact network transfer.
 - **Colour.** Turbo, with NaN and missing sentinels (`_FillValue`,
   `missing_value`, or a finite zarr `fill_value`) transparent.
   - Units that are recognisably Celsius use a fixed −40..50.
   - Everything else uses the 2nd–98th percentile of one fixed reference read: the
     block and chunk at the initial view's centre, sampled at a stride (≤100k
-    values). The range is frozen per dataset + variable + pinned indices.
+    values). The range is frozen per dataset + variable + pinned indices, so it holds
+    through Play.
+  - When the percentiles coincide but the values don't (a few rainy cells among zeros),
+    the sample's full range is used instead.
   - A sample that is empty or all one value (e.g. no rain at the initial view) is
     **not** frozen. The first loaded tile block whose values vary, after a pan,
     zoom or step, sets the range and freezes it.
   - That reference read is handed to the tile that needs the same chunk, so it
     isn't fetched twice.
-  - The legend says whether the range is fixed or sample-based, and says so when
-    the sample was empty or all one value (and that it will update).
+  - The legend is the low value, the colour bar and the high value with units, printed
+    with enough digits that the two differ. A constant sample shows its one value
+    ("0 kg m⁻² s⁻¹"), and a sample with no values says "No data"; either updates when a
+    varying tile arrives.
+  - Units are shown as written, without conversion: exponents as superscripts
+    (`kg m-2 s-1` → kg m⁻² s⁻¹), `percent` as %, Celsius as °C, and nothing for the
+    dimensionless `1`.
 - **Basemap.** world-atlas `countries-50m` borders from jsdelivr, fetched lazily,
   drawn in the page's text colour with `wrapLongitude`.
 
@@ -283,4 +336,6 @@ cover:
 - the GRIB codec against gribberish's Python codec, on fixtures for DRS 5.0,
   5.0 + bitmap, 5.3, 5.3 + bitmap and 5.42;
 - the retrying fetch client;
+- the data-received meter, alone and through the retrying client;
+- the legend text: units, close bounds, constant, sparse and empty samples;
 - the tile facade.

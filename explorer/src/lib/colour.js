@@ -86,20 +86,58 @@ export function sampleRange(data, { maxSamples = 100_000, lo = 0.02, hi = 0.98 }
   let min = q(lo);
   let max = q(hi);
   if (!(max > min)) {
-    // All equal (e.g. all-zero precipitation): widen around the value so the
-    // legend still reads sensibly and the one value maps to the colormap's low end.
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    // Sparse values (a few rainy cells among zeros) collapse the percentiles without being
+    // constant: fall back to the sample's full range.
+    if (last > first) return { min: first, max: last, status: "ok", samples: s.length };
+    // All equal (e.g. all-zero precipitation): widen around the value so the one value
+    // maps to the colormap's low end. `min` is that value.
     const pad = Math.abs(min) * 0.1 || 1;
     return { min, max: min + pad, status: "flat", samples: s.length };
   }
   return { min, max, status: "ok", samples: s.length };
 }
 
-/** Round legend tick values to a few significant figures. */
-export function formatValue(v) {
+/** Round a legend value to `digits` significant figures. */
+export function formatValue(v, digits = 3) {
   if (v === 0) return "0";
   const a = Math.abs(v);
-  if (a >= 1e5 || a < 1e-3) return v.toExponential(2);
-  return String(Number(v.toPrecision(3)));
+  if (a >= 1e6 || a < 1e-3) return v.toExponential(digits - 1);
+  return String(Number(v.toPrecision(digits)));
+}
+
+const SUPERSCRIPT = { "-": "⁻", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹" };
+
+/**
+ * CF units as a reader would write them, without converting anything: exponents as
+ * superscripts ("kg m-2 s-1" → "kg m⁻² s⁻¹"), "percent" as %, Celsius as °C, and nothing for
+ * the dimensionless "1".
+ * @param {string | undefined} units
+ */
+export function formatUnits(units) {
+  const u = String(units ?? "").trim();
+  if (u === "" || u === "1") return "";
+  if (isCelsius(u)) return "°C";
+  if (u === "percent") return "%";
+  return u.replace(/([A-Za-z])(?:\*\*|\^)?(-?\d+)\b/g, (_, base, exp) => base + [...exp].map((c) => SUPERSCRIPT[c]).join(""));
+}
+
+/**
+ * What the legend shows for a colour range: the low and high values (with enough digits to
+ * tell them apart) and units; one value for a constant sample; nothing numeric when the
+ * sample had no values.
+ * @param {{ min: number, max: number, status?: string }} range
+ * @param {string | undefined} units
+ * @returns {{ kind: "none" } | { kind: "single", value: string, units: string } | { kind: "range", low: string, high: string, units: string }}
+ */
+export function legendParts(range, units) {
+  if (range.status === "empty") return { kind: "none" };
+  const u = formatUnits(units);
+  if (range.status === "flat") return { kind: "single", value: formatValue(range.min, 6), units: u };
+  let digits = 3;
+  while (digits < 10 && formatValue(range.min, digits) === formatValue(range.max, digits)) digits++;
+  return { kind: "range", low: formatValue(range.min, digits), high: formatValue(range.max, digits), units: u };
 }
 
 /**

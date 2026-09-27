@@ -1,88 +1,73 @@
-/* Scoped to the mount element; colours come only from the site's tokens. */
+/* Scoped to the mount element. Type, colours and form controls come from the page
+   (main.css and its tokens); these rules lay the widget out. */
 .explorer {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
+/* The map keeps the page's 16:9 and at least a usable height; the strip adds below it, so
+   when the strip wraps on a phone the widget grows rather than squeezing the map. (In a
+   box of fixed height the map shrinks to fit, down to that floor.) */
 .explorer-map {
   position: relative;
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 auto;
+  aspect-ratio: 16 / 9;
+  min-height: 24rem;
 }
 .explorer-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.4rem 0.5rem;
+  padding: 0.8rem 1rem;
   border-top: 1px solid var(--border-muted-color);
-  font-size: 0.8rem;
 }
 /* Rows keep one line's height while still empty (the labels and status fill in after
    mount), so the map is already its final size when mount() fits the initial view. */
-.explorer-strip > div {
+.explorer-strip > div:not([hidden]) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.3rem 1rem;
+  gap: 0.4rem 1.6rem;
   min-height: 1lh;
-}
-.explorer-strip label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.explorer-strip label > span:first-child,
-.explorer-k,
-.explorer-note {
-  color: var(--muted-text);
-}
-.explorer-strip select,
-.explorer-strip button {
-  font: inherit;
-  color: inherit;
-  background: var(--bg-color);
-  border: 1px solid var(--border-muted-color);
-  border-radius: var(--radius-sm);
-  padding: 0.1rem 0.3rem;
-}
-.explorer-strip button:not(:disabled) {
-  cursor: pointer;
-}
-.explorer-slider {
-  width: 100%;
-}
-.explorer-slider input {
-  flex: 1;
-  accent-color: var(--text-color);
 }
 .explorer-extras {
   display: contents;
 }
-.explorer-times {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0 1rem;
+/* A select is as wide as its longest option: on a phone it shrinks to its row instead,
+   showing the chosen name cut off, with the full names in its list. */
+.explorer-strip label {
+  min-width: 0;
+}
+.explorer select {
+  max-width: 100%;
+  font: inherit;
+}
+/* Play, Stop loading and Retry are actions beside what they act on: buttons styled as
+   links, like the copy link on agent prompts. */
+.explorer button {
+  padding: 0.2rem 0;
+  border: 0;
+  background: none;
+  color: var(--link-color);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.explorer button:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+}
+.explorer-strip input {
+  flex: 1;
+  accent-color: var(--text-color);
 }
 .explorer-legend {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.6rem;
   margin-left: auto;
 }
 .explorer-legend canvas {
-  width: 8rem;
-  height: 0.6rem;
-  image-rendering: pixelated;
-  border-radius: var(--radius-sm);
+  width: 12rem;
+  height: 1rem;
 }
-.explorer-status {
-  color: var(--muted-text);
-}
-.explorer[data-state="error"] .explorer-status {
+.explorer[data-state="error"] [role="status"] {
   color: var(--pill-down-bg);
-  font-weight: 600;
-}
-.explorer[data-state="empty"] .explorer-status {
-  color: var(--text-color);
-  font-weight: 600;
+  font-weight: 700;
 }

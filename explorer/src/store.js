@@ -10,11 +10,12 @@
 //
 // A plain zarr v3 URL (ending in .zarr) opens with zarrita's FetchStore, which
 // the verification harness uses for synthetic grids; anything else is Icechunk.
-import { HttpStorage, IcechunkStore, encodeObjectId12 } from "icechunk-js";
+import { HttpStorage, IcechunkStore, NotFoundError, StorageError, encodeObjectId12 } from "icechunk-js";
 import * as zarr from "zarrita";
 import { registerCodecs } from "./codecs.js";
 import { retryingFetchClient } from "./grib/retry-fetch.js";
 import { cachedPromise } from "./lib/cache.js";
+import { meteredFetch } from "./lib/meter.js";
 
 /**
  * @typedef {{
@@ -30,15 +31,49 @@ import { cachedPromise } from "./lib/cache.js";
 const IMMUTABLE = /^\/?(snapshots|manifests|chunks|transactions)\//;
 
 /**
+ * HttpStorage reading through a given fetch (icechunk-js's calls the global one), so the
+ * explorer can count what the store's own objects (repo, snapshot, manifests, native chunks)
+ * deliver. getObject is HttpStorage's, with only the fetch swapped.
+ */
+class FetchingStorage extends HttpStorage {
+  constructor(url, options, fetchImpl) {
+    super(url, options);
+    this.fetchImpl = fetchImpl;
+  }
+
+  async getObject(path, range, options) {
+    options?.signal?.throwIfAborted();
+    const url = this.getUrl(path);
+    let response;
+    try {
+      response = await this.fetchImpl(url, {
+        method: "GET",
+        headers: this.getHeaders(range),
+        credentials: this.options.credentials,
+        cache: this.options.cache,
+        signal: options?.signal,
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      throw new StorageError(`Failed to fetch ${url}: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error : undefined);
+    }
+    if (response.status === 404) throw new NotFoundError(path);
+    if (response.status !== 200 && response.status !== 206) throw new StorageError(`HTTP ${response.status} ${response.statusText} for ${url}`);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+}
+
+/**
  * An Icechunk storage that revalidates mutable objects (`cache: "no-cache"`),
  * so a reload never opens a snapshot a stale cached "repo" points at, while
  * content-addressed objects keep the browser's normal HTTP caching.
  * @param {string} url
+ * @param {typeof fetch} fetchImpl
  * @returns {import("icechunk-js").Storage}
  */
-function revalidatingStorage(url) {
-  const cached = new HttpStorage(url);
-  const fresh = new HttpStorage(url, { cache: "no-cache" });
+function revalidatingStorage(url, fetchImpl) {
+  const cached = new FetchingStorage(url, {}, fetchImpl);
+  const fresh = new FetchingStorage(url, { cache: "no-cache" }, fetchImpl);
   const pick = (path) => (IMMUTABLE.test(path) ? cached : fresh);
   return {
     getObject: (path, range, options) => pick(path).getObject(path, range, options),
@@ -49,18 +84,25 @@ function revalidatingStorage(url) {
 
 /**
  * @param {string} href
- * @param {{ signal?: AbortSignal, onRetry?: (info: { url: string, attempt: number, reason: string }) => void }} [opts]
+ * @param {{
+ *   signal?: AbortSignal,
+ *   onRetry?: (info: { url: string, attempt: number, reason: string }) => void,
+ *   onBytes?: (bytes: number) => void,
+ * }} [opts]
  *   `onRetry` is called before each retry of a virtual chunk read (for a status line).
+ *   `onBytes` is called as response bodies arrive, on every path the store reads through:
+ *   its own objects, upstream virtual chunks (each retry counts again), or a plain zarr URL.
  * @returns {Promise<Store>}
  */
-export async function openStore(href, { signal, onRetry } = {}) {
+export async function openStore(href, { signal, onRetry, onBytes = () => {} } = {}) {
   registerCodecs();
   const url = href.replace(/\/$/, "");
+  const fetchImpl = meteredFetch((...args) => globalThis.fetch(...args), onBytes);
   if (!/\.zarr$/.test(url)) {
-    const store = await IcechunkStore.open(revalidatingStorage(url), {
+    const store = await IcechunkStore.open(revalidatingStorage(url, fetchImpl), {
       branch: "main",
       signal,
-      fetchClient: retryingFetchClient({ onRetry }),
+      fetchClient: retryingFetchClient({ onRetry, fetchImpl }),
     });
     const root = zarr.root(store);
     return {
@@ -70,7 +112,7 @@ export async function openStore(href, { signal, onRetry } = {}) {
       open: (path) => zarr.open(root.resolve(path), { kind: "array" }),
     };
   }
-  const store = new zarr.FetchStore(url);
+  const store = new zarr.FetchStore(url, { fetch: fetchImpl });
   const root = zarr.root(store);
   const metaCache = new Map();
   return {

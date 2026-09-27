@@ -227,8 +227,14 @@ export { distance };
 export async function pixelAt(page, lon, lat) {
   const point = await page.evaluate(([x, y]) => {
     const canvas = document.querySelector(".explore-map canvas");
-    const box = canvas.getBoundingClientRect();
     const [px, py] = window.__explorer.project([x, y]);
+    // The screenshot is of the viewport: bring the point into it first (a click on a control
+    // in the strip, below the map, can leave the map scrolled partly out of view).
+    let box = canvas.getBoundingClientRect();
+    if (box.top + py < 0 || box.top + py >= innerHeight) {
+      window.scrollBy(0, box.top + py - innerHeight / 2);
+      box = canvas.getBoundingClientRect();
+    }
     return { x: box.left + px, y: box.top + py, inside: px >= 0 && py >= 0 && px < box.width && py < box.height };
   }, [lon, lat]);
   if (!point.inside) throw new Error(`${lon}, ${lat} is outside the map`);
