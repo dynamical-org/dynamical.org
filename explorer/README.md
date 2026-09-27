@@ -29,6 +29,7 @@ const handle = mount(element, {
   maxTextureLayers: 128,                       // cap on slider steps per texture (tests set it low)
   maxTextureBytes: 2e9,                        // estimated GPU memory above which the status warns
   maxRequests: 4,                              // concurrent tile requests per layer (tests set it low)
+  playDwellMs: 500,                            // how long Play shows each drawn step (tests set it high)
 });
 handle.project([lon, lat]);                    // → [x, y] CSS px on the map canvas
 handle.destroy();
@@ -50,7 +51,9 @@ the site's CSS custom properties; the colormap is the only hard-coded colour.
 `src/explorer.css` only lays the widget out. Play, Stop loading and Retry are buttons
 styled as links, like the copy link on agent prompts.
 
-The map keeps 16:9 and at least 240 px; the control strip sits below it. On a phone the
+The map keeps 16:9 and at least the preview's height: the catalog box's 320 px floor, less
+its two 1 px borders. So on a phone the map takes the preview's place at the same size, and
+the control strip sits below it. On a phone the
 strip wraps to several lines, so the page's box has to let the widget grow: the catalog
 page's `.explore-map` needs `.explore-map.explorer { aspect-ratio: auto; min-height: 0; }`.
 In a box of fixed height the map shrinks to fit, down to that floor.
@@ -247,12 +250,13 @@ In a box of fixed height the map shrinks to fit, down to that floor.
     for before the one before it has drawn.
   - An empty step is a drawn frame: its No data message shows for the dwell, and play
     continues.
-  - The timer checks again when it fires: a pan that started loading in the meantime
-    holds the loop until its frame is drawn.
+  - A pan that starts loading during the dwell cancels it. Once the panned view has drawn,
+    it gets a full dwell of its own. The timer also checks again when it fires.
   - It stops at the last step. From the last step (where an analysis opens), Play starts
     again at the first step and plays through once.
   - Any manual change (slider, variable, init, member, level), Stop, an error, a hidden
-    tab and destroy pause it. Retry doesn't restart it. A pause invalidates the pending
+    tab and destroy pause it. Play is disabled while an error is shown (an error view never
+    settles, so it couldn't advance): Retry is the way out, and doesn't restart play. A pause invalidates the pending
     timer, so a frame that draws after it doesn't advance anything.
   - Nothing is prefetched: each step is read when Play asks for it, through the same
     paths as a slider move.

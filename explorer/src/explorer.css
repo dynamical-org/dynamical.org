@@ -4,14 +4,15 @@
   display: flex;
   flex-direction: column;
 }
-/* The map keeps the page's 16:9 and at least a usable height; the strip adds below it, so
-   when the strip wraps on a phone the widget grows rather than squeezing the map. (In a
-   box of fixed height the map shrinks to fit, down to that floor.) */
+/* The map keeps the page's 16:9 and the preview's floor: the catalog box's 320px less its
+   two 1px borders, so on a phone the map takes the preview's place at the same size. The
+   strip adds below it, so when the strip wraps the widget grows rather than squeezing the
+   map. (In a box of fixed height the map shrinks to fit, down to that floor.) */
 .explorer-map {
   position: relative;
   flex: 1 1 auto;
   aspect-ratio: 16 / 9;
-  min-height: 24rem;
+  min-height: calc(32rem - 2px);
 }
 .explorer-strip {
   padding: 0.8rem 1rem;

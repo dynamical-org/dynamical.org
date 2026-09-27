@@ -52,6 +52,39 @@ async function moveSlider(page, keys) {
   for (const key of keys) await slider.press(key);
 }
 
+/** Every state change, with its step: window.__states is [{ step, state, at }]. */
+async function recordStates(page) {
+  await page.evaluate(() => {
+    window.__states = [];
+    const el = document.querySelector(".explore-map");
+    new MutationObserver(() => {
+      window.__states.push({ step: window.__explorer.debug().step.index, state: el.dataset.state, at: performance.now() });
+    }).observe(el, { attributes: true, attributeFilter: ["data-state"] });
+  });
+}
+const states = (page) => page.evaluate(() => window.__states);
+
+/** Drag the map west by `dx` CSS px (moving the view east). */
+async function dragWest(page, dx) {
+  const box = await page.locator(".explore-map canvas").first().boundingBox();
+  const y = box.y + box.height / 2;
+  const x = box.x + box.width / 2 + dx / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - dx, y, { steps: 12 });
+  await page.mouse.up();
+}
+
+const onScreen = (page, p) =>
+  page.evaluate(([lon, lat]) => {
+    const canvas = document.querySelector(".explore-map canvas");
+    const [x, y] = window.__explorer.project([lon, lat]);
+    return x > 20 && y > 20 && x < canvas.clientWidth - 20 && y < canvas.clientHeight - 20;
+  }, [p.lon, p.lat]);
+
+// The CONUS view sits inside one inner chunk (lon -185.625…-5.625); this point is in the next.
+const FRESH = { lon: 22.5, lat: 42 };
+
 /** The frames a play produced, one per step in order, each shown before the next asked for. */
 function expectSequence(list, steps) {
   const seen = list.map((f) => f.step).filter((s, i, a) => i === 0 || a[i - 1] !== s);
@@ -237,6 +270,70 @@ test.describe("explorer, offline: play", () => {
     expect((await debug(page)).playing).toBe(false);
   });
 
+  test("while an error is shown Play is disabled, and after Retry it plays", async ({ page }) => {
+    const served = new Set();
+    let failNew = false;
+    const log = [];
+    await offline(page, {
+      store: storeRoute({ log, failFor: ({ key, entry }) => failNew && entry !== null && !served.has(`${key}#${entry}`) }),
+      overrides: { variables: FIXTURE_VARIABLES },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    for (const r of log) if (r.entry !== null && !r.failed) served.add(`${r.key}#${r.entry}`);
+
+    // a pan into a chunk whose reads fail: an error at lead 0, whose next lead is in the same block
+    failNew = true;
+    for (let i = 0; i < 8 && !(await onScreen(page, FRESH)); i += 1) await dragWest(page, 300);
+    await expectState(page, "error");
+    await expect(playButton(page)).toBeDisabled();
+    await playButton(page).click({ force: true });
+    expect((await debug(page)).playing).toBe(false);
+    expect((await debug(page)).step.index).toBe(0);
+
+    failNew = false;
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expectState(page, "ready");
+    await expect(playButton(page)).toBeEnabled();
+    await recordFrames(page);
+    await playButton(page).click();
+    await expect.poll(async () => (await frames(page)).map((f) => f.step), { timeout: 10_000 }).toContain(2);
+    await playButton(page).click();
+  });
+
+  test("a pan that loads during a frame's dwell restarts the dwell once the view has drawn", async ({ page }) => {
+    // A long dwell, so the pan (several drags, reads held 300 ms) surely lands inside it.
+    const DWELL = 4_000;
+    const served = new Set();
+    let hold = false;
+    const log = [];
+    await offline(page, {
+      store: storeRoute({ log, delayFor: ({ key, entry }) => (hold && entry !== null && !served.has(`${key}#${entry}`) ? 300 : 0) }),
+      overrides: { variables: FIXTURE_VARIABLES, playDwellMs: DWELL },
+    });
+    await page.goto(PAGE);
+    await loadMap(page);
+    for (const r of log) if (r.entry !== null) served.add(`${r.key}#${r.entry}`);
+    await recordStates(page);
+
+    hold = true;
+    await playButton(page).click();
+    await expect.poll(async () => (await states(page)).some((x) => x.step === 1 && x.state === "ready")).toBe(true);
+    const drawn = (await states(page)).find((x) => x.step === 1 && x.state === "ready").at;
+    // pan into uncached tiles right after lead 1 drew
+    for (let i = 0; i < 8 && !(await onScreen(page, FRESH)); i += 1) await dragWest(page, 300);
+    await expect.poll(async () => (await states(page)).some((x) => x.step === 2), { timeout: 3 * DWELL }).toBe(true);
+
+    const list = await states(page);
+    const next = list.find((x) => x.step === 2).at;
+    const panLoading = list.find((x) => x.step === 1 && x.state === "loading" && x.at > drawn);
+    expect(panLoading, "the pan loaded new tiles during the dwell").toBeTruthy();
+    const settled = list.filter((x) => x.step === 1 && x.state === "ready" && x.at < next).at(-1).at;
+    expect(settled - drawn, "the pan finished before the first dwell would have ended").toBeLessThan(DWELL);
+    expect(next - settled, "the settled view got a full dwell").toBeGreaterThanOrEqual(DWELL - 50);
+    await playButton(page).click();
+  });
+
   test("the handle's step move pauses Play like the slider does", async ({ page }) => {
     await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
     await page.goto(PAGE);
@@ -413,5 +510,22 @@ test.describe("explorer, offline: layout", () => {
     await expect(variable.locator("option:checked")).toHaveText(long.name);
     // and the map keeps a usable height above the strip
     expect((await page.locator(".explore-map .explorer-map").boundingBox()).height).toBeGreaterThanOrEqual(200);
+  });
+  test("at 390 px the mounted map takes the preview's place at the same size", async ({ page }) => {
+    await offline(page, { overrides: { variables: FIXTURE_VARIABLES } });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(PAGE);
+    // in page coordinates, so a scroll between the two reads doesn't matter
+    const pageBox = (locator) =>
+      locator.evaluate((node) => {
+        const r = node.getBoundingClientRect();
+        return { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height };
+      });
+    const preview = await pageBox(page.locator(".explore-map > svg"));
+    await loadMap(page);
+    const map = await pageBox(page.locator(".explore-map .explorer-map"));
+    for (const k of ["x", "y", "width", "height"]) {
+      expect(Math.abs(map[k] - preview[k]), `${k}: map ${map[k]}, preview ${preview[k]}`).toBeLessThanOrEqual(1);
+    }
   });
 });

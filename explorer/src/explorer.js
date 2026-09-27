@@ -39,7 +39,7 @@ const DEFAULT_TEXTURE_BYTES = 2e9;
 const MAX_REQUESTS = 4;
 /** Cached tiles per layer (eviction only: tiles in view always load). */
 const MAX_CACHE_TILES = 64;
-/** How long Play shows each drawn step before moving to the next. */
+/** How long Play shows each drawn step before moving to the next; `playDwellMs` overrides it (tests). */
 const PLAY_DWELL_MS = 500;
 /** The "MB received" readout updates at most this often. */
 const BYTES_UPDATE_MS = 250;
@@ -78,6 +78,7 @@ function h(tag, props = {}, children = []) {
  *   maxTextureLayers?: number,
  *   maxTextureBytes?: number,
  *   maxRequests?: number,
+ *   playDwellMs?: number,
  * }} options
  */
 export function mount(el, options) {
@@ -184,8 +185,11 @@ export function mount(el, options) {
     statusEl.textContent = play.on && state === "loading" ? "Buffering…" : msg;
     retryBtn.hidden = state !== "error" && state !== "stopped";
     stopBtn.hidden = state !== "loading";
+    // An error view never settles, so Play couldn't advance from it: Retry is the way out.
+    playBtn.disabled = s.error || slider.disabled;
     if (state === "error" || state === "stopped") pause();
     else if (state === "ready" || state === "empty") frameShown();
+    else if (state === "loading") restartDwell();
   }
 
   // ---- data received ----------------------------------------------------------
@@ -231,7 +235,17 @@ export function mount(el, options) {
       if (!shown || s.requested || s.stepIndex !== play.want) return;
       if (s.stepIndex >= s.info.step.n - 1) return setPlaying(false);
       playStep(s.stepIndex + 1);
-    }, PLAY_DWELL_MS);
+    }, opts.playDwellMs ?? PLAY_DWELL_MS);
+  }
+
+  /**
+   * The view started loading again (a pan into new tiles) during a dwell: drop the dwell, so
+   * the view gets a full one once it has drawn (frameShown arms it afresh).
+   */
+  function restartDwell() {
+    if (!play.timer) return;
+    clearTimeout(play.timer);
+    play.timer = 0;
   }
 
   function playStep(i) {
@@ -825,7 +839,7 @@ export function mount(el, options) {
   slider.addEventListener("input", () => setStep(Number(slider.value)));
   playBtn.addEventListener("click", () => {
     if (play.on) return pause();
-    if (!(s.info?.step?.n >= 2) || s.requested) return;
+    if (!(s.info?.step?.n >= 2) || s.requested || s.error) return;
     setPlaying(true);
     // From the last step (where an analysis opens), play from the start once.
     playStep(s.stepIndex >= s.info.step.n - 1 ? 0 : s.stepIndex + 1);
