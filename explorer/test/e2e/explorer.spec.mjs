@@ -27,7 +27,7 @@ import {
 // older block under newer labels, and failures read as failures.
 //
 // Colours are read back from the page and matched to the nearest fixture value
-// on the turbo scale, so a check names the value that drew rather than a hex.
+// on the cubehelix scale, so a check names the value that drew rather than a hex.
 
 // average_temperature_2m (one-step chunks, the whole-grid facade path): lead 0
 // is NaN, then uniform per lead.
@@ -272,9 +272,9 @@ test.describe("explorer, offline", () => {
     const hole = await pixelAt(page, KNOWN.lon, KNOWN.lat);
     const filled = await pixelAt(page, KNOWN.lon + 11.25, KNOWN.lat);
     // The filled neighbour is drawn in the colormap; the -1 cell shows the map
-    // background through it, which is far from every turbo colour.
-    const nearestTurbo = Math.min(...Array.from({ length: 256 }, (_, i) => distance(hole, celsius(-40 + (90 * i) / 255))));
-    expect(nearestTurbo, `fill cell drew rgb(${hole})`).toBeGreaterThan(60);
+    // background through it, which is far from every colormap colour.
+    const nearestColour = Math.min(...Array.from({ length: 256 }, (_, i) => distance(hole, celsius(-40 + (90 * i) / 255))));
+    expect(nearestColour, `fill cell drew rgb(${hole})`).toBeGreaterThan(60);
     expect(distance(hole, filled)).toBeGreaterThan(60);
   });
 

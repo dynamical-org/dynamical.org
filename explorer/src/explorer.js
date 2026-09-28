@@ -24,7 +24,9 @@ import { openStore } from "./store.js";
 import { StaleTileError, makeGetTileData, makeRenderTile, readTileBlock } from "./tile.js";
 
 const BORDERS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json";
-const COLORMAP = COLORMAP_INDEX.turbo;
+// One colormap for every variable: cubehelix (Green 2011, matplotlib's defaults), dark to
+// light, perceptually uniform in lightness. The range is still per variable (lib/colour.js).
+const COLORMAP = COLORMAP_INDEX.cubehelix;
 /** Default cap on slider steps held in one texture array (amendment: bounded window). */
 const DEFAULT_TEXTURE_LAYERS = 128;
 /**

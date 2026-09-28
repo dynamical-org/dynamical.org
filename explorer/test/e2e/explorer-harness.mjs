@@ -114,6 +114,16 @@ export async function offline(page, { store = storeRoute(), overrides = {} } = {
   await page.route(/cdn\.jsdelivr\.net\/npm\/world-atlas/, (route) =>
     route.fulfill({ status: 200, headers: CORS, contentType: "application/json", body: JSON.stringify(BORDERS) }),
   );
+  // Undrawn cells show the map box's background. The page's is near white, and so is
+  // the top of cubehelix, so specs paint it magenta, far from every colormap colour, to
+  // tell a blank cell from a drawn one.
+  await page.addInitScript(() => {
+    addEventListener("DOMContentLoaded", () => {
+      const style = document.createElement("style");
+      style.textContent = ".explore-map { background: rgb(255, 0, 255) !important; }";
+      document.head.append(style);
+    });
+  });
   await wrapBundle(page, overrides);
 }
 
@@ -197,20 +207,21 @@ export async function expectState(page, state, timeout = 30_000) {
   }
 }
 
-// Turbo, the explorer's colormap, as Mikhailov's polynomial fit: within a few
-// levels of the real table, far closer than the gaps between the values the
-// fixture uses, so a sampled colour is classified by the nearest candidate.
-export function turbo(t) {
-  const x = Math.min(1, Math.max(0, t));
-  const poly = (c) => c.reduceRight((acc, k) => acc * x + k, 0);
-  return [
-    poly([0.13572138, 4.6153926, -42.66032258, 132.13108234, -152.94239396, 59.28637943]),
-    poly([0.09140261, 2.19418839, 4.84296658, -14.18503333, 4.27729857, 2.82956604]),
-    poly([0.1066733, 12.64194608, -60.58204836, 110.36276771, -89.90310912, 27.34824973]),
-  ].map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255));
+// Cubehelix, the explorer's colormap, from Green's (2011) formula with matplotlib's
+// defaults (start 0.5, rotations −1.5, hue 1, gamma 1): within 1 level of
+// deck.gl-raster's table, far closer than the gaps between the values the fixture
+// uses, so a sampled colour is classified by the nearest candidate.
+export function cubehelix(t) {
+  const l = Math.min(1, Math.max(0, t));
+  const phi = 2 * Math.PI * (0.5 / 3 - 1.5 * l);
+  const a = (l * (1 - l)) / 2;
+  const [c, s] = [Math.cos(phi), Math.sin(phi)];
+  return [l + a * (-0.14861 * c + 1.78277 * s), l + a * (-0.29227 * c - 0.90649 * s), l + a * (1.97294 * c)].map((v) =>
+    Math.round(Math.min(1, Math.max(0, v)) * 255),
+  );
 }
 
-export const celsius = (value) => turbo((value + 40) / 90);
+export const celsius = (value) => cubehelix((value + 40) / 90);
 
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 

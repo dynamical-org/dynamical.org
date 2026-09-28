@@ -305,8 +305,9 @@ In a box of fixed height the map shrinks to fit, down to that floor.
   - It is the body as fetch delivers it: after content decoding, and possibly from the
     browser's HTTP cache. It excludes headers, the explorer's JS and WASM, the colormap
     and the borders. So it is data received, not exact network transfer.
-- **Colour.** Turbo, with NaN and missing sentinels (`_FillValue`,
-  `missing_value`, or a finite zarr `fill_value`) transparent.
+- **Colour.** One colormap for every variable: cubehelix (Green 2011, matplotlib's
+  defaults), dark to light. NaN and missing sentinels (`_FillValue`,
+  `missing_value`, or a finite zarr `fill_value`) are transparent.
   - Units that are recognisably Celsius use a fixed −40..50.
   - Everything else uses the 2nd–98th percentile of one fixed reference read: the
     block and chunk at the initial view's centre, sampled at a stride (≤100k
