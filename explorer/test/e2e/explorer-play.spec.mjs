@@ -227,7 +227,9 @@ test.describe("explorer, offline: play", () => {
         delayFor: ({ block }) => (block === 1 && failBlock === "slow" ? 3_000 : 0),
         failFor: ({ block }) => block === 1 && failBlock === "fail",
       }),
-      overrides: { variables: FIXTURE_VARIABLES },
+      // Block 1 loads during the Stop case, and the error case needs it read again from
+      // the network, not from the byte cache.
+      overrides: { variables: FIXTURE_VARIABLES, maxCacheBytes: 0 },
     });
     await page.goto(PAGE);
     await loadMap(page);

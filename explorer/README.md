@@ -55,6 +55,7 @@ const handle = mount(element, {
   maxTextureLayers: 128,                       // cap on slider steps per texture (tests set it low)
   maxTextureBytes: 2e9,                        // estimated GPU memory above which the status warns
   maxRequests: 4,                              // concurrent tile requests per layer (tests set it low)
+  maxCacheBytes: 256e6,                        // bytes of chunk reads kept, so a chunk read again comes from memory
   playDwellMs: 500,                            // how long Play shows each drawn step (tests set it high)
 });
 handle.project([lon, lat]);                    // → [x, y] CSS px on the map canvas
@@ -371,6 +372,7 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 - the data-received meter, alone and through the retrying client;
 - the legend text: units, close bounds, constant, sparse and empty samples;
 - the tile facade;
+- the byte cache: ranges, eviction, failed and missing reads, copies;
 - the site plugin: mount options, the chunk-derived first view, the Explore section's
   markup and escaping, the preview's projection and clipping, and when the build hook
   installs and builds.

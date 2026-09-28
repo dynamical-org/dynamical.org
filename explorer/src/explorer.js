@@ -80,6 +80,7 @@ function h(tag, props = {}, children = []) {
  *   maxTextureLayers?: number,
  *   maxTextureBytes?: number,
  *   maxRequests?: number,
+ *   maxCacheBytes?: number,
  *   playDwellMs?: number,
  * }} options
  */
@@ -930,7 +931,7 @@ export function mount(el, options) {
       if (g !== s.gen || s.destroyed) return;
       s.window = Math.max(1, Math.min(opts.maxTextureLayers ?? DEFAULT_TEXTURE_LAYERS, device.limits.maxTextureArrayLayers));
       const [store] = await Promise.all([
-        openStore(opts.href, { signal: s.abort.signal, onRetry: onUpstreamRetry, onBytes }),
+        openStore(opts.href, { signal: s.abort.signal, onRetry: onUpstreamRetry, onBytes, maxCacheBytes: opts.maxCacheBytes }),
         s.colormap ? null : initColormap(device),
       ]);
       if (g !== s.gen || s.destroyed) return;

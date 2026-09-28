@@ -699,3 +699,130 @@ test.describe("explorer, offline ensemble", () => {
     await expectDrawn(page, 0, candidates);
   });
 });
+
+// Review feedback (2026-09-28): switching member read every chunk again, though the
+// ensemble stores keep all members in one chunk. A plain zarr store here holds its
+// three members in one chunk, as a whole object and (like the real stores) as an inner
+// chunk of a shard read by byte range. A switch should decode the member from the bytes
+// already fetched: no new chunk request, nothing more received, and the new member drawn.
+test.describe("explorer, offline ensemble in one chunk", () => {
+  const MEMBER_C = [-20, 5, 30];
+  const LAT = Array.from({ length: 8 }, (_, i) => 40 - i);
+  const LON = Array.from({ length: 16 }, (_, i) => -100 + i);
+  const WHERE = { lon: -92, lat: 36 };
+  const LE = { name: "bytes", configuration: { endian: "little" } };
+  const TYPED = { float32: Float32Array, float64: Float64Array, int32: Int32Array };
+
+  const meta = (shape, dataType, dims, attributes, codecs = [LE]) => ({
+    zarr_format: 3,
+    node_type: "array",
+    shape,
+    data_type: dataType,
+    chunk_grid: { name: "regular", configuration: { chunk_shape: shape } },
+    chunk_key_encoding: { name: "default", configuration: { separator: "/" } },
+    fill_value: dataType === "int32" ? 0 : "NaN",
+    codecs,
+    dimension_names: dims,
+    attributes,
+  });
+  // A one-chunk array, little-endian and uncompressed.
+  const plain = (shape, dataType, dims, attributes, values) => ({
+    meta: meta(shape, dataType, dims, attributes),
+    chunkKey: `c/${shape.map(() => 0).join("/")}`,
+    chunk: Buffer.from(TYPED[dataType].from(values).buffer),
+  });
+
+  const DIMS = ["init_time", "ensemble_member", "lead_time", "latitude", "longitude"];
+  const SHAPE = [1, 3, 2, 8, 16];
+  const ATTRS = { units: "degree_Celsius", long_name: "2 metre temperature" };
+  // Member m is MEMBER_C[m] everywhere, at both leads.
+  const values = (shape) => {
+    const per = shape.slice(2).reduce((a, b) => a * b, 1);
+    return MEMBER_C.flatMap((c) => new Array(per).fill(c));
+  };
+  // One shard holding the whole array as two inner chunks (west and east halves),
+  // each with every member, then the shard index (offset, nbytes pairs) at the end.
+  function sharded() {
+    const inner = [1, 3, 2, 8, 8];
+    const half = (x0) => {
+      const out = [];
+      for (let m = 0; m < 3; m++) for (let l = 0; l < 2; l++) for (let y = 0; y < 8; y++) for (let x = x0; x < x0 + 8; x++) out.push(MEMBER_C[m]);
+      return Buffer.from(Float32Array.from(out).buffer);
+    };
+    const chunks = [half(0), half(8)];
+    const index = Buffer.from(new BigUint64Array([0n, BigInt(chunks[0].length), BigInt(chunks[0].length), BigInt(chunks[1].length)]).buffer);
+    const codecs = [
+      { name: "sharding_indexed", configuration: { chunk_shape: inner, codecs: [LE], index_codecs: [LE], index_location: "end" } },
+    ];
+    return { meta: meta(SHAPE, "float32", DIMS, ATTRS, codecs), chunkKey: "c/0/0/0/0/0", chunk: Buffer.concat([...chunks, index]) };
+  }
+
+  const COORDS = {
+    init_time: plain([1], "float64", ["init_time"], { units: "seconds since 1970-01-01" }, [1_790_000_000]),
+    lead_time: plain([2], "float64", ["lead_time"], { units: "seconds" }, [0, 3600]),
+    ensemble_member: plain([3], "int32", ["ensemble_member"], { units: "realization" }, [0, 1, 2]),
+    latitude: plain([8], "float64", ["latitude"], { units: "degree_north" }, LAT),
+    longitude: plain([16], "float64", ["longitude"], { units: "degree_east" }, LON),
+  };
+
+  // Serve the arrays at https://fixture.test/store.zarr/, honouring byte ranges.
+  async function serve(page, t) {
+    const arrays = { ...COORDS, t };
+    const reads = [];
+    await offline(page, {
+      overrides: {
+        href: "https://fixture.test/store.zarr",
+        variables: [{ path: "t", name: "t", units: "degree_Celsius", dims: DIMS }],
+        defaultVariable: "t",
+        initialView: { bounds: [-101, 32, -84, 41] },
+      },
+    });
+    await page.route(/fixture\.test\//, (route) => {
+      const path = new URL(route.request().url()).pathname.replace(/^\/store\.zarr\//, "");
+      const headers = { "access-control-allow-origin": "*", "access-control-expose-headers": "content-range" };
+      const [name, ...rest] = path.split("/");
+      const a = arrays[name];
+      if (a && rest.join("/") === "zarr.json") {
+        return route.fulfill({ status: 200, headers, contentType: "application/json", body: JSON.stringify(a.meta) });
+      }
+      if (a && rest.join("/") === a.chunkKey) {
+        const range = route.request().headers().range;
+        if (name === "t") reads.push(range ?? "whole");
+        const m = /^bytes=(\d*)-(\d*)$/.exec(range ?? "");
+        if (!m) return route.fulfill({ status: 200, headers, contentType: "application/octet-stream", body: a.chunk });
+        const n = a.chunk.length;
+        const [start, end] = m[1] === "" ? [n - Number(m[2]), n - 1] : [Number(m[1]), m[2] === "" ? n - 1 : Number(m[2])];
+        const body = a.chunk.subarray(start, end + 1);
+        return route.fulfill({ status: 206, headers: { ...headers, "content-range": `bytes ${start}-${end}/${n}` }, contentType: "application/octet-stream", body });
+      }
+      return route.fulfill({ status: 404, headers });
+    });
+    return reads;
+  }
+
+  for (const [kind, array] of [
+    ["a whole chunk", () => plain(SHAPE, "float32", DIMS, ATTRS, values(SHAPE))],
+    ["an inner chunk of a shard", sharded],
+  ]) {
+    test(`switching member decodes it from ${kind} already read, with no new request`, async ({ page }) => {
+      const reads = await serve(page, array());
+      await page.goto(PAGE);
+      await loadMap(page);
+      const member = page.getByRole("combobox", { name: "ensemble_member" });
+      const received = page.locator(".explore-map [data-bytes]");
+      await expectDrawn(page, -20, MEMBER_C, WHERE);
+      const readsBefore = reads.length;
+      const receivedBefore = await received.textContent();
+      expect(readsBefore).toBeGreaterThan(0);
+
+      await member.selectOption({ index: 2 });
+      await expectState(page, "ready");
+      await expectDrawn(page, 30, MEMBER_C, WHERE);
+      await member.selectOption({ index: 1 });
+      await expectState(page, "ready");
+      await expectDrawn(page, 5, MEMBER_C, WHERE);
+      expect(reads.length, `chunk reads: ${reads.join(", ")}`).toBe(readsBefore);
+      await expect(received).toHaveText(receivedBefore);
+    });
+  }
+});

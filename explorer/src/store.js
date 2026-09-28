@@ -14,6 +14,7 @@ import { HttpStorage, IcechunkStore, NotFoundError, StorageError, encodeObjectId
 import * as zarr from "zarrita";
 import { registerCodecs } from "./codecs.js";
 import { retryingFetchClient } from "./grib/retry-fetch.js";
+import { cachingStore } from "./lib/byte-cache.js";
 import { cachedPromise } from "./lib/cache.js";
 import { meteredFetch } from "./lib/meter.js";
 
@@ -25,6 +26,12 @@ import { meteredFetch } from "./lib/meter.js";
  *   open: (path: string) => Promise<zarr.Array<zarr.DataType, zarr.Readable>>,
  * }} Store
  */
+
+/**
+ * Default budget for the bytes kept of chunk reads (lib/byte-cache.js): enough for a
+ * first view of the heaviest ensemble store, whose every chunk holds all its members.
+ */
+export const DEFAULT_CACHE_BYTES = 256e6;
 
 /** Icechunk objects named by their content hash; everything else (the v2 "repo"
  * file, v1 refs/) can change in place. */
@@ -88,13 +95,16 @@ function revalidatingStorage(url, fetchImpl) {
  *   signal?: AbortSignal,
  *   onRetry?: (info: { url: string, attempt: number, reason: string }) => void,
  *   onBytes?: (bytes: number) => void,
+ *   maxCacheBytes?: number,
  * }} [opts]
  *   `onRetry` is called before each retry of a virtual chunk read (for a status line).
  *   `onBytes` is called as response bodies arrive, on every path the store reads through:
  *   its own objects, upstream virtual chunks (each retry counts again), or a plain zarr URL.
+ *   Arrays are opened through a byte cache of `maxCacheBytes` (lib/byte-cache.js), so a
+ *   chunk read again (an ensemble member switch) comes from memory, not the network.
  * @returns {Promise<Store>}
  */
-export async function openStore(href, { signal, onRetry, onBytes = () => {} } = {}) {
+export async function openStore(href, { signal, onRetry, onBytes = () => {}, maxCacheBytes = DEFAULT_CACHE_BYTES } = {}) {
   registerCodecs();
   const url = href.replace(/\/$/, "");
   const fetchImpl = meteredFetch((...args) => globalThis.fetch(...args), onBytes);
@@ -104,7 +114,7 @@ export async function openStore(href, { signal, onRetry, onBytes = () => {} } = 
       signal,
       fetchClient: retryingFetchClient({ onRetry, fetchImpl }),
     });
-    const root = zarr.root(store);
+    const root = zarr.root(cachingStore(store, { maxBytes: maxCacheBytes }));
     return {
       store,
       snapshotId: encodeObjectId12(store.session.getSnapshotId()),
@@ -113,7 +123,7 @@ export async function openStore(href, { signal, onRetry, onBytes = () => {} } = 
     };
   }
   const store = new zarr.FetchStore(url, { fetch: fetchImpl });
-  const root = zarr.root(store);
+  const root = zarr.root(cachingStore(store, { maxBytes: maxCacheBytes }));
   const metaCache = new Map();
   return {
     store,
