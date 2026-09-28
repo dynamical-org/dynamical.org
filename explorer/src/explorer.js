@@ -212,8 +212,12 @@ export function mount(el, options) {
     if (s.destroyed) return;
     statusEl.title = statusEl.textContent;
     gpuWarning.title = gpuWarning.textContent;
+    // Hiding Details to measure drops its keyboard focus, so a focused one gets it back
+    // when it stays.
+    const focused = document.activeElement === detailsBtn;
     detailsBtn.hidden = true;
     detailsBtn.hidden = ![statusEl, gpuWarning].some((e) => !e.hidden && e.scrollWidth > e.clientWidth);
+    if (focused && !detailsBtn.hidden) detailsBtn.focus({ preventScroll: true });
     if (detailsEl.matches(":popover-open")) fillDetails();
   }
   function fillDetails() {

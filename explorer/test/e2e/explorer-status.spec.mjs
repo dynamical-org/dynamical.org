@@ -39,15 +39,24 @@ const heights = (page) =>
     return { row: r.height, widget: map.getBoundingClientRect().height, outside };
   });
 
-/** When the status is cut short, Details shows and opens the whole of it. */
+const warning = (page) => page.locator('.explore-map [data-warning="gpu"]');
+const details = (page) => page.locator(".explore-map").getByRole("button", { name: "Details" });
+
+/** The status and the GPU warning texts that are cut short in the row. */
+const cutTexts = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('.explore-map [role="status"], .explore-map [data-warning="gpu"]')]
+      .filter((e) => !e.hidden && e.scrollWidth > e.clientWidth)
+      .map((e) => e.textContent),
+  );
+
+/** When the status or the warning is cut short, Details shows and opens the whole of each. */
 async function expectWhole(page) {
-  const cut = await status(page).evaluate((e) => e.scrollWidth > e.clientWidth);
-  const details = page.locator(".explore-map").getByRole("button", { name: "Details" });
-  if (!cut) return expect(details).toBeHidden();
-  const text = await status(page).textContent();
-  await details.click();
+  const cut = await cutTexts(page);
+  if (!cut.length) return expect(details(page)).toBeHidden();
+  await details(page).click();
   await expect(page.locator(".explorer-details")).toBeVisible();
-  await expect(page.locator(".explorer-details")).toContainText(text);
+  for (const text of cut) await expect(page.locator(".explorer-details")).toContainText(text);
   await page.keyboard.press("Escape");
   await expect(page.locator(".explorer-details")).toBeHidden();
 }
@@ -155,15 +164,41 @@ for (const [device, viewport] of [
       );
       // The GPU-memory warning: a long sentence beside the status
       const warned = await measure({ variables: FIXTURE_VARIABLES, maxTextureBytes: 1000 }, async (page) => {
-        await expect(page.locator('.explore-map [data-warning="gpu"]')).toBeAttached();
-        await expect(page.locator('.explore-map [data-warning="gpu"]')).not.toHaveAttribute("hidden");
+        await expect(warning(page)).toBeAttached();
+        await expect(warning(page)).not.toHaveAttribute("hidden");
         // the warning takes only the room the status leaves
         await expect(status(page)).toHaveText("Ready");
         expect(await status(page).evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+        // the warning's long sentence is cut short, and Details opens it whole
+        expect(await cutTexts(page)).toContain(await warning(page).textContent());
+        await expectWhole(page);
       });
       expect([...empty.outside, ...warned.outside], "children outside the row").toEqual([]);
       expect(empty.row, "status row, no data").toBeCloseTo(ready.row, 1);
       expect(warned.row, "status row, GPU warning").toBeCloseTo(ready.row, 1);
+      // The same fixture and controls, so the whole widget matches too (No data's fixture
+      // has other controls, so only its row is compared).
+      expect(warned.widget, "widget, GPU warning").toBeCloseTo(ready.widget, 1);
+    });
+
+    test("a focused Details keeps focus as the row refits", async ({ page }) => {
+      await offline(page, {
+        overrides: { variables: PARTIAL_ANALYSIS_VARIABLES, defaultVariable: "temperature_2m_analysis_partial", maxTextureLayers: 128 },
+      });
+      await page.goto(PAGE);
+      await loadMap(page);
+      await moveSlider(page, ["ArrowRight"]);
+      await expectState(page, "empty");
+      // make sure the long No data message is cut short, whatever the width
+      await page.setViewportSize({ width: 390, height: viewport.height });
+      await expect(details(page)).toBeVisible();
+      await details(page).focus();
+      // a resize refits the row
+      await page.setViewportSize({ width: 380, height: viewport.height });
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await expect(details(page)).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page.locator(".explorer-details")).toBeVisible();
     });
   });
 }
