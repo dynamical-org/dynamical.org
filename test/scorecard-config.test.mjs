@@ -22,6 +22,7 @@ const {
   DEFAULT_METRIC,
   encodedWindowValues,
   initDB,
+  legendLabel,
   modelCoversRegion,
 } = await import(
   `data:text/javascript,${encodeURIComponent(readFileSync(SCORECARD_JS, "utf8"))}`
@@ -47,6 +48,14 @@ test("HRDPS state coverage requires the whole state, not just some stations", ()
     assert.equal(modelCoversRegion(model, { scope: "country", stateAbbr: "NY" }), false);
   }
   assert.equal(modelCoversRegion("NOAA GFS", { scope: "state", stateAbbr: "IL" }), true);
+});
+
+test("legend labels drop the virtual suffix and leave other names alone", () => {
+  assert.equal(legendLabel("Google WeatherNext 2, virtual"), "Google WeatherNext 2");
+  assert.equal(legendLabel("ECMWF AIFS Single, virtual (bc)"), "ECMWF AIFS Single (bc)");
+  for (const model of ["NOAA GFS", "ECCC HRDPS (bc)", "Example, virtual-analysis"]) {
+    assert.equal(legendLabel(model), model);
+  }
 });
 
 test("every offered metric has display configuration", () => {

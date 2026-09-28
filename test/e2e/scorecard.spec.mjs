@@ -114,6 +114,11 @@ for (const { name, path, charts } of PAGES) {
 
     for (const id of charts) await expectPlot(page, id);
 
+    // The parquet names virtual products "…, virtual"; legendLabel drops that.
+    const legends = await page.locator('[class*="-swatches"]').allTextContents();
+    expect(legends.length, `${name} drew no legend`).toBeGreaterThan(0);
+    expect(legends.join("\n")).not.toContain(", virtual");
+
     expect(errors, `${name} logged console errors`).toEqual([]);
   });
 }
