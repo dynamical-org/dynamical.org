@@ -66,10 +66,24 @@ function borderPath(lines, project, { width, height }, minStep = 1.5) {
   return d;
 }
 
+// Lines cut where they cross the antimeridian: a border there (Chukotka, Fiji) steps from
+// +180° to −180°, and drawn as one line that step runs across the whole world. The live
+// map's GeoJsonLayer does the same with wrapLongitude.
+function splitAntimeridian(lines) {
+  return lines.flatMap((line) => {
+    const parts = [[line[0]]];
+    for (let i = 1; i < line.length; i++) {
+      if (Math.abs(line[i][0] - line[i - 1][0]) > 180) parts.push([]);
+      parts[parts.length - 1].push(line[i]);
+    }
+    return parts;
+  });
+}
+
 // The preview for one dataset: countries-50m's borders over initialView.bounds.
 // Colour comes from the site's tokens, so both themes work.
 function previewSvg(topology, bounds, frame = FRAME) {
-  const lines = mesh(topology, topology.objects.countries).coordinates;
+  const lines = splitAntimeridian(mesh(topology, topology.objects.countries).coordinates);
   const { width, mapHeight: height, padding } = frame;
   const d = borderPath(lines, fitBounds(bounds, { width, height, padding }), frame);
   return (
@@ -79,4 +93,4 @@ function previewSvg(topology, bounds, frame = FRAME) {
   );
 }
 
-module.exports = { FRAME, mercator, fitBounds, borderPath, previewSvg };
+module.exports = { FRAME, mercator, fitBounds, borderPath, splitAntimeridian, previewSvg };

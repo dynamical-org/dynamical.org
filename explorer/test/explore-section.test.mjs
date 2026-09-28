@@ -266,3 +266,23 @@ test("the preview is drawn for the view the map opens on", () => {
   const [, attr] = /<svg data-bounds="([^"]+)">/.exec(html);
   assert.deepEqual(attr.split(",").map(Number), chunkView(withCube, { id: "noaa-gfs-forecast", defaultVariable: "temperature_2m", initialView: { bounds: [-125, 24, -66, 50] } }).bounds);
 });
+
+// Round 5 (Marsh, 2026-09-28): on the world view the preview drew straight lines across
+// the map. A border that crosses the antimeridian (Chukotka, Fiji) steps from +180° to
+// −180°; with both ends in the frame, the step was drawn as a line across it.
+test("a border crossing the antimeridian draws no line across the world preview", () => {
+  const topology = {
+    type: "Topology",
+    objects: { countries: { type: "GeometryCollection", geometries: [{ type: "LineString", arcs: [0] }] } },
+    arcs: [[[170, 65], [179.9, 66], [-179.9, 66], [-170, 65]]],
+  };
+  const svg = previewSvg(topology, [-180, -60, 180, 75]);
+  const [, d] = /<path d="([^"]*)"/.exec(svg);
+  // Every relative step is short: nothing spans half the 778-unit frame.
+  const steps = [...d.matchAll(/l([-\d ]+)/g)].flatMap(([, run]) => {
+    const n = run.match(/-?\d+/g).map(Number);
+    return n.flatMap((v, i) => (i % 2 ? [] : [Math.abs(v)]));
+  });
+  assert.ok(steps.length > 0, `path ${d}`);
+  assert.ok(Math.max(...steps) < 389, `a step of ${Math.max(...steps)} units in ${d}`);
+});
