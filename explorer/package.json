@@ -2,7 +2,7 @@
   "name": "dynamical-explorer",
   "private": true,
   "type": "module",
-  "description": "Browser map explorer for dynamical.org Icechunk stores, bundled into public/explorer/",
+  "description": "Browser map explorer for dynamical.org Icechunk stores, bundled into dist/ and served at /explorer/",
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch"

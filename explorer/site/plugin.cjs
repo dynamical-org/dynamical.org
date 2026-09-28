@@ -1,7 +1,8 @@
 // The explorer's Eleventy plugin, and its whole footprint on the site:
 // .eleventy.js adds it, and content/catalog-pages.njk calls {% explorer entry %}
 // where the Explore section goes. It
-// - builds the explorer bundle (build.cjs) before each build, into explorer/dist/;
+// - builds the explorer bundle (build.cjs) into explorer/dist/, once per Eleventy
+//   process: watch-mode rebuilds reuse it;
 // - copies that bundle to /explorer/;
 // - renders the section: an empty-map preview with the load button, its styles
 //   (section.css) and the click loader (loader.js). Datasets not listed in

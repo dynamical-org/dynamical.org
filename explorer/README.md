@@ -18,8 +18,8 @@ site touches it in two places:
 - `content/catalog-pages.njk` calls `{% explorer entry %}` where the Explore section goes.
 
 The plugin
-- builds this package before the site build (`site/build.cjs`): once per Eleventy
-  process, so after editing `explorer/`, restart `npm start`. It reruns `npm ci` when
+- builds this package when Eleventy starts its first build (`site/build.cjs`): once per
+  Eleventy process, so after editing `explorer/`, restart `npm start`. It reruns `npm ci` when
   `package.json` or `package-lock.json` changes. The bundle in `dist/` is build output
   and is not committed;
 - copies `dist/` to `/explorer/`;
@@ -30,12 +30,16 @@ The plugin
   `/explorer/explorer.js` (`site/loader.js`). No explorer JS or weather data loads
   before the click.
 
-Elsewhere, the repo's `npm test` and `playwright.config.mjs` run `test/` here, and the
-browser-test workflow's path filter includes `explorer/**`. Cloudflare Pages needs Node
-22 (Vite 8's floor), set by the repo's `.node-version`.
+Elsewhere, the repo's `npm test` and `playwright.config.mjs` run `explorer/test/`, the
+browser-test workflow's path filter includes `explorer/**` and the two files above, and
+CLAUDE.md's command list names `explorer/test/`.
 
-To remove the explorer: delete `explorer/`, those two lines, and those test and CI
-entries.
+Vite 8 needs Node `^20.19.0 || >=22.12.0`. The Cloudflare Pages preview builds meet
+that without a repo Node pin (checked 2026-09-28); the production build settings were
+not inspected.
+
+To remove the explorer: delete `explorer/`, the two lines above, and those test, CI and
+CLAUDE.md entries.
 
 ## API
 
@@ -345,7 +349,7 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 
 ## Tests
 
-`npm test` at the repo root runs `test/*.test.mjs` offline. They import
+`npm test` at the repo root runs `explorer/test/*.test.mjs` offline. They import
 `src/lib/*.js` and `site/*.cjs` directly, so they need no build and no
 `explorer/node_modules`. They cover:
 - the grid transforms: descending and ascending latitude, 0..360, non-uniform
@@ -369,6 +373,7 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 - the site plugin: mount options, the Explore section's markup and escaping, the
   preview's projection and clipping, and when the build hook installs and builds.
 
-`npm run test:e2e` at the repo root also runs `test/e2e/` (the `explorer` Playwright
-project): offline specs against the tiny Icechunk store in `test/fixtures/`, plus a live
+`npm run test:e2e` at the repo root also runs `explorer/test/e2e/` (the `explorer`
+Playwright project): offline specs against the tiny Icechunk store in
+`explorer/test/fixtures/`, plus a live
 GFS and GFS-virtual smoke test.
