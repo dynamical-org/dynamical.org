@@ -2,10 +2,11 @@
 // link only the platforms named here, so leave a platform out until its listing
 // is live — never fill in a URL by pattern.
 //
-// Checked 2026-09-28: every URL loads and names its dataset. Sources, when adding
-// or rechecking:
+// Full sweep 2026-09-28: every URL loads and names its dataset (evidence and the
+// known gaps are in dynamical-org/dynamical.org#253). Move this date only after
+// rechecking every entry. Sources, when adding or rechecking:
 // - earthmover: the dynamical.org cards on https://app.earthmover.io/marketplace
-//   (listings are UI-only; there's no API). A missing id renders "Listing Not Found".
+//   (no public listing API found). A missing id renders "Listing Not Found".
 // - source_coop: https://source.coop/api/v1/products/dynamical — match a product to
 //   the catalog id by its mirror prefix, not its product id (the 46-day IFS ENS
 //   products drop "forecast").
