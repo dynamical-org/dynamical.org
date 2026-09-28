@@ -18,6 +18,7 @@ eleventyComputed:
 ---
 
 {% from "tag-icon.njk" import tagIcon %}
+{% from "agent-prompt.njk" import agentPrompt %}
 <style>
   .content.catalog-item {
     font-size: 1.4rem;
@@ -30,6 +31,16 @@ eleventyComputed:
   .cat-tags svg,
   .related-datasets svg {
     margin-right: 0.4em;
+  }
+  /* The ID row: the copy-prompt control (agent-prompt.njk), trimmed to a
+     one-line field in the table's type size. */
+  td .agent-prompt textarea {
+    padding: 0.2em 0.5em;
+    font-size: inherit;
+    resize: none;
+  }
+  td .agent-prompt button {
+    margin-top: 0.3rem;
   }
   .metadata-comment {
     font-size: 80%;
@@ -263,6 +274,10 @@ eleventyComputed:
   </div>
   <table>
     <tr>
+      <td>ID</td>
+      <td>{{ agentPrompt(entry.id, "Dataset ID", "dataset-id", 1) }}</td>
+    </tr>
+    <tr>
       <td>Spatial domain</td>
       <td>{{ entry.spatial_domain }}</td>
     </tr>
@@ -298,9 +313,14 @@ eleventyComputed:
       · <a href="{{ entry.validation_report_href }}">validation report</a>
     {% endif %}
     {%- set listing = listings[entry.id] %}
-    {% if listing.earthmover %} · <a href="{{ listing.earthmover }}">Earthmover Marketplace</a>{% endif %}
-    {% if listing.source_coop %} · <a href="{{ listing.source_coop }}">Source Cooperative</a>{% endif %}
-    {% if listing.aws %} · <a href="{{ listing.aws }}">AWS Open Data Registry</a>{% endif %}
+    {% if listing %}
+      <br>
+      {%- set links = [] %}
+      {%- if listing.earthmover %}{% set _ = links.push(["Earthmover Marketplace", listing.earthmover]) %}{% endif %}
+      {%- if listing.source_coop %}{% set _ = links.push(["Source Cooperative", listing.source_coop]) %}{% endif %}
+      {%- if listing.aws %}{% set _ = links.push(["AWS Open Data Registry", listing.aws]) %}{% endif %}
+      {% for link in links %}{{ " · " if not loop.first }}<a href="{{ link[1] }}">{{ link[0] }}</a>{% endfor %}
+    {% endif %}
   </p>
   {% if model.description %}
     <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
