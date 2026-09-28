@@ -53,7 +53,7 @@ test("HRDPS state coverage requires the whole state, not just some stations", ()
 test("legend labels drop the virtual suffix and leave other names alone", () => {
   assert.equal(legendLabel("Google WeatherNext 2, virtual"), "Google WeatherNext 2");
   assert.equal(legendLabel("ECMWF AIFS Single, virtual (bc)"), "ECMWF AIFS Single (bc)");
-  for (const model of ["NOAA GFS", "ECCC HRDPS (bc)", "Virtual Model"]) {
+  for (const model of ["NOAA GFS", "ECCC HRDPS (bc)", "Example, virtual-analysis"]) {
     assert.equal(legendLabel(model), model);
   }
 });

@@ -34,7 +34,7 @@ export function modelCoversRegion(model, { scope = "country", stateAbbr } = {}) 
 // "Google WeatherNext 2, virtual". The legend drops the access pattern; the
 // color domain keeps the full name so series stay distinct.
 export function legendLabel(model) {
-  return model.replace(/, virtual\b/, "");
+  return model.replace(/, virtual(?=( \(bc\))?$)/, "");
 }
 
 // DuckDB exposes parquet durations as their encoded integers. The writer now
