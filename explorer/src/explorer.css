@@ -68,6 +68,49 @@
   width: 12rem;
   height: 1rem;
 }
+/* The status row is one height in every state (Ready, Buffering…, errors, No data, the GPU
+   warning), so nothing below the explorer moves: one line, tall enough for its link
+   buttons, never wrapping. Only its text spans clip, not the row, so button focus rings
+   stay whole. Text that doesn't fit ends in an ellipsis, and Details opens it whole. The
+   status keeps its room longest: the byte count shrinks first, and the warning takes only
+   what's left. */
+.explorer-strip > .explorer-status:not([hidden]) {
+  flex-wrap: nowrap;
+  height: calc(1lh + 0.4rem);
+  column-gap: 1rem;
+}
+.explorer-status > * {
+  flex: none;
+  white-space: nowrap;
+}
+.explorer-status > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.explorer-status > [role="status"] {
+  flex: 0 1 auto;
+}
+.explorer-status > [data-bytes] {
+  flex: 0 4 auto;
+}
+.explorer-status > [data-warning] {
+  flex: 1 1 0;
+}
+.explorer-details {
+  max-width: min(60ch, calc(100vw - 3.2rem));
+  padding: 1rem 1.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+.explorer-details > p {
+  margin: 0;
+}
+.explorer-details > p + p {
+  margin-top: 0.8rem;
+}
 .explorer[data-state="error"] [role="status"] {
   color: var(--pill-down-bg);
   font-weight: 700;

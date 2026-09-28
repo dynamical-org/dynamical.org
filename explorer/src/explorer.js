@@ -114,14 +114,21 @@ export function mount(el, options) {
   const statusEl = h("span", { role: "status" });
   // Outside the live region, so its updates aren't announced.
   const bytesEl = h("span", { className: "dim", dataset: { bytes: "" } });
+  // The status row keeps one line in every state, so the widget's height never moves.
+  // Text that doesn't fit is cut short; Details, shown only then, opens it whole in a
+  // popover over the page (see fitStatus).
+  const detailsEl = h("div", { className: "explorer-details", popover: "auto" });
+  const detailsBtn = h("button", { type: "button", textContent: "Details", hidden: true });
+  detailsBtn.popoverTargetElement = detailsEl;
+  const statusRow = h("div", { className: "explorer-status" }, [statusEl, bytesEl, stopBtn, retryBtn, detailsBtn, gpuWarning]);
   const strip = h("div", { className: "explorer-strip" }, [
     h("div", {}, [h("label", {}, [h("span", { className: "dim", textContent: "Variable" }), " ", varSelect]), extrasEl]),
     sliderRow,
     h("div", {}, [timesEl, h("span", { className: "explorer-legend" }, [legendMin, legendCanvas, legendMax])]),
-    h("div", {}, [statusEl, bytesEl, stopBtn, retryBtn, gpuWarning]),
+    statusRow,
   ]);
   el.classList.add("explorer");
-  el.replaceChildren(mapEl, strip);
+  el.replaceChildren(mapEl, strip, detailsEl);
 
   // ---- state ----------------------------------------------------------------
   const s = {
@@ -188,12 +195,36 @@ export function mount(el, options) {
     statusEl.textContent = play.on && state === "loading" ? "Buffering…" : msg;
     retryBtn.hidden = state !== "error" && state !== "stopped";
     stopBtn.hidden = state !== "loading";
+    fitStatus();
     // An error view never settles, so Play couldn't advance from it: Retry is the way out.
     playBtn.disabled = s.error || slider.disabled;
     if (state === "error" || state === "stopped") pause();
     else if (state === "ready" || state === "empty") frameShown();
     else if (state === "loading") restartDwell();
   }
+
+  /**
+   * Whether the status or the GPU warning is cut short, which shows Details. Measured with
+   * Details hidden, so showing it can't be what makes the text fit. Every change to the
+   * row's text or width calls it.
+   */
+  function fitStatus() {
+    if (s.destroyed) return;
+    statusEl.title = statusEl.textContent;
+    gpuWarning.title = gpuWarning.textContent;
+    detailsBtn.hidden = true;
+    detailsBtn.hidden = ![statusEl, gpuWarning].some((e) => !e.hidden && e.scrollWidth > e.clientWidth);
+    if (detailsEl.matches(":popover-open")) fillDetails();
+  }
+  function fillDetails() {
+    const texts = [statusEl.textContent, gpuWarning.hidden ? "" : gpuWarning.textContent].filter(Boolean);
+    detailsEl.replaceChildren(...texts.map((t) => h("p", { textContent: t })));
+  }
+  detailsEl.addEventListener("beforetoggle", (e) => {
+    if (/** @type {any} */ (e).newState === "open") fillDetails();
+  });
+  const statusResize = new ResizeObserver(() => fitStatus());
+  statusResize.observe(statusRow);
 
   // ---- data received ----------------------------------------------------------
   let bytesTimer = 0;
@@ -203,6 +234,7 @@ export function mount(el, options) {
     bytesTimer = setTimeout(() => {
       bytesTimer = 0;
       bytesEl.textContent = `· ${formatMB(s.bytes)} received`;
+      fitStatus();
     }, BYTES_UPDATE_MS);
   }
 
@@ -449,6 +481,7 @@ export function mount(el, options) {
       }
     }
     gpuWarning.hidden = !warn;
+    fitStatus();
     if (info && range && s.colormap) {
       const { sel, block } = selectionFor(info, s.pinnedIdx, s.stepIndex);
       const base = baseKey(info, s.pinnedIdx, block);
@@ -921,6 +954,7 @@ export function mount(el, options) {
   function onUpstreamRetry({ url, attempt }) {
     if (s.destroyed || el.dataset.state !== "loading") return;
     statusEl.textContent = `Upstream request failed (${new URL(url).host}), retrying (attempt ${attempt + 1})…`;
+    fitStatus();
   }
 
   async function start() {
@@ -978,6 +1012,7 @@ export function mount(el, options) {
       cancelAnimationFrame(budgetFrame);
       clearTimeout(bytesTimer);
       document.removeEventListener("visibilitychange", onVisibility);
+      statusResize.disconnect();
       s.abort.abort();
       scheme.removeEventListener("change", onScheme);
       deck.finalize();
