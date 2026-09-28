@@ -297,6 +297,10 @@ eleventyComputed:
     {% elif entry.validation_report_href %}
       · <a href="{{ entry.validation_report_href }}">validation report</a>
     {% endif %}
+    {%- set listing = listings[entry.id] %}
+    {% if listing.earthmover %} · <a href="{{ listing.earthmover }}">Earthmover Marketplace</a>{% endif %}
+    {% if listing.source_coop %} · <a href="{{ listing.source_coop }}">Source Cooperative</a>{% endif %}
+    {% if listing.aws %} · <a href="{{ listing.aws }}">AWS Open Data Registry</a>{% endif %}
   </p>
   {% if model.description %}
     <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
