@@ -1,15 +1,15 @@
 // Offline tests of the explorer's GRIB2 support (explorer/src/grib/): the "gribberish" zarr
 // codec against expected values from gribberish's Python codec, the retrying fetch client,
-// and the whole-grid tile facade. Fixtures and expectations: test/fixtures/grib/make_fixtures.py.
+// and the whole-grid tile facade. Fixtures and expectations: explorer/test/fixtures/grib/make_fixtures.py.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { GribberishCodec, drsTemplate, initGrib, registerGribberish } from "../explorer/src/grib/codec.js";
-import { retryingFetchClient } from "../explorer/src/grib/retry-fetch.js";
-import { createTileFacade, isWholeGridChunked } from "../explorer/src/grib/tile-facade.js";
+import { GribberishCodec, drsTemplate, initGrib, registerGribberish } from "../src/grib/codec.js";
+import { retryingFetchClient } from "../src/grib/retry-fetch.js";
+import { createTileFacade, isWholeGridChunked } from "../src/grib/tile-facade.js";
 
-const grib = new URL("../explorer/src/grib/", import.meta.url);
+const grib = new URL("../src/grib/", import.meta.url);
 const fixtures = new URL("fixtures/grib/", import.meta.url);
 const expected = JSON.parse(readFileSync(new URL("expected.json", fixtures), "utf8")).fixtures;
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");

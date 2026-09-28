@@ -1,7 +1,7 @@
 // Offline tests of the explorer's spatial adapter (explorer/src/lib/grid.js).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildGrid, cfToProj4, nearestCell, shiftAttrs, uniformAxis } from "../explorer/src/lib/grid.js";
+import { buildGrid, cfToProj4, nearestCell, shiftAttrs, uniformAxis } from "../src/lib/grid.js";
 
 const range = (start, step, n) => Array.from({ length: n }, (_, i) => start + i * step);
 

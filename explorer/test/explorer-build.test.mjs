@@ -6,7 +6,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { makeExplorerBuilder, installFingerprint, MARKER } = require("../lib/explorer-build.js");
+const { makeExplorerBuilder, installFingerprint, MARKER } = require("../site/build.cjs");
 
 // A throwaway explorer/ with npm files; `npm ci` is faked by creating the
 // Vite binary, so the builder's install check sees a real installation.

@@ -8,9 +8,9 @@
 #   "zarr==3.4.0",
 # ]
 # ///
-"""Regenerate the GRIB2 fixtures and expected values for test/explorer-grib.test.mjs.
+"""Regenerate the GRIB2 fixtures and expected values for explorer/test/explorer-grib.test.mjs.
 
-    uv run test/fixtures/grib/make_fixtures.py
+    uv run explorer/test/fixtures/grib/make_fixtures.py
 
 Each fixture starts from a real message that a virtual store references. It is subsampled
 to a 4° global grid (46 x 90) and re-encoded with eccodes in one data representation

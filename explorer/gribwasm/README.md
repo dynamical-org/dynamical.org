@@ -27,7 +27,7 @@ wasm-bindgen --target web --no-typescript --out-dir explorer/src/grib <target>/w
 
 It then rewrites `SHA256SUMS`. It keeps `target/` outside the repo (in `$CARGO_TARGET_DIR`, default `$TMPDIR/dynamical-gribwasm-target`). It also remaps the Cargo home and crate paths out of the binary, so a rebuild with the same toolchain gives byte-identical files. That was checked by rebuilding into a fresh target directory. Set `WASM_BINDGEN=/path/to/wasm-bindgen` if the binary isn't on `PATH`.
 
-After a rebuild, run `npm test`. `test/explorer-grib.test.mjs` checks the checksums and decodes the fixtures in `test/fixtures/grib/` against values from gribberish's Python codec. If you move the gribberish pin, regenerate those fixtures and expectations with `uv run test/fixtures/grib/make_fixtures.py`.
+After a rebuild, run `npm test`. `explorer/test/explorer-grib.test.mjs` checks the checksums and decodes the fixtures in `explorer/test/fixtures/grib/` against values from gribberish's Python codec. If you move the gribberish pin, regenerate those fixtures and expectations with `uv run explorer/test/fixtures/grib/make_fixtures.py`.
 
 ## Template coverage
 

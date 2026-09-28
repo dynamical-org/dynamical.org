@@ -6,14 +6,36 @@ catalog pages; this package builds it.
 
 ```sh
 npm --prefix explorer ci            # exact versions from explorer/package-lock.json
-npm --prefix explorer run build     # → public/explorer/explorer.js + lazy chunks
+npm --prefix explorer run build     # → explorer/dist/explorer.js + lazy chunks
 ```
 
-The site build does this itself. An `eleventy.before` hook in `.eleventy.js`
-builds the explorer once per Eleventy process, so after editing `explorer/`,
-restart `npm start`. The hook reruns `npm ci` when `explorer/package.json` or
-`package-lock.json` changes. The bundle in `public/explorer/` is build output
-and is not committed.
+## On the site
+
+Everything the site needs is in `site/`, an Eleventy plugin (`site/plugin.cjs`). The
+site touches it in two places:
+
+- `.eleventy.js` adds the plugin;
+- `content/catalog-pages.njk` calls `{% explorer entry %}` where the Explore section goes.
+
+The plugin
+- builds this package before the site build (`site/build.cjs`): once per Eleventy
+  process, so after editing `explorer/`, restart `npm start`. It reruns `npm ci` when
+  `package.json` or `package-lock.json` changes. The bundle in `dist/` is build output
+  and is not committed;
+- copies `dist/` to `/explorer/`;
+- renders the Explore section for the datasets listed in `site/datasets.cjs`, and
+  nothing for the rest: an empty map of the initial view (`site/preview.cjs`, SVG
+  built from the same borders the map draws) under a "Load interactive map" button,
+  the section's styles (`site/section.css`) and the click handler that imports
+  `/explorer/explorer.js` (`site/loader.js`). No explorer JS or weather data loads
+  before the click.
+
+Elsewhere, the repo's `npm test` and `playwright.config.mjs` run `test/` here, and the
+browser-test workflow's path filter includes `explorer/**`. Cloudflare Pages needs Node
+22 (Vite 8's floor), set by the repo's `.node-version`.
+
+To remove the explorer: delete `explorer/`, those two lines, and those test and CI
+entries.
 
 ## API
 
@@ -54,8 +76,9 @@ styled as links, like the copy link on agent prompts.
 The map keeps 16:9 and at least the preview's height: the catalog box's 320 px floor, less
 its two 1 px borders. So on a phone the map takes the preview's place at the same size, and
 the control strip sits below it. On a phone the
-strip wraps to several lines, so the page's box has to let the widget grow: the catalog
-page's `.explore-map` needs `.explore-map.explorer { aspect-ratio: auto; min-height: 0; }`.
+strip wraps to several lines, so the page's box has to let the widget grow: the Explore
+section's `.explore-map` has `.explore-map.explorer { aspect-ratio: auto; min-height: 0; }`
+(`site/section.css`).
 In a box of fixed height the map shrinks to fit, down to that floor.
 
 ## How it works
@@ -322,9 +345,9 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 
 ## Tests
 
-`npm test` at the repo root runs `test/explorer-*.test.mjs` offline. They import
-`src/lib/*.js` directly, so they need no build and no `explorer/node_modules`. They
-cover:
+`npm test` at the repo root runs `test/*.test.mjs` offline. They import
+`src/lib/*.js` and `site/*.cjs` directly, so they need no build and no
+`explorer/node_modules`. They cover:
 - the grid transforms: descending and ascending latitude, 0..360, non-uniform
   coordinates;
 - proj4 strings from CF;
@@ -342,4 +365,10 @@ cover:
 - the retrying fetch client;
 - the data-received meter, alone and through the retrying client;
 - the legend text: units, close bounds, constant, sparse and empty samples;
-- the tile facade.
+- the tile facade;
+- the site plugin: mount options, the Explore section's markup and escaping, the
+  preview's projection and clipping, and when the build hook installs and builds.
+
+`npm run test:e2e` at the repo root also runs `test/e2e/` (the `explorer` Playwright
+project): offline specs against the tiny Icechunk store in `test/fixtures/`, plus a live
+GFS and GFS-virtual smoke test.

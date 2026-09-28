@@ -19,8 +19,8 @@ import {
 
 // The Explore section on a catalog page lazy-loads the map explorer (explorer/)
 // and reads an Icechunk store straight from S3. Offline, every request is
-// stubbed: S3 from test/fixtures/explorer-store/ (a tiny GFS-shaped repo, see
-// test/fixtures/make-explorer-store.py for its values) and the borders from a
+// stubbed: S3 from explorer/test/fixtures/explorer-store/ (a tiny GFS-shaped repo, see
+// explorer/test/fixtures/make-explorer-store.py for its values) and the borders from a
 // one-country topology. What only a browser can show, and so what this checks:
 // the bundle stays unloaded until asked for, cells land where their coordinates
 // say, a lead or time step draws that step's data, a slow reply never paints an

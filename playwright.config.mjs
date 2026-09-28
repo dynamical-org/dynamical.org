@@ -5,7 +5,11 @@ import { defineConfig } from "@playwright/test";
 // the published parquet files, so a run takes minutes and can fail for reasons
 // that have nothing to do with this repo. Run them with `npm run test:e2e`.
 export default defineConfig({
-  testDir: "./test/e2e",
+  // The catalog explorer keeps its own specs beside its code.
+  projects: [
+    { name: "site", testDir: "./test/e2e" },
+    { name: "explorer", testDir: "./explorer/test/e2e" },
+  ],
   // The scorecard queries scan tens of MB over the network before anything is
   // drawn; a whole page's worth of charts needs room to finish.
   timeout: 240_000,

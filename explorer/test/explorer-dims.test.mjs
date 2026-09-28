@@ -2,7 +2,7 @@
 // and shard-index probe (explorer/src/lib/{dims,time,colour}.js).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isCelsius, missingSentinels, sampleRange, toFloat32 } from "../explorer/src/lib/colour.js";
+import { isCelsius, missingSentinels, sampleRange, toFloat32 } from "../src/lib/colour.js";
 import {
   absolutePath,
   blockRange,
@@ -22,8 +22,8 @@ import {
   stepFlags,
   stepWithData,
   viewData,
-} from "../explorer/src/lib/dims.js";
-import { decodeCf, formatLead, formatUtc, parseCfUnits } from "../explorer/src/lib/time.js";
+} from "../src/lib/dims.js";
+import { decodeCf, formatLead, formatUtc, parseCfUnits } from "../src/lib/time.js";
 
 test("classifies forecast, ensemble, level and analysis dims", () => {
   assert.deepEqual(classifyDims(["init_time", "lead_time", "latitude", "longitude"]), {
@@ -288,7 +288,7 @@ test("findLatestData searches the rest of the chunk, then earlier chunks; null w
 });
 
 test("an all-one-value sample gives a provisional range that the first varying sample replaces", async () => {
-  const { initialRange, settleRange } = await import("../explorer/src/lib/colour.js");
+  const { initialRange, settleRange } = await import("../src/lib/colour.js");
   const zeros = new Float32Array(1000); // MRMS at Houston with no rain
   const first = initialRange("mm/h", zeros);
   assert.equal(first.provisional, true);

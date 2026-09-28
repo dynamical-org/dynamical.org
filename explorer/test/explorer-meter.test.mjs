@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { retryingFetchClient } from "../explorer/src/grib/retry-fetch.js";
-import { formatMB, meteredFetch } from "../explorer/src/lib/meter.js";
+import { retryingFetchClient } from "../src/grib/retry-fetch.js";
+import { formatMB, meteredFetch } from "../src/lib/meter.js";
 
 const body = (n) => new Uint8Array(n).fill(7);
 

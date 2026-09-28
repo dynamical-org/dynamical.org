@@ -2,7 +2,7 @@
 // recovers (the coordinate, grid and zarr-metadata caches in source.js and store.js).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cachedPromise } from "../explorer/src/lib/cache.js";
+import { cachedPromise } from "../src/lib/cache.js";
 
 test("a rejected promise is evicted, so the next call retries and then stays cached", async () => {
   const map = new Map();

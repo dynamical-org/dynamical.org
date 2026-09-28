@@ -3,7 +3,7 @@
 // selection (review pass 2, finding 1; the init and member controls).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { changeSelection, stepAccepted } from "../explorer/src/lib/pending.js";
+import { changeSelection, stepAccepted } from "../src/lib/pending.js";
 
 const sel = (path, pinnedIdx, extra = {}) => ({ path, initIndex: 7, pinnedIdx, stepIndex: 4, ...extra });
 

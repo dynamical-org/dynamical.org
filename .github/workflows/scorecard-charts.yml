@@ -23,6 +23,8 @@ on:
       # this data, so a change here can 404 the paths they hardcode.
       - _data/scorecard/**
       - test/e2e/**
+      # The catalog explorer's specs live with it.
+      - explorer/**
       - playwright.config.mjs
       - .github/workflows/scorecard-charts.yml
 

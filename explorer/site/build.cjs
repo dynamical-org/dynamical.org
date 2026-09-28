@@ -1,5 +1,5 @@
 // Builds the catalog explorer (explorer/), a separate Vite package whose
-// bundle lands in public/explorer/. It runs from .eleventy.js's
+// bundle lands in explorer/dist/. It runs from the plugin's (plugin.cjs)
 // eleventy.before hook rather than an npm script, because the Cloudflare Pages
 // build doesn't run `npm run build`, so a script-only step never reaches the
 // deploy.

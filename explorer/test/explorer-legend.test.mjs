@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { formatUnits, initialRange, legendParts, sampleRange } from "../explorer/src/lib/colour.js";
+import { formatUnits, initialRange, legendParts, sampleRange } from "../src/lib/colour.js";
 
 test("units read as written, in familiar notation, with no unit for a dimensionless 1", () => {
   assert.equal(formatUnits("kg m-2 s-1"), "kg m⁻² s⁻¹");

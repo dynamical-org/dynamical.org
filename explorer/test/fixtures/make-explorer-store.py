@@ -1,6 +1,6 @@
-"""Write test/fixtures/explorer-store/, a tiny Icechunk repo shaped like GFS forecast.
+"""Write explorer/test/fixtures/explorer-store/, a tiny Icechunk repo shaped like GFS forecast.
 
-The explorer e2e spec (test/e2e/explorer.spec.mjs) serves this directory in place of
+The explorer e2e spec (explorer/test/e2e/explorer.spec.mjs) serves this directory in place of
 the real S3 store, so it copies the real store's layout: the same array names,
 dimension names, attributes, codecs (sharding + blosc zstd, crc32c index at the end)
 and CF spatial_ref. Only the sizes shrink, to 2 init × 6 lead × 16 lat × 32 lon with
@@ -43,7 +43,7 @@ The other arrays each exercise one thing the explorer must handle:
 Icechunk writes random object ids, so rerunning rewrites every file. Run from the
 repo root:
 
-    uv run --with icechunk==2.2.2 --with zarr==3.4.0 --with numpy test/fixtures/make-explorer-store.py
+    uv run --with icechunk==2.2.2 --with zarr==3.4.0 --with numpy explorer/test/fixtures/make-explorer-store.py
 """
 
 import shutil

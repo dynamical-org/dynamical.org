@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
-const { explorerMountOptions } = require("../lib/explorer-config.js");
+const { explorerMountOptions } = require("../site/mount-options.cjs");
 
 const HREF = "https://dynamical-noaa-gfs.s3.us-west-2.amazonaws.com/noaa-gfs-forecast/v0.2.7.icechunk";
 
@@ -80,8 +80,8 @@ test("returns null for datasets without the explorer or an HTTPS store", () => {
   assert.equal(explorerMountOptions({ ...entry, assets: {} }, datasets), null);
 });
 
-test("every enabled dataset in _data/explorer.js is well formed", () => {
-  const enabled = require("../_data/explorer.js").datasets;
+test("every enabled dataset in explorer/site/datasets.cjs is well formed", () => {
+  const enabled = require("../site/datasets.cjs").datasets;
   assert.ok(enabled.length > 0);
   assert.equal(new Set(enabled.map((d) => d.id)).size, enabled.length, "ids are unique");
   for (const dataset of enabled) {
@@ -94,7 +94,7 @@ test("every enabled dataset in _data/explorer.js is well formed", () => {
   }
 });
 
-const { borderPath, fitBounds, previewSvg } = require("../lib/explorer-preview.js");
+const { borderPath, fitBounds, previewSvg } = require("../site/preview.cjs");
 
 const near = (actual, expected) =>
   assert.ok(
@@ -157,4 +157,26 @@ test("the preview is an SVG path of the topology's borders in the site's colours
   const [, d] = /<path d="(M\d+ \d+l[-\d ]+)"/.exec(svg);
   assert.equal(d.match(/-?\d+/g).length, 10);
   assert.match(svg, /stroke="var\(--text-color\)"/);
+});
+
+const { exploreSection } = require("../site/plugin.cjs");
+
+test("the explorer shortcode renders nothing for a dataset without the explorer", () => {
+  assert.equal(exploreSection({ ...entry, id: "not-enabled" }, new Map()), "");
+});
+
+test("the explorer shortcode renders the preview, the button and options that round-trip", () => {
+  const withQuote = { ...entry, variables: [{ ...entry.variables[0], long_name: `2 "metre" <temp> & 'more'` }] };
+  const html = exploreSection(withQuote, new Map([["noaa-gfs-forecast", "<svg>preview</svg>"]]));
+  const [, attribute] = /<section class="explore"[^>]* data-options="([^"]*)">/.exec(html);
+  const decoded = attribute
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+  assert.equal(JSON.parse(decoded).variables[0].long_name, `2 "metre" <temp> & 'more'`);
+  assert.match(html, /<div class="explore-map">\s*<svg>preview<\/svg>\s*<button type="button">Load interactive map<\/button>/);
+  assert.match(html, /^<style>[^]*\.explore-map \{[^]*<\/style>/);
+  assert.match(html, /<script type="module">[^]*import\("\/explorer\/explorer\.js"\)[^]*<\/script>$/);
 });

@@ -1,0 +1,3 @@
+dist/
+# The site ignores lockfiles; the explorer commits its own (see README.md).
+!package-lock.json

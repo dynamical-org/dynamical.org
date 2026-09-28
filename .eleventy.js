@@ -129,11 +129,8 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
   return out;
 }
 
-const { makeExplorerBuilder } = require("./lib/explorer-build.js");
-const buildExplorer = makeExplorerBuilder(path.join(__dirname, "explorer"));
-
 module.exports = function (eleventyConfig) {
-  eleventyConfig.on("eleventy.before", buildExplorer);
+  eleventyConfig.addPlugin(require("./explorer/site/plugin.cjs"));
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
   // Gated on its own flag, not on STATUS_URL. STATUS_URL exists so the page can

@@ -1,0 +1,41 @@
+/* Explore: the preview (an empty map of the initial view, built as SVG, and the
+   load button) stacks in one grid cell of the map box until the explorer
+   mounts into that box. */
+/* An explicit width, so on a phone min-height grows the box downward
+   rather than aspect-ratio widening it past the page. */
+.explore-map {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 320px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-muted);
+}
+/* Once mounted, the explorer sizes itself: its map keeps the preview's 16:9
+   box (at least 240px tall) and the control strip goes below, so the strip
+   can wrap without shrinking the map or moving it from the preview. */
+.explore-map.explorer {
+  aspect-ratio: auto;
+  min-height: 0;
+}
+.explore-map:has(> button) {
+  display: grid;
+}
+.explore-map:has(> button) > * {
+  grid-area: 1 / 1;
+}
+.explore-map > svg {
+  width: 100%;
+  height: 100%;
+}
+.explore-map > button {
+  place-self: center;
+  padding: 0.8rem 1.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+  cursor: pointer;
+}

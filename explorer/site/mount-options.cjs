@@ -1,4 +1,4 @@
-// Turns a catalog entry plus its _data/explorer.js row into the options the
+// Turns a catalog entry plus its datasets.cjs row into the options the
 // explorer's mount() takes (see explorer/README.md). The page serializes them
 // into the Explore section, so this runs at build time only.
 
