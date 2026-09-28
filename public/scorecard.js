@@ -30,6 +30,13 @@ export function modelCoversRegion(model, { scope = "country", stateAbbr } = {}) 
   return scope === "station" || (scope === "state" && HRDPS_STATES.has(stateAbbr));
 }
 
+// The parquet names a model after its dataset, so a virtual product arrives as
+// "Google WeatherNext 2, virtual". The legend drops the access pattern; the
+// color domain keeps the full name so series stay distinct.
+export function legendLabel(model) {
+  return model.replace(/, virtual\b/, "");
+}
+
 // DuckDB exposes parquet durations as their encoded integers. The writer now
 // pins both durations to nanoseconds; accept the prior microsecond window
 // encoding as well so publishing the new file and deploying this query can
@@ -319,7 +326,12 @@ export async function renderMetric(
       fx: { label: "Forecast lead time (days)", padding: 0.2 },
       x: { axis: null, padding: 0.1 },
       y: { label: yLabel, grid: true, labelArrow: "none" },
-      color: { legend: true, domain: modelsInData, range: colorRange },
+      color: {
+        legend: true,
+        domain: modelsInData,
+        range: colorRange,
+        tickFormat: legendLabel,
+      },
       marks: [
         Plot.barY(data, {
           fx: "lead_time_days",
