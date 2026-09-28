@@ -18,7 +18,6 @@ eleventyComputed:
 ---
 
 {% from "tag-icon.njk" import tagIcon %}
-{% from "agent-prompt.njk" import agentPrompt %}
 <style>
   .content.catalog-item {
     font-size: 1.4rem;
@@ -32,15 +31,41 @@ eleventyComputed:
   .related-datasets svg {
     margin-right: 0.4em;
   }
-  /* The ID row: the copy-prompt control (agent-prompt.njk), trimmed to a
-     one-line field in the table's type size. */
-  td .agent-prompt textarea {
-    padding: 0.2em 0.5em;
-    font-size: inherit;
-    resize: none;
+  /* The ID row: the id and an icon that copies it (public/agent-prompt.mjs),
+     kept to one line of the table's rhythm. width: 0 + min-width: 100% lets
+     the other rows size the column, so a long id ellipsizes on a phone rather
+     than widening the table. The copy icon turns to a check while copied; the
+     status is for screen readers. The button's padding widens its hit area and
+     the negative margin keeps it out of the row height. */
+  td .agent-prompt {
+    display: flex;
+    align-items: baseline;
+    width: 0;
+    min-width: 100%;
+  }
+  td .agent-prompt code {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   td .agent-prompt button {
-    margin-top: 0.3rem;
+    flex-shrink: 0;
+    margin: -0.5rem 0 -0.5rem 0.2rem;
+    padding: 0.5rem;
+    color: var(--muted-text);
+  }
+  td .agent-prompt button:hover,
+  td .agent-prompt button:focus-visible,
+  td .agent-prompt[data-copied] button {
+    color: var(--link-color);
+  }
+  td .agent-prompt svg + svg,
+  td .agent-prompt[data-copied] svg:first-child {
+    display: none;
+  }
+  td .agent-prompt[data-copied] svg + svg {
+    display: inline;
   }
   .metadata-comment {
     font-size: 80%;
@@ -275,7 +300,14 @@ eleventyComputed:
   <table>
     <tr>
       <td>ID</td>
-      <td>{{ agentPrompt(entry.id, "Dataset ID", "dataset-id", 1) }}</td>
+      <td>
+        <div class="agent-prompt" data-prompt="dataset-id">
+          <code>{{ entry.id }}</code>
+          <button type="button" aria-label="Copy dataset ID" title="Copy dataset ID">{{ tagIcon("copy") }}{{ tagIcon("check") }}</button>
+          <span role="status" class="visually-hidden"></span>
+        </div>
+        <script type="module" src="/agent-prompt.mjs?v={{ "public/agent-prompt.mjs" | fileHash }}"></script>
+      </td>
     </tr>
     <tr>
       <td>Spatial domain</td>
