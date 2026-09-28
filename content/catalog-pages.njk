@@ -377,6 +377,7 @@ eleventyComputed:
     <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
   {% endif %}
   <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
+  {% explorer entry %}
   {% if model.datasets.length > 1 %}
     <h3>Related Datasets</h3>
     <ul class="related-datasets">

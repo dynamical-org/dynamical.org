@@ -130,6 +130,7 @@ function postprocessHighlightedHtml(html, extraPreClasses) {
 }
 
 module.exports = function (eleventyConfig) {
+  eleventyConfig.addPlugin(require("./explorer/site/plugin.cjs"));
   eleventyConfig.addPassthroughCopy({ "./public/": "/" });
 
   // Gated on its own flag, not on STATUS_URL. STATUS_URL exists so the page can

@@ -1,0 +1,474 @@
+{
+ "generatedWith": {
+  "eccodes": "2.49.0",
+  "eccodes_api": "2.49.0",
+  "gribberish": "1.8.0",
+  "zarr": "3.4.0"
+ },
+ "fixtures": {
+  "simple.grib2": {
+   "fileSha256": "e0019466cd37bf22e5496a71d24e2fd3713f7bb2e6a5df4c8aae91a22ab82732",
+   "bytes": 5872,
+   "source": {
+    "url": "https://noaa-gfs-bdp-pds.s3.us-east-1.amazonaws.com/gfs.20260925/12/atmos/gfs.t12z.pgrb2.0p25.f006",
+    "offset": 405594234,
+    "length": 515011
+   },
+   "drs": 0,
+   "grid": 0,
+   "bitmap": false,
+   "shape": [
+    46,
+    90
+   ],
+   "southFirst": false,
+   "shortName": "2t",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "b4ec1248a22666b05d86d2fab6021408b243c5aec6c8423ff8f7297686a0abc4",
+     "nanCount": 0,
+     "min": 203.20000000000002,
+     "max": 314.20000000000005,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 260.90000000000003
+      },
+      {
+       "row": 0,
+       "col": 89,
+       "value": 260.90000000000003
+      },
+      {
+       "row": 23,
+       "col": 0,
+       "value": 301.7
+      },
+      {
+       "row": 23,
+       "col": 44,
+       "value": 297.6
+      },
+      {
+       "row": 23,
+       "col": 45,
+       "value": 297.0
+      },
+      {
+       "row": 45,
+       "col": 89,
+       "value": 210.3
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 299.6
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 282.5
+      }
+     ]
+    }
+   ]
+  },
+  "simple-bitmap.grib2": {
+   "fileSha256": "c42b5932e7bc0c0f7221a1c151e46ec212b6e8e0d45bfcdb4120024f68783585",
+   "bytes": 2460,
+   "source": {
+    "url": "https://noaa-gfs-bdp-pds.s3.us-east-1.amazonaws.com/gfs.20260925/12/atmos/gfs.t12z.pgrb2.0p25.f006",
+    "offset": 400895742,
+    "length": 360722
+   },
+   "drs": 0,
+   "grid": 0,
+   "bitmap": true,
+   "shape": [
+    46,
+    90
+   ],
+   "southFirst": false,
+   "shortName": "soill",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "83f88b4c613c44349ba1827399dd628b10b899d5b38e7743ea3bc21d66b85fed",
+     "nanCount": 2730,
+     "min": 0.039,
+     "max": 1.0,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": null
+      },
+      {
+       "row": 0,
+       "col": 89,
+       "value": null
+      },
+      {
+       "row": 23,
+       "col": 0,
+       "value": null
+      },
+      {
+       "row": 23,
+       "col": 44,
+       "value": null
+      },
+      {
+       "row": 23,
+       "col": 45,
+       "value": null
+      },
+      {
+       "row": 45,
+       "col": 89,
+       "value": 1.0
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 0.139
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": null
+      }
+     ]
+    }
+   ]
+  },
+  "complex-spatial.grib2": {
+   "fileSha256": "b9465efbacb0a5879e3e8df1b97ede1e10e030145b04d8a6f981c22c9208eef0",
+   "bytes": 3440,
+   "source": {
+    "url": "https://noaa-gfs-bdp-pds.s3.us-east-1.amazonaws.com/gfs.20260925/12/atmos/gfs.t12z.pgrb2.0p25.f006",
+    "offset": 405594234,
+    "length": 515011
+   },
+   "drs": 3,
+   "grid": 0,
+   "bitmap": false,
+   "shape": [
+    46,
+    90
+   ],
+   "southFirst": false,
+   "shortName": "2t",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "056794720cefc7655d8010c878b64413892cf28a7127421fe8a7de01811a6c60",
+     "nanCount": 0,
+     "min": 203.1999969482422,
+     "max": 314.1999969482422,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 260.9499969482422
+      },
+      {
+       "row": 0,
+       "col": 89,
+       "value": 260.9499969482422
+      },
+      {
+       "row": 23,
+       "col": 0,
+       "value": 301.6999969482422
+      },
+      {
+       "row": 23,
+       "col": 44,
+       "value": 297.6999969482422
+      },
+      {
+       "row": 23,
+       "col": 45,
+       "value": 296.9499969482422
+      },
+      {
+       "row": 45,
+       "col": 89,
+       "value": 210.1999969482422
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 299.6999969482422
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 282.4499969482422
+      }
+     ]
+    },
+    {
+     "config": {
+      "adjust_longitude_range": false,
+      "north_up": false
+     },
+     "sha256": "2dd90744bcfe40c4e3897b1321c1f02b69f8a1f0d8131eb602663babbc465bb3",
+     "nanCount": 0,
+     "min": 203.1999969482422,
+     "max": 314.1999969482422,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 260.9499969482422
+      },
+      {
+       "row": 0,
+       "col": 89,
+       "value": 260.9499969482422
+      },
+      {
+       "row": 23,
+       "col": 0,
+       "value": 296.9499969482422
+      },
+      {
+       "row": 23,
+       "col": 44,
+       "value": 301.1999969482422
+      },
+      {
+       "row": 23,
+       "col": 45,
+       "value": 301.6999969482422
+      },
+      {
+       "row": 45,
+       "col": 89,
+       "value": 210.1999969482422
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 284.9499969482422
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 282.9499969482422
+      }
+     ]
+    }
+   ]
+  },
+  "complex-spatial-bitmap.grib2": {
+   "fileSha256": "06ada7a7d8ce4c58fc3624f53e19fdf61c6e85064d4bb00693d45d27d9fdb18a",
+   "bytes": 2139,
+   "source": {
+    "url": "https://noaa-gfs-bdp-pds.s3.us-east-1.amazonaws.com/gfs.20260925/12/atmos/gfs.t12z.pgrb2.0p25.f006",
+    "offset": 400895742,
+    "length": 360722
+   },
+   "drs": 3,
+   "grid": 0,
+   "bitmap": true,
+   "shape": [
+    46,
+    90
+   ],
+   "southFirst": false,
+   "shortName": "soill",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "57d58e71e7fc5699dd4dc85a9d5a5853fe220625c25f953f13cfe1b9267998b9",
+     "nanCount": 2730,
+     "min": 0.039000000804662704,
+     "max": 0.9999375008046627,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": null
+      },
+      {
+       "row": 0,
+       "col": 89,
+       "value": null
+      },
+      {
+       "row": 23,
+       "col": 0,
+       "value": null
+      },
+      {
+       "row": 23,
+       "col": 44,
+       "value": null
+      },
+      {
+       "row": 23,
+       "col": 45,
+       "value": null
+      },
+      {
+       "row": 45,
+       "col": 89,
+       "value": 0.9999375008046627
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 0.1390976570546627
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": null
+      }
+     ]
+    }
+   ]
+  },
+  "ccsds-south-first.grib2": {
+   "fileSha256": "0b32ad8a9be968f9cc62c82698bc303eda147602a79bdab09a51325c96243735",
+   "bytes": 4180,
+   "source": {
+    "url": "https://storage.googleapis.com/ecmwf-open-data/20260925/12z/aifs-single/0p25/oper/20260925120000-36h-oper-fc.grib2",
+    "offset": 80825337,
+    "length": 538304
+   },
+   "drs": 42,
+   "grid": 0,
+   "bitmap": false,
+   "shape": [
+    46,
+    90
+   ],
+   "southFirst": true,
+   "shortName": "2t",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "aa821b974876a7c619b4c6d87f8bda7699768a24b2709d3031aba9c36b58a0e7",
+     "nanCount": 0,
+     "min": 209.170654296875,
+     "max": 308.670654296875,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 261.264404296875
+      },
+      {
+       "row": 0,
+       "col": 89,
+       "value": 261.264404296875
+      },
+      {
+       "row": 23,
+       "col": 0,
+       "value": 300.951904296875
+      },
+      {
+       "row": 23,
+       "col": 44,
+       "value": 297.170654296875
+      },
+      {
+       "row": 23,
+       "col": 45,
+       "value": 297.076904296875
+      },
+      {
+       "row": 45,
+       "col": 89,
+       "value": 214.764404296875
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 284.139404296875
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 282.326904296875
+      }
+     ]
+    },
+    {
+     "config": {
+      "adjust_longitude_range": false,
+      "north_up": false
+     },
+     "sha256": "0a9e0f65058e8a681c204efd9f4b4e55a1bfad2e6a0ed06512f16c49298ef4a1",
+     "nanCount": 0,
+     "min": 209.170654296875,
+     "max": 308.670654296875,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 214.764404296875
+      },
+      {
+       "row": 0,
+       "col": 89,
+       "value": 214.764404296875
+      },
+      {
+       "row": 23,
+       "col": 0,
+       "value": 301.358154296875
+      },
+      {
+       "row": 23,
+       "col": 44,
+       "value": 298.608154296875
+      },
+      {
+       "row": 23,
+       "col": 45,
+       "value": 298.951904296875
+      },
+      {
+       "row": 45,
+       "col": 89,
+       "value": 261.264404296875
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 281.076904296875
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 284.170654296875
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

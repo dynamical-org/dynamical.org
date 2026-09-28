@@ -13,8 +13,8 @@ npm install        # Install dependencies
 npm start          # Dev server on port 8081 with live reload
 npm run build      # Build static site to docs/
 npm run clean      # Remove docs/ and .cache/
-npm test           # Offline unit tests (test/*.test.mjs), milliseconds
-npm run test:e2e   # Browser specs (test/e2e/) — starts its own dev server
+npm test           # Offline unit tests (test/ and explorer/test/*.test.mjs), milliseconds
+npm run test:e2e   # Browser specs (test/e2e/, explorer/test/e2e/) — starts its own dev server
 ```
 
 `npm run test:e2e` needs a browser once: `npx playwright install chromium`. Two kinds

@@ -1,0 +1,74 @@
+/* Scoped to the mount element. Type, colours and form controls come from the page
+   (main.css and its tokens); these rules lay the widget out. */
+.explorer {
+  display: flex;
+  flex-direction: column;
+}
+/* The map keeps the page's 16:9 and the preview's floor: the catalog box's 320px less its
+   two 1px borders, so on a phone the map takes the preview's place at the same size. The
+   strip adds below it, so when the strip wraps the widget grows rather than squeezing the
+   map. (In a box of fixed height the map shrinks to fit, down to that floor.) */
+.explorer-map {
+  position: relative;
+  flex: 1 1 auto;
+  aspect-ratio: 16 / 9;
+  min-height: calc(32rem - 2px);
+}
+.explorer-strip {
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--border-muted-color);
+}
+/* Rows keep one line's height while still empty (the labels and status fill in after
+   mount), so the map is already its final size when mount() fits the initial view. */
+.explorer-strip > div:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1.6rem;
+  min-height: 1lh;
+}
+.explorer-extras {
+  display: contents;
+}
+/* A select is as wide as its longest option: on a phone it shrinks to its row instead,
+   showing the chosen name cut off, with the full names in its list. */
+.explorer-strip label {
+  min-width: 0;
+}
+.explorer select {
+  max-width: 100%;
+  font: inherit;
+}
+/* Play, Stop loading and Retry are actions beside what they act on: buttons styled as
+   links, like the copy link on agent prompts. */
+.explorer button {
+  padding: 0.2rem 0;
+  border: 0;
+  background: none;
+  color: var(--link-color);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.explorer button:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+}
+.explorer-strip input {
+  flex: 1;
+  accent-color: var(--text-color);
+}
+.explorer-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+.explorer-legend canvas {
+  width: 12rem;
+  height: 1rem;
+}
+.explorer[data-state="error"] [role="status"] {
+  color: var(--pill-down-bg);
+  font-weight: 700;
+}
