@@ -192,12 +192,16 @@ const LATLON = { latitude: { extent: [-90, 90], size: 721, unit: "degree_north" 
 const CONUS_ROW = { id: "x", defaultVariable: "temperature_2m", initialView: { bounds: [-125, 24, -66, 50] } };
 const RAD = Math.PI / 180;
 const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
-// The explorer box inside its padding: 738 × 397.
+const latOf = (y) => (2 * Math.atan(Math.exp(y * RAD)) - Math.PI / 2) / RAD;
+// The desktop frame, 778 × 437, fits bounds inside 20 px of padding: 738 × 397.
 const ASPECT = 738 / 397;
 
-// What a view shows: its width and height in degrees, its Mercator aspect and centre.
+// Bounds as the frame shows them, padding included: the width and height in degrees
+// the whole frame covers, the bounds' Mercator aspect, and their centre.
 function shown([w, s, e, n]) {
-  return { width: e - w, height: n - s, aspect: (e - w) / (mercY(n) - mercY(s)), lon: (w + e) / 2, y: (mercY(s) + mercY(n)) / 2 };
+  const y = (mercY(s) + mercY(n)) / 2;
+  const h = ((mercY(n) - mercY(s)) * 437) / 397;
+  return { width: ((e - w) * 778) / 738, height: latOf(y + h / 2) - latOf(y - h / 2), aspect: (e - w) / (mercY(n) - mercY(s)), lon: (w + e) / 2, y };
 }
 
 test("a view that already shows at most 6 × 4 chunks is left as it is", () => {
@@ -208,18 +212,18 @@ test("a view that already shows at most 6 × 4 chunks is left as it is", () => {
 
 test("the view shrinks about its centre, at the map's aspect, to 6 chunks across or 4 down", () => {
   const before = shown(CONUS_ROW.initialView.bounds);
-  // IFS ENS 0.25°: 32-cell (8°) chunks. CONUS as the map fits it is about 61° wide, 7.6
-  // chunks, and 3.3 down: width limits, so it shrinks to 48° across.
+  // IFS ENS 0.25°: 32-cell (8°) chunks. CONUS as the frame shows it is about 64° wide, 8
+  // chunks, and 3.5 down: width limits, so it shrinks to show 48° across.
   const ens = cube(["init_time", "lead_time", "ensemble_member", "latitude", "longitude"], [1, 85, 51, 32, 32], LATLON);
   const a = shown(chunkView(ens, CONUS_ROW).bounds);
   assert.ok(Math.abs(a.width - 48) < 0.01, `${a.width}`);
   assert.ok(a.height / 8 <= 4);
-  // GEFS 35-day: 17 × 16 cells (4.25° × 4°); width limits again, at 24°.
+  // GEFS 35-day: 17 × 16 cells (4.25° × 4°); width limits again, at 24° shown.
   const gefs = cube(["init_time", "ensemble_member", "lead_time", "latitude", "longitude"], [1, 31, 64, 17, 16], LATLON);
   const b = shown(chunkView(gefs, CONUS_ROW).bounds);
   assert.ok(Math.abs(b.width - 24) < 0.01, `${b.width}`);
   assert.ok(b.height / 4.25 <= 4);
-  // Wide chunks (5° × 20°): height limits instead, at 4 down (Mercator makes it approximate).
+  // Wide chunks (5° × 20°): height limits instead, at 4 down, 20° shown (Mercator makes it approximate).
   const tall = cube(["time", "latitude", "longitude"], [1, 20, 80], LATLON);
   const c = shown(chunkView(tall, CONUS_ROW).bounds);
   assert.ok(Math.abs(c.height - 20) < 0.1, `${c.height}`);

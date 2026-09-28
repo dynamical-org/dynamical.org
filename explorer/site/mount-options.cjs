@@ -32,10 +32,11 @@ const RAD = Math.PI / 180;
 const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
 const latOf = (y) => (2 * Math.atan(Math.exp(y * RAD)) - Math.PI / 2) / RAD;
 
-// A materialized dataset's first view: the row's initialView as the map shows it
-// (fitted to the 16:9 box, like mount()), shrunk about its centre until it shows at
-// most CHUNKS_WIDE chunks of the default variable across and CHUNKS_TALL down, so the
-// first read is about 24 chunks whatever the grid. A view already within that is kept.
+// A materialized dataset's first view: the row's initialView as the map shows it on a
+// desktop page (fitted to the 16:9 frame, like mount()), shrunk about its centre until the
+// frame shows at most CHUNKS_WIDE chunks of the default variable across and CHUNKS_TALL
+// down. A view already within that is kept. It is a desktop target: a phone's taller box
+// shows more latitude, and the chunks cut by the edges are read too.
 // Chunk sizes come from the STAC cube the entry carries: chunk cells × cell size
 // (extent span / (size − 1)), in degrees for lat/lon, metres for projected grids
 // (HRRR) and great-circle degrees for rotated ones (HRDPS), converted to lon/lat
@@ -63,13 +64,17 @@ function chunkView(entry, dataset) {
   const [yCells, xCells] = variable.chunks.slice(-2);
   const [dy, dx] = [span(yName, yCells, "y"), span(xName, xCells, "x")];
   if (dy === null || dx === null) return keep;
-  // What the map shows of the row's view: its full width or its full height, at the box's aspect.
-  const aspect = (FRAME.width - 2 * FRAME.padding) / (FRAME.mapHeight - 2 * FRAME.padding);
+  // The row's view as mount() fits it to the desktop frame: its full width or its full
+  // height inside the padding, at the inner box's aspect (width × height, Mercator units).
+  const inner = [FRAME.width - 2 * FRAME.padding, FRAME.mapHeight - 2 * FRAME.padding];
+  const aspect = inner[0] / inner[1];
   const width = Math.max(e - w, (mercY(n) - mercY(s)) * aspect);
   const height = width / aspect;
   const lats = (h) => [latOf(cy - h / 2), latOf(cy + h / 2)];
-  const [s0, n0] = lats(height);
-  const f = Math.min(1, (CHUNKS_WIDE * dx) / width, (CHUNKS_TALL * dy) / (n0 - s0));
+  // What the whole frame shows, padding included: the chunks counted are the visible ones.
+  const [shownWidth, shownHeight] = [(width * FRAME.width) / inner[0], (height * FRAME.mapHeight) / inner[1]];
+  const [s0, n0] = lats(shownHeight);
+  const f = Math.min(1, (CHUNKS_WIDE * dx) / shownWidth, (CHUNKS_TALL * dy) / (n0 - s0));
   if (f >= 1) return keep;
   const [s1, n1] = lats(height * f);
   const round = (v) => Math.round(v * 1000) / 1000;

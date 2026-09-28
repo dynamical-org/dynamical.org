@@ -101,10 +101,13 @@ function revalidatingStorage(url, fetchImpl) {
  *   `onBytes` is called as response bodies arrive, on every path the store reads through:
  *   its own objects, upstream virtual chunks (each retry counts again), or a plain zarr URL.
  *   Arrays are opened through a byte cache of `maxCacheBytes` (lib/byte-cache.js), so a
- *   chunk read again (an ensemble member switch) comes from memory, not the network.
+ *   chunk read again (an ensemble member switch) comes from memory, not the network. For
+ *   Icechunk it defaults to DEFAULT_CACHE_BYTES: the session is pinned to one snapshot, so a
+ *   key's bytes can't change. A plain zarr URL has no such pin, so it caches nothing unless
+ *   `maxCacheBytes` is given (the tests do, for fixtures that never change).
  * @returns {Promise<Store>}
  */
-export async function openStore(href, { signal, onRetry, onBytes = () => {}, maxCacheBytes = DEFAULT_CACHE_BYTES } = {}) {
+export async function openStore(href, { signal, onRetry, onBytes = () => {}, maxCacheBytes } = {}) {
   registerCodecs();
   const url = href.replace(/\/$/, "");
   const fetchImpl = meteredFetch((...args) => globalThis.fetch(...args), onBytes);
@@ -114,7 +117,7 @@ export async function openStore(href, { signal, onRetry, onBytes = () => {}, max
       signal,
       fetchClient: retryingFetchClient({ onRetry, fetchImpl }),
     });
-    const root = zarr.root(cachingStore(store, { maxBytes: maxCacheBytes }));
+    const root = zarr.root(cachingStore(store, { maxBytes: maxCacheBytes ?? DEFAULT_CACHE_BYTES }));
     return {
       store,
       snapshotId: encodeObjectId12(store.session.getSnapshotId()),
@@ -123,7 +126,7 @@ export async function openStore(href, { signal, onRetry, onBytes = () => {}, max
     };
   }
   const store = new zarr.FetchStore(url, { fetch: fetchImpl });
-  const root = zarr.root(cachingStore(store, { maxBytes: maxCacheBytes }));
+  const root = zarr.root(cachingStore(store, { maxBytes: maxCacheBytes ?? 0 }));
   const metaCache = new Map();
   return {
     store,

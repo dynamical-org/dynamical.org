@@ -55,7 +55,7 @@ const handle = mount(element, {
   maxTextureLayers: 128,                       // cap on slider steps per texture (tests set it low)
   maxTextureBytes: 2e9,                        // estimated GPU memory above which the status warns
   maxRequests: 4,                              // concurrent tile requests per layer (tests set it low)
-  maxCacheBytes: 256e6,                        // bytes of chunk reads kept, so a chunk read again comes from memory
+  maxCacheBytes: 256e6,                        // chunk-read bytes kept (Icechunk default; a plain .zarr URL keeps none unless set)
   playDwellMs: 500,                            // how long Play shows each drawn step (tests set it high)
 });
 handle.project([lon, lat]);                    // → [x, y] CSS px on the map canvas

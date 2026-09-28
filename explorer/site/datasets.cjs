@@ -5,12 +5,12 @@
 //
 // - initialView: what the map fits on load, bounds [west, south, east, north].
 //   - Materialized: the outer frame. Global and US products use CONUS, regional
-//     ones their own domain, and the two heaviest analyses Houston. The map opens
-//     on at most 6 × 4 of the default variable's chunks centred in it
-//     (mount-options.cjs, from the STAC chunk shape), so the first view reads
-//     about 24 chunks at most.
-//   - Virtual: the whole grid. That is WORLD for the global stores and CONUS for
-//     HRRR. Each step reads one whole-grid GRIB message, so the view costs no
+//     ones their own domain, and the two heaviest analyses Houston. On a desktop
+//     page the map opens showing at most 6 chunks of the default variable across
+//     and 4 down, centred in it (mount-options.cjs, from the STAC chunk shape). A
+//     phone shows more latitude, and the chunks cut by the edges are read too.
+//   - Virtual: WORLD for the global stores, CONUS for HRRR (which covers only
+//     CONUS). Each step reads one whole-grid GRIB message, so the view costs no
 //     extra bytes.
 // - proj4: overrides the grid mapping read from the store. None is needed:
 //   the explorer builds lcc and ob_tran strings from the stores' CF attrs (the

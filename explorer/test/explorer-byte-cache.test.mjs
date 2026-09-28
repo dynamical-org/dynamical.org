@@ -76,3 +76,25 @@ test("an object larger than the budget is read but not kept", async () => {
   await store.get("/big");
   assert.equal(inner.reads.length, 2);
 });
+
+test("reads of one key that land together are counted once", async () => {
+  for (const read of [(s, k) => s.get(k), (s, k) => s.getRange(k, { offset: 0, length: 10 })]) {
+    const inner = countingStore(10);
+    const store = cachingStore(inner, { maxBytes: 20 });
+    await Promise.all([read(store, "/a"), read(store, "/a"), read(store, "/a")]);
+    await read(store, "/b");
+    inner.reads.length = 0;
+    await read(store, "/a");
+    await read(store, "/b");
+    assert.equal(inner.reads.length, 0, "both still held within the 20-byte budget");
+  }
+});
+
+test("a hit with an aborted signal rejects as a read would", async () => {
+  const store = cachingStore(countingStore(), { maxBytes: 100 });
+  await store.get("/a");
+  await store.getRange("/a", { offset: 0, length: 10 });
+  const signal = AbortSignal.abort();
+  await assert.rejects(store.get("/a", { signal }), { name: "AbortError" });
+  await assert.rejects(store.getRange("/a", { offset: 0, length: 10 }, { signal }), { name: "AbortError" });
+});

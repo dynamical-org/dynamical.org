@@ -775,6 +775,9 @@ test.describe("explorer, offline ensemble in one chunk", () => {
         variables: [{ path: "t", name: "t", units: "degree_Celsius", dims: DIMS }],
         defaultVariable: "t",
         initialView: { bounds: [-101, 32, -84, 41] },
+        // A plain zarr store caches nothing by default (it has no snapshot pin); this
+        // fixture never changes, so it opts in, as an Icechunk store is by default.
+        maxCacheBytes: 256e6,
       },
     });
     await page.route(/fixture\.test\//, (route) => {
