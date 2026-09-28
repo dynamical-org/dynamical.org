@@ -31,6 +31,61 @@ eleventyComputed:
   .related-datasets svg {
     margin-right: 0.4em;
   }
+  /* The ID row: the id and an icon that copies it (public/agent-prompt.mjs),
+     kept to one line of the table's rhythm. width: 0 + min-width: 100% lets
+     the other rows size the column, so a long id ellipsizes on a phone rather
+     than widening the table. The copy icon turns to a check while copied, and
+     the status is only for screen readers, except when a copy fails: then it
+     shows, and the id unclips so it can be copied by hand. The button's padding
+     widens its hit area and the negative margin keeps it out of the row
+     height. */
+  td .agent-prompt {
+    display: flex;
+    align-items: baseline;
+    width: 0;
+    min-width: 100%;
+  }
+  td .agent-prompt code {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  td .agent-prompt button {
+    flex-shrink: 0;
+    margin: -0.5rem 0 -0.5rem 0.2rem;
+    padding: 0.5rem;
+    color: var(--muted-text);
+  }
+  td .agent-prompt button:hover,
+  td .agent-prompt button:focus-visible,
+  td .agent-prompt[data-copy="copied"] button {
+    color: var(--link-color);
+  }
+  td .agent-prompt svg + svg,
+  td .agent-prompt[data-copy="copied"] svg:first-child {
+    display: none;
+  }
+  td .agent-prompt[data-copy="copied"] svg + svg {
+    display: inline;
+  }
+  td .agent-prompt[data-copy="failed"] {
+    flex-wrap: wrap;
+  }
+  td .agent-prompt[data-copy="failed"] code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  td .agent-prompt[data-copy="failed"] [role="status"] {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    clip: auto;
+    white-space: normal;
+    flex-basis: 100%;
+    color: var(--muted-text);
+  }
   .metadata-comment {
     font-size: 80%;
   }
@@ -263,6 +318,17 @@ eleventyComputed:
   </div>
   <table>
     <tr>
+      <td>ID</td>
+      <td>
+        <div class="agent-prompt" data-prompt="dataset-id">
+          <code>{{ entry.id }}</code>
+          <button type="button" aria-label="Copy dataset ID" title="Copy dataset ID">{{ tagIcon("copy") }}{{ tagIcon("check") }}</button>
+          <span role="status" class="visually-hidden"></span>
+        </div>
+        <script type="module" src="/agent-prompt.mjs?v={{ "public/agent-prompt.mjs" | fileHash }}"></script>
+      </td>
+    </tr>
+    <tr>
       <td>Spatial domain</td>
       <td>{{ entry.spatial_domain }}</td>
     </tr>
@@ -296,6 +362,15 @@ eleventyComputed:
       · <a href="/catalog/{{ entry.id }}/validation/">validation report</a>
     {% elif entry.validation_report_href %}
       · <a href="{{ entry.validation_report_href }}">validation report</a>
+    {% endif %}
+    {%- set listing = listings[entry.id] %}
+    {% if listing %}
+      <br>
+      {%- set links = [] %}
+      {%- if listing.earthmover %}{% set _ = links.push(["Earthmover Marketplace", listing.earthmover]) %}{% endif %}
+      {%- if listing.source_coop %}{% set _ = links.push(["Source Cooperative", listing.source_coop]) %}{% endif %}
+      {%- if listing.aws %}{% set _ = links.push(["AWS Open Data Registry", listing.aws]) %}{% endif %}
+      {% for link in links %}{{ " · " if not loop.first }}<a href="{{ link[1] }}">{{ link[0] }}</a>{% endfor %}
     {% endif %}
   </p>
   {% if model.description %}
