@@ -23,17 +23,17 @@ document.addEventListener("click", async (event) => {
   // Each attempt gets its own announcement and its own full display interval:
   // empty the live region, repopulate it after a frame so assistive tech sees
   // a change even when the text is the same, and restart this block's timer.
-  // data-copied carries the same state to CSS, for blocks that show it as an
-  // icon (the dataset ID row).
+  // data-copy carries the same state to CSS, for blocks that show it
+  // visually some other way (the dataset ID row).
   clearTimeout(timers.get(block));
   status.textContent = "";
-  block.toggleAttribute("data-copied", copied);
+  block.dataset.copy = copied ? "copied" : "failed";
   requestAnimationFrame(() => {
     status.textContent = copied ? "copied" : "select the text and copy it yourself";
   });
   timers.set(block, setTimeout(() => {
     status.textContent = "";
-    block.removeAttribute("data-copied");
+    delete block.dataset.copy;
   }, 2500));
   if (copied) {
     window.track("agent_prompt_copied", { prompt: block.dataset.prompt, page: location.pathname });

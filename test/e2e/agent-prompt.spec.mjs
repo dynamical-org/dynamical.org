@@ -110,7 +110,33 @@ test("the dataset ID row copies the id on one line", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
   await block.getByRole("button", { name: "Copy dataset ID" }).click();
   await expect(block.locator("[role=status]")).toHaveText("copied");
-  await expect(block).toHaveAttribute("data-copied");
+  await expect(block).toHaveAttribute("data-copy", "copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(id);
   expect((await rows.first().boundingBox()).height).toBe(height);
+});
+
+test("a failed ID copy shows the message and the whole id", async ({ page }) => {
+  const id = "ecmwf-ifs-ens-forecast-46-day-6-hourly-1-5-degree";
+  const events = [];
+  await page.exposeFunction("__track", (event, properties) => events.push([event, properties]));
+  await page.addInitScript(() => {
+    window.addEventListener("DOMContentLoaded", () => {
+      window.track = (event, properties) => window.__track(event, properties);
+    });
+  });
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto(`/catalog/${id}/`);
+  await page.evaluate(() => {
+    navigator.clipboard.writeText = () => Promise.reject(new Error("denied"));
+    document.execCommand = () => false;
+  });
+  const block = page.locator(".agent-prompt[data-prompt=dataset-id]");
+  await block.getByRole("button", { name: "Copy dataset ID" }).click();
+  await expect(block.locator("[role=status]")).toHaveText("select the text and copy it yourself");
+  await expect(block.locator("[role=status]")).toBeInViewport();
+  const code = block.locator("code");
+  expect(await code.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => getSelection().toString())).toBe(id);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  expect(events).toEqual([]);
 });

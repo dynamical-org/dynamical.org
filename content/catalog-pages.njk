@@ -34,9 +34,11 @@ eleventyComputed:
   /* The ID row: the id and an icon that copies it (public/agent-prompt.mjs),
      kept to one line of the table's rhythm. width: 0 + min-width: 100% lets
      the other rows size the column, so a long id ellipsizes on a phone rather
-     than widening the table. The copy icon turns to a check while copied; the
-     status is for screen readers. The button's padding widens its hit area and
-     the negative margin keeps it out of the row height. */
+     than widening the table. The copy icon turns to a check while copied, and
+     the status is only for screen readers, except when a copy fails: then it
+     shows, and the id unclips so it can be copied by hand. The button's padding
+     widens its hit area and the negative margin keeps it out of the row
+     height. */
   td .agent-prompt {
     display: flex;
     align-items: baseline;
@@ -57,15 +59,32 @@ eleventyComputed:
   }
   td .agent-prompt button:hover,
   td .agent-prompt button:focus-visible,
-  td .agent-prompt[data-copied] button {
+  td .agent-prompt[data-copy="copied"] button {
     color: var(--link-color);
   }
   td .agent-prompt svg + svg,
-  td .agent-prompt[data-copied] svg:first-child {
+  td .agent-prompt[data-copy="copied"] svg:first-child {
     display: none;
   }
-  td .agent-prompt[data-copied] svg + svg {
+  td .agent-prompt[data-copy="copied"] svg + svg {
     display: inline;
+  }
+  td .agent-prompt[data-copy="failed"] {
+    flex-wrap: wrap;
+  }
+  td .agent-prompt[data-copy="failed"] code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  td .agent-prompt[data-copy="failed"] [role="status"] {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    clip: auto;
+    white-space: normal;
+    flex-basis: 100%;
+    color: var(--muted-text);
   }
   .metadata-comment {
     font-size: 80%;
