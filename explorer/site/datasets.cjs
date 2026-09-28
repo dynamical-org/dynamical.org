@@ -3,10 +3,15 @@
 // these ids only. An id missing from this list gets no Explore section. Per
 // dataset:
 //
-// - initialView: what the map fits on load. Global and US products open on
-//   CONUS; regional ones on their own domain. Bounds are [west, south, east,
-//   north]. A whole-globe or whole-CONUS view reads every tile of the grid,
-//   which is why the two heaviest analyses open on Houston instead.
+// - initialView: what the map fits on load, bounds [west, south, east, north].
+//   - Materialized: the outer frame. Global and US products use CONUS, regional
+//     ones their own domain, and the two heaviest analyses Houston. The map opens
+//     on at most 6 × 4 of the default variable's chunks centred in it
+//     (mount-options.cjs, from the STAC chunk shape), so the first view reads
+//     about 24 chunks at most.
+//   - Virtual: the whole grid. That is WORLD for the global stores and CONUS for
+//     HRRR. Each step reads one whole-grid GRIB message, so the view costs no
+//     extra bytes.
 // - proj4: overrides the grid mapping read from the store. None is needed:
 //   the explorer builds lcc and ob_tran strings from the stores' CF attrs (the
 //   strings it built are noted beside HRRR and HRDPS for provenance).
@@ -18,7 +23,10 @@
 //
 // The comment beside each row records the compressed download measured for its
 // first view on 2026-09-25 (headless Chromium, 758×345 CSS px map in a
-// 1280-wide page, latest run or time then; snapshots noted where recorded).
+// 1280-wide page, latest run or time then; snapshots noted where recorded), when
+// every row opened on its whole frame and the virtual ones on CONUS.
+// Latitudes −60…75 are width-limited in the 16:9 box, so the whole longitude range fits.
+const WORLD = [-180, -60, 180, 75];
 const CONUS = [-125, 24, -66, 50];
 const EUROPE = [-12, 35, 35, 62];
 const CANADA = [-140, 40, -55, 65];
@@ -154,7 +162,7 @@ const datasets = [
   {
     id: "noaa-gfs-forecast-virtual",
     virtual: true,
-    initialView: { bounds: CONUS },
+    initialView: { bounds: WORLD },
     proj4: null,
     defaultVariable: "temperature_2m",
     // 7.17 MB (6.66 store + 0.51 GRIB), snapshot H5G8BVY2PBVRXA6A6VKG, init
@@ -163,7 +171,7 @@ const datasets = [
   {
     id: "noaa-gfs-analysis-virtual",
     virtual: true,
-    initialView: { bounds: CONUS },
+    initialView: { bounds: WORLD },
     proj4: null,
     defaultVariable: "temperature_2m",
     // 0.79 MB (0.28 store + 0.51 GRIB), time 2026-09-25 23:00.
@@ -171,7 +179,7 @@ const datasets = [
   {
     id: "noaa-gefs-forecast-10-day-0-25-degree-virtual",
     virtual: true,
-    initialView: { bounds: CONUS },
+    initialView: { bounds: WORLD },
     proj4: null,
     defaultVariable: "temperature_2m",
     // 2.65 MB (2.21 store + 0.44 GRIB), init 2026-09-25 12Z, member 0.
@@ -179,7 +187,7 @@ const datasets = [
   {
     id: "noaa-gefs-forecast-16-day-0-5-degree-virtual",
     virtual: true,
-    initialView: { bounds: CONUS },
+    initialView: { bounds: WORLD },
     proj4: null,
     defaultVariable: "temperature_2m",
     // 24.07 MB, almost all its 23.9 MB snapshot file; snapshot
@@ -188,7 +196,7 @@ const datasets = [
   {
     id: "noaa-gefs-forecast-35-day-0-5-degree-virtual",
     virtual: true,
-    initialView: { bounds: CONUS },
+    initialView: { bounds: WORLD },
     proj4: null,
     defaultVariable: "temperature_2m",
     // 6.39 MB (6.25 store + 0.14 GRIB), init 2026-09-24 00Z (09-25 00Z's +840 h
@@ -197,7 +205,7 @@ const datasets = [
   {
     id: "noaa-gefs-analysis-0-25-degree-virtual",
     virtual: true,
-    initialView: { bounds: CONUS },
+    initialView: { bounds: WORLD },
     proj4: null,
     defaultVariable: "temperature_2m",
     // 0.58 MB (0.15 store + 0.43 GRIB), time 2026-09-25 21:00.
@@ -231,7 +239,7 @@ const datasets = [
   {
     id: "ecmwf-aifs-single-forecast-virtual",
     virtual: true,
-    initialView: { bounds: CONUS },
+    initialView: { bounds: WORLD },
     proj4: null,
     defaultVariable: "temperature_2m",
     // 0.81 MB (0.19 store + 0.62 GRIB), snapshot X4G5D2WQDY7YXXM53XD0, init

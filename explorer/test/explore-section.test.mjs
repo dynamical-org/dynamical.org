@@ -162,12 +162,12 @@ test("the preview is an SVG path of the topology's borders in the site's colours
 const { exploreSection } = require("../site/plugin.cjs");
 
 test("the explorer shortcode renders nothing for a dataset without the explorer", () => {
-  assert.equal(exploreSection({ ...entry, id: "not-enabled" }, new Map()), "");
+  assert.equal(exploreSection({ ...entry, id: "not-enabled" }, () => "<svg/>"), "");
 });
 
 test("the explorer shortcode renders the preview, the button and options that round-trip", () => {
   const withQuote = { ...entry, variables: [{ ...entry.variables[0], long_name: `2 "metre" <temp> & 'more'` }] };
-  const html = exploreSection(withQuote, new Map([["noaa-gfs-forecast", "<svg>preview</svg>"]]));
+  const html = exploreSection(withQuote, () => "<svg>preview</svg>");
   const [, attribute] = /<section class="explore"[^>]* data-options="([^"]*)">/.exec(html);
   const decoded = attribute
     .replace(/&quot;/g, '"')
@@ -179,4 +179,86 @@ test("the explorer shortcode renders the preview, the button and options that ro
   assert.match(html, /<div class="explore-map">\s*<svg>preview<\/svg>\s*<button type="button">Load interactive map<\/button>/);
   assert.match(html, /^<style>[^]*\.explore-map \{[^]*<\/style>/);
   assert.match(html, /<script type="module">[^]*import\("\/explorer\/explorer\.js"\)[^]*<\/script>$/);
+});
+
+const { chunkView } = require("../site/mount-options.cjs");
+
+// A STAC cube for one variable: chunk cells per spatial dim over a dim's extent and size.
+const cube = (dims, chunks, spatial) => ({
+  "cube:variables": { temperature_2m: { dimensions: dims, chunks } },
+  "cube:dimensions": spatial,
+});
+const LATLON = { latitude: { extent: [-90, 90], size: 721, unit: "degree_north" }, longitude: { extent: [-180, 179.75], size: 1440, unit: "degree_east" } };
+const CONUS_ROW = { id: "x", defaultVariable: "temperature_2m", initialView: { bounds: [-125, 24, -66, 50] } };
+const RAD = Math.PI / 180;
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
+// The explorer box inside its padding: 738 × 397.
+const ASPECT = 738 / 397;
+
+// What a view shows: its width and height in degrees, its Mercator aspect and centre.
+function shown([w, s, e, n]) {
+  return { width: e - w, height: n - s, aspect: (e - w) / (mercY(n) - mercY(s)), lon: (w + e) / 2, y: (mercY(s) + mercY(n)) / 2 };
+}
+
+test("a view that already shows at most 6 × 4 chunks is left as it is", () => {
+  // GFS: 121-cell (30.25°) chunks, so CONUS shows about 2 × 1 of them.
+  const entry = cube(["init_time", "lead_time", "latitude", "longitude"], [1, 105, 121, 121], LATLON);
+  assert.deepEqual(chunkView(entry, CONUS_ROW), { bounds: [-125, 24, -66, 50] });
+});
+
+test("the view shrinks about its centre, at the map's aspect, to 6 chunks across or 4 down", () => {
+  const before = shown(CONUS_ROW.initialView.bounds);
+  // IFS ENS 0.25°: 32-cell (8°) chunks. CONUS as the map fits it is about 61° wide, 7.6
+  // chunks, and 3.3 down: width limits, so it shrinks to 48° across.
+  const ens = cube(["init_time", "lead_time", "ensemble_member", "latitude", "longitude"], [1, 85, 51, 32, 32], LATLON);
+  const a = shown(chunkView(ens, CONUS_ROW).bounds);
+  assert.ok(Math.abs(a.width - 48) < 0.01, `${a.width}`);
+  assert.ok(a.height / 8 <= 4);
+  // GEFS 35-day: 17 × 16 cells (4.25° × 4°); width limits again, at 24°.
+  const gefs = cube(["init_time", "ensemble_member", "lead_time", "latitude", "longitude"], [1, 31, 64, 17, 16], LATLON);
+  const b = shown(chunkView(gefs, CONUS_ROW).bounds);
+  assert.ok(Math.abs(b.width - 24) < 0.01, `${b.width}`);
+  assert.ok(b.height / 4.25 <= 4);
+  // Wide chunks (5° × 20°): height limits instead, at 4 down (Mercator makes it approximate).
+  const tall = cube(["time", "latitude", "longitude"], [1, 20, 80], LATLON);
+  const c = shown(chunkView(tall, CONUS_ROW).bounds);
+  assert.ok(Math.abs(c.height - 20) < 0.1, `${c.height}`);
+  assert.ok(c.width / 20 <= 6);
+  for (const v of [a, b, c]) {
+    assert.ok(Math.abs(v.aspect - ASPECT) < 0.01, `aspect ${v.aspect}`);
+    assert.ok(Math.abs(v.lon - before.lon) < 0.01 && Math.abs(v.y - before.y) < 0.01, "same centre");
+  }
+});
+
+test("projected chunks are converted to degrees at the view's centre", () => {
+  const lat = (Math.atan(Math.sinh(shown(CONUS_ROW.initialView.bounds).y * RAD)) / RAD) * RAD;
+  // Metres (HRRR's lcc): 100 cells of 3 km = 300 km chunks, so 1800 km across.
+  const hrrr = cube(["time", "y", "x"], [1, 100, 100], {
+    y: { extent: [0, 3000 * 999], size: 1000, unit: "m" },
+    x: { extent: [0, 3000 * 999], size: 1000, unit: "m" },
+  });
+  const a = shown(chunkView(hrrr, CONUS_ROW).bounds);
+  assert.ok(Math.abs(a.width - 1800 / (111.2 * Math.cos(lat))) < 0.01, `${a.width}`);
+  // Rotated-pole degrees (HRDPS) are great-circle degrees: 1° cells, 3-cell chunks.
+  const hrdps = cube(["time", "y", "x"], [1, 3, 3], {
+    y: { extent: [0, 99], size: 100, unit: "degrees" },
+    x: { extent: [0, 99], size: 100, unit: "degrees" },
+  });
+  const b = shown(chunkView(hrdps, CONUS_ROW).bounds);
+  assert.ok(Math.abs(b.width - 18 / Math.cos(lat)) < 0.01, `${b.width}`);
+});
+
+test("without chunk metadata, or for a virtual row, the row's view is kept", () => {
+  assert.deepEqual(chunkView({}, CONUS_ROW), CONUS_ROW.initialView);
+  const entry = cube(["init_time", "lead_time", "latitude", "longitude"], [1, 1, 32, 32], LATLON);
+  assert.deepEqual(chunkView(entry, { ...CONUS_ROW, virtual: true }), CONUS_ROW.initialView);
+  const unknownUnit = cube(["time", "y", "x"], [1, 2, 2], { y: { extent: [0, 9], size: 10, unit: "furlong" }, x: { extent: [0, 9], size: 10, unit: "furlong" } });
+  assert.deepEqual(chunkView(unknownUnit, CONUS_ROW), CONUS_ROW.initialView);
+});
+
+test("the preview is drawn for the view the map opens on", () => {
+  const withCube = { ...entry, ...cube(["init_time", "lead_time", "ensemble_member", "latitude", "longitude"], [1, 85, 51, 32, 32], LATLON) };
+  const html = exploreSection(withCube, (bounds) => `<svg data-bounds="${bounds.join(",")}"></svg>`);
+  const [, attr] = /<svg data-bounds="([^"]+)">/.exec(html);
+  assert.deepEqual(attr.split(",").map(Number), chunkView(withCube, { id: "noaa-gfs-forecast", defaultVariable: "temperature_2m", initialView: { bounds: [-125, 24, -66, 50] } }).bounds);
 });

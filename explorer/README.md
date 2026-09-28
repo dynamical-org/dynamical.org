@@ -371,8 +371,9 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 - the data-received meter, alone and through the retrying client;
 - the legend text: units, close bounds, constant, sparse and empty samples;
 - the tile facade;
-- the site plugin: mount options, the Explore section's markup and escaping, the
-  preview's projection and clipping, and when the build hook installs and builds.
+- the site plugin: mount options, the chunk-derived first view, the Explore section's
+  markup and escaping, the preview's projection and clipping, and when the build hook
+  installs and builds.
 
 `npm run test:e2e` at the repo root also runs `explorer/test/e2e/` (the `explorer`
 Playwright project): offline specs against the tiny Icechunk store in

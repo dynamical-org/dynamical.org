@@ -27,8 +27,8 @@ const escapeAttribute = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 // The Explore section for one catalog entry, or "" when it has no explorer.
-// `previews` maps dataset ids to their empty-map SVG.
-function exploreSection(entry, previews) {
+// `preview(bounds)` is the empty-map SVG of the view the map opens on.
+function exploreSection(entry, preview) {
   const options = explorerMountOptions(entry, datasets);
   if (!options) return "";
   return `<style>
@@ -36,7 +36,7 @@ ${CSS}</style>
 <section class="explore" aria-labelledby="explore-heading" data-options="${escapeAttribute(JSON.stringify(options))}">
   <h2 id="explore-heading">Explore</h2>
   <div class="explore-map">
-    ${previews.get(entry.id)}
+    ${preview(options.initialView.bounds)}
     <button type="button">Load interactive map</button>
   </div>
 </section>
@@ -46,15 +46,13 @@ ${LOADER}</script>`;
 
 module.exports = function explorerPlugin(eleventyConfig) {
   const buildExplorer = makeExplorerBuilder(ROOT);
-  const previews = new Map();
+  let topology = null;
   eleventyConfig.on("eleventy.before", async () => {
     buildExplorer();
-    if (previews.size) return;
-    const topology = await fetch(BORDERS_URL, { duration: "1d", type: "json" });
-    for (const d of datasets) previews.set(d.id, previewSvg(topology, d.initialView.bounds));
+    topology ??= await fetch(BORDERS_URL, { duration: "1d", type: "json" });
   });
   eleventyConfig.addPassthroughCopy({ [`./${path.relative(process.cwd(), ROOT)}/dist/`]: "/explorer/" });
-  eleventyConfig.addShortcode("explorer", (entry) => exploreSection(entry, previews));
+  eleventyConfig.addShortcode("explorer", (entry) => exploreSection(entry, (bounds) => previewSvg(topology, bounds)));
 };
 
 module.exports.exploreSection = exploreSection;
