@@ -18,7 +18,7 @@ eleventyComputed:
 ---
 
 {% from "tag-icon.njk" import tagIcon %}
-{% from "agent-prompt.njk" import agentPrompt %}
+{% from "agent-prompt.njk" import agentPrompt, collectionPromptViews %}
 <style>
   .content.catalog-item {
     font-size: 1.4rem;
@@ -461,12 +461,11 @@ eleventyComputed:
       </tr>
     {% endfor %}
   </table>
-  {#- STAC owns the example variants, including any plain-text agent prompt. -#}
+  {#- STAC supplies code examples and an optional product-specific request. -#}
   {% for example in entry.examples %}
     {%- set frameId = "example-" + loop.index %}
     {%- set allVariants = example.variants or [{ "label": "Python", "code": example.code }] %}
-    {%- set promptVariant = allVariants | find("language", "text") %}
-    {%- set withPrompt = promptVariant %}
+    {%- set withPrompt = loop.first %}
     {%- set variants = [] %}
     {%- for variant in allVariants %}
       {%- if variant.language != "text" %}{% set _ = variants.push(variant) %}{% endif %}
@@ -494,14 +493,14 @@ eleventyComputed:
       {% endfor %}
       {% if withPrompt %}
         <div class="codeTabPanel" role="tabpanel" id="{{ frameId }}-panel-prompt" aria-labelledby="{{ frameId }}-tab-prompt" hidden>
-          {{ agentPrompt(promptVariant.code, "Example prompt for a coding agent", "dataset-example") }}
+          {{ collectionPromptViews(agentPrompts.collectionPrompts(entry), frameId + "-prompt") }}
           <div class="frameStatus">{{ entry.title }} · Paste into your coding agent</div>
         </div>
       {% endif %}
     </div>
   {% endfor %}
   {% if not entry.examples.length %}
-    {% include "agent-setup-pill.njk" %}
+    {{ collectionPromptViews(agentPrompts.collectionPrompts(entry), "collection-prompt") }}
   {% endif %}
   {% explorer entry %}
   <h2>Dimensions</h2>

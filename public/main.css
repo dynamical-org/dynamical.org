@@ -1115,3 +1115,28 @@ a.work-item:hover h3 { text-decoration: underline; }
     filter: invert(1);
   }
 }
+
+/* Two generic prompt views inside the catalog example frame. */
+.prompt-view-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem 0;
+}
+.prompt-view-tabs button {
+  font: inherit;
+  font-size: 1.3rem;
+  color: var(--frame-muted-text);
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+.prompt-view-tabs button[aria-selected="true"] {
+  color: var(--frame-text);
+  background: var(--code-bg);
+}
+.prompt-view-tabs button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

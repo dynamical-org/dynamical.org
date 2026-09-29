@@ -9,13 +9,6 @@ const require = createRequire(import.meta.url);
 
 const PAGE = "/catalog/noaa-gfs-forecast/";
 
-// STAC publishes independently. Before the authored variants are published,
-// code-only collections remain supported; prompt interactions run once present.
-const requirePublishedPrompt = async (page) => {
-  test.skip(await page.getByRole("tab", { name: "Example prompt" }).count() === 0,
-    "This STAC collection has no published text example yet");
-};
-
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
 // Document order of the page's landmarks, by the text that names each one.
@@ -64,22 +57,21 @@ test("a product with no listing has no External listings", async ({ page }) => {
 
 test("the prompt tab shows and copies this product's prompt", async ({ page }) => {
   await page.goto(PAGE);
-  await requirePublishedPrompt(page);
   const frame = page.locator(".frame").first();
   await expect(frame.getByRole("tab")).toHaveText(["dynamical-catalog", "pystac + icechunk", "Example prompt"]);
   await frame.getByRole("tab", { name: "Example prompt" }).click();
-  const panel = frame.getByRole("tabpanel");
+  const panel = frame.locator(".codeTabPanel:not([hidden])");
   await expect(panel).toHaveCount(1);
-  const block = panel.locator(".agent-prompt[data-prompt=dataset-example]");
+  const block = panel.locator(".agent-prompt[data-prompt=dataset-start]");
   const text = await block.locator("textarea").inputValue();
-  expect(text).toMatch(/^Fetch and follow the setup instructions at https:\/\/dynamical\.org\/prompt\.md\n\nAfter setup, my task: open noaa-gfs-forecast \(https:\/\/stac\.dynamical\.org\/noaa-gfs-forecast\/collection\.json\) and /);
+  expect(text).toBe(require("../../lib/agent-prompts.js").collectionPrompts((await require("../../_data/catalog.js")()).entries.find(e => e.id === "noaa-gfs-forecast")).start);
   await block.getByRole("button", { name: "copy to clipboard" }).click();
   await expect(block.locator("[role=status]")).toHaveText("copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text);
   // Back to the code: one panel at a time.
   await frame.getByRole("tab", { name: "dynamical-catalog" }).click();
   await expect(block).toBeHidden();
-  await expect(frame.getByRole("tabpanel")).toContainText("dynamical_catalog.open");
+  await expect(frame.locator(".codeTabPanel:not([hidden])")).toContainText("dynamical_catalog.open");
 });
 
 // Records track() calls; the page defines track() itself on DOMContentLoaded.
@@ -97,7 +89,6 @@ const trackEvents = async (page) => {
 test("the keyboard reaches the prompt tab and its copy button", async ({ page }) => {
   const events = await trackEvents(page);
   await page.goto(PAGE);
-  await requirePublishedPrompt(page);
   const frame = page.locator(".frame").first();
   await frame.getByRole("tab", { name: "dynamical-catalog" }).focus();
   await page.keyboard.press("End");
@@ -108,25 +99,26 @@ test("the keyboard reaches the prompt tab and its copy button", async ({ page })
   await expect(frame.getByRole("tab", { name: "dynamical-catalog" })).toBeFocused();
   await page.keyboard.press("ArrowLeft");
   await expect(tab).toBeFocused();
-  // Tab leaves the tablist for the panel: the textarea, then the copy button.
+  // Tab enters the nested Start view, then its textarea and copy button.
   await page.keyboard.press("Tab");
-  await expect(frame.locator("textarea")).toBeFocused();
+  await expect(frame.getByRole("tab", { name: "Start", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(frame.locator(".prompt-view-panel:not([hidden]) textarea")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(frame.getByRole("button", { name: "copy to clipboard" })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(frame.locator("[role=status]")).toHaveText("copied");
+  await expect(frame.locator(".prompt-view-panel:not([hidden]) [role=status]")).toHaveText("copied");
   // Arrowing through tabs is not a choice of access path: only the copy counts.
-  expect(events).toEqual([["agent_prompt_copied", { prompt: "dataset-example", page: PAGE }]]);
+  expect(events).toEqual([["agent_prompt_copied", { prompt: "dataset-start", page: PAGE }]]);
 });
 
 test("choosing a code variant is tracked, visiting the prompt tab is not", async ({ page }) => {
   const events = await trackEvents(page);
   await page.goto(PAGE);
-  await requirePublishedPrompt(page);
   const frame = page.locator(".frame").first();
   await frame.getByRole("tab", { name: "Example prompt" }).click();
   await frame.getByRole("tab", { name: "pystac + icechunk" }).click();
-  await expect(frame.getByRole("tabpanel")).toContainText("pystac");
+  await expect(frame.locator(".codeTabPanel:not([hidden])")).toContainText("pystac");
   expect(events).toEqual([["snippet_variant_selected", { dataset: "noaa-gfs-forecast", variant: "pystac + icechunk" }]]);
 });
 
@@ -167,14 +159,39 @@ for (const width of WIDTHS) {
   });
 }
 
-test("every authored STAC prompt renders verbatim", async ({ page }) => {
+test("every collection uses generic framing and the exact STAC request", async ({ page }) => {
   const { entries } = await require("../../_data/catalog.js")();
   expect(entries.length).toBeGreaterThan(0);
   for (const entry of entries) {
-    const prompt = entry.examples?.[0]?.variants?.find(v => v.language === "text");
     await page.goto(`/catalog/${entry.id}/`);
-    const textarea = page.locator('.agent-prompt[data-prompt="dataset-example"] textarea');
-    if (prompt) expect(await textarea.inputValue()).toBe(prompt.code);
-    else await expect(textarea).toHaveCount(0);
+    const opening = "Fetch and follow the setup instructions at https://dynamical.org/prompt.md\n\nOpen " + entry.id + " (" + entry.links.find(l => l.rel === "self").href + ").\n\n";
+    expect(await page.locator('[data-prompt="dataset-start"] textarea').inputValue()).toBe(opening + "Then ask me what I want to do.");
+    const example = page.locator('[data-prompt="dataset-example"] textarea');
+    if (entry["dynamical:example_request"]) expect(await example.inputValue()).toBe(opening + "For example: " + entry["dynamical:example_request"]);
+    else await expect(example).toHaveCount(0);
   }
+});
+
+test("Start and Example views support keyboard selection and exact copying", async ({ page }) => {
+  await page.goto(PAGE);
+  await page.getByRole("tab", {name: "Example prompt", exact: true}).click();
+  const start = page.getByRole("tab", {name: "Start", exact: true});
+  const example = page.getByRole("tab", {name: "Example", exact: true});
+  await start.focus();
+  if (await example.count()) {
+    await page.keyboard.press("End");
+    await expect(example).toBeFocused();
+    await expect(example).toHaveAttribute("aria-selected", "true");
+    const block = page.locator('[data-prompt="dataset-example"]');
+    await block.getByRole("button").click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await block.locator("textarea").inputValue());
+    await example.focus();
+    await page.keyboard.press("Home");
+    await expect(start).toBeFocused();
+  } else {
+    await page.keyboard.press("ArrowRight");
+    await expect(start).toBeFocused();
+  }
+  await expect(start).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-prompt="dataset-start"]')).toBeVisible();
 });
