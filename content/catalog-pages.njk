@@ -210,16 +210,16 @@ eleventyComputed:
     border: 0;
     border-radius: 0;
     background: none;
-    color: #c5c8c6;
+    color: var(--frame-code-text);
     font-size: 1.5rem;
     resize: none;
   }
   .frame .agent-prompt button {
     margin-top: 1rem;
-    color: #fafafa;
+    color: var(--frame-text);
   }
   .frame .agent-prompt [role="status"] {
-    color: #898989;
+    color: var(--frame-muted-text);
   }
   /* Brand mark, top-right. The hosted lockup carries ~13% empty space below its
      artwork; scaling the image past a clipped box crops that padding so the
@@ -254,8 +254,8 @@ eleventyComputed:
     line-height: 1.35;
   }
   /* When the frame gets narrow, drop the wordmark to the icon and tighten the
-     header so the mark clears the two tabs. */
-  @container (max-width: 520px) {
+     header so the mark clears the three tabs. */
+  @container (max-width: 640px) {
     .frameBrand-wordmark {
       display: none;
     }
@@ -273,7 +273,7 @@ eleventyComputed:
   /* Three tabs outgrow a phone's frame: let them wrap onto a second row
      rather than be clipped by the frame's overflow, and give them the mark's
      room so the code tabs share the first row. */
-  @container (max-width: 460px) {
+  @container (max-width: 500px) {
     .frameHeader {
       height: auto;
     }
@@ -553,9 +553,18 @@ eleventyComputed:
     const buttons = [...frame.querySelectorAll(".codeTab")];
     const panels = [...frame.querySelectorAll(".codeTabPanel")];
     if (buttons.length === 0) return;
+    const select = (i) => {
+      buttons.forEach((b, j) => {
+        const active = i === j;
+        b.setAttribute("aria-selected", active ? "true" : "false");
+        b.tabIndex = active ? 0 : -1;
+        panels[j].hidden = !active;
+      });
+    };
     // Only the selected tab is in the Tab order; the arrow keys, Home and End
     // move between tabs (the WAI-ARIA tabs pattern), so the prompt tab and its
-    // copy button are reachable without a mouse.
+    // copy button are reachable without a mouse. Passing through a tab on the
+    // way to another is not a choice, so it isn't tracked.
     frame.querySelector(".codeTabList").addEventListener("keydown", (event) => {
       const i = buttons.indexOf(document.activeElement);
       const n = buttons.length;
@@ -563,16 +572,14 @@ eleventyComputed:
       if (i < 0 || next === undefined) return;
       event.preventDefault();
       buttons[next].focus();
-      buttons[next].click();
+      select(next);
     });
     buttons.forEach((button, i) => {
       button.addEventListener("click", () => {
-        buttons.forEach((b, j) => {
-          const active = i === j;
-          b.setAttribute("aria-selected", active ? "true" : "false");
-          b.tabIndex = active ? 0 : -1;
-          panels[j].hidden = !active;
-        });
+        select(i);
+        // The prompt tab is not an access path; copying from it is tracked on
+        // its own (agent_prompt_copied, public/agent-prompt.mjs).
+        if (panels[i].querySelector(".agent-prompt")) return;
         // Which access path people reach for per dataset — the dynamical-catalog
         // client versus assembling pystac + icechunk by hand. Tells us where the
         // documentation and library effort is actually being spent.

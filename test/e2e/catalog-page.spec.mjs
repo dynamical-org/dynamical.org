@@ -64,7 +64,20 @@ test("the prompt tab shows and copies this product's prompt", async ({ page }) =
   await expect(frame.getByRole("tabpanel")).toContainText("dynamical_catalog.open");
 });
 
+// Records track() calls; the page defines track() itself on DOMContentLoaded.
+const trackEvents = async (page) => {
+  const events = [];
+  await page.exposeFunction("__track", (event, properties) => events.push([event, properties]));
+  await page.addInitScript(() => {
+    window.addEventListener("DOMContentLoaded", () => {
+      window.track = (event, properties) => window.__track(event, properties);
+    });
+  });
+  return events;
+};
+
 test("the keyboard reaches the prompt tab and its copy button", async ({ page }) => {
+  const events = await trackEvents(page);
   await page.goto(PAGE);
   const frame = page.locator(".frame").first();
   await frame.getByRole("tab", { name: "dynamical-catalog" }).focus();
@@ -83,27 +96,51 @@ test("the keyboard reaches the prompt tab and its copy button", async ({ page })
   await expect(frame.getByRole("button", { name: "copy to clipboard" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(frame.locator("[role=status]")).toHaveText("copied");
+  // Arrowing through tabs is not a choice of access path: only the copy counts.
+  expect(events).toEqual([["agent_prompt_copied", { prompt: "dataset-example", page: PAGE }]]);
 });
 
-for (const width of [320, 375]) {
-  test(`every tab is visible in the frame at ${width}px`, async ({ page }) => {
+test("choosing a code variant is tracked, visiting the prompt tab is not", async ({ page }) => {
+  const events = await trackEvents(page);
+  await page.goto(PAGE);
+  const frame = page.locator(".frame").first();
+  await frame.getByRole("tab", { name: "Example prompt" }).click();
+  await frame.getByRole("tab", { name: "pystac + icechunk" }).click();
+  await expect(frame.getByRole("tabpanel")).toContainText("pystac");
+  expect(events).toEqual([["snippet_variant_selected", { dataset: "noaa-gfs-forecast", variant: "pystac + icechunk" }]]);
+});
+
+// Every tab and the visible brand mark stay inside the header, clear of each
+// other, from a small phone through the widths where the header drops the
+// wordmark (640px frame) and wraps the tabs (500px frame).
+const WIDTHS = [375, 1024, ...Array.from({ length: 25 }, (_, i) => 320 + 20 * i)];
+for (const width of WIDTHS) {
+  test(`the frame header fits at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto(PAGE);
     const frame = page.locator(".frame").first();
-    const box = await frame.boundingBox();
-    for (const tab of await frame.getByRole("tab").all()) {
-      const t = await tab.boundingBox();
-      expect(t.x).toBeGreaterThanOrEqual(box.x);
-      expect(t.x + t.width).toBeLessThanOrEqual(box.x + box.width);
-      expect(t.y + t.height).toBeLessThanOrEqual(box.y + box.height);
+    const header = await frame.locator(".frameHeader").boundingBox();
+    const inside = (b) => {
+      expect(b.x).toBeGreaterThanOrEqual(header.x);
+      expect(b.x + b.width).toBeLessThanOrEqual(header.x + header.width + 0.5);
+      expect(b.y + b.height).toBeLessThanOrEqual(header.y + header.height + 0.5);
+    };
+    const tabs = await Promise.all((await frame.getByRole("tab").all()).map((t) => t.boundingBox()));
+    tabs.forEach(inside);
+    const marks = frame.locator(".frameBrand-wordmark img, .frameBrand-icon");
+    for (const mark of await marks.all()) {
+      if (!(await mark.isVisible())) continue;
+      const m = await mark.boundingBox();
+      inside(m);
+      for (const t of tabs) expect(t.x + t.width <= m.x || t.y + t.height <= m.y || m.y + m.height <= t.y).toBe(true);
     }
     // At 320px something else on the page already overflows by 8px (on main
-    // too, 2026-09-29), so the page-width check holds at 375px only.
+    // too, 2026-09-29), so the page-width check holds from 375px.
     if (width >= 375) expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await frame.getByRole("tab", { name: "Example prompt" }).click();
     const copy = await frame.getByRole("button", { name: "copy to clipboard" }).boundingBox();
-    const open = await frame.boundingBox();
-    expect(copy.x + copy.width).toBeLessThanOrEqual(open.x + open.width);
-    expect(copy.y + copy.height).toBeLessThanOrEqual(open.y + open.height);
+    const box = await frame.boundingBox();
+    expect(copy.x + copy.width).toBeLessThanOrEqual(box.x + box.width);
+    expect(copy.y + copy.height).toBeLessThanOrEqual(box.y + box.height);
   });
 }

@@ -117,13 +117,13 @@ test("the dataset prompt is the setup line, then one task naming the dataset's S
 test("a time-optimized forecast asks for one run's series at a place", () => {
   assert.equal(
     task(datasetPrompt(entry())),
-    "After setup, my task: open noaa-gfs-forecast (https://stac.dynamical.org/noaa-gfs-forecast/collection.json) and plot 2 metre temperature (temperature_2m) at the grid point nearest New York City (40.71, -74.01) for every lead time of the latest init_time.",
+    "After setup, my task: open noaa-gfs-forecast (https://stac.dynamical.org/noaa-gfs-forecast/collection.json) and plot 2 metre temperature (temperature_2m) at the grid point nearest New York City (40.71, -74.01) for every lead time of the latest init_time with data. Say which times you used.",
   );
 });
 
 test("an ensemble forecast asks for a line per member", () => {
   const dims = [...entry().dimensions, { name: "ensemble_member" }];
-  assert.match(task(datasetPrompt(entry({ dimensions: dims }))), /lead time of the latest init_time, one line per ensemble_member\.$/);
+  assert.match(task(datasetPrompt(entry({ dimensions: dims }))), /lead time of the latest init_time with data, one line per ensemble_member\. Say which times you used\.$/);
 });
 
 test("a time-optimized analysis asks for a recent window at a place", () => {
@@ -142,18 +142,18 @@ test("a time-optimized analysis asks for a recent window at a place", () => {
       }),
     ),
   );
-  assert.match(text, /plot precipitation rate \(precipitation_surface\) at the grid point nearest New York City \(40\.71, -74\.01\) over the most recent 7 days\.$/);
+  assert.match(text, /plot precipitation rate \(precipitation_surface\) at the grid point nearest New York City \(40\.71, -74\.01\) over the 7 days up to its latest time with data\. Say which times you used\.$/);
 });
 
 test("a map-optimized product asks for one map, never a place", () => {
   const forecast = task(datasetPrompt(entry({ optimization: "space" })));
-  assert.match(forecast, /map 2 metre temperature \(temperature_2m\) across the whole grid at the first lead_time of the latest init_time\.$/);
+  assert.match(forecast, /map 2 metre temperature \(temperature_2m\) across the whole grid at the first lead_time of the latest init_time with data\. Say which times you used\.$/);
   const ensemble = task(
     datasetPrompt(entry({ optimization: "space", dimensions: [...entry().dimensions, { name: "ensemble_member" }] })),
   );
-  assert.match(ensemble, /first lead_time of the latest init_time, averaged over ensemble_member\.$/);
+  assert.match(ensemble, /first lead_time of the latest init_time with data, averaged over ensemble_member\. Say which times you used\.$/);
   const analysis = task(datasetPrompt(entry({ optimization: "space", forecast_domain: null })));
-  assert.match(analysis, /across the whole grid at the latest time\.$/);
+  assert.match(analysis, /across the whole grid at the latest time with data\. Say which times you used\.$/);
 });
 
 test("the place is one the product covers", () => {
