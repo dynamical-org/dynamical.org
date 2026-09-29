@@ -79,3 +79,26 @@ test("nothing on the site mentions the MCP server", () => {
     assert.doesNotMatch(text, /mcp\.dynamical\.org|\bMCP\b/, `${file} mentions MCP`);
   }
 });
+
+// Exercise the catalog template's actual example loop, including mixed code/text variants.
+const catalogTemplate = readFileSync(new URL("../content/catalog-pages.njk", import.meta.url), "utf8");
+const exampleLoop = catalogTemplate.slice(catalogTemplate.indexOf("  {% for example in entry.examples %}"), catalogTemplate.indexOf("  {% if not entry.examples.length %}"));
+env.addFilter("find", (items, key, value) => items.find(item => item[key] === value));
+env.addFilter("highlight", code => code);
+
+for (const prompt of ['An authored task <&> "quoted"\n\nPreserve this exactly.\n', null]) {
+  test(`catalog renders STAC text verbatim (prompt: ${prompt !== null})`, () => {
+    const variants = [
+      { label: "dynamical-catalog", language: "python", code: "import dynamical_catalog" },
+      { label: "pystac + icechunk", language: "python", code: "import pystac" },
+      ...(prompt === null ? [] : [{ label: "Example prompt", language: "text", code: prompt }]),
+    ];
+    const html = env.renderString('{% from "agent-prompt.njk" import agentPrompt %}' + exampleLoop, {
+      entry: { title: "A product", examples: [{ title: "Example", variants }] },
+    });
+    const textareas = [...html.matchAll(/<textarea[^>]*>([\s\S]*?)<\/textarea>/g)];
+    assert.equal(textareas.length, prompt === null ? 0 : 1);
+    if (prompt !== null) assert.equal(unescape(textareas[0][1]), variants[2].code);
+    assert.equal((html.match(/role="tab"/g) || []).length, variants.length);
+  });
+}

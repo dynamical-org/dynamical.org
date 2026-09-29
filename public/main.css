@@ -19,6 +19,10 @@
   --border-muted-color: #444444;
 
   --code-bg: #000000;
+  /* Text in the always-dark code frame (.frame), the same in both themes. */
+  --frame-text: #fafafa;
+  --frame-muted-text: #898989;
+  --frame-code-text: #c5c8c6;
 
   --popup-bg: #ffffff;
   --popup-border: #cccccc;
