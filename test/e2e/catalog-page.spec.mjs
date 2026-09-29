@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 
 // The order of a catalog page's sections, and the example frame's third tab:
 // the prompt a reader hands to a coding agent. Tab switching, keyboard reach,
@@ -152,3 +154,16 @@ for (const width of WIDTHS) {
     expect(copy.y + copy.height).toBeLessThanOrEqual(box.y + box.height);
   });
 }
+
+test("every authored STAC prompt renders verbatim", async ({ page }) => {
+  const { entries } = await require("../../_data/catalog.js")();
+  let checked = 0;
+  for (const entry of entries) {
+    const prompt = entry.examples?.[0]?.variants?.find(v => v.language === "text");
+    if (!prompt) continue;
+    await page.goto(`/catalog/${entry.id}/`);
+    expect(await page.locator('.agent-prompt[data-prompt="dataset-example"] textarea').inputValue()).toBe(prompt.code);
+    checked++;
+  }
+  expect(checked).toBeGreaterThan(0);
+});

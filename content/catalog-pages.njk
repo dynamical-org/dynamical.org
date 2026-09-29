@@ -461,13 +461,16 @@ eleventyComputed:
       </tr>
     {% endfor %}
   </table>
-  {#- The first example's frame carries a third tab beside the STAC code
-      variants: the setup line plus a task on this product
-      (lib/agent-prompts.js datasetPrompt), in place of the setup pill. -#}
+  {#- STAC owns the example variants, including any plain-text agent prompt. -#}
   {% for example in entry.examples %}
     {%- set frameId = "example-" + loop.index %}
-    {%- set withPrompt = loop.first %}
-    {%- set variants = example.variants or [{ "label": "Python", "code": example.code }] %}
+    {%- set allVariants = example.variants or [{ "label": "Python", "code": example.code }] %}
+    {%- set promptVariant = allVariants | find("language", "text") %}
+    {%- set withPrompt = promptVariant %}
+    {%- set variants = [] %}
+    {%- for variant in allVariants %}
+      {%- if variant.language != "text" %}{% set _ = variants.push(variant) %}{% endif %}
+    {%- endfor %}
     <div class="frame">
       <div class="frameHeader">
         <div class="codeTabList" role="tablist" aria-label="{{ example.title }}">
@@ -491,7 +494,7 @@ eleventyComputed:
       {% endfor %}
       {% if withPrompt %}
         <div class="codeTabPanel" role="tabpanel" id="{{ frameId }}-panel-prompt" aria-labelledby="{{ frameId }}-tab-prompt" hidden>
-          {{ agentPrompt(agentPrompts.datasetPrompt(entry), "Example prompt for a coding agent", "dataset-example") }}
+          {{ agentPrompt(promptVariant.code, "Example prompt for a coding agent", "dataset-example") }}
           <div class="frameStatus">{{ entry.title }} · Paste into your coding agent</div>
         </div>
       {% endif %}

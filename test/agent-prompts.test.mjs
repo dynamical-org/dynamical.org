@@ -5,7 +5,7 @@ import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const nunjucks = require("nunjucks");
-const { SETUP_LINE, SETUP_PROMPT, MIGRATION, datasetPrompt } = require("../lib/agent-prompts.js");
+const { SETUP_LINE, SETUP_PROMPT, MIGRATION } = require("../lib/agent-prompts.js");
 
 const env = new nunjucks.Environment(
   new nunjucks.FileSystemLoader(new URL("../_includes/", import.meta.url).pathname),
@@ -80,92 +80,25 @@ test("nothing on the site mentions the MCP server", () => {
   }
 });
 
-// Catalog entries as _data/catalog.js shapes them, trimmed to the fields the
-// dataset prompt reads. One per kind of task it writes.
-const GLOBAL = [-180, -90, 179.75, 90];
-const entry = (overrides) => ({
-  id: "noaa-gfs-forecast",
-  title: "NOAA GFS forecast",
-  forecast_domain: "Forecast lead time 0-384 hours (0-16 days) ahead",
-  optimization: "time",
-  spatial_bbox: GLOBAL,
-  dimensions: [{ name: "init_time" }, { name: "lead_time" }, { name: "latitude" }, { name: "longitude" }],
-  variables: [
-    { name: "categorical_freezing_rain_surface", long_name: "Categorical freezing rain" },
-    { name: "temperature_2m", long_name: "2 metre temperature" },
-  ],
-  ...overrides,
-});
-const task = (text) => text.slice(text.indexOf("\n\n") + 2);
+// Exercise the catalog template's actual example loop, including mixed code/text variants.
+const catalogTemplate = readFileSync(new URL("../content/catalog-pages.njk", import.meta.url), "utf8");
+const exampleLoop = catalogTemplate.slice(catalogTemplate.indexOf("  {% for example in entry.examples %}"), catalogTemplate.indexOf("  {% if not entry.examples.length %}"));
+env.addFilter("find", (items, key, value) => items.find(item => item[key] === value));
+env.addFilter("highlight", code => code);
 
-test("the dataset prompt is the setup line, then one task naming the dataset's STAC", () => {
-  const text = datasetPrompt(entry());
-  assert.ok(text.startsWith(`${SETUP_LINE}\n\n`));
-  // prompt.md ends by asking what the user wants to build; the task has to
-  // read as that answer rather than a second, competing instruction.
-  assert.match(task(text), /^After setup, my task: /);
-  assert.ok(!task(text).includes("\n"), "the task is one paragraph");
-  assert.ok(task(text).includes("open noaa-gfs-forecast (https://stac.dynamical.org/noaa-gfs-forecast/collection.json)"));
-  assert.deepEqual([...text.matchAll(/https?:\/\/\S+/g)].map((m) => m[0].replace(/[).,]+$/, "")), [
-    SETUP_PROMPT,
-    "https://stac.dynamical.org/noaa-gfs-forecast/collection.json",
-  ]);
-  assert.doesNotMatch(text, /s3:\/\/|\.icechunk|amazonaws\.com|data\.dynamical\.org/);
-  assert.ok(text.length <= 400, `${text.length} chars`);
-});
-
-test("a time-optimized forecast asks for one run's series at a place", () => {
-  assert.equal(
-    task(datasetPrompt(entry())),
-    "After setup, my task: open noaa-gfs-forecast (https://stac.dynamical.org/noaa-gfs-forecast/collection.json) and plot 2 metre temperature (temperature_2m) at the grid point nearest New York City (40.71, -74.01) for every lead time of the latest init_time with data. Say which times you used.",
-  );
-});
-
-test("an ensemble forecast asks for a line per member", () => {
-  const dims = [...entry().dimensions, { name: "ensemble_member" }];
-  assert.match(task(datasetPrompt(entry({ dimensions: dims }))), /lead time of the latest init_time with data, one line per ensemble_member\. Say which times you used\.$/);
-});
-
-test("a time-optimized analysis asks for a recent window at a place", () => {
-  const text = task(
-    datasetPrompt(
-      entry({
-        id: "nasa-imerg-analysis-late",
-        title: "NASA IMERG analysis, late",
-        forecast_domain: null,
-        dimensions: [{ name: "time" }, { name: "latitude" }, { name: "longitude" }],
-        // The quality index sorts first; the prompt must still pick the rate.
-        variables: [
-          { name: "precipitation_quality_index_surface", long_name: "Precipitation quality index" },
-          { name: "precipitation_surface", long_name: "Precipitation rate" },
-        ],
-      }),
-    ),
-  );
-  assert.match(text, /plot precipitation rate \(precipitation_surface\) at the grid point nearest New York City \(40\.71, -74\.01\) over the 7 days up to its latest time with data\. Say which times you used\.$/);
-});
-
-test("a map-optimized product asks for one map, never a place", () => {
-  const forecast = task(datasetPrompt(entry({ optimization: "space" })));
-  assert.match(forecast, /map 2 metre temperature \(temperature_2m\) across the whole grid at the first lead_time of the latest init_time with data\. Say which times you used\.$/);
-  const ensemble = task(
-    datasetPrompt(entry({ optimization: "space", dimensions: [...entry().dimensions, { name: "ensemble_member" }] })),
-  );
-  assert.match(ensemble, /first lead_time of the latest init_time with data, averaged over ensemble_member\. Say which times you used\.$/);
-  const analysis = task(datasetPrompt(entry({ optimization: "space", forecast_domain: null })));
-  assert.match(analysis, /across the whole grid at the latest time with data\. Say which times you used\.$/);
-});
-
-test("the place is one the product covers", () => {
-  const europe = task(datasetPrompt(entry({ spatial_bbox: [-23.5, 29.5, 62.5, 70.5] })));
-  assert.match(europe, /nearest London \(51\.51, -0\.13\)/);
-  // Nowhere named fits: the middle of the domain, by its coordinates.
-  const elsewhere = task(datasetPrompt(entry({ spatial_bbox: [100, -40, 160, -10] })));
-  assert.match(elsewhere, /nearest \(-25\.00, 130\.00\)/);
-});
-
-test("the variable falls back through maximum temperature to the first listed", () => {
-  const vars = (...names) => names.map((name) => ({ name, long_name: name.replace(/_/g, " ") }));
-  assert.match(task(datasetPrompt(entry({ variables: vars("cape_surface", "maximum_temperature_2m") }))), /\(maximum_temperature_2m\)/);
-  assert.match(task(datasetPrompt(entry({ variables: vars("cape_surface", "wind_u_10m") }))), /\(cape_surface\)/);
-});
+for (const prompt of ['An authored task <&> "quoted"\n\nPreserve this exactly.\n', null]) {
+  test(`catalog renders STAC text verbatim (prompt: ${prompt !== null})`, () => {
+    const variants = [
+      { label: "dynamical-catalog", language: "python", code: "import dynamical_catalog" },
+      { label: "pystac + icechunk", language: "python", code: "import pystac" },
+      ...(prompt === null ? [] : [{ label: "Example prompt", language: "text", code: prompt }]),
+    ];
+    const html = env.renderString('{% from "agent-prompt.njk" import agentPrompt %}' + exampleLoop, {
+      entry: { title: "A product", examples: [{ title: "Example", variants }] },
+    });
+    const textareas = [...html.matchAll(/<textarea[^>]*>([\s\S]*?)<\/textarea>/g)];
+    assert.equal(textareas.length, prompt === null ? 0 : 1);
+    if (prompt !== null) assert.equal(unescape(textareas[0][1]), variants[2].code);
+    assert.equal((html.match(/role="tab"/g) || []).length, variants.length);
+  });
+}
