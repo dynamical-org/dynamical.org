@@ -512,7 +512,7 @@ eleventyComputed:
           {% endif %}
           <template class="example-source">{{ variant.code }}</template>
           <div class="frameStatus">
-            <span class="frameStatusTitle">{{ entry.title }} · {{ example.title }}</span>
+            <span class="frameStatusTitle">{{ entry.title }} · {{ "Onboarding prompt" if variant.language == "text" else example.title }}</span>
             <button type="button" class="example-copy" aria-label="Copy {{ variant.label }} example to clipboard"><span>copy</span><span>copied</span></button>
             <span role="status" class="visually-hidden"></span>
           </div>

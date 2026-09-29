@@ -253,3 +253,37 @@ for (const width of [320, 375, 1280]) {
     }
   });
 }
+
+for (const id of ["noaa-gfs-forecast", "noaa-gefs-forecast-35-day", "noaa-hrrr-analysis"]) {
+  for (const width of [320, 375, 1280]) {
+    test(`styled complete examples: ${id} at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({width, height: 900});
+      const [stylesheet] = await Promise.all([
+        page.waitForResponse(response => new URL(response.url()).pathname === "/main.css"),
+        page.goto(`/catalog/${id}/`),
+      ]);
+      expect(stylesheet.ok()).toBe(true);
+      await page.evaluate(() => document.fonts.ready);
+      const frame = page.locator(".frame").first();
+      await expect(frame.locator(".frameHeader")).toHaveCSS("background-color", "rgb(0, 0, 0)");
+      await expect(frame.getByRole("tab").first()).toHaveCSS("font-family", /monospace/);
+      expect((await frame.boundingBox()).width).toBeLessThanOrEqual(780);
+      const entry = catalog.entries.find(entry => entry.id === id);
+      for (const variant of entry.examples[0].variants) {
+        await frame.getByRole("tab", {name: variant.label, exact: true}).click();
+        const panel = frame.locator(".codeTabPanel:not([hidden])");
+        const title = variant.language === "text" ? "Onboarding prompt" : entry.examples[0].title;
+        await expect(panel.locator(".frameStatusTitle")).toHaveText(`${entry.title} · ${title}`);
+        await expectFooterFits(panel.locator(".frameStatus"));
+        if (variant.language === "text") {
+          const textarea = panel.locator("textarea");
+          await expect(textarea).toHaveValue(variant.code);
+          const size = await textarea.evaluate(el => ({width: el.clientWidth, height: el.clientHeight, scrollHeight: el.scrollHeight, scrollWidth: el.scrollWidth}));
+          expect(size.width).toBeGreaterThanOrEqual((await frame.boundingBox()).width - 32);
+          expect(size.scrollHeight).toBeLessThanOrEqual(size.height + 1);
+          expect(size.scrollWidth).toBeLessThanOrEqual(size.width + 1);
+        }
+      }
+    });
+  }
+}

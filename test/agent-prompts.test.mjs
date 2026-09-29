@@ -99,5 +99,7 @@ for (const withText of [true, false]) {
     const sources = [...html.matchAll(/<template class="example-source">([\s\S]*?)<\/template>/g)].map(m => unescape(m[1]));
     assert.deepEqual(sources, variants.map(v => v.code));
     assert.equal((html.match(/class="example-copy"/g) || []).length, variants.length);
+    const titles = [...html.matchAll(/<span class="frameStatusTitle">([^<]*)<\/span>/g)].map(m => unescape(m[1]));
+    assert.deepEqual(titles, ["A product · Example", ...(withText ? ["A product · Onboarding prompt"] : [])]);
   });
 }
