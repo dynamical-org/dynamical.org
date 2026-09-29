@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 // memoizes responses in memory and keeps its cache in the working directory.
 
 const LOADER = fileURLToPath(new URL("../_data/apiExamples.js", import.meta.url));
+const EXAMPLES = fileURLToPath(new URL("../lib/api-examples.js", import.meta.url));
 const OK = { results: [{ forecasts: [{ links: { canonical: "/v1/data/x/SNAP/points/1,2" } }] }] };
 
 /** A stand-in API whose answer to each request is `api.respond(key, hits)`. */
@@ -34,7 +35,12 @@ async function startApi(respond) {
 /** Runs the loader once in `cwd`, returning its result and the requests it made. */
 async function runLoader(api, { env = {}, cwd }) {
   const before = api.seen.length;
+  // The analysis window follows the clock, and its body is part of the cache key;
+  // pin it so runs on either side of an hour ask the same seven requests.
   const script =
+    `const { REQUESTS } = require(${JSON.stringify(EXAMPLES)}); ` +
+    `const build = REQUESTS.analysis.build; ` +
+    `REQUESTS.analysis.build = () => build(Date.UTC(2026, 8, 28, 21)); ` +
     `require(${JSON.stringify(LOADER)})().then(` +
     `(d) => console.log(JSON.stringify({ ok: true, forecast: d.forecast.response })), ` +
     `(e) => console.log(JSON.stringify({ ok: false, message: e.message })))`;
@@ -129,6 +135,7 @@ test("a build never renders a cached response over a refusal", async () => {
       cwd,
     });
     assert.equal(stale.ok, true, "the cache fallback this test guards against did not occur");
+    assert.ok(stale.seen.length > 0, "the expired cache was not asked about");
 
     // A build asks the API every time, so the same refusal fails it.
     const built = await runLoader(api, { env: { ELEVENTY_RUN_MODE: "build" }, cwd });
