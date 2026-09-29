@@ -7,20 +7,32 @@
 // fails the build here rather than misleading a reader indefinitely.
 const fetch = require("@11ty/eleventy-fetch");
 
-const { REQUESTS, curlFor, formatJson } = require("../lib/api-examples.js");
+const {
+  REQUESTS,
+  classifyFailure,
+  curlFor,
+  failureDetail,
+  formatJson,
+} = require("../lib/api-examples.js");
 
 const DATA_API_BASE = process.env.DATA_API_BASE || "https://api.dynamical.org";
-// eleventy-fetch keys its cache on method and body as well as URL, so the seven
-// requests cache independently and a rebuild during local editing does not
-// re-issue them. Long enough to keep `--serve` quiet, short enough that a daily
-// build still shows a current run.
-const CACHE_DURATION = process.env.API_EXAMPLES_CACHE_DURATION || "6h";
+
+// A build always asks the API. eleventy-fetch answers a failed request with an
+// expired cache entry whenever the duration is positive, and Pages keeps `.cache`
+// between builds, so any cache here would let a deploy render an old response over
+// a request the API now refuses — the one thing this file exists to catch.
+// `--serve` rebuilds on every save, so it caches for 6h to stay quiet; eleventy-fetch
+// keys on method and body as well as URL, so the seven requests cache apart.
+function cacheDuration() {
+  const serving = ["serve", "watch"].includes(process.env.ELEVENTY_RUN_MODE);
+  return process.env.API_EXAMPLES_CACHE_DURATION || (serving ? "6h" : "0s");
+}
 
 async function send(request) {
   const url = `${DATA_API_BASE}${request.path}`;
   const options = {
     type: "json",
-    duration: CACHE_DURATION,
+    duration: cacheDuration(),
     fetchOptions: {
       method: request.method,
       ...(request.body
@@ -34,9 +46,38 @@ async function send(request) {
   try {
     return await fetch(url, options);
   } catch (error) {
+    // A refusal will not change on a second asking.
+    if (classifyFailure(error) === "refused") throw error;
     // One retry: these routes open Icechunk archives on a scale-to-zero
     // container, so the first call after an idle period can time out on its own.
     return await fetch(url, options);
+  }
+}
+
+// A failed build should say what kind of failure it saw, because the fixes differ:
+// a refused request usually means the documentation has drifted from the API, and
+// a failing API means waiting.
+const ADVICE = {
+  refused:
+    "The API refused a request /api/ documents. If the detail is a validation error, " +
+    "the request has drifted from the API: change it in lib/api-examples.js, and the " +
+    "prose around it, to match.",
+  failed:
+    "The API failed rather than refusing the request, so this is not drift: rebuild " +
+    "once it recovers, or set DATA_API_BASE to a reachable API.",
+  other: "The page cannot show an example it could not fetch.",
+};
+
+async function sendFor(name, request) {
+  try {
+    return await send(request);
+  } catch (error) {
+    const kind = classifyFailure(error);
+    throw new Error(
+      `[apiExamples] ${name}: ${request.method} ${request.path} against ${DATA_API_BASE} — ` +
+        `${await failureDetail(error)}. ${ADVICE[kind]}`,
+      { cause: error }
+    );
   }
 }
 
@@ -47,16 +88,7 @@ module.exports = async function () {
   for (const [name, definition] of Object.entries(REQUESTS)) {
     const { build, follow, ...limits } = definition;
     const request = build(now);
-    let payload;
-    try {
-      payload = await send(request);
-    } catch (error) {
-      throw new Error(
-        `[apiExamples] ${name}: ${request.method} ${request.path} failed against ` +
-          `${DATA_API_BASE} — ${error.message}. The page cannot show an example it ` +
-          `could not fetch; set DATA_API_BASE to a reachable API or fix the request.`
-      );
-    }
+    let payload = await sendFor(name, request);
 
     let shown = request;
     if (follow) {
@@ -67,7 +99,7 @@ module.exports = async function () {
             `documented two-step example no longer holds`
         );
       }
-      payload = await send(next);
+      payload = await sendFor(name, next);
       shown = next;
     }
 

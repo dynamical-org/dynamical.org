@@ -4,7 +4,15 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
-const { REQUESTS, curlFor, elide, formatJson, hourFloorIso } = require("../lib/api-examples.js");
+const {
+  REQUESTS,
+  classifyFailure,
+  curlFor,
+  elide,
+  failureDetail,
+  formatJson,
+  hourFloorIso,
+} = require("../lib/api-examples.js");
 
 const PAGE = readFileSync(new URL("../content/api.njk", import.meta.url), "utf8");
 
@@ -108,4 +116,50 @@ test("the analysis window is hour-aligned and lags the present", () => {
   assert.equal(query.startTime, "2026-08-05T06:00:00Z");
   assert.equal(query.endTime, "2026-08-05T12:00:00Z");
   assert.equal(hourFloorIso(0, now), "2026-08-05T18:00:00Z");
+});
+
+test("a failure is classed by what the API did", () => {
+  // eleventy-fetch sets `cause` to the Response when the API answered.
+  const answered = (status) => ({ cause: { status } });
+
+  for (const status of [400, 401, 403, 404, 422]) {
+    assert.equal(classifyFailure(answered(status)), "refused", String(status));
+  }
+  for (const status of [408, 429, 500, 502, 503, 524]) {
+    assert.equal(classifyFailure(answered(status)), "failed", String(status));
+  }
+  assert.equal(classifyFailure({ cause: new TypeError("fetch failed") }), "failed");
+  assert.equal(classifyFailure({ cause: new DOMException("timed out", "TimeoutError") }), "failed");
+  // A 200 that did not parse is neither the API refusing nor the API failing.
+  assert.equal(classifyFailure({ cause: new SyntaxError("Unexpected token <") }), "other");
+});
+
+test("failure detail prefers the API's own reason", async () => {
+  const answered = (status, body) => ({ cause: { status, text: async () => body } });
+
+  assert.equal(
+    await failureDetail(answered(422, '{"detail":"Extra inputs are not permitted"}')),
+    "HTTP 422: Extra inputs are not permitted"
+  );
+  // FastAPI's validation array is kept whole, compactly.
+  assert.equal(
+    await failureDetail(answered(422, '{"detail":[{"loc":["body","x"],"msg":"extra"}]}')),
+    'HTTP 422: [{"loc":["body","x"],"msg":"extra"}]'
+  );
+  // An edge error page is not JSON; its start is shown as-is.
+  assert.equal(
+    await failureDetail(answered(524, "<html>A timeout occurred</html>\n")),
+    "HTTP 524: <html>A timeout occurred</html>"
+  );
+  assert.equal(await failureDetail(answered(404, "")), "HTTP 404");
+  assert.equal(
+    await failureDetail({ cause: { status: 400, text: () => Promise.reject(new Error("used")) } }),
+    "HTTP 400"
+  );
+
+  // "fetch failed" gets the reason from one cause further down.
+  const refused = new TypeError("fetch failed", {
+    cause: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
+  });
+  assert.equal(await failureDetail({ cause: refused }), "fetch failed (ECONNREFUSED)");
 });
