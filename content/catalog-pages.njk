@@ -18,6 +18,7 @@ eleventyComputed:
 ---
 
 {% from "tag-icon.njk" import tagIcon %}
+{% from "agent-prompt.njk" import agentPrompt %}
 <style>
   .content.catalog-item {
     font-size: 1.4rem;
@@ -198,6 +199,28 @@ eleventyComputed:
   .codeTabPanel[hidden] {
     display: none;
   }
+  /* The prompt tab: the shared .agent-prompt control (main.css) redrawn in the
+     frame's palette, its text set like the code in the tabs beside it. */
+  .frame .agent-prompt {
+    padding: 1.5rem;
+    background: var(--code-bg);
+  }
+  .frame .agent-prompt textarea {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: #c5c8c6;
+    font-size: 1.5rem;
+    resize: none;
+  }
+  .frame .agent-prompt button {
+    margin-top: 1rem;
+    color: #fafafa;
+  }
+  .frame .agent-prompt [role="status"] {
+    color: #898989;
+  }
   /* Brand mark, top-right. The hosted lockup carries ~13% empty space below its
      artwork; scaling the image past a clipped box crops that padding so the
      mark matches the icon's height and stays vertically centered (18 × 91.73/80
@@ -245,6 +268,24 @@ eleventyComputed:
     }
     .codeTab {
       padding: 0 9px;
+    }
+  }
+  /* Three tabs outgrow a phone's frame: let them wrap onto a second row
+     rather than be clipped by the frame's overflow, and give them the mark's
+     room so the code tabs share the first row. */
+  @container (max-width: 460px) {
+    .frameHeader {
+      height: auto;
+    }
+    .frameBrand-icon {
+      display: none;
+    }
+    .codeTabList {
+      flex-wrap: wrap;
+      flex-shrink: 1;
+    }
+    .codeTab {
+      height: 40px;
     }
   }
   /* data.dynamical.org sunset notice. The only <aside> on the site, so it needs
@@ -363,21 +404,11 @@ eleventyComputed:
     {% elif entry.validation_report_href %}
       · <a href="{{ entry.validation_report_href }}">validation report</a>
     {% endif %}
-    {%- set listing = listings[entry.id] %}
-    {% if listing %}
-      <br>
-      {%- set links = [] %}
-      {%- if listing.earthmover %}{% set _ = links.push(["Earthmover Marketplace", listing.earthmover]) %}{% endif %}
-      {%- if listing.source_coop %}{% set _ = links.push(["Source Cooperative", listing.source_coop]) %}{% endif %}
-      {%- if listing.aws %}{% set _ = links.push(["AWS Open Data Registry", listing.aws]) %}{% endif %}
-      {% for link in links %}{{ " · " if not loop.first }}<a href="{{ link[1] }}">{{ link[0] }}</a>{% endfor %}
-    {% endif %}
   </p>
   {% if model.description %}
     <p style="text-wrap: balance">{{ model.description | markdown | safe }}</p>
   {% endif %}
   <p style="text-wrap: balance">{{ entry.description_summary | markdown | safe }}</p>
-  {% explorer entry %}
   {% if model.datasets.length > 1 %}
     <h3>Related Datasets</h3>
     <ul class="related-datasets">
@@ -414,34 +445,46 @@ eleventyComputed:
       </tr>
     {% endfor %}
   </table>
+  {#- The first example's frame carries a third tab beside the STAC code
+      variants: the setup line plus a task on this product
+      (lib/agent-prompts.js datasetPrompt), in place of the setup pill. -#}
   {% for example in entry.examples %}
+    {%- set frameId = "example-" + loop.index %}
+    {%- set withPrompt = loop.first %}
+    {%- set variants = example.variants or [{ "label": "Python", "code": example.code }] %}
     <div class="frame">
       <div class="frameHeader">
-        {% if example.variants %}
-          <div class="codeTabList" role="tablist" aria-label="{{ example.title }} — open method">
-            {% for variant in example.variants %}
-              <button type="button" class="codeTab" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ variant.label }}</button>
-            {% endfor %}
-          </div>
-        {% endif %}
+        <div class="codeTabList" role="tablist" aria-label="{{ example.title }}">
+          {% for variant in variants %}
+            <button type="button" class="codeTab" role="tab" id="{{ frameId }}-tab-{{ loop.index }}" aria-controls="{{ frameId }}-panel-{{ loop.index }}" aria-selected="{{ 'true' if loop.first else 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ variant.label }}</button>
+          {% endfor %}
+          {% if withPrompt %}
+            <button type="button" class="codeTab" role="tab" id="{{ frameId }}-tab-prompt" aria-controls="{{ frameId }}-panel-prompt" aria-selected="false" tabindex="-1">Example prompt</button>
+          {% endif %}
+        </div>
         <span class="frameBrand" aria-hidden="true">
           <span class="frameBrand-wordmark"><img src="https://assets.dynamical.org/identity/logo/lockup/lockup-white.svg" alt=""></span>
           <img class="frameBrand-icon" src="https://assets.dynamical.org/identity/logo/icon/icon-white.svg" alt="">
         </span>
       </div>
-      {% if example.variants %}
-        {% for variant in example.variants %}
-          <div class="codeTabPanel" role="tabpanel"{% if not loop.first %} hidden{% endif %}>
-            {{ variant.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
-          </div>
-        {% endfor %}
-      {% else %}
-        {{ example.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
+      {% for variant in variants %}
+        <div class="codeTabPanel" role="tabpanel" id="{{ frameId }}-panel-{{ loop.index }}" aria-labelledby="{{ frameId }}-tab-{{ loop.index }}"{% if not loop.first %} hidden{% endif %}>
+          {{ variant.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
+          <div class="frameStatus">{{ entry.title }} · {{ example.title }}</div>
+        </div>
+      {% endfor %}
+      {% if withPrompt %}
+        <div class="codeTabPanel" role="tabpanel" id="{{ frameId }}-panel-prompt" aria-labelledby="{{ frameId }}-tab-prompt" hidden>
+          {{ agentPrompt(agentPrompts.datasetPrompt(entry), "Example prompt for a coding agent", "dataset-example") }}
+          <div class="frameStatus">{{ entry.title }} · Paste into your coding agent</div>
+        </div>
       {% endif %}
-      <div class="frameStatus">{{ entry.title }} · {{ example.title }}</div>
     </div>
   {% endfor %}
-  {% include "agent-setup-pill.njk" %}
+  {% if not entry.examples.length %}
+    {% include "agent-setup-pill.njk" %}
+  {% endif %}
+  {% explorer entry %}
   <h2>Dimensions</h2>
   <div class="table-container">
     <table class="data">
@@ -492,14 +535,36 @@ eleventyComputed:
     <a href="https://doi.org/10.5281/zenodo.18777399"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18777399.svg" alt="DOI"/></a>
     </p>
     <div class="detail-prose">{{ entry.description_details | markdown | safe }}</div>
+    {%- set listing = listings[entry.id] %}
+    {% if listing %}
+      <h3>Additional details</h3>
+      {%- set links = [] %}
+      {%- if listing.earthmover %}{% set _ = links.push(["Earthmover Marketplace", listing.earthmover]) %}{% endif %}
+      {%- if listing.source_coop %}{% set _ = links.push(["Source Cooperative", listing.source_coop]) %}{% endif %}
+      {%- if listing.aws %}{% set _ = links.push(["AWS Open Data Registry", listing.aws]) %}{% endif %}
+      <p>Also listed on {% for link in links %}{{ " · " if not loop.first }}<a href="{{ link[1] }}">{{ link[0] }}</a>{% endfor %}.</p>
+    {% endif %}
 
 <script>
-  // Switch between open-snippet variants within each code frame. Tabs live in
-  // the frame header, panels in the frame body, so scope the lookup to .frame.
+  // Switch between tabs (the code variants and the example prompt) within each
+  // code frame. Tabs live in the frame header, panels in the frame body, so
+  // scope the lookup to .frame.
   document.querySelectorAll(".frame").forEach((frame) => {
     const buttons = [...frame.querySelectorAll(".codeTab")];
     const panels = [...frame.querySelectorAll(".codeTabPanel")];
     if (buttons.length === 0) return;
+    // Only the selected tab is in the Tab order; the arrow keys, Home and End
+    // move between tabs (the WAI-ARIA tabs pattern), so the prompt tab and its
+    // copy button are reachable without a mouse.
+    frame.querySelector(".codeTabList").addEventListener("keydown", (event) => {
+      const i = buttons.indexOf(document.activeElement);
+      const n = buttons.length;
+      const next = { ArrowRight: (i + 1) % n, ArrowLeft: (i - 1 + n) % n, Home: 0, End: n - 1 }[event.key];
+      if (i < 0 || next === undefined) return;
+      event.preventDefault();
+      buttons[next].focus();
+      buttons[next].click();
+    });
     buttons.forEach((button, i) => {
       button.addEventListener("click", () => {
         buttons.forEach((b, j) => {

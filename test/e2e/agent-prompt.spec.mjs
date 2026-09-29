@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-// The copy control (the migration prompt, and the pill on the home page and
-// every dataset page) is one delegated click
+// The copy control (the migration prompt, the pill on the home page, and the
+// prompt tab on every dataset page) is one delegated click
 // handler plus a per-block status timer, and both of its bugs in review were
 // timing: a second click inside the first click's 2.5 s window lost its
 // feedback, and analytics counted a copy that had failed. `npm test` has no
@@ -78,7 +78,9 @@ test("the home-page pill copies the one-line setup prompt", async ({ page }) => 
   expect(copied).toMatch(/^Fetch and follow .* https:\/\/dynamical\.org\/prompt\.md$/);
 });
 
-for (const path of ["/", "/catalog/noaa-gfs-forecast/"]) {
+// Dataset pages carry the prompt as a tab in the example frame instead
+// (catalog-page.spec.mjs), so only the home page has the pill.
+for (const path of ["/"]) {
   test(`the pill fits a phone on ${path}`, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto(path);
