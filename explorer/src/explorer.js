@@ -106,11 +106,13 @@ export function mount(el, options) {
   const gpuWarning = h("span", { className: "dim", hidden: true, dataset: { warning: "gpu" } });
   const sliderLabelText = h("span", { className: "dim", textContent: "Lead time" });
   const slider = h("input", { type: "range", min: "0", max: "0", value: "0", step: "1", disabled: true, ariaLabel: "Lead time" });
-  const sliderRow = h("div", {}, [playBtn, sliderLabelText, slider]);
+  // Hidden for a variable with no time or lead dim; the legend beside it stays.
+  const timeControls = h("span", { className: "explorer-time" }, [playBtn, sliderLabelText, slider]);
   const timesEl = h("span");
   const legendCanvas = h("canvas", { width: 256, height: 1, hidden: true });
   const legendMin = h("span");
   const legendMax = h("span");
+  const legendEl = h("span", { className: "explorer-legend" }, [legendMin, legendCanvas, legendMax]);
   const statusEl = h("span", { role: "status" });
   // Outside the live region, so its updates aren't announced.
   const bytesEl = h("span", { className: "dim", dataset: { bytes: "" } });
@@ -123,8 +125,9 @@ export function mount(el, options) {
   const statusRow = h("div", { className: "explorer-status" }, [statusEl, bytesEl, stopBtn, retryBtn, detailsBtn, gpuWarning]);
   const strip = h("div", { className: "explorer-strip" }, [
     h("div", {}, [h("label", {}, [h("span", { className: "dim", textContent: "Variable" }), " ", varSelect]), extrasEl]),
-    sliderRow,
-    h("div", {}, [timesEl, h("span", { className: "explorer-legend" }, [legendMin, legendCanvas, legendMax])]),
+    // The legend shares the slider's row: the slider gives it room (see explorer.css).
+    h("div", {}, [timeControls, legendEl]),
+    h("div", {}, [timesEl]),
     statusRow,
   ]);
   el.classList.add("explorer");
@@ -607,7 +610,7 @@ export function mount(el, options) {
       const options = p.labels.map((text, j) => [j, text, j === s.pinnedIdx[i]]);
       selectControl(p.name, options, (j) => void change({ type: "pinned", path, i, j }));
     });
-    sliderRow.hidden = !info.step;
+    timeControls.hidden = !info.step;
     if (info.step) {
       sliderLabelText.textContent = slider.ariaLabel = info.step.kind === "time" ? "Time" : "Lead time";
       slider.max = String(info.step.n - 1);

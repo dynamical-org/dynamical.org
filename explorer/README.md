@@ -325,6 +325,11 @@ In a box of fixed height the map shrinks to fit, down to that floor.
     with enough digits that the two differ. A constant sample shows its one value
     ("0 kg m⁻² s⁻¹"), and a sample with no values says "No data"; either updates when a
     varying tile arrives.
+  - It shares the slider's row, at its end: the slider gives up room, down to 12rem. Past
+    that (phones) it takes its own line under the slider, from the left, with the bar
+    shrinking before the numbers wrap. The times row ("Init … · Lead … · Valid …") is
+    below, so a longer lead label can't move it. A variable with no time dim hides the
+    slider and keeps the legend.
   - Units are shown as written, without conversion: exponents as superscripts
     (`kg m-2 s-1` → kg m⁻² s⁻¹), `percent` as %, Celsius as °C, and nothing for the
     dimensionless `1`.

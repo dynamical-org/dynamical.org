@@ -58,14 +58,32 @@
   flex: 1;
   accent-color: var(--text-color);
 }
+/* The legend shares the slider's row. The time controls take whatever room the legend
+   leaves, down to a scrubbable slider; below that, the legend drops to its own line and
+   starts at the left edge like every other row. On the time line, times of different
+   lengths ("+0 h", "+384 h") can't move it: they're in the row below. A variable with no
+   time dim hides the controls and keeps the legend. */
+.explorer-time:not([hidden]) {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.4rem 1.6rem;
+}
+.explorer-time input {
+  min-width: 12rem;
+}
+/* On the narrowest screens the bar gives way before the numbers do. */
 .explorer-legend {
   display: flex;
+  flex: 0 1 auto;
   align-items: center;
   gap: 0.6rem;
-  margin-left: auto;
+  min-width: 0;
+  white-space: nowrap;
 }
 .explorer-legend canvas {
-  width: 12rem;
+  flex: 0 1 12rem;
+  min-width: 4rem;
   height: 1rem;
 }
 /* The status row is one height in every state (Ready, Buffering…, errors, No data, the GPU
