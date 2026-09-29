@@ -5,7 +5,7 @@ import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const nunjucks = require("nunjucks");
-const { SETUP_LINE, SETUP_PROMPT, MIGRATION, collectionPrompts } = require("../lib/agent-prompts.js");
+const { SETUP_LINE, SETUP_PROMPT, MIGRATION } = require("../lib/agent-prompts.js");
 
 const env = new nunjucks.Environment(
   new nunjucks.FileSystemLoader(new URL("../_includes/", import.meta.url).pathname),
@@ -80,32 +80,21 @@ test("nothing on the site mentions the MCP server", () => {
   }
 });
 
-// Render the real collection example loop against both optional-field states.
+// Render the actual loop with supplied text and legacy Python examples.
 const catalogTemplate = readFileSync(new URL("../content/catalog-pages.njk", import.meta.url), "utf8");
 const exampleLoop = catalogTemplate.slice(catalogTemplate.indexOf("  {% for example in entry.examples %}"), catalogTemplate.indexOf("  {% if not entry.examples.length %}"));
-env.addFilter("find", (items, key, value) => items.find(item => item[key] === value));
 env.addFilter("highlight", code => code);
-for (const request of ['Plot temperature <&> "quoted".\nReport the maximum.', null]) {
-  test(`generic prompt views preserve STAC content (request: ${request !== null})`, () => {
-    const entry = {
-      id: "an-arbitrary-product", title: "A product",
-      links: [{rel: "self", href: "https://catalog.example/custom/collection.json"}],
-      "dynamical:example_request": request,
-      examples: [{title: "Example", variants: [
-        {label: "dynamical-catalog", language: "python", code: "import dynamical_catalog"},
-        {label: "pystac + icechunk", language: "python", code: "import pystac"},
-      ]}],
-    };
-    const opening = SETUP_LINE + "\n\nOpen an-arbitrary-product (https://catalog.example/custom/collection.json).\n\n";
-    const prompts = collectionPrompts(entry);
-    assert.equal(prompts.start, opening + "Then ask me what I want to do.");
-    assert.equal(prompts.example, request ? opening + "For example: " + request : null);
-    const html = env.renderString('{% from "agent-prompt.njk" import agentPrompt, collectionPromptViews %}' + exampleLoop, {
-      entry, agentPrompts: {collectionPrompts},
-    });
+for (const withText of [true, false]) {
+  test(`example tabs preserve supplied variants (text: ${withText})`, () => {
+    const text = 'Context <&> "quoted".\n</textarea><script>unsafe</script>';
+    const variants = [{label: "Python", language: "python", code: "import xarray"}];
+    if (withText) variants.push({label: "Prompt", language: "text", code: text});
+    const entry = {title: "A product", examples: [{title: "Example", variants}]};
+    const html = env.renderString('{% from "agent-prompt.njk" import agentPrompt %}' + exampleLoop, {entry});
     const texts = [...html.matchAll(/<textarea[^>]*>([\s\S]*?)<\/textarea>/g)].map(m => unescape(m[1]));
-    assert.deepEqual(texts, request ? [prompts.start, prompts.example] : [prompts.start]);
-    assert.equal((html.match(/class="codeTab"/g) || []).length, 3);
-    assert.equal((html.match(/class="prompt-view-panel"/g) || []).length, request ? 2 : 1);
+    assert.deepEqual(texts, withText ? [text] : []);
+    assert.equal((html.match(/class="codeTab"/g) || []).length, variants.length);
+    assert.ok(!html.includes("<script>unsafe"));
+    assert.ok(!html.includes("prompt-view"));
   });
 }

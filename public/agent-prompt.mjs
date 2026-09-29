@@ -39,27 +39,3 @@ document.addEventListener("click", async (event) => {
     window.track("agent_prompt_copied", { prompt: block.dataset.prompt, page: location.pathname });
   }
 });
-
-// The Start/Example views are nested within the catalog's Example prompt tab.
-for (const views of document.querySelectorAll(".prompt-views")) {
-  const tabs = [...views.querySelectorAll('.prompt-view-tabs [role="tab"]')];
-  const panels = [...views.querySelectorAll(".prompt-view-panel")];
-  const select = (index, focus = false) => {
-    tabs.forEach((tab, i) => {
-      tab.setAttribute("aria-selected", String(i === index));
-      tab.tabIndex = i === index ? 0 : -1;
-      panels[i].hidden = i !== index;
-    });
-    if (focus) tabs[index].focus();
-  };
-  tabs.forEach((tab, i) => {
-    tab.addEventListener("click", () => select(i));
-    tab.addEventListener("keydown", event => {
-      const next = { ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
-      if (next === undefined) return;
-      event.preventDefault();
-      event.stopPropagation();
-      select(next, true);
-    });
-  });
-}

@@ -18,7 +18,7 @@ eleventyComputed:
 ---
 
 {% from "tag-icon.njk" import tagIcon %}
-{% from "agent-prompt.njk" import agentPrompt, collectionPromptViews %}
+{% from "agent-prompt.njk" import agentPrompt %}
 <style>
   .content.catalog-item {
     font-size: 1.4rem;
@@ -461,24 +461,16 @@ eleventyComputed:
       </tr>
     {% endfor %}
   </table>
-  {#- STAC supplies code examples and an optional product-specific request. -#}
+  {#- STAC supplies all example variants, including onboarding text. -#}
   {% for example in entry.examples %}
     {%- set frameId = "example-" + loop.index %}
-    {%- set allVariants = example.variants or [{ "label": "Python", "code": example.code }] %}
-    {%- set withPrompt = loop.first %}
-    {%- set variants = [] %}
-    {%- for variant in allVariants %}
-      {%- if variant.language != "text" %}{% set _ = variants.push(variant) %}{% endif %}
-    {%- endfor %}
+    {%- set variants = example.variants or [{ "label": "Python", "language": "python", "code": example.code }] %}
     <div class="frame">
       <div class="frameHeader">
         <div class="codeTabList" role="tablist" aria-label="{{ example.title }}">
           {% for variant in variants %}
             <button type="button" class="codeTab" role="tab" id="{{ frameId }}-tab-{{ loop.index }}" aria-controls="{{ frameId }}-panel-{{ loop.index }}" aria-selected="{{ 'true' if loop.first else 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ variant.label }}</button>
           {% endfor %}
-          {% if withPrompt %}
-            <button type="button" class="codeTab" role="tab" id="{{ frameId }}-tab-prompt" aria-controls="{{ frameId }}-panel-prompt" aria-selected="false" tabindex="-1">Example prompt</button>
-          {% endif %}
         </div>
         <span class="frameBrand" aria-hidden="true">
           <span class="frameBrand-wordmark"><img src="https://assets.dynamical.org/identity/logo/lockup/lockup-white.svg" alt=""></span>
@@ -487,20 +479,18 @@ eleventyComputed:
       </div>
       {% for variant in variants %}
         <div class="codeTabPanel" role="tabpanel" id="{{ frameId }}-panel-{{ loop.index }}" aria-labelledby="{{ frameId }}-tab-{{ loop.index }}"{% if not loop.first %} hidden{% endif %}>
-          {{ variant.code | highlight('py', 'frameContent frameContentDesktop') | safe }}
+          {% if variant.language == "text" %}
+            {{ agentPrompt(variant.code, variant.label + " for a coding agent", frameId + "-variant-" + loop.index) }}
+          {% else %}
+            {{ variant.code | highlight(variant.language or 'py', 'frameContent frameContentDesktop') | safe }}
+          {% endif %}
           <div class="frameStatus">{{ entry.title }} · {{ example.title }}</div>
         </div>
       {% endfor %}
-      {% if withPrompt %}
-        <div class="codeTabPanel" role="tabpanel" id="{{ frameId }}-panel-prompt" aria-labelledby="{{ frameId }}-tab-prompt" hidden>
-          {{ collectionPromptViews(agentPrompts.collectionPrompts(entry), frameId + "-prompt") }}
-          <div class="frameStatus">{{ entry.title }} · Paste into your coding agent</div>
-        </div>
-      {% endif %}
     </div>
   {% endfor %}
   {% if not entry.examples.length %}
-    {{ collectionPromptViews(agentPrompts.collectionPrompts(entry), "collection-prompt") }}
+    {% include "agent-setup-pill.njk" %}
   {% endif %}
   {% explorer entry %}
   <h2>Dimensions</h2>

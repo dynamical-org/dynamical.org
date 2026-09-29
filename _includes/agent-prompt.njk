@@ -16,20 +16,3 @@
 </div>
 <script type="module" src="/agent-prompt.mjs?v={{ "public/agent-prompt.mjs" | fileHash }}"></script>
 {% endmacro %}
-
-{% macro collectionPromptViews(prompts, id) %}
-<div class="prompt-views">
-  <div class="prompt-view-tabs" role="tablist" aria-label="Prompt view">
-    <button type="button" role="tab" id="{{ id }}-start-tab" aria-controls="{{ id }}-start" aria-selected="true">Start</button>
-    {% if prompts.example %}<button type="button" role="tab" id="{{ id }}-example-tab" aria-controls="{{ id }}-example" aria-selected="false" tabindex="-1">Example</button>{% endif %}
-  </div>
-  <div class="prompt-view-panel" role="tabpanel" id="{{ id }}-start" aria-labelledby="{{ id }}-start-tab">
-    {{ agentPrompt(prompts.start, "Start prompt for a coding agent", "dataset-start") }}
-  </div>
-  {% if prompts.example %}
-    <div class="prompt-view-panel" role="tabpanel" id="{{ id }}-example" aria-labelledby="{{ id }}-example-tab" hidden>
-      {{ agentPrompt(prompts.example, "Example prompt for a coding agent", "dataset-example") }}
-    </div>
-  {% endif %}
-</div>
-{% endmacro %}
