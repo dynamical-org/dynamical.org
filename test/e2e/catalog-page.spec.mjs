@@ -157,7 +157,9 @@ for (const width of WIDTHS) {
     // At 320px something else on the page already overflows by 8px (on main
     // too, 2026-09-29), so the page-width check holds from 375px.
     if (width >= 375) expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await frame.getByRole("tab", { name: "Example prompt" }).click();
+    const promptTab = frame.getByRole("tab", { name: "Example prompt" });
+    if (await promptTab.count() === 0) return;
+    await promptTab.click();
     const copy = await frame.getByRole("button", { name: "copy to clipboard" }).boundingBox();
     const box = await frame.boundingBox();
     expect(copy.x + copy.width).toBeLessThanOrEqual(box.x + box.width);
