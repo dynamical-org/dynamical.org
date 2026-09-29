@@ -96,5 +96,8 @@ for (const withText of [true, false]) {
     assert.equal((html.match(/class="codeTab"/g) || []).length, variants.length);
     assert.ok(!html.includes("<script>unsafe"));
     assert.ok(!html.includes("prompt-view"));
+    const sources = [...html.matchAll(/<template class="example-source">([\s\S]*?)<\/template>/g)].map(m => unescape(m[1]));
+    assert.deepEqual(sources, variants.map(v => v.code));
+    assert.equal((html.match(/class="example-copy"/g) || []).length, variants.length);
   });
 }

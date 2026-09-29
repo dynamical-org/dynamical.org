@@ -10,7 +10,8 @@ const require = createRequire(import.meta.url);
 const PAGE = "/catalog/noaa-gfs-forecast/";
 const catalog = await require("../../_data/catalog.js")();
 const promptFor = entry => entry.examples[0].variants.find(v => v.language === "text");
-const gfsPrompt = promptFor(catalog.entries.find(e => e.id === "noaa-gfs-forecast"));
+const gfsVariants = catalog.entries.find(e => e.id === "noaa-gfs-forecast").examples[0].variants;
+const gfsPrompt = gfsVariants.find(v => v.language === "text");
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -66,10 +67,10 @@ test("the prompt tab shows and copies this product's prompt", async ({ page }) =
   await frame.getByRole("tab", { name: "Prompt" }).click();
   const panel = frame.locator(".codeTabPanel:not([hidden])");
   await expect(panel).toHaveCount(1);
-  const block = panel.locator(".agent-prompt[data-prompt=example-1-variant-3]");
+  const block = frame.locator('[data-prompt="example-1-variant-3"]');
   const text = await block.locator("textarea").inputValue();
   expect(text).toBe(gfsPrompt.code);
-  await block.getByRole("button", { name: "copy to clipboard" }).click();
+  await block.getByRole("button", { name: /copy .* example to clipboard/i }).click();
   await expect(block.locator("[role=status]")).toHaveText("copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text);
   // Back to the code: one panel at a time.
@@ -111,7 +112,7 @@ test("the keyboard reaches the prompt tab and its copy button", async ({ page })
   await page.keyboard.press("Tab");
   await expect(frame.locator(".codeTabPanel:not([hidden]) textarea")).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(frame.getByRole("button", { name: "copy to clipboard" })).toBeFocused();
+  await expect(frame.getByRole("button", { name: /copy .* example to clipboard/i })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(frame.locator(".codeTabPanel:not([hidden]) [role=status]")).toHaveText("copied");
   // Arrowing through tabs is not a choice of access path: only the copy counts.
@@ -155,13 +156,12 @@ for (const width of WIDTHS) {
     // At 320px something else on the page already overflows by 8px (on main
     // too, 2026-09-29), so the page-width check holds from 375px.
     if (width >= 375) expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    const promptTab = frame.getByRole("tab", { name: "Prompt" });
-    if (await promptTab.count() === 0) return;
-    await promptTab.click();
-    const copy = await frame.getByRole("button", { name: "copy to clipboard" }).boundingBox();
-    const box = await frame.boundingBox();
-    expect(copy.x + copy.width).toBeLessThanOrEqual(box.x + box.width);
-    expect(copy.y + copy.height).toBeLessThanOrEqual(box.y + box.height);
+    for (const tab of await frame.getByRole("tab").all()) {
+      await tab.click();
+      const footer = frame.locator(".codeTabPanel:not([hidden]) .frameStatus");
+      await expect(footer.getByRole("button")).toBeEnabled();
+      await expectFooterFits(footer);
+    }
   });
 }
 
@@ -179,3 +179,77 @@ test("every collection renders the exact STAC onboarding variant", async ({ page
     await expect(page.locator(".prompt-views")).toHaveCount(0);
   }
 });
+
+// Text can wrap on phones; the action stays at the right on its final baseline.
+async function expectFooterFits(footer) {
+  const box = await footer.boundingBox();
+  const title = await footer.locator(".frameStatusTitle").boundingBox();
+  const copy = await footer.getByRole("button").boundingBox();
+  expect(title.x + title.width).toBeLessThanOrEqual(copy.x);
+  expect(Math.abs(title.y + title.height - copy.y - copy.height)).toBeLessThan(1);
+  expect(Math.abs(copy.x + copy.width - (box.x + box.width - 16))).toBeLessThan(1);
+  expect(await footer.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+}
+
+test("every variant copies its exact source by keyboard without adding code-copy analytics", async ({ page }) => {
+  const events = await trackEvents(page);
+  await page.goto(PAGE);
+  const frame = page.locator(".frame").first();
+  for (const [i, variant] of gfsVariants.entries()) {
+    await frame.getByRole("tab").first().focus();
+    await page.keyboard.press("Home");
+    for (let j = 0; j < i; j++) await page.keyboard.press("ArrowRight");
+    await expect(frame.getByRole("tab", {name: variant.label, exact: true})).toBeFocused();
+    await page.keyboard.press("Tab");
+    // Textareas and scrollable code blocks are keyboard reachable before copy.
+    const button = frame.locator(".codeTabPanel:not([hidden]) .example-copy");
+    for (let j = 0; j < 2 && !(await button.evaluate(el => el === document.activeElement)); j++) await page.keyboard.press("Tab");
+    await expect(button).toBeFocused();
+    await page.keyboard.press("Enter");
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(variant.code);
+    await expect(frame.locator(".codeTabPanel:not([hidden]) [role=status]")).toHaveText("copied");
+  }
+  expect(events).toEqual(gfsPrompt ? [["agent_prompt_copied", {prompt: "example-1-variant-3", page: PAGE}]] : []);
+});
+
+test("example fallback copies source whitespace exactly", async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.clipboard.writeText = async () => { throw new Error("clipboard unavailable"); };
+    document.execCommand = () => { window.__fallbackText = document.activeElement.value; return true; };
+  });
+  await page.goto(PAGE);
+  const panel = page.locator(".codeTabPanel").first();
+  const source = '\n  quoted "<&>"\n\n    indented\n';
+  await panel.locator(".example-source").evaluate((el, text) => { el.content.textContent = text; }, source);
+  await panel.getByRole("button", {name: /copy .* example to clipboard/i}).click();
+  expect(await page.evaluate(() => window.__fallbackText)).toBe(source);
+  await expect(panel.locator("[role=status]")).toHaveText("copied");
+});
+
+test("a failed example copy announces a manual fallback without tracking a copy", async ({ page }) => {
+  const events = await trackEvents(page);
+  await page.addInitScript(() => {
+    navigator.clipboard.writeText = async () => { throw new Error("clipboard unavailable"); };
+    document.execCommand = () => false;
+  });
+  await page.setViewportSize({width: 320, height: 800});
+  await page.goto(PAGE);
+  const panel = page.locator(".codeTabPanel").first();
+  await panel.getByRole("button", {name: /copy .* example to clipboard/i}).click();
+  await expect(panel.locator("[role=status]")).toHaveText("select the text and copy it yourself");
+  await expect(panel.locator("[role=status]")).toBeVisible();
+  expect(await panel.locator(".frameStatus").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  expect(events).toEqual([]);
+});
+
+for (const width of [320, 375, 1280]) {
+  test(`long product footer fits at ${width}px for every variant`, async ({ page }) => {
+    await page.setViewportSize({width, height: 900});
+    await page.goto("/catalog/noaa-gefs-forecast-35-day/");
+    const frame = page.locator(".frame").first();
+    for (const tab of await frame.getByRole("tab").all()) {
+      await tab.click();
+      await expectFooterFits(frame.locator(".codeTabPanel:not([hidden]) .frameStatus"));
+    }
+  });
+}
