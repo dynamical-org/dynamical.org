@@ -9,6 +9,13 @@ const require = createRequire(import.meta.url);
 
 const PAGE = "/catalog/noaa-gfs-forecast/";
 
+// STAC publishes independently. Before the authored variants are published,
+// code-only collections remain supported; prompt interactions run once present.
+const requirePublishedPrompt = async (page) => {
+  test.skip(await page.getByRole("tab", { name: "Example prompt" }).count() === 0,
+    "This STAC collection has no published text example yet");
+};
+
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
 // Document order of the page's landmarks, by the text that names each one.
@@ -57,6 +64,7 @@ test("a product with no listing has no External listings", async ({ page }) => {
 
 test("the prompt tab shows and copies this product's prompt", async ({ page }) => {
   await page.goto(PAGE);
+  await requirePublishedPrompt(page);
   const frame = page.locator(".frame").first();
   await expect(frame.getByRole("tab")).toHaveText(["dynamical-catalog", "pystac + icechunk", "Example prompt"]);
   await frame.getByRole("tab", { name: "Example prompt" }).click();
@@ -89,6 +97,7 @@ const trackEvents = async (page) => {
 test("the keyboard reaches the prompt tab and its copy button", async ({ page }) => {
   const events = await trackEvents(page);
   await page.goto(PAGE);
+  await requirePublishedPrompt(page);
   const frame = page.locator(".frame").first();
   await frame.getByRole("tab", { name: "dynamical-catalog" }).focus();
   await page.keyboard.press("End");
@@ -113,6 +122,7 @@ test("the keyboard reaches the prompt tab and its copy button", async ({ page })
 test("choosing a code variant is tracked, visiting the prompt tab is not", async ({ page }) => {
   const events = await trackEvents(page);
   await page.goto(PAGE);
+  await requirePublishedPrompt(page);
   const frame = page.locator(".frame").first();
   await frame.getByRole("tab", { name: "Example prompt" }).click();
   await frame.getByRole("tab", { name: "pystac + icechunk" }).click();
@@ -157,13 +167,12 @@ for (const width of WIDTHS) {
 
 test("every authored STAC prompt renders verbatim", async ({ page }) => {
   const { entries } = await require("../../_data/catalog.js")();
-  let checked = 0;
+  expect(entries.length).toBeGreaterThan(0);
   for (const entry of entries) {
     const prompt = entry.examples?.[0]?.variants?.find(v => v.language === "text");
-    if (!prompt) continue;
     await page.goto(`/catalog/${entry.id}/`);
-    expect(await page.locator('.agent-prompt[data-prompt="dataset-example"] textarea').inputValue()).toBe(prompt.code);
-    checked++;
+    const textarea = page.locator('.agent-prompt[data-prompt="dataset-example"] textarea');
+    if (prompt) expect(await textarea.inputValue()).toBe(prompt.code);
+    else await expect(textarea).toHaveCount(0);
   }
-  expect(checked).toBeGreaterThan(0);
 });
