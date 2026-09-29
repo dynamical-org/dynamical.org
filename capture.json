@@ -1,0 +1,290 @@
+[
+  {
+    "id": "noaa-gfs-forecast",
+    "size": "desktop",
+    "variant": "dynamical-catalog",
+    "url": "http://localhost:8000/catalog/noaa-gfs-forecast/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.59375,
+      "width": 780,
+      "height": 194.546875
+    }
+  },
+  {
+    "id": "noaa-gfs-forecast",
+    "size": "desktop",
+    "variant": "pystac + icechunk",
+    "url": "http://localhost:8000/catalog/noaa-gfs-forecast/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.59375,
+      "width": 780,
+      "height": 397.046875
+    }
+  },
+  {
+    "id": "noaa-gfs-forecast",
+    "size": "desktop",
+    "variant": "Prompt",
+    "url": "http://localhost:8000/catalog/noaa-gfs-forecast/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.59375,
+      "width": 780,
+      "height": 196.546875
+    },
+    "promptSize": {
+      "width": 748,
+      "height": 90,
+      "scrollHeight": 90,
+      "scrollWidth": 748
+    }
+  },
+  {
+    "id": "noaa-gfs-forecast",
+    "size": "phone",
+    "variant": "dynamical-catalog",
+    "url": "http://localhost:8000/catalog/noaa-gfs-forecast/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 429.140625,
+      "width": 339,
+      "height": 253.09375
+    }
+  },
+  {
+    "id": "noaa-gfs-forecast",
+    "size": "phone",
+    "variant": "pystac + icechunk",
+    "url": "http://localhost:8000/catalog/noaa-gfs-forecast/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 429.140625,
+      "width": 339,
+      "height": 455.59375
+    }
+  },
+  {
+    "id": "noaa-gfs-forecast",
+    "size": "phone",
+    "variant": "Prompt",
+    "url": "http://localhost:8000/catalog/noaa-gfs-forecast/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 429.140625,
+      "width": 339,
+      "height": 367.59375
+    },
+    "promptSize": {
+      "width": 307,
+      "height": 203,
+      "scrollHeight": 203,
+      "scrollWidth": 307
+    }
+  },
+  {
+    "id": "noaa-gefs-forecast-35-day",
+    "size": "desktop",
+    "variant": "dynamical-catalog",
+    "url": "http://localhost:8000/catalog/noaa-gefs-forecast-35-day/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.203125,
+      "width": 780,
+      "height": 194.546875
+    }
+  },
+  {
+    "id": "noaa-gefs-forecast-35-day",
+    "size": "desktop",
+    "variant": "pystac + icechunk",
+    "url": "http://localhost:8000/catalog/noaa-gefs-forecast-35-day/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.203125,
+      "width": 780,
+      "height": 397.046875
+    }
+  },
+  {
+    "id": "noaa-gefs-forecast-35-day",
+    "size": "desktop",
+    "variant": "Prompt",
+    "url": "http://localhost:8000/catalog/noaa-gefs-forecast-35-day/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.203125,
+      "width": 780,
+      "height": 219.046875
+    },
+    "promptSize": {
+      "width": 748,
+      "height": 113,
+      "scrollHeight": 113,
+      "scrollWidth": 748
+    }
+  },
+  {
+    "id": "noaa-gefs-forecast-35-day",
+    "size": "phone",
+    "variant": "dynamical-catalog",
+    "url": "http://localhost:8000/catalog/noaa-gefs-forecast-35-day/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 429.28125,
+      "width": 339,
+      "height": 253.09375
+    }
+  },
+  {
+    "id": "noaa-gefs-forecast-35-day",
+    "size": "phone",
+    "variant": "pystac + icechunk",
+    "url": "http://localhost:8000/catalog/noaa-gefs-forecast-35-day/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 429.28125,
+      "width": 339,
+      "height": 455.59375
+    }
+  },
+  {
+    "id": "noaa-gefs-forecast-35-day",
+    "size": "phone",
+    "variant": "Prompt",
+    "url": "http://localhost:8000/catalog/noaa-gefs-forecast-35-day/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 429.28125,
+      "width": 339,
+      "height": 412.59375
+    },
+    "promptSize": {
+      "width": 307,
+      "height": 248,
+      "scrollHeight": 248,
+      "scrollWidth": 307
+    }
+  },
+  {
+    "id": "noaa-hrrr-analysis",
+    "size": "desktop",
+    "variant": "dynamical-catalog",
+    "url": "http://localhost:8000/catalog/noaa-hrrr-analysis/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.203125,
+      "width": 780,
+      "height": 194.546875
+    }
+  },
+  {
+    "id": "noaa-hrrr-analysis",
+    "size": "desktop",
+    "variant": "pystac + icechunk",
+    "url": "http://localhost:8000/catalog/noaa-hrrr-analysis/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.203125,
+      "width": 780,
+      "height": 397.046875
+    }
+  },
+  {
+    "id": "noaa-hrrr-analysis",
+    "size": "desktop",
+    "variant": "Prompt",
+    "url": "http://localhost:8000/catalog/noaa-hrrr-analysis/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 250,
+      "y": 429.203125,
+      "width": 780,
+      "height": 196.546875
+    },
+    "promptSize": {
+      "width": 748,
+      "height": 90,
+      "scrollHeight": 90,
+      "scrollWidth": 748
+    }
+  },
+  {
+    "id": "noaa-hrrr-analysis",
+    "size": "phone",
+    "variant": "dynamical-catalog",
+    "url": "http://localhost:8000/catalog/noaa-hrrr-analysis/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 429.1875,
+      "width": 339,
+      "height": 270.640625
+    }
+  },
+  {
+    "id": "noaa-hrrr-analysis",
+    "size": "phone",
+    "variant": "pystac + icechunk",
+    "url": "http://localhost:8000/catalog/noaa-hrrr-analysis/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 428.1875,
+      "width": 339,
+      "height": 473.140625
+    }
+  },
+  {
+    "id": "noaa-hrrr-analysis",
+    "size": "phone",
+    "variant": "Prompt",
+    "url": "http://localhost:8000/catalog/noaa-hrrr-analysis/",
+    "cssStatus": 200,
+    "cssSha256": "33cf3fec493b37c09bd3882a2307dd9013f0f5e630fd831675c61ce4632ce469",
+    "frame": {
+      "x": 18,
+      "y": 428.1875,
+      "width": 339,
+      "height": 367.59375
+    },
+    "promptSize": {
+      "width": 307,
+      "height": 203,
+      "scrollHeight": 203,
+      "scrollWidth": 307
+    }
+  }
+]
