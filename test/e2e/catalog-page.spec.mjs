@@ -18,7 +18,7 @@ const order = (page) =>
       explore: document.querySelector("section.explore"),
       dimensions: [...document.querySelectorAll("h2")].find((h) => h.textContent.trim() === "Dimensions"),
       details: [...document.querySelectorAll("h2")].find((h) => h.textContent.trim() === "Details"),
-      additional: [...document.querySelectorAll("h3")].find((h) => h.textContent.trim() === "Additional details"),
+      listings: [...document.querySelectorAll("h3")].find((h) => h.textContent.trim() === "External listings"),
     };
     return Object.entries(marks)
       .filter(([, el]) => el)
@@ -26,11 +26,19 @@ const order = (page) =>
       .map(([name]) => name);
   });
 
-test("the explorer follows the example, and the listings sit under Additional details", async ({ page }) => {
+test("the explorer follows the example, and the listings sit under External listings", async ({ page }) => {
   await page.goto(PAGE);
-  expect(await order(page)).toEqual(["examples", "frame", "explore", "dimensions", "details", "additional"]);
-  const additional = page.locator("h3", { hasText: "Additional details" }).locator("+ p");
-  await expect(additional.getByRole("link")).toHaveText(["Earthmover Marketplace", "Source Cooperative", "AWS Open Data Registry"]);
+  expect(await order(page)).toEqual(["examples", "frame", "explore", "dimensions", "details", "listings"]);
+  const listings = page.locator("h3", { hasText: "External listings" }).locator("+ ul");
+  await expect(listings.getByRole("listitem").getByRole("link")).toHaveText(["Earthmover Marketplace", "Source Cooperative", "AWS Open Data Registry"]);
+  // Each row leads with its platform's logo, loaded, in place of a bullet.
+  const logos = listings.locator("li > img:first-child");
+  await expect(logos).toHaveCount(3);
+  for (const logo of await logos.all()) {
+    expect(await logo.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
+    expect((await logo.boundingBox()).width).toBe(16);
+  }
+  expect(await listings.evaluate((ul) => getComputedStyle(ul.firstElementChild).listStyleType)).toBe("none");
   // Nothing about them is left at the top of the page.
   await expect(page.locator(".catalog-item > table + p").getByRole("link")).toHaveText(["STAC", "browse", "validation report"]);
   await expect(page.getByRole("link", { name: "Earthmover Marketplace" })).toHaveCount(1);
@@ -38,10 +46,10 @@ test("the explorer follows the example, and the listings sit under Additional de
   await expect(page.locator(".agent-setup-pill")).toHaveCount(0);
 });
 
-test("a product with no listing has no Additional details", async ({ page }) => {
+test("a product with no listing has no External listings", async ({ page }) => {
   // No platform lists the GFS virtual products yet (_data/listings.js).
   await page.goto("/catalog/noaa-gfs-forecast-virtual/");
-  await expect(page.locator("h3", { hasText: "Additional details" })).toHaveCount(0);
+  await expect(page.locator("h3", { hasText: "External listings" })).toHaveCount(0);
   expect(await order(page)).toEqual(["examples", "frame", "explore", "dimensions", "details"]);
 });
 

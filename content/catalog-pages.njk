@@ -288,6 +288,22 @@ eleventyComputed:
       height: 40px;
     }
   }
+  /* External listings: each platform's own mark in place of a bullet
+     (public/assets/listings/). Source Cooperative's is black on transparent,
+     so it inverts on a dark page like the GitHub mark does. */
+  .listings {
+    padding: 0;
+    list-style: none;
+  }
+  .listings img {
+    margin-right: 0.6em;
+    vertical-align: -0.2em;
+  }
+  @media (prefers-color-scheme: dark) {
+    .listings img[src$="source-cooperative.png"] {
+      filter: invert(1);
+    }
+  }
   /* data.dynamical.org sunset notice. The only <aside> on the site, so it needs
      no class. Amber is the site's warning color (the status page's degraded
      state); --link-color would have read as navigation, not as a deprecation. */
@@ -537,12 +553,16 @@ eleventyComputed:
     <div class="detail-prose">{{ entry.description_details | markdown | safe }}</div>
     {%- set listing = listings[entry.id] %}
     {% if listing %}
-      <h3>Additional details</h3>
+      <h3>External listings</h3>
       {%- set links = [] %}
-      {%- if listing.earthmover %}{% set _ = links.push(["Earthmover Marketplace", listing.earthmover]) %}{% endif %}
-      {%- if listing.source_coop %}{% set _ = links.push(["Source Cooperative", listing.source_coop]) %}{% endif %}
-      {%- if listing.aws %}{% set _ = links.push(["AWS Open Data Registry", listing.aws]) %}{% endif %}
-      <p>Also listed on {% for link in links %}{{ " · " if not loop.first }}<a href="{{ link[1] }}">{{ link[0] }}</a>{% endfor %}.</p>
+      {%- if listing.earthmover %}{% set _ = links.push(["Earthmover Marketplace", listing.earthmover, "earthmover.svg"]) %}{% endif %}
+      {%- if listing.source_coop %}{% set _ = links.push(["Source Cooperative", listing.source_coop, "source-cooperative.png"]) %}{% endif %}
+      {%- if listing.aws %}{% set _ = links.push(["AWS Open Data Registry", listing.aws, "aws.png"]) %}{% endif %}
+      <ul class="listings">
+        {% for link in links %}
+          <li><img src="/assets/listings/{{ link[2] }}" alt="" width="16" height="16"><a href="{{ link[1] }}">{{ link[0] }}</a></li>
+        {% endfor %}
+      </ul>
     {% endif %}
 
 <script>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   id="svg2"
+   width="42.666668"
+   height="42.666668"
+   viewBox="0 0 42.666668 42.666668"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs6">
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath18">
+      <path
+         d="M 0,32 H 32 V 0 H 0 Z"
+         id="path16" />
+    </clipPath>
+  </defs>
+  <g
+     id="g10"
+     transform="matrix(1.3333333,0,0,-1.3333333,0,42.666667)">
+    <g
+       id="g12">
+      <g
+         id="g14"
+         clip-path="url(#clipPath18)">
+        <g
+           id="g20"
+           transform="translate(31.5,16)">
+          <path
+             d="m 0,0 c 0,-8.56 -6.94,-15.5 -15.5,-15.5 -8.56,0 -15.5,6.94 -15.5,15.5 0,8.56 6.94,15.5 15.5,15.5 C -6.94,15.5 0,8.56 0,0"
+             style="fill:#9b57fa;fill-opacity:1;fill-rule:nonzero;stroke:none"
+             id="path22" />
+        </g>
+        <g
+           id="g24"
+           transform="translate(23.6293,17.4436)">
+          <path
+             d="m 0,0 -4.246,1.846 4.309,1.697 -0.952,2.419 -4.309,-1.697 1.803,4.146 c -0.36,0.232 -0.741,0.44 -1.148,0.617 -0.408,0.177 -0.819,0.314 -1.236,0.415 -3.611,0.902 -7.45,-0.915 -8.983,-4.44 -1.533,-3.526 -0.244,-7.573 2.879,-9.599 0.358,-0.235 0.739,-0.443 1.146,-0.62 0.408,-0.178 0.819,-0.314 1.234,-0.419 l 1.803,4.146 1.698,-4.309 2.418,0.953 -1.697,4.309 4.245,-1.846 z m -14.498,-8.846 h 13.652 v -2.598 h -13.652 z"
+             style="fill:#201f2c;fill-opacity:1;fill-rule:nonzero;stroke:none"
+             id="path26" />
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
