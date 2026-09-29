@@ -72,7 +72,13 @@ test("every documented endpoint exists on the deployed API", async ({ page, requ
   expect(documented.length, "the endpoint index is empty").toBeGreaterThan(0);
 
   for (const entry of documented) {
-    const path = shape(entry.split(" ")[1]);
+    const [method, documentedPath] = entry.split(" ");
+    const path = shape(documentedPath);
     expect(published, `${entry} is documented but not in the published schema`).toContain(path);
+    // A route can keep its path and lose the method the page documents.
+    const operations = schema.paths[Object.keys(schema.paths).find((p) => shape(p) === path)];
+    expect(Object.keys(operations), `${entry} is documented but not published`).toContain(
+      method.toLowerCase()
+    );
   }
 });
