@@ -289,9 +289,17 @@ function readBars(page, id) {
   });
 }
 
+// Titles round to three significant figures, so a parsed value can be off by
+// half a unit in its third figure. Every distance in DISTANCE moves no faster
+// than the value, so two bars' rounding errors together bound any apparent
+// inversion between them.
+const roundingError = (v) =>
+  v === 0 ? 0 : 0.5 * 10 ** (Math.floor(Math.log10(Math.abs(v))) - 2);
+
 // Which model is best changes with lead time, so every lead is ordered on its
-// own; this walks one metric of each direction against live data. Titles round
-// to three significant figures, so adjacent bars may compare equal within that.
+// own; this walks one metric of each direction against live data. Live
+// Frequency Bias currently sits above 1 for every model, so this cannot tell
+// closest-to-1 from plain ascending order; the unit tests cover both sides.
 test("scorecard index orders bars best-first within each lead", async ({ page }) => {
   const errors = collectPageErrors(page);
   await gotoOk(page, "/scorecard/");
@@ -308,6 +316,11 @@ test("scorecard index orders bars best-first within each lead", async ({ page })
 
     expect(caption, `${metric} caption`).toContain(phrase);
     expect(facets.length, `${metric} drew too few lead times`).toBeGreaterThan(1);
+    // Every model on the index publishes day 0, so a short first group means
+    // bars went missing between the query and the plot.
+    expect(facets[0].length, `${metric} lead 0 bar count`).toBe(
+      Object.keys(legend).length,
+    );
     for (const [lead, bars] of facets.entries()) {
       expect(bars.length, `${metric} lead ${lead} has no bars`).toBeGreaterThan(1);
       expect(new Set(bars.map((b) => b.model)).size).toBe(bars.length);
@@ -319,7 +332,7 @@ test("scorecard index orders bars best-first within each lead", async ({ page })
       }
       for (let i = 1; i < bars.length; i++) {
         const [a, b] = [bars[i - 1], bars[i]];
-        const slack = 0.005 * (Math.abs(a.value) + Math.abs(b.value));
+        const slack = roundingError(a.value) + roundingError(b.value);
         expect(
           DISTANCE[metric](a.value),
           `${metric} lead ${lead}: ${a.model} (${a.value}) is drawn before ` +
