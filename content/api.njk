@@ -408,7 +408,8 @@ http POST api.dynamical.org/v1/analyses \
     The edge request limit is shared across <code>POST /v1/forecasts</code>,
     <code>GET /v1/forecasts/runs</code>, and <code>POST /v1/analyses</code>; browser
     <code>OPTIONS</code> preflights on those paths also count. Canonical point reads are outside
-    that edge rule. The API's per-container rate limits remain an overload backstop.
+    that edge rule. The API's per-container rate limits remain an overload backstop. Contact
+    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a> if you need higher limits.
   </p>
   <p>
     The response-size budget counts values across variables, times, runs, and
@@ -455,7 +456,7 @@ http POST api.dynamical.org/v1/analyses \
       <tr>
         <td>429</td>
         <td>Edge or API rate limit exceeded; honor <code>Retry-After</code> with either body</td>
-        <td>Edge: Cloudflare error 1015 (HTML, or JSON if requested)<br>API: <code>Request rate limit exceeded</code></td>
+        <td>Edge: Cloudflare error 1015 (HTML, or JSON if requested)<br>API: <code>Request rate limit exceeded; contact feedback@dynamical.org if you need higher limits</code></td>
       </tr>
       <tr>
         <td>503</td>
