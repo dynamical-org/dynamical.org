@@ -389,31 +389,54 @@ http POST api.dynamical.org/v1/analyses \
 
   <h2 id="bounds">Bounds and work units</h2>
   <p>
-    A point request is cheap, but a careless one can ask for millions of values. These are the
-    limits that keep the service predictable rather than a per-caller quota.
+    Even a small point response can require substantial data reads. Per-client request limits,
+    response-size limits, and read-work limits keep the service predictable.
   </p>
   <div class="scroll">
     <table class="data">
       <tr><th>Bound</th><th>Limit</th></tr>
+      <tr><td>Requests per client IP at the edge</td><td>30 per 10 seconds, counted per Cloudflare location; exceeding this triggers a 10-second block</td></tr>
       <tr><td>Queries per batch</td><td>10</td></tr>
       <tr><td>Runs resolved per forecast query</td><td>10</td></tr>
       <tr><td>Variables per query</td><td>25</td></tr>
       <tr><td>Span per analysis query</td><td>31 days</td></tr>
       <tr><td>Response values per batch</td><td>100,000</td></tr>
+      <tr><td>Read values per request</td><td>450,000,000 decoded chunk values across all queries and runs</td></tr>
     </table>
   </div>
   <p>
-    The work budget is the real size bound: values are counted across variables, times, runs, and
+    The edge request limit is shared across <code>POST /v1/forecasts</code>,
+    <code>GET /v1/forecasts/runs</code>, and <code>POST /v1/analyses</code>; browser
+    <code>OPTIONS</code> preflights on those paths also count. Canonical point reads are outside
+    that edge rule. The API's per-container rate limits remain an overload backstop.
+  </p>
+  <p>
+    The response-size budget counts values across variables, times, runs, and
     ensemble members, and a batch that would exceed 100,000 is rejected rather than truncated. A
     successful response reports what it actually used in <code>X-Dynamical-Work-Units</code> —
     measure a small version of your query, then scale.
   </p>
+  <p>
+    The separate read-value budget counts the full decoded source chunks needed for the request,
+    including ensemble members. The whole batch is checked before any selected weather data is
+    read; exceeding the budget returns <code>422</code> with the total and limit. Metadata and
+    coordinate reads needed to select the data still occur. A small point response can require
+    large chunks, especially for GRIB-backed virtual products, where a chunk is a whole grid.
+  </p>
+  <p>
+    Forecasts return all available lead times by default. Full-window requests to the three virtual
+    GEFS forecast products exceed the read-value budget even for one variable. Use a shorter window
+    with <code>maxLeadTimeHours</code>, or use the non-virtual
+    <code>noaa-gefs-forecast-35-day</code>. Ensemble members multiply response values as well as
+    read work; reduce variables, times, runs, or batch size to stay within both budgets.
+  </p>
 
   <h2 id="errors">Errors</h2>
   <p>
-    Errors are a JSON object with a <code>detail</code> string, or — for request-shape failures —
+    API errors are a JSON object with a <code>detail</code> string, or — for request-shape failures —
     FastAPI's validation array under the same key. Nothing is silently coerced: an unknown field, a
-    naive timestamp, or a location off the grid is an error, not a guess.
+    naive timestamp, or a location off the grid is an error, not a guess. Edge rate-limit errors
+    return Cloudflare's error page instead of JSON.
   </p>
   <div class="scroll">
     <table class="data">
@@ -426,23 +449,29 @@ http POST api.dynamical.org/v1/analyses \
       <tr>
         <td>422</td>
         <td>The request cannot be answered as written</td>
-        <td><code>Location is outside the data product grid</code><br><code>Data product 'noaa-gfs-analysis' is analysis, not forecast</code><br><code>startTime must include a timezone</code></td>
+        <td><code>Location is outside the data product grid</code><br><code>Data product 'noaa-gfs-analysis' is analysis, not forecast</code><br><code>startTime must include a timezone</code><br><code>Batch total … exceeds the 450000000-value read-value budget (DYNAMICAL_API_MAX_READ_VALUES); reduce variables, times, runs, or batch size</code></td>
       </tr>
       <tr>
         <td>429</td>
-        <td>Rate limit exceeded; honor <code>Retry-After</code></td>
-        <td><code>Request rate limit exceeded</code></td>
+        <td>Edge or API rate limit exceeded; honor <code>Retry-After</code> with either body</td>
+        <td>Edge: Cloudflare error page (1015)<br>API JSON detail: <code>Request rate limit exceeded</code></td>
       </tr>
       <tr>
         <td>503</td>
-        <td>The upstream STAC catalog is unavailable</td>
-        <td><code>Failed to load STAC catalog …</code></td>
+        <td>The API is at its concurrent-work limit (with <code>Retry-After</code>), or the upstream STAC catalog is unavailable</td>
+        <td><code>Server busy; retry after N seconds</code><br><code>Failed to load STAC catalog …</code></td>
       </tr>
     </table>
   </div>
   <p>
     A batch is all-or-nothing: if one query in <code>queries</code> fails, the whole request fails,
     so a <code>200</code> means every result is present.
+  </p>
+  <p>
+    <strong>Retries.</strong> On <code>429</code> or <code>503</code>, wait at least as long as
+    <code>Retry-After</code> specifies, then add random jitter. If the header is absent, use
+    exponential backoff with jitter. Never retry immediately in a loop, and never retry a
+    <code>422</code>: change the request first.
   </p>
 </div>
 
