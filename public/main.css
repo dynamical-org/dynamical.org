@@ -1035,6 +1035,11 @@ a.work-item:hover h3 { text-decoration: underline; }
   margin: 0;
 }
 
+.scorecard-chart figcaption {
+  font-size: 0.9em;
+  color: var(--muted-text);
+}
+
 /* Loading, empty, and error states replace the plot with a box of the same
    footprint (JS sets --chart-height to the height it would have drawn), so a
    failed chart is as visible as the chart it stands in for. */

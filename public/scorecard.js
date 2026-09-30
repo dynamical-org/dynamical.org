@@ -3,14 +3,28 @@
 const STATS_URL = "https://assets.dynamical.org/scorecard/statistics.parquet";
 const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 
-// Color for each known model. Order here is the preferred display order.
-const MODEL_STYLE = new Map([
+// Color for each published model, and the legend order. Bars reorder by score
+// within every lead time, so color is what identifies a model; it must not depend
+// on which other models a chart happens to hold. Every model in
+// statistics.parquet is pinned here. AIFS ENS, AIFS Single and WeatherNext keep
+// the colors the country page gave them back when the rest were colored from the
+// fallback list by position, which shifted them on state and station pages
+// whenever HRDPS was present; HRDPS, which the country page never shows, takes
+// an unused color.
+export const MODEL_STYLE = new Map([
   ["ECMWF IFS ENS", "#029E73"],
   ["NOAA GEFS", "#0173B2"],
   ["NOAA GFS", "#56B4E9"],
   ["NOAA HRRR", "#DE8F05"],
+  ["ECMWF AIFS ENS", "#CC79A7"],
+  ["ECMWF AIFS Single", "#D55E00"],
+  ["Google WeatherNext 2, virtual", "#F0E442"],
+  ["ECCC HRDPS", "#CA9161"],
 ]);
-const FALLBACK_COLORS = ["#CC79A7", "#D55E00", "#F0E442", "#999999"];
+// A model published before it is pinned above still gets a color, but one taken
+// by position among the unpinned models in the chart, so it can differ between
+// charts until it is added to MODEL_STYLE.
+const FALLBACK_COLORS = ["#999999", "#FBAFE4"];
 const OBS_COLORS = { temperature_2m: "#591e71", precipitation_surface: "#253494" };
 const VAR_LABELS = { temperature_2m: "Temperature", precipitation_surface: "Precipitation" };
 const CHART_MARGINS = { marginLeft: 60, marginBottom: 30, marginRight: 20 };
@@ -53,18 +67,28 @@ export function encodedWindowValues(windowDays) {
 }
 
 // Per-metric display configuration.
+//
+// `better` is the direction a metric improves in, and it decides the order bars
+// are drawn in (best first within each lead time):
+//   "lower"  — errors: smaller is better.
+//   "higher" — skill scores: larger is better, negative values included.
+//   "target" — closest to `refValue` is best (Bias at 0, Frequency Bias at 1),
+//              measured as plain |value − refValue|, so a Frequency Bias of 0.5
+//              ranks ahead of 2.
+// `refValue` is where the chart draws its reference rule. It is the optimum only
+// for "target" metrics; for the skill scores it marks no skill, not perfection.
 export const METRIC_CONFIG = {
-  RMSE:          { label: "RMSE",                    unitType: "standard", refValue: 0 },
-  RMSE_bc:       { label: "RMSE (bias-corrected)",   unitType: "standard", refValue: 0 },
-  MAE:           { label: "MAE",                     unitType: "standard", refValue: 0 },
-  MAE_bc:        { label: "MAE (bias-corrected)",    unitType: "standard", refValue: 0 },
-  Bias:          { label: "Bias",                    unitType: "standard", refValue: 0 },
-  CRPS:          { label: "CRPS",                    unitType: "standard", refValue: 0 },
-  CRPS_bc:       { label: "CRPS (bias-corrected)",   unitType: "standard", refValue: 0 },
-  ETS:           { label: "ETS",                     unitType: "unitless", refValue: 0 },
-  FrequencyBias: { label: "Frequency Bias",          unitType: "unitless", refValue: 1 },
-  HSS:           { label: "HSS",                     unitType: "unitless", refValue: 0 },
-  FSS:           { label: "FSS",                     unitType: "unitless", refValue: 0 },
+  RMSE:          { label: "RMSE",                    unitType: "standard", refValue: 0, better: "lower" },
+  RMSE_bc:       { label: "RMSE (bias-corrected)",   unitType: "standard", refValue: 0, better: "lower" },
+  MAE:           { label: "MAE",                     unitType: "standard", refValue: 0, better: "lower" },
+  MAE_bc:        { label: "MAE (bias-corrected)",    unitType: "standard", refValue: 0, better: "lower" },
+  Bias:          { label: "Bias",                    unitType: "standard", refValue: 0, better: "target" },
+  CRPS:          { label: "CRPS",                    unitType: "standard", refValue: 0, better: "lower" },
+  CRPS_bc:       { label: "CRPS (bias-corrected)",   unitType: "standard", refValue: 0, better: "lower" },
+  ETS:           { label: "ETS",                     unitType: "unitless", refValue: 0, better: "higher" },
+  FrequencyBias: { label: "Frequency Bias",          unitType: "unitless", refValue: 1, better: "target" },
+  HSS:           { label: "HSS",                     unitType: "unitless", refValue: 0, better: "higher" },
+  FSS:           { label: "FSS",                     unitType: "unitless", refValue: 0, better: "higher" },
 };
 
 // Which metrics are available for each variable, and which is the default.
@@ -77,6 +101,78 @@ export const DEFAULT_METRIC = {
   temperature_2m:       "RMSE",
   precipitation_surface: "MAE",
 };
+
+// Stable model order: pinned models in MODEL_STYLE order, then the rest
+// alphabetically. It orders the legend, assigns fallback colors, and breaks ties
+// between equal scores, so none of those move when the ranking does.
+export function compareModels(a, b) {
+  const knownOrder = [...MODEL_STYLE.keys()];
+  const ai = knownOrder.indexOf(a);
+  const bi = knownOrder.indexOf(b);
+  if (ai === -1 && bi === -1) return a.localeCompare(b);
+  if (ai === -1) return 1;
+  if (bi === -1) return -1;
+  return ai - bi;
+}
+
+// The color scale for the models a chart holds: `domain` in stable order (which
+// is also the legend order) and `range` the matching colors.
+export function modelColors(models) {
+  const domain = [...new Set(models)].sort(compareModels);
+  let fallbackIdx = 0;
+  const range = domain.map((m) => {
+    if (MODEL_STYLE.has(m)) return MODEL_STYLE.get(m);
+    return FALLBACK_COLORS[fallbackIdx++ % FALLBACK_COLORS.length];
+  });
+  return { domain, range };
+}
+
+// How far a value is from the best possible score, in the metric's direction:
+// smaller is better. A missing or non-finite value (null from an all-null AVG,
+// NaN) is Infinity, so it ranks after every real score instead of coercing to 0
+// — which would read as a perfect error — or winning a higher-is-better metric.
+export function scoreDistance(value, cfg) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return Infinity;
+  switch (cfg.better) {
+    case "lower": return value;
+    case "higher": return -value;
+    case "target": return Math.abs(value - cfg.refValue);
+    default: throw new Error(`unknown metric direction: ${cfg.better}`);
+  }
+}
+
+// Give each row a `slot`, its 0-based position best-first among the rows that
+// share its lead time. Every lead is ranked on its own, since which model is
+// best changes with lead time. Slots are unique even for tied scores, so tied
+// bars sit side by side rather than on top of each other.
+export function rankWithinLead(rows, cfg) {
+  const byLead = new Map();
+  for (const row of rows) {
+    if (!byLead.has(row.lead_time_days)) byLead.set(row.lead_time_days, []);
+    byLead.get(row.lead_time_days).push(row);
+  }
+  const ranked = [];
+  for (const leadRows of byLead.values()) {
+    leadRows
+      .map((row) => ({ row, distance: scoreDistance(row.value, cfg) }))
+      .sort(
+        (a, b) =>
+          // Infinity − Infinity is NaN, so compare missing values explicitly.
+          (a.distance === b.distance ? 0 : a.distance < b.distance ? -1 : 1) ||
+          compareModels(a.row.model, b.row.model)
+      )
+      .forEach(({ row }, slot) => ranked.push({ ...row, slot }));
+  }
+  return ranked;
+}
+
+export function orderNote(cfg) {
+  const best =
+    cfg.better === "target"
+      ? `closest to ${cfg.refValue} is best`
+      : `${cfg.better} is better`;
+  return `Bars run best to worst within each lead time; ${best}.`;
+}
 
 // Loading, empty, and error states all render as a message sized to the chart's
 // own footprint (styled by `.scorecard-chart p` in main.css) so a chart that
@@ -296,22 +392,7 @@ export async function renderMetric(
     }
 
     // Derive available models from the data rather than a hardcoded list.
-    const knownOrder = [...MODEL_STYLE.keys()];
-    const modelsInData = [...new Set(data.map((d) => d.model))].sort(
-      (a, b) => {
-        const ai = knownOrder.indexOf(a);
-        const bi = knownOrder.indexOf(b);
-        if (ai === -1 && bi === -1) return a.localeCompare(b);
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      }
-    );
-    let fallbackIdx = 0;
-    const colorRange = modelsInData.map((m) => {
-      if (MODEL_STYLE.has(m)) return MODEL_STYLE.get(m);
-      return FALLBACK_COLORS[fallbackIdx++ % FALLBACK_COLORS.length];
-    });
+    const colors = modelColors(data.map((d) => d.model));
 
     const varUnits = variable === "temperature_2m" ? "°C" : "mm/s";
     const yLabel =
@@ -328,16 +409,21 @@ export async function renderMetric(
       y: { label: yLabel, grid: true, labelArrow: "none" },
       color: {
         legend: true,
-        domain: modelsInData,
-        range: colorRange,
+        domain: colors.domain,
+        range: colors.range,
         tickFormat: legendLabel,
       },
+      caption: orderNote(cfg),
       marks: [
-        Plot.barY(data, {
+        // x is the rank within the lead, not the model: the x scale is shared
+        // across facets, so ordering by model could only give every lead the
+        // same order. A lead with fewer models leaves its trailing slots empty.
+        Plot.barY(rankWithinLead(data, cfg), {
           fx: "lead_time_days",
-          x: "model",
+          x: "slot",
           y: "value",
           fill: "model",
+          title: (d) => `${legendLabel(d.model)}: ${d.value?.toPrecision(3)}`,
           tip: false,
         }),
         Plot.ruleY([cfg.refValue]),
