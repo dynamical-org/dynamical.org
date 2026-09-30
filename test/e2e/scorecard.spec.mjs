@@ -289,6 +289,47 @@ function readBars(page, id) {
   });
 }
 
+// How many bars each lead should draw on the index at the default window: the
+// finite station averages the chart's own query returns, for the models the
+// country view covers. Asked of the page's own DuckDB and module, so it follows
+// whatever the file holds instead of assuming every model publishes every lead.
+function expectedBarCounts(page, variable, metric) {
+  return page.evaluate(
+    async ({ variable, metric }) => {
+      const spec = performance
+        .getEntriesByType("resource")
+        .map((e) => e.name)
+        .find((n) => n.includes("/scorecard.js"));
+      const sc = await import(spec ?? "/scorecard.js");
+      const db = await sc.initDB();
+      const conn = await db.connect();
+      try {
+        const rows = (
+          await conn.query(`
+            SELECT CAST(lead_time / 86400000000000 AS INTEGER) AS lead, model,
+              AVG(value) AS value
+            FROM 'https://assets.dynamical.org/scorecard/statistics.parquet'
+            WHERE variable = '${variable}' AND metric = '${metric}'
+              AND "window" IN (${sc.encodedWindowValues(180).join(",")})
+            GROUP BY ALL
+          `)
+        )
+          .toArray()
+          .map((r) => r.toJSON())
+          .filter((r) => sc.modelCoversRegion(r.model));
+        const counts = new Map();
+        for (const { lead, value } of rows) {
+          counts.set(lead, (counts.get(lead) ?? 0) + (Number.isFinite(value) ? 1 : 0));
+        }
+        return [...counts].sort(([a], [b]) => a - b).map(([, n]) => n);
+      } finally {
+        await conn.close();
+      }
+    },
+    { variable, metric },
+  );
+}
+
 // Titles round to three significant figures, so a parsed value can be off by
 // half a unit in its third figure. Every distance in DISTANCE moves no faster
 // than the value, so two bars' rounding errors together bound any apparent
@@ -304,25 +345,34 @@ test("scorecard index orders bars best-first within each lead", async ({ page })
   const errors = collectPageErrors(page);
   await gotoOk(page, "/scorecard/");
 
-  for (const [id, select, metric, phrase] of [
-    ["temperature-chart", "#temp-metric", "RMSE", "lower is better"],
-    ["temperature-chart", "#temp-metric", "Bias", "closest to 0 is best"],
-    ["precipitation-chart", "#precip-metric", "ETS", "higher is better"],
-    ["precipitation-chart", "#precip-metric", "FrequencyBias", "closest to 1 is best"],
+  for (const [id, select, variable, metric, phrase] of [
+    ["temperature-chart", "#temp-metric", "temperature_2m", "RMSE", "lower is better"],
+    ["temperature-chart", "#temp-metric", "temperature_2m", "Bias", "closest to 0 is best"],
+    ["precipitation-chart", "#precip-metric", "precipitation_surface", "ETS", "higher is better"],
+    [
+      "precipitation-chart",
+      "#precip-metric",
+      "precipitation_surface",
+      "FrequencyBias",
+      "closest to 1 is best",
+    ],
   ]) {
     await page.selectOption(select, metric);
     await expectPlot(page, id);
     const { legend, facets, caption } = await readBars(page, id);
 
     expect(caption, `${metric} caption`).toContain(phrase);
-    expect(facets.length, `${metric} drew too few lead times`).toBeGreaterThan(1);
-    // Every model on the index publishes day 0, so a short first group means
-    // bars went missing between the query and the plot.
-    expect(facets[0].length, `${metric} lead 0 bar count`).toBe(
-      Object.keys(legend).length,
-    );
+    // Facets are drawn in lead order, as the counts are listed.
+    expect(
+      facets.map((bars) => bars.length),
+      `${metric} bars per lead, drawn vs. queried`,
+    ).toEqual(await expectedBarCounts(page, variable, metric));
+    // An order needs at least two bars to mean anything.
+    expect(
+      facets.some((bars) => bars.length > 1),
+      `${metric} has no lead with more than one bar to order`,
+    ).toBe(true);
     for (const [lead, bars] of facets.entries()) {
-      expect(bars.length, `${metric} lead ${lead} has no bars`).toBeGreaterThan(1);
       expect(new Set(bars.map((b) => b.model)).size).toBe(bars.length);
       for (const bar of bars) {
         expect(Number.isFinite(bar.value), `${bar.model} value`).toBe(true);
