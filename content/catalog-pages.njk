@@ -214,10 +214,6 @@ eleventyComputed:
     padding: 1.5rem;
     background: var(--code-bg);
   }
-  .frame .frameContent,
-  .frame .agent-prompt {
-    padding-top: 48px;
-  }
   .frame .agent-prompt textarea {
     padding: 0;
     border: 0;
@@ -258,6 +254,7 @@ eleventyComputed:
     overflow-wrap: anywhere;
   }
   .example-copy {
+    opacity: 0;
     position: absolute;
     top: 8px;
     right: 8px;
@@ -272,6 +269,15 @@ eleventyComputed:
     color: var(--frame-text);
     cursor: pointer;
     font-size: 16px;
+  }
+  .codeTabPanel:hover .example-copy,
+  .codeTabPanel:focus-within .example-copy {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .example-copy {
+      opacity: 1;
+    }
   }
   .example-copy:focus {
     outline: 2px solid var(--frame-text);

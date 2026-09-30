@@ -347,7 +347,7 @@ for (const colorScheme of ["light", "dark"]) {
 }
 
 for (const width of [320, 1280]) {
-  test(`floating copy stays clear of text and fixed while content scrolls at ${width}px`, async ({ page }) => {
+  test(`copy overlays content without moving it and stays fixed while scrolling at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(PAGE);
     const frame = page.locator(".frame").first();
@@ -364,7 +364,17 @@ for (const width of [320, 1280]) {
       expect(Math.abs(copy.x + copy.width - (box.x + box.width - 8))).toBeLessThan(1);
       const content = panel.locator("pre, textarea");
       const textTop = await content.evaluate(el => el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingTop));
-      expect(copy.y + copy.height).toBeLessThanOrEqual(textTop);
+      expect(textTop).toBeLessThan(copy.y + copy.height);
+      const contentBox = await content.boundingBox();
+      await button.evaluate(el => { el.style.display = "none"; });
+      expect(await content.boundingBox()).toEqual(contentBox);
+      await button.evaluate(el => { el.style.removeProperty("display"); });
+      await panel.hover();
+      await expect(button).toHaveCSS("opacity", "1");
+      expect(await button.evaluate(el => {
+        const box = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
       const scroll = await content.evaluate(el => {
         el.scrollLeft = el.scrollWidth;
         return { left: el.scrollLeft, code: el.tagName === "PRE" };
@@ -375,3 +385,37 @@ for (const width of [320, 1280]) {
     }
   });
 }
+
+test("copy appears on panel hover and keyboard focus, but not header hover", async ({ page }) => {
+  await page.goto(PAGE);
+  const frame = page.locator(".frame").first();
+  for (const tab of await frame.getByRole("tab").all()) {
+    await tab.click();
+    const panel = frame.locator(".codeTabPanel:not([hidden])");
+    const button = panel.locator(".example-copy");
+    await frame.locator(".frameHeader").hover();
+    await expect(button).toHaveCSS("opacity", "0");
+    await panel.locator("pre, textarea").hover();
+    await expect(button).toHaveCSS("opacity", "1");
+    await frame.locator(".frameHeader").hover();
+    await expect(button).toHaveCSS("opacity", "0");
+    await page.keyboard.press("Tab");
+    await expect(button).toHaveCSS("opacity", "1");
+    for (let i = 0; i < 2 && !(await button.evaluate(el => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+    await expect(button).toBeFocused();
+    await expect(button).toHaveCSS("opacity", "1");
+  }
+});
+
+test.describe("touch copy controls", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 375, height: 800 } });
+  test("copy is visible without hover for every variant", async ({ page }) => {
+    await page.goto(PAGE);
+    expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true);
+    const frame = page.locator(".frame").first();
+    for (const tab of await frame.getByRole("tab").all()) {
+      await tab.tap();
+      await expect(frame.locator(".codeTabPanel:not([hidden]) .example-copy")).toHaveCSS("opacity", "1");
+    }
+  });
+});
