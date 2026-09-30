@@ -436,7 +436,8 @@ http POST api.dynamical.org/v1/analyses \
     API errors are a JSON object with a <code>detail</code> string, or — for request-shape failures —
     FastAPI's validation array under the same key. Nothing is silently coerced: an unknown field, a
     naive timestamp, or a location off the grid is an error, not a guess. Edge rate-limit errors
-    return Cloudflare's error page instead of JSON.
+    are Cloudflare's error 1015, not this <code>detail</code> shape: HTML by default, or JSON when
+    the request asks for it. Act on the status and <code>Retry-After</code>, not the body.
   </p>
   <div class="scroll">
     <table class="data">
@@ -454,7 +455,7 @@ http POST api.dynamical.org/v1/analyses \
       <tr>
         <td>429</td>
         <td>Edge or API rate limit exceeded; honor <code>Retry-After</code> with either body</td>
-        <td>Edge: Cloudflare error page (1015)<br>API JSON detail: <code>Request rate limit exceeded</code></td>
+        <td>Edge: Cloudflare error 1015 (HTML, or JSON if requested)<br>API: <code>Request rate limit exceeded</code></td>
       </tr>
       <tr>
         <td>503</td>
