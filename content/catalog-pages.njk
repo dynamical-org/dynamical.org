@@ -171,7 +171,7 @@ eleventyComputed:
   }
   .codeTabList {
     display: flex;
-    height: 100%;
+    height: 40px;
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
@@ -593,7 +593,7 @@ eleventyComputed:
       if (i < 0 || next === undefined) return;
       event.preventDefault();
       buttons[next].focus({ preventScroll: true });
-      buttons[next].scrollIntoView({ block: "nearest", inline: "nearest" });
+      buttons[next].scrollIntoView({ block: "nearest", inline: next === 0 ? "start" : "nearest" });
       select(next);
     });
     buttons.forEach((button, i) => {

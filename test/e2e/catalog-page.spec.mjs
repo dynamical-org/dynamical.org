@@ -296,7 +296,7 @@ for (const id of ["noaa-gfs-forecast", "noaa-gefs-forecast-35-day", "noaa-hrrr-a
 }
 
 // Inspect the same rendered dither pixels used by table overflow, without
-// storing screenshots. Text and selection borders sit outside this top strip.
+// storing screenshots. Sample inside the fade, clear of text and focus outlines.
 for (const colorScheme of ["light", "dark"]) {
   test(`tabs scroll without wrapping and show only hidden-content hints (${colorScheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme });
@@ -308,7 +308,7 @@ for (const colorScheme of ["light", "dark"]) {
     const edges = async () => {
       const { data, info } = await require("sharp")(await list.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
       const lit = (start) => {
-        for (let y = 2; y < 8; y++) for (let x = start; x < start + 14; x++) {
+        for (let y = 4; y < 8; y++) for (let x = start + 3; x < start + 11; x++) {
           if (data[(y * info.width + x) * info.channels] > 20) return true;
         }
         return false;
