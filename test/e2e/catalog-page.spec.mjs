@@ -73,7 +73,7 @@ test("the prompt tab shows and copies this product's prompt", async ({ page }) =
   const block = frame.locator('[data-prompt="example-1-variant-3"]');
   const text = await block.locator("textarea").inputValue();
   expect(text).toBe(gfsPrompt.code);
-  await block.getByRole("button", { name: /copy .* example to clipboard/i }).click();
+  await block.getByRole("button", { name: "Copy" }).click();
   await expect(block.locator("[role=status]")).toHaveText("copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text);
   // Back to the code: one panel at a time.
@@ -115,7 +115,7 @@ test("the keyboard reaches the prompt tab and its copy button", async ({ page })
   await page.keyboard.press("Tab");
   await expect(frame.locator(".codeTabPanel:not([hidden]) textarea")).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(frame.getByRole("button", { name: /copy .* example to clipboard/i })).toBeFocused();
+  await expect(frame.getByRole("button", { name: "Copy" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(frame.locator(".codeTabPanel:not([hidden]) [role=status]")).toHaveText("copied");
   // Arrowing through tabs is not a choice of access path: only the copy counts.
@@ -133,8 +133,8 @@ test("choosing a code variant is tracked, visiting the prompt tab is not", async
 });
 
 // Every tab and the visible brand mark stay inside the header, clear of each
-// other, from a small phone through the widths where the header drops the
-// wordmark (640px frame) and wraps the tabs (500px frame).
+// other, from a small phone through desktop. Offscreen tabs stay clipped to
+// their scroll viewport; they never wrap or displace the wordmark.
 const WIDTHS = [375, 1024, ...Array.from({ length: 25 }, (_, i) => 320 + 20 * i)];
 for (const width of WIDTHS) {
   test(`the frame header fits at ${width}px`, async ({ page }) => {
@@ -148,13 +148,17 @@ for (const width of WIDTHS) {
       expect(b.y + b.height).toBeLessThanOrEqual(header.y + header.height + 0.5);
     };
     const tabs = await Promise.all((await frame.getByRole("tab").all()).map((t) => t.boundingBox()));
-    tabs.forEach(inside);
+    const list = await frame.getByRole("tablist").boundingBox();
+    inside(list);
+    for (const tab of tabs) expect(tab.y).toBe(tabs[0].y);
+    const visibleTabs = tabs.map(t => ({ ...t, x: Math.max(t.x, list.x), width: Math.max(0, Math.min(t.x + t.width, list.x + list.width) - Math.max(t.x, list.x)) })).filter(t => t.width > 0);
+    visibleTabs.forEach(inside);
     const marks = frame.locator(".frameBrand-wordmark img, .frameBrand-icon");
     for (const mark of await marks.all()) {
       if (!(await mark.isVisible())) continue;
       const m = await mark.boundingBox();
       inside(m);
-      for (const t of tabs) expect(t.x + t.width <= m.x || t.y + t.height <= m.y || m.y + m.height <= t.y).toBe(true);
+      for (const t of visibleTabs) expect(t.x + t.width <= m.x || t.y + t.height <= m.y || m.y + m.height <= t.y).toBe(true);
     }
     // At 320px something else on the page already overflows by 8px (on main
     // too, 2026-09-29), so the page-width check holds from 375px.
@@ -162,7 +166,7 @@ for (const width of WIDTHS) {
     for (const tab of await frame.getByRole("tab").all()) {
       await tab.click();
       const footer = frame.locator(".codeTabPanel:not([hidden]) .frameStatus");
-      await expect(footer.getByRole("button")).toBeEnabled();
+      await expect(frame.getByRole("button", { name: "Copy", exact: true })).toBeEnabled();
       await expectFooterFits(footer);
     }
   });
@@ -183,14 +187,12 @@ test("every collection renders the exact STAC onboarding variant", async ({ page
   }
 });
 
-// Text can wrap on phones; the action stays at the right on its final baseline.
+// Footer titles can use the full width now that copying lives over the panel.
 async function expectFooterFits(footer) {
   const box = await footer.boundingBox();
   const title = await footer.locator(".frameStatusTitle").boundingBox();
-  const copy = await footer.getByRole("button").boundingBox();
-  expect(title.x + title.width).toBeLessThanOrEqual(copy.x);
-  expect(Math.abs(title.y + title.height - copy.y - copy.height)).toBeLessThan(1);
-  expect(Math.abs(copy.x + copy.width - (box.x + box.width - 16))).toBeLessThan(1);
+  await expect(footer.getByRole("button")).toHaveCount(0);
+  expect(title.x + title.width).toBeLessThanOrEqual(box.x + box.width);
   expect(await footer.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
 }
 
@@ -208,9 +210,19 @@ test("every variant copies its exact source by keyboard without adding code-copy
     const button = frame.locator(".codeTabPanel:not([hidden]) .example-copy");
     for (let j = 0; j < 2 && !(await button.evaluate(el => el === document.activeElement)); j++) await page.keyboard.press("Tab");
     await expect(button).toBeFocused();
+    await expect(button).toHaveAttribute("aria-label", "Copy");
+    await expect(button).toHaveCSS("outline-style", "solid");
+    await expect(button).toHaveCSS("outline-width", "2px");
     await page.keyboard.press("Enter");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(variant.code);
-    await expect(frame.locator(".codeTabPanel:not([hidden]) [role=status]")).toHaveText("copied");
+    const panel = frame.locator(".codeTabPanel:not([hidden])");
+    await expect(panel.locator("[role=status]")).toHaveText("copied");
+    await expect(panel.locator("[role=status]")).toHaveAttribute("aria-live", "polite");
+    await expect(button.locator("svg").first()).toBeHidden();
+    await expect(button.locator("svg").last()).toBeVisible();
+    await expect(panel).not.toHaveAttribute("data-copy", "copied", { timeout: 2200 });
+    await expect(button.locator("svg").first()).toBeVisible();
+    await expect(button.locator("svg").last()).toBeHidden();
   }
   expect(events).toEqual(gfsPrompt ? [["agent_prompt_copied", {prompt: "example-1-variant-3", page: PAGE}]] : []);
 });
@@ -224,7 +236,7 @@ test("example fallback copies source whitespace exactly", async ({ page }) => {
   const panel = page.locator(".codeTabPanel").first();
   const source = '\n  quoted "<&>"\n\n    indented\n';
   await panel.locator(".example-source").evaluate((el, text) => { el.content.textContent = text; }, source);
-  await panel.getByRole("button", {name: /copy .* example to clipboard/i}).click();
+  await panel.getByRole("button", {name: "Copy"}).click();
   expect(await page.evaluate(() => window.__fallbackText)).toBe(source);
   await expect(panel.locator("[role=status]")).toHaveText("copied");
 });
@@ -238,7 +250,7 @@ test("a failed example copy announces a manual fallback without tracking a copy"
   await page.setViewportSize({width: 320, height: 800});
   await page.goto(PAGE);
   const panel = page.locator(".codeTabPanel").first();
-  await panel.getByRole("button", {name: /copy .* example to clipboard/i}).click();
+  await panel.getByRole("button", {name: "Copy"}).click();
   await expect(panel.locator("[role=status]")).toHaveText("select the text and copy it yourself");
   await expect(panel.locator("[role=status]")).toBeVisible();
   expect(await panel.locator(".frameStatus").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -289,4 +301,77 @@ for (const id of ["noaa-gfs-forecast", "noaa-gefs-forecast-35-day", "noaa-hrrr-a
       }
     });
   }
+}
+
+// Inspect the same rendered dither pixels used by table overflow, without
+// storing screenshots. Sample inside the fade, clear of text and focus outlines.
+for (const colorScheme of ["light", "dark"]) {
+  test(`tabs scroll without wrapping and show only hidden-content hints (${colorScheme})`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(PAGE);
+    const frame = page.locator(".frame").first();
+    const list = frame.getByRole("tablist");
+    const tabs = list.getByRole("tab");
+    const edges = async () => {
+      const { data, info } = await require("sharp")(await list.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      const lit = (start) => {
+        for (let y = 4; y < 8; y++) for (let x = start + 3; x < start + 11; x++) {
+          if (data[(y * info.width + x) * info.channels] > 20) return true;
+        }
+        return false;
+      };
+      return { left: lit(0), right: lit(info.width - 14) };
+    };
+    expect(await list.evaluate(el => getComputedStyle(el).overflowX)).toBe("auto");
+    expect(await list.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+    const boxes = await Promise.all((await tabs.all()).map(t => t.boundingBox()));
+    expect(boxes.every(b => b.y === boxes[0].y)).toBe(true);
+    await expect(frame.locator(".frameBrand-wordmark")).toBeVisible();
+    expect(await edges()).toEqual({ left: false, right: true });
+    await tabs.first().focus();
+    await page.keyboard.press("End");
+    await expect(tabs.last()).toBeFocused();
+    const bounds = await list.boundingBox();
+    const last = await tabs.last().boundingBox();
+    expect(last.x).toBeGreaterThanOrEqual(bounds.x);
+    expect(last.x + last.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+    expect(await edges()).toEqual({ left: true, right: false });
+    await page.keyboard.press("Home");
+    await expect(tabs.first()).toBeFocused();
+    expect(await edges()).toEqual({ left: false, right: true });
+    await page.setViewportSize({ width: 1440, height: 800 });
+    expect(await list.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
+    expect(await edges()).toEqual({ left: false, right: false });
+  });
+}
+
+for (const width of [320, 1280]) {
+  test(`floating copy stays clear of text and fixed while content scrolls at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(PAGE);
+    const frame = page.locator(".frame").first();
+    for (const tab of await frame.getByRole("tab").all()) {
+      await tab.click();
+      const header = await frame.locator(".frameHeader").boundingBox();
+      const panel = frame.locator(".codeTabPanel:not([hidden])");
+      const button = panel.getByRole("button", { name: "Copy", exact: true });
+      await expect(button).toHaveText("");
+      const copy = await button.boundingBox();
+      const box = await panel.boundingBox();
+      expect(copy.y).toBeGreaterThanOrEqual(header.y + header.height);
+      expect(Math.abs(copy.y - box.y - 8)).toBeLessThan(1);
+      expect(Math.abs(copy.x + copy.width - (box.x + box.width - 8))).toBeLessThan(1);
+      const content = panel.locator("pre, textarea");
+      const textTop = await content.evaluate(el => el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingTop));
+      expect(copy.y + copy.height).toBeLessThanOrEqual(textTop);
+      const scroll = await content.evaluate(el => {
+        el.scrollLeft = el.scrollWidth;
+        return { left: el.scrollLeft, code: el.tagName === "PRE" };
+      });
+      if (width === 320 && scroll.code) expect(scroll.left).toBeGreaterThan(0);
+      expect(await button.boundingBox()).toEqual(copy);
+      await expectFooterFits(panel.locator(".frameStatus"));
+    }
+  });
 }

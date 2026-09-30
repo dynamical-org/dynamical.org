@@ -164,17 +164,25 @@ eleventyComputed:
      code frame: tabs top-left, the dynamical.org mark top-right, and the
      example title in a status bar beneath the code. Colors are the frame's
      fixed dark palette (see .frame/.frameHeader in main.css) — the widget is
-     always dark regardless of page theme. The frame is a query container so the
-     mark can drop from wordmark to icon before it would crowd the tabs. */
+     always dark regardless of page theme. The frame is a query container so its
+     header spacing can tighten without crowding the wordmark. */
   .frame {
     container-type: inline-size;
   }
   .codeTabList {
     display: flex;
-    height: 100%;
-    flex-shrink: 0;
+    height: 40px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    --overflow-bg: var(--code-bg);
+    --overflow-border: var(--frame-muted-text);
+    --overflow-shadow-l: var(--shadow-dither-l-dark);
+    --overflow-shadow-r: var(--shadow-dither-r-dark);
   }
   .codeTab {
+    flex-shrink: 0;
+    white-space: nowrap;
     appearance: none;
     display: flex;
     align-items: center;
@@ -195,6 +203,9 @@ eleventyComputed:
     color: #fafafa;
     border-bottom-color: #fafafa;
   }
+  .codeTabPanel {
+    position: relative;
+  }
   .codeTabPanel[hidden] {
     display: none;
   }
@@ -202,6 +213,10 @@ eleventyComputed:
   .frame .agent-prompt {
     padding: 1.5rem;
     background: var(--code-bg);
+  }
+  .frame .frameContent,
+  .frame .agent-prompt {
+    padding-top: 48px;
   }
   .frame .agent-prompt textarea {
     padding: 0;
@@ -231,16 +246,7 @@ eleventyComputed:
     display: block;
     height: 20.6px;
   }
-  .frameBrand-icon {
-    display: none;
-    height: 18px;
-    width: auto;
-  }
   .frameStatus {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    gap: 0 12px;
     padding: 8px 16px;
     background: black;
     border-top: 1px solid #292929;
@@ -252,66 +258,48 @@ eleventyComputed:
     overflow-wrap: anywhere;
   }
   .example-copy {
-    width: 6ch;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
     padding: 0;
-    border: 0;
-    background: none;
+    border: 1px solid var(--frame-muted-text);
+    border-radius: var(--radius-sm);
+    background: var(--code-bg);
     color: var(--frame-text);
-    font: inherit;
-    line-height: inherit;
-    text-align: right;
     cursor: pointer;
-    text-decoration: underline;
+    font-size: 16px;
   }
-  .example-copy span + span,
-  .codeTabPanel[data-copy="copied"] .example-copy span:first-child {
+  .example-copy:focus {
+    outline: 2px solid var(--frame-text);
+    outline-offset: 2px;
+  }
+  .example-copy svg + svg,
+  .codeTabPanel[data-copy="copied"] .example-copy svg:first-child {
     display: none;
   }
-  .codeTabPanel[data-copy="copied"] .example-copy span + span {
-    display: inline;
+  .codeTabPanel[data-copy="copied"] .example-copy svg + svg {
+    display: block;
   }
   .codeTabPanel[data-copy="failed"] .frameStatus [role="status"] {
     position: static;
-    grid-column: 1 / -1;
     width: auto;
     height: auto;
     margin: 0;
     clip: auto;
     white-space: normal;
   }
-  /* When the frame gets narrow, drop the wordmark to the icon and tighten the
-     header so the mark clears the three tabs. */
+  /* Keep the wordmark visible; the tabs scroll within the remaining space. */
   @container (max-width: 640px) {
-    .frameBrand-wordmark {
-      display: none;
-    }
-    .frameBrand-icon {
-      display: block;
-    }
     .frameHeader {
       padding: 0 10px;
       gap: 8px;
     }
     .codeTab {
       padding: 0 9px;
-    }
-  }
-  /* Three tabs outgrow a phone's frame: let them wrap onto a second row
-     rather than be clipped by the frame's overflow, and give them the mark's
-     room so the code tabs share the first row. */
-  @container (max-width: 500px) {
-    .frameHeader {
-      height: auto;
-    }
-    .frameBrand-icon {
-      display: none;
-    }
-    .codeTabList {
-      flex-wrap: wrap;
-      flex-shrink: 1;
-    }
-    .codeTab {
-      height: 40px;
     }
   }
   /* External listings: each platform's own mark in place of a bullet
@@ -500,7 +488,6 @@ eleventyComputed:
         </div>
         <span class="frameBrand" aria-hidden="true">
           <span class="frameBrand-wordmark"><img src="https://assets.dynamical.org/identity/logo/lockup/lockup-white.svg" alt=""></span>
-          <img class="frameBrand-icon" src="https://assets.dynamical.org/identity/logo/icon/icon-white.svg" alt="">
         </span>
       </div>
       {% for variant in variants %}
@@ -511,10 +498,10 @@ eleventyComputed:
             {{ variant.code | highlight(variant.language or 'py', 'frameContent frameContentDesktop') | safe }}
           {% endif %}
           <template class="example-source">{{ variant.code }}</template>
+          <button type="button" class="example-copy" aria-label="Copy">{{ tagIcon("copy") }}{{ tagIcon("check") }}</button>
           <div class="frameStatus">
             <span class="frameStatusTitle">{{ entry.title }} · {{ "Onboarding prompt" if variant.language == "text" else example.title }}</span>
-            <button type="button" class="example-copy" aria-label="Copy {{ variant.label }} example to clipboard"><span>copy</span><span>copied</span></button>
-            <span role="status" class="visually-hidden"></span>
+            <span role="status" aria-live="polite" class="visually-hidden"></span>
           </div>
         </div>
       {% endfor %}
@@ -615,7 +602,8 @@ eleventyComputed:
       const next = { ArrowRight: (i + 1) % n, ArrowLeft: (i - 1 + n) % n, Home: 0, End: n - 1 }[event.key];
       if (i < 0 || next === undefined) return;
       event.preventDefault();
-      buttons[next].focus();
+      buttons[next].focus({ preventScroll: true });
+      buttons[next].scrollIntoView({ block: "nearest", inline: next === 0 ? "start" : "nearest" });
       select(next);
     });
     buttons.forEach((button, i) => {

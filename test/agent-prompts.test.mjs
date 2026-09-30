@@ -90,7 +90,7 @@ for (const withText of [true, false]) {
     const variants = [{label: "Python", language: "python", code: "import xarray"}];
     if (withText) variants.push({label: "Prompt", language: "text", code: text});
     const entry = {title: "A product", examples: [{title: "Example", variants}]};
-    const html = env.renderString('{% from "agent-prompt.njk" import agentPrompt %}' + exampleLoop, {entry});
+    const html = env.renderString('{% from "tag-icon.njk" import tagIcon %}' + exampleLoop, {entry});
     const texts = [...html.matchAll(/<textarea[^>]*>([\s\S]*?)<\/textarea>/g)].map(m => unescape(m[1]));
     assert.deepEqual(texts, withText ? [text] : []);
     assert.equal((html.match(/class="codeTab"/g) || []).length, variants.length);
