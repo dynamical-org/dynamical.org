@@ -8,6 +8,9 @@ const require = createRequire(import.meta.url);
 // `npm test` has no browser to see. Nothing here loads the explorer's data.
 
 const PAGE = "/catalog/noaa-gfs-forecast/";
+// STAC publishes separately; accept either spelling during the label rollout.
+const PYSTAC_LABEL = /^(?:pystac|pystac \+ icechunk)$/;
+const PROMPT_LABEL = /^(?:Prompt|prompt)$/;
 const catalog = await require("../../_data/catalog.js")();
 const promptFor = entry => entry.examples[0].variants.find(v => v.language === "text");
 const gfsVariants = catalog.entries.find(e => e.id === "noaa-gfs-forecast").examples[0].variants;
@@ -62,9 +65,9 @@ test("a product with no listing has no External listings", async ({ page }) => {
 test("the prompt tab shows and copies this product's prompt", async ({ page }) => {
   await page.goto(PAGE);
   const frame = page.locator(".frame").first();
-  await expect(frame.getByRole("tab")).toHaveText(["dynamical-catalog", "pystac + icechunk", ...(gfsPrompt ? ["Prompt"] : [])]);
+  await expect(frame.getByRole("tab")).toHaveText(["dynamical-catalog", PYSTAC_LABEL, ...(gfsPrompt ? [PROMPT_LABEL] : [])]);
   if (!gfsPrompt) return;
-  await frame.getByRole("tab", { name: "Prompt" }).click();
+  await frame.getByRole("tab", { name: PROMPT_LABEL }).click();
   const panel = frame.locator(".codeTabPanel:not([hidden])");
   await expect(panel).toHaveCount(1);
   const block = frame.locator('[data-prompt="example-1-variant-3"]');
@@ -96,12 +99,12 @@ test("the keyboard reaches the prompt tab and its copy button", async ({ page })
   await page.goto(PAGE);
   const frame = page.locator(".frame").first();
   if (!gfsPrompt) {
-    await expect(frame.getByRole("tab", { name: "Prompt", exact: true })).toHaveCount(0);
+    await expect(frame.getByRole("tab", { name: PROMPT_LABEL, exact: true })).toHaveCount(0);
     return;
   }
   await frame.getByRole("tab", { name: "dynamical-catalog" }).focus();
   await page.keyboard.press("End");
-  const tab = frame.getByRole("tab", { name: "Prompt" });
+  const tab = frame.getByRole("tab", { name: PROMPT_LABEL });
   await expect(tab).toBeFocused();
   await expect(tab).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
@@ -123,10 +126,10 @@ test("choosing a code variant is tracked, visiting the prompt tab is not", async
   const events = await trackEvents(page);
   await page.goto(PAGE);
   const frame = page.locator(".frame").first();
-  if (gfsPrompt) await frame.getByRole("tab", { name: "Prompt" }).click();
-  await frame.getByRole("tab", { name: "pystac + icechunk" }).click();
+  if (gfsPrompt) await frame.getByRole("tab", { name: PROMPT_LABEL }).click();
+  await frame.getByRole("tab", { name: PYSTAC_LABEL }).click();
   await expect(frame.locator(".codeTabPanel:not([hidden])")).toContainText("pystac");
-  expect(events).toEqual([["snippet_variant_selected", { dataset: "noaa-gfs-forecast", variant: "pystac + icechunk" }]]);
+  expect(events).toEqual([["snippet_variant_selected", { dataset: "noaa-gfs-forecast", variant: expect.stringMatching(PYSTAC_LABEL) }]]);
 });
 
 // Every tab and the visible brand mark stay inside the header, clear of each
@@ -173,7 +176,7 @@ test("every collection renders the exact STAC onboarding variant", async ({ page
     const variant = promptFor(entry);
     const textarea = page.locator('[data-prompt="example-1-variant-3"] textarea');
     if (variant) {
-      expect(variant.label).toBe("Prompt");
+      expect(variant.label).toMatch(PROMPT_LABEL);
       expect(await textarea.inputValue()).toBe(variant.code);
     } else await expect(textarea).toHaveCount(0);
     await expect(page.locator(".prompt-views")).toHaveCount(0);
