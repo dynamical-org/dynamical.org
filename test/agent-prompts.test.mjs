@@ -80,25 +80,26 @@ test("nothing on the site mentions the MCP server", () => {
   }
 });
 
-// Exercise the catalog template's actual example loop, including mixed code/text variants.
+// Render the actual loop with supplied text and legacy Python examples.
 const catalogTemplate = readFileSync(new URL("../content/catalog-pages.njk", import.meta.url), "utf8");
 const exampleLoop = catalogTemplate.slice(catalogTemplate.indexOf("  {% for example in entry.examples %}"), catalogTemplate.indexOf("  {% if not entry.examples.length %}"));
-env.addFilter("find", (items, key, value) => items.find(item => item[key] === value));
 env.addFilter("highlight", code => code);
-
-for (const prompt of ['An authored task <&> "quoted"\n\nPreserve this exactly.\n', null]) {
-  test(`catalog renders STAC text verbatim (prompt: ${prompt !== null})`, () => {
-    const variants = [
-      { label: "dynamical-catalog", language: "python", code: "import dynamical_catalog" },
-      { label: "pystac + icechunk", language: "python", code: "import pystac" },
-      ...(prompt === null ? [] : [{ label: "Example prompt", language: "text", code: prompt }]),
-    ];
-    const html = env.renderString('{% from "agent-prompt.njk" import agentPrompt %}' + exampleLoop, {
-      entry: { title: "A product", examples: [{ title: "Example", variants }] },
-    });
-    const textareas = [...html.matchAll(/<textarea[^>]*>([\s\S]*?)<\/textarea>/g)];
-    assert.equal(textareas.length, prompt === null ? 0 : 1);
-    if (prompt !== null) assert.equal(unescape(textareas[0][1]), variants[2].code);
-    assert.equal((html.match(/role="tab"/g) || []).length, variants.length);
+for (const withText of [true, false]) {
+  test(`example tabs preserve supplied variants (text: ${withText})`, () => {
+    const text = 'Context <&> "quoted".\n</textarea><script>unsafe</script>';
+    const variants = [{label: "Python", language: "python", code: "import xarray"}];
+    if (withText) variants.push({label: "Prompt", language: "text", code: text});
+    const entry = {title: "A product", examples: [{title: "Example", variants}]};
+    const html = env.renderString('{% from "agent-prompt.njk" import agentPrompt %}' + exampleLoop, {entry});
+    const texts = [...html.matchAll(/<textarea[^>]*>([\s\S]*?)<\/textarea>/g)].map(m => unescape(m[1]));
+    assert.deepEqual(texts, withText ? [text] : []);
+    assert.equal((html.match(/class="codeTab"/g) || []).length, variants.length);
+    assert.ok(!html.includes("<script>unsafe"));
+    assert.ok(!html.includes("prompt-view"));
+    const sources = [...html.matchAll(/<template class="example-source">([\s\S]*?)<\/template>/g)].map(m => unescape(m[1]));
+    assert.deepEqual(sources, variants.map(v => v.code));
+    assert.equal((html.match(/class="example-copy"/g) || []).length, variants.length);
+    const titles = [...html.matchAll(/<span class="frameStatusTitle">([^<]*)<\/span>/g)].map(m => unescape(m[1]));
+    assert.deepEqual(titles, ["A product · Example", ...(withText ? ["A product · Onboarding prompt"] : [])]);
   });
 }
