@@ -133,8 +133,8 @@ test("choosing a code variant is tracked, visiting the prompt tab is not", async
 });
 
 // Every tab and the visible brand mark stay inside the header, clear of each
-// other, from a small phone through the widths where the header drops the
-// wordmark (640px frame) and wraps the tabs (500px frame).
+// other, from a small phone through desktop. Offscreen tabs stay clipped to
+// their scroll viewport; they never wrap or displace the wordmark.
 const WIDTHS = [375, 1024, ...Array.from({ length: 25 }, (_, i) => 320 + 20 * i)];
 for (const width of WIDTHS) {
   test(`the frame header fits at ${width}px`, async ({ page }) => {
@@ -148,13 +148,17 @@ for (const width of WIDTHS) {
       expect(b.y + b.height).toBeLessThanOrEqual(header.y + header.height + 0.5);
     };
     const tabs = await Promise.all((await frame.getByRole("tab").all()).map((t) => t.boundingBox()));
-    tabs.forEach(inside);
+    const list = await frame.getByRole("tablist").boundingBox();
+    inside(list);
+    for (const tab of tabs) expect(tab.y).toBe(tabs[0].y);
+    const visibleTabs = tabs.map(t => ({ ...t, x: Math.max(t.x, list.x), width: Math.max(0, Math.min(t.x + t.width, list.x + list.width) - Math.max(t.x, list.x)) })).filter(t => t.width > 0);
+    visibleTabs.forEach(inside);
     const marks = frame.locator(".frameBrand-wordmark img, .frameBrand-icon");
     for (const mark of await marks.all()) {
       if (!(await mark.isVisible())) continue;
       const m = await mark.boundingBox();
       inside(m);
-      for (const t of tabs) expect(t.x + t.width <= m.x || t.y + t.height <= m.y || m.y + m.height <= t.y).toBe(true);
+      for (const t of visibleTabs) expect(t.x + t.width <= m.x || t.y + t.height <= m.y || m.y + m.height <= t.y).toBe(true);
     }
     // At 320px something else on the page already overflows by 8px (on main
     // too, 2026-09-29), so the page-width check holds from 375px.
@@ -289,4 +293,47 @@ for (const id of ["noaa-gfs-forecast", "noaa-gefs-forecast-35-day", "noaa-hrrr-a
       }
     });
   }
+}
+
+// Inspect the same rendered dither pixels used by table overflow, without
+// storing screenshots. Text and selection borders sit outside this top strip.
+for (const colorScheme of ["light", "dark"]) {
+  test(`tabs scroll without wrapping and show only hidden-content hints (${colorScheme})`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(PAGE);
+    const frame = page.locator(".frame").first();
+    const list = frame.getByRole("tablist");
+    const tabs = list.getByRole("tab");
+    const edges = async () => {
+      const { data, info } = await require("sharp")(await list.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      const lit = (start) => {
+        for (let y = 2; y < 8; y++) for (let x = start; x < start + 14; x++) {
+          if (data[(y * info.width + x) * info.channels] > 20) return true;
+        }
+        return false;
+      };
+      return { left: lit(0), right: lit(info.width - 14) };
+    };
+    expect(await list.evaluate(el => getComputedStyle(el).overflowX)).toBe("auto");
+    expect(await list.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+    const boxes = await Promise.all((await tabs.all()).map(t => t.boundingBox()));
+    expect(boxes.every(b => b.y === boxes[0].y)).toBe(true);
+    await expect(frame.locator(".frameBrand-wordmark")).toBeVisible();
+    expect(await edges()).toEqual({ left: false, right: true });
+    await tabs.first().focus();
+    await page.keyboard.press("End");
+    await expect(tabs.last()).toBeFocused();
+    const bounds = await list.boundingBox();
+    const last = await tabs.last().boundingBox();
+    expect(last.x).toBeGreaterThanOrEqual(bounds.x);
+    expect(last.x + last.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+    expect(await edges()).toEqual({ left: true, right: false });
+    await page.keyboard.press("Home");
+    await expect(tabs.first()).toBeFocused();
+    expect(await edges()).toEqual({ left: false, right: true });
+    await page.setViewportSize({ width: 1440, height: 800 });
+    expect(await list.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
+    expect(await edges()).toEqual({ left: false, right: false });
+  });
 }
