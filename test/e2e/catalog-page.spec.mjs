@@ -368,7 +368,7 @@ for (const width of [320, 1280]) {
       const contentBox = await content.boundingBox();
       await button.evaluate(el => { el.style.display = "none"; });
       expect(await content.boundingBox()).toEqual(contentBox);
-      await button.evaluate(el => { el.style.removeProperty("display"); });
+      await panel.locator(".example-copy").evaluate(el => { el.style.removeProperty("display"); });
       await panel.hover();
       await expect(button).toHaveCSS("opacity", "1");
       expect(await button.evaluate(el => {
