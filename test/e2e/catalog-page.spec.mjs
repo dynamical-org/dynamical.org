@@ -351,9 +351,9 @@ for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(PAGE);
     const frame = page.locator(".frame").first();
-    const header = await frame.locator(".frameHeader").boundingBox();
     for (const tab of await frame.getByRole("tab").all()) {
       await tab.click();
+      const header = await frame.locator(".frameHeader").boundingBox();
       const panel = frame.locator(".codeTabPanel:not([hidden])");
       const button = panel.getByRole("button", { name: "Copy", exact: true });
       await expect(button).toHaveText("");
