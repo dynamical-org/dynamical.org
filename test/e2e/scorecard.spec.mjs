@@ -246,3 +246,144 @@ test("station charts re-render for every window and metric option", async ({
 
   expect(errors, "station page logged console errors").toEqual([]);
 });
+
+// What "best" means for the metrics the order test below walks, as a distance
+// where smaller is better. Written out here rather than imported from
+// scorecard.js, so a direction filed wrong there fails this spec instead of
+// agreeing with it.
+const DISTANCE = {
+  RMSE: (v) => v,
+  Bias: (v) => Math.abs(v),
+  ETS: (v) => -v,
+  FrequencyBias: (v) => Math.abs(v - 1),
+};
+
+// Each lead-time facet's bars in on-screen order (by x, not DOM order), read
+// from the <title> every bar carries, plus the legend's color for each model.
+function readBars(page, id) {
+  return page.locator(`#${id}`).evaluate((el) => {
+    const legend = Object.fromEntries(
+      [...el.querySelectorAll('[class*="-swatch"]:not([class*="-swatches"])')].map(
+        (s) => [s.textContent.trim(), s.querySelector("svg").getAttribute("fill")],
+      ),
+    );
+    const facets = [...el.querySelectorAll('svg g[aria-label="bar"] > g')].map((g) =>
+      [...g.querySelectorAll("rect")]
+        .map((r) => {
+          const title = r.querySelector("title").textContent;
+          const at = title.lastIndexOf(": ");
+          return {
+            x: Number(r.getAttribute("x")),
+            model: title.slice(0, at),
+            value: Number(title.slice(at + 2)),
+            fill: r.getAttribute("fill"),
+          };
+        })
+        .sort((a, b) => a.x - b.x),
+    );
+    return {
+      legend,
+      facets,
+      caption: el.querySelector("figcaption")?.textContent ?? "",
+    };
+  });
+}
+
+// Which model is best changes with lead time, so every lead is ordered on its
+// own; this walks one metric of each direction against live data. Titles round
+// to three significant figures, so adjacent bars may compare equal within that.
+test("scorecard index orders bars best-first within each lead", async ({ page }) => {
+  const errors = collectPageErrors(page);
+  await gotoOk(page, "/scorecard/");
+
+  for (const [id, select, metric, phrase] of [
+    ["temperature-chart", "#temp-metric", "RMSE", "lower is better"],
+    ["temperature-chart", "#temp-metric", "Bias", "closest to 0 is best"],
+    ["precipitation-chart", "#precip-metric", "ETS", "higher is better"],
+    ["precipitation-chart", "#precip-metric", "FrequencyBias", "closest to 1 is best"],
+  ]) {
+    await page.selectOption(select, metric);
+    await expectPlot(page, id);
+    const { legend, facets, caption } = await readBars(page, id);
+
+    expect(caption, `${metric} caption`).toContain(phrase);
+    expect(facets.length, `${metric} drew too few lead times`).toBeGreaterThan(1);
+    for (const [lead, bars] of facets.entries()) {
+      expect(bars.length, `${metric} lead ${lead} has no bars`).toBeGreaterThan(1);
+      expect(new Set(bars.map((b) => b.model)).size).toBe(bars.length);
+      for (const bar of bars) {
+        expect(Number.isFinite(bar.value), `${bar.model} value`).toBe(true);
+        expect(bar.fill, `${bar.model}'s bar matches its legend swatch`).toBe(
+          legend[bar.model],
+        );
+      }
+      for (let i = 1; i < bars.length; i++) {
+        const [a, b] = [bars[i - 1], bars[i]];
+        const slack = 0.005 * (Math.abs(a.value) + Math.abs(b.value));
+        expect(
+          DISTANCE[metric](a.value),
+          `${metric} lead ${lead}: ${a.model} (${a.value}) is drawn before ` +
+            `${b.model} (${b.value})`,
+        ).toBeLessThanOrEqual(DISTANCE[metric](b.value) + slack);
+      }
+    }
+  }
+
+  expect(errors, "scorecard index logged console errors").toEqual([]);
+});
+
+// The dropdowns, the metric directions, and the pinned model colors are all
+// hand-kept lists in scorecard.js. The unit tests hold them consistent with each
+// other; only the published file can say whether they still cover what it holds.
+// A metric with no direction would be ordered as RMSE, and an unpinned model
+// takes its color by position, so it can change color between charts.
+test("every published metric and model is configured", async ({ page }) => {
+  await gotoOk(page, "/scorecard/");
+  await expectPlot(page, "temperature-chart");
+
+  const found = await page.evaluate(async () => {
+    const spec = performance
+      .getEntriesByType("resource")
+      .map((e) => e.name)
+      .find((n) => n.includes("/scorecard.js"));
+    const sc = await import(spec ?? "/scorecard.js");
+    const db = await sc.initDB();
+    const conn = await db.connect();
+    const url = "https://assets.dynamical.org/scorecard/statistics.parquet";
+    try {
+      const column = async (sql) =>
+        (await conn.query(sql)).toArray().map((r) => r.toJSON());
+      return {
+        pairs: await column(
+          `SELECT DISTINCT variable, metric FROM '${url}' ORDER BY ALL`,
+        ),
+        models: (await column(`SELECT DISTINCT model FROM '${url}'`)).map(
+          (r) => r.model,
+        ),
+        variableMetrics: sc.VARIABLE_METRICS,
+        metricConfig: sc.METRIC_CONFIG,
+        pinnedModels: [...sc.MODEL_STYLE.keys()],
+      };
+    } finally {
+      await conn.close();
+    }
+  });
+
+  expect(found.pairs.length, "the file lists no metrics").toBeGreaterThan(0);
+  for (const { variable, metric } of found.pairs) {
+    expect(
+      found.variableMetrics[variable] ?? [],
+      `${variable} ${metric} is published but not offered`,
+    ).toContain(metric);
+    expect(
+      found.metricConfig[metric]?.better,
+      `${metric} has no direction in METRIC_CONFIG`,
+    ).toBeTruthy();
+  }
+  for (const model of found.models) {
+    expect(
+      found.pinnedModels,
+      `${model} is published without a color in MODEL_STYLE`,
+    ).toContain(model);
+  }
+});
