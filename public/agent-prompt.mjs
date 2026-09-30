@@ -1,6 +1,6 @@
 // Copy-to-clipboard for .agent-prompt blocks (_includes/agent-prompt.njk, and
 // the dataset ID row in content/catalog-pages.njk, whose text is a <code>
-// rather than a textarea), plus catalog example footers. One delegated listener
+// rather than a textarea), plus floating catalog example controls. One delegated listener
 // serves every block; includes emit this module and the browser evaluates it once.
 const timers = new WeakMap();
 
@@ -55,7 +55,7 @@ document.addEventListener("click", async (event) => {
   timers.set(block, setTimeout(() => {
     status.textContent = "";
     delete block.dataset.copy;
-  }, 2500));
+  }, example && copied ? 1500 : 2500));
   if (copied && (!example || block.dataset.prompt)) {
     window.track("agent_prompt_copied", { prompt: block.dataset.prompt, page: location.pathname });
   }
