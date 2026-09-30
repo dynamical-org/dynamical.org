@@ -255,9 +255,14 @@ test("station charts re-render for every window and metric option", async ({
 // One test per width and window keeps each within the per-test timeout and lets a
 // retry repeat only the combination that failed.
 //
-// A plot alone doesn't prove the selected metric rendered: until the new query
-// lands, the container can still hold the previous metric's chart. So each chart
-// is only accepted once its y-axis names the metric that was picked.
+// A plot alone doesn't prove the selected metric rendered: the container can
+// still hold the previous metric's chart, and an axis with no bars is a plot too.
+// So a chart only counts once its y-axis names the metric that was picked and it
+// draws at least one bar, every one with a finite value in its title.
+//
+// renderMetric doesn't cancel a render it has superseded, so a slow earlier query
+// can land on top of a later one. Each render is settled before the next starts,
+// which keeps the chart on screen the one that was asked for.
 //
 // This runs against the dev server's origin, which the parquet's CORS allows; an
 // origin the CORS rules leave out fails every chart and is not something this
@@ -273,10 +278,19 @@ async function expectMetricPlot(page, id, label) {
           yLabel:
             el.querySelector('svg [aria-label="y-axis label"]')?.textContent?.trim() ??
             null,
+          values: [...el.querySelectorAll('svg g[aria-label="bar"] rect title')].map(
+            (t) => Number(t.textContent.slice(t.textContent.lastIndexOf(": ") + 2)),
+          ),
           status: el.querySelector("p")?.textContent?.trim() || null,
         }));
         if (seen.yLabel === label || seen.yLabel?.startsWith(`${label} [`)) {
-          state = "rendered a plot";
+          // Plot replaces the whole chart at once, so a labelled plot is final.
+          state =
+            seen.values.length === 0
+              ? "a plot with no bars"
+              : seen.values.every(Number.isFinite)
+                ? "rendered a plot"
+                : `a plot with a non-finite bar: ${seen.values.join(", ")}`;
           return true;
         }
         state = seen.status || `a plot labelled ${seen.yLabel}`;
@@ -291,6 +305,10 @@ async function expectMetricPlot(page, id, label) {
 
 const SWEEP_WIDTHS = { desktop: 1280, phone: 390 };
 const SWEEP_WINDOWS = ["180", "90", "30", "14", "7"];
+const SWEEP_CHARTS = [
+  ["#temp-metric", "temperature-chart"],
+  ["#precip-metric", "precipitation-chart"],
+];
 
 for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
   for (const days of SWEEP_WINDOWS) {
@@ -307,18 +325,33 @@ for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
       expect(windows, "the window options changed; update SWEEP_WINDOWS").toEqual(
         SWEEP_WINDOWS,
       );
-      await page.selectOption("#window", days);
 
-      for (const [select, id] of [
-        ["#temp-metric", "temperature-chart"],
-        ["#precip-metric", "precipitation-chart"],
-      ]) {
+      const charts = [];
+      for (const [select, id] of SWEEP_CHARTS) {
         const options = await page
           .locator(`${select} option`)
-          .evaluateAll((opts) => opts.map((o) => ({ value: o.value, label: o.textContent })));
+          .evaluateAll((opts) =>
+            opts.map((o) => ({ value: o.value, label: o.textContent, selected: o.selected })),
+          );
         expect(options.length, `${select} offers no metrics`).toBeGreaterThan(0);
-        for (const { value, label } of options) {
-          await test.step(`${value}`, async () => {
+        charts.push({ select, id, options });
+      }
+      const settleDefaults = async () => {
+        for (const { id, options } of charts) {
+          await expectMetricPlot(page, id, options.find((o) => o.selected).label);
+        }
+      };
+
+      // The page's own first render, at the default window.
+      await settleDefaults();
+      // Picking the default window again still fires a change and redraws both.
+      await page.selectOption("#window", days);
+      await settleDefaults();
+
+      for (const { select, id, options } of charts) {
+        for (const { value, label, selected } of options) {
+          if (selected) continue;
+          await test.step(value, async () => {
             await page.selectOption(select, value);
             await expectMetricPlot(page, id, label);
           });
