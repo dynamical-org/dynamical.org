@@ -417,8 +417,9 @@ function setRankBadge(swatch, rank, color) {
 // keeps it while it moves on to read the legend, clearing once it leaves the
 // figure. A touch has no hover, so a completed tap selects (a scroll does not)
 // and tapping the selected group again clears it. From the keyboard the plot is
-// one tab stop: arrows, Home and End move between leads and Escape clears, with
-// each choice announced, since the badges alone are not read out.
+// one tab stop: arrows, Home and End move between leads, Escape clears, and so
+// does tabbing away, with each choice announced, since the badges alone are not
+// read out.
 function rankLegendByLead(chart, bars, colors, cfg) {
   const svg = chart.querySelector(":scope > svg");
   const swatches = [...chart.querySelectorAll(":scope > div > span > svg")];
@@ -450,8 +451,13 @@ function rankLegendByLead(chart, bars, colors, cfg) {
   live.setAttribute("aria-live", "polite");
   chart.append(live);
 
+  // Which input made the current selection decides what ends it: the mouse's
+  // ends when it leaves the figure, the keyboard's when focus leaves the plot,
+  // and a tap's only on another tap. Whichever input selects last takes over.
   let selected;
-  const select = (lead) => {
+  let owner = null;
+  const select = (lead, by = owner) => {
+    owner = lead === null ? null : by;
     if (lead === selected) return;
     selected = lead;
     band.style.display = lead === null ? "none" : "";
@@ -481,35 +487,48 @@ function rankLegendByLead(chart, bars, colors, cfg) {
     const x = ((event.clientX - box.left) * svg.width.baseVal.value) / box.width;
     return leads.find((lead) => Math.abs(fx.apply(lead) + fx.bandwidth / 2 - x) <= fx.step / 2);
   };
+  // A pointer focuses the plot on its way to a click; that focus selects
+  // nothing, so a tap on the first lead is not undone by focus selecting it.
   let pointerType;
-  svg.addEventListener("pointerdown", (e) => (pointerType = e.pointerType));
-  svg.addEventListener("pointermove", (e) => {
-    if (e.pointerType === "mouse") select(leadAt(e) ?? selected);
+  let pointerFocus = false;
+  svg.addEventListener("pointerdown", (e) => {
+    pointerType = e.pointerType;
+    pointerFocus = true;
   });
-  // A click focuses the plot too, but only a keyboard focus (focus-visible) owns
-  // the selection past the pointer leaving.
+  svg.addEventListener("pointercancel", () => (pointerFocus = false));
+  svg.addEventListener("pointermove", (e) => {
+    const lead = leadAt(e);
+    if (e.pointerType === "mouse" && lead !== undefined) select(lead, "mouse");
+  });
   chart.addEventListener("pointerleave", (e) => {
-    if (e.pointerType === "mouse" && !svg.matches(":focus-visible")) select(null);
+    if (e.pointerType === "mouse" && owner === "mouse") select(null);
   });
   svg.addEventListener("click", (e) => {
+    pointerFocus = false;
     if (pointerType === "mouse") return;
     const lead = leadAt(e);
-    if (lead !== undefined) select(lead === selected ? null : lead);
+    if (lead !== undefined) select(lead === selected ? null : lead, "touch");
   });
   svg.tabIndex = 0;
   svg.setAttribute(
     "aria-label",
-    `${cfg.label} by forecast lead time. Use the arrow keys to rank a lead time's models in the legend.`
+    `${cfg.label} by forecast lead time. Use the arrow keys, Home and End to rank ` +
+      "a lead time's models in the legend, and Escape to clear it."
   );
-  svg.addEventListener("focus", () => select(selected ?? leads[0]));
-  svg.addEventListener("blur", () => select(null));
+  svg.addEventListener("focus", () => {
+    if (!pointerFocus) select(selected ?? leads[0], "keys");
+    pointerFocus = false;
+  });
+  svg.addEventListener("blur", () => {
+    if (owner === "keys") select(null);
+  });
   svg.addEventListener("keydown", (e) => {
     if (e.key === "Escape") return select(null);
     const at = leads.indexOf(selected);
     const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: leads.length - 1 }[e.key];
     if (next === undefined) return;
     e.preventDefault();
-    select(leads[Math.max(0, Math.min(leads.length - 1, next))]);
+    select(leads[Math.max(0, Math.min(leads.length - 1, next))], "keys");
   });
   select(null);
 }

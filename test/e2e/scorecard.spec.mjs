@@ -714,6 +714,18 @@ test("the keyboard ranks lead by lead from one tab stop", async ({ page }) => {
   expect(await plot.evaluate((el) => el === document.activeElement)).toBe(false);
   expectNothingSelected(await read(), "after Tab");
 
+  // The mouse takes a keyboard selection over, and then leaving ends it, click
+  // or no click, though the plot keeps focus.
+  await plot.focus();
+  await page.keyboard.press("ArrowRight");
+  const { leads, plotMiddle } = await read();
+  await page.mouse.move(leads[3].cx, plotMiddle);
+  await page.mouse.click(leads[3].cx, plotMiddle);
+  expectSelected(await read(), 3, ranks[3], "keyboard, then the mouse");
+  await page.mouse.move(1, 1, { steps: 5 });
+  expect(await plot.evaluate((el) => el === document.activeElement)).toBe(true);
+  expectNothingSelected(await read(), "keyboard, then the mouse, then leaving");
+
   expect(errors, "keyboard fixture logged console errors").toEqual([]);
 });
 
@@ -731,6 +743,10 @@ test("a tap ranks a lead until another tap, and a scroll does not", async ({ bro
   const read = () => readChart(page, "temperature-chart");
   const { leads, plotMiddle } = await read();
 
+  // The first tap focuses the plot as well; that must not select day 0 on its
+  // own and let the tap toggle it straight back off.
+  await page.touchscreen.tap(leads[0].cx, plotMiddle);
+  expectSelected(await read(), 0, ranks[0], "after a first tap on day 0");
   await page.touchscreen.tap(leads[2].cx, plotMiddle);
   // A touch's pointer leaves as soon as the finger lifts; the lead stays.
   expectSelected(await read(), 2, ranks[2], "after a tap");
@@ -739,21 +755,37 @@ test("a tap ranks a lead until another tap, and a scroll does not", async ({ bro
   await page.touchscreen.tap(leads[6].cx, plotMiddle);
   expectNothingSelected(await read(), "after tapping the same lead again");
 
-  // A swipe across the plot scrolls the page; it is not a tap.
-  await page.evaluate(
-    ([x, y]) => {
-      const svg = document.querySelector("#temperature-chart figure > svg");
-      const fire = (type, dy) =>
-        svg.dispatchEvent(
-          new PointerEvent(type, { bubbles: true, pointerType: "touch", clientX: x, clientY: y + dy }),
-        );
-      fire("pointerdown", 0);
-      fire("pointermove", -40);
-      fire("pointercancel", -80);
-    },
-    [leads[3].cx, plotMiddle],
-  );
-  expectNothingSelected(await read(), "after a swipe");
+  // A fresh chart starts over, and its first tap on day 0 selects too.
+  await draw("RMSE");
+  await page.touchscreen.tap(leads[0].cx, plotMiddle);
+  expectSelected(await read(), 0, ranks[0], "after a first tap on a re-rendered chart");
+
+  // A real touch swipe across the plot scrolls the page and selects nothing,
+  // from nothing selected and from a tapped selection alike.
+  const swipe = async (lead) => {
+    const before = await page.evaluate(() => scrollY);
+    const { leads: now, plotMiddle: y } = await read();
+    // Raw touch points, which Chromium turns into a native scroll that cancels
+    // the pointer (no click); Playwright's touchscreen can only tap.
+    const cdp = await context.newCDPSession(page);
+    const [x, y0] = [Math.round(now[lead].cx), Math.round(y)];
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: y0 }] });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y: y0 - i * 12 }],
+      });
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await cdp.detach();
+    expect(await page.evaluate(() => scrollY), "the swipe scrolled").toBeGreaterThan(before);
+  };
+  await swipe(3);
+  expectSelected(await read(), 0, ranks[0], "after a swipe over another lead");
+  await page.touchscreen.tap((await read()).leads[0].cx, (await read()).plotMiddle);
+  expectNothingSelected(await read(), "after tapping day 0 again");
+  await swipe(5);
+  expectNothingSelected(await read(), "after a swipe from nothing selected");
 
   expect(errors, "touch fixture logged console errors").toEqual([]);
   await context.close();
