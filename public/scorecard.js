@@ -3,14 +3,13 @@
 const STATS_URL = "https://assets.dynamical.org/scorecard/statistics.parquet";
 const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 
-// Color for each published model, and the legend order. Bars reorder by score
-// within every lead time, so color is what identifies a model; it must not depend
-// on which other models a chart happens to hold. Every model in
-// statistics.parquet is pinned here. AIFS ENS, AIFS Single and WeatherNext keep
-// the colors the country page gave them back when the rest were colored from the
-// fallback list by position, which shifted them on state and station pages
-// whenever HRDPS was present; HRDPS, which the country page never shows, takes
-// an unused color.
+// Color for each published model, and the legend and bar order. Color is what
+// ties a bar to its legend entry, so it must not depend on which other models a
+// chart happens to hold. Every model in statistics.parquet is pinned here. AIFS
+// ENS, AIFS Single and WeatherNext keep the colors the country page gave them
+// back when the rest were colored from the fallback list by position, which
+// shifted them on state and station pages whenever HRDPS was present; HRDPS,
+// which the country page never shows, takes an unused color.
 export const MODEL_STYLE = new Map([
   ["ECMWF IFS ENS", "#029E73"],
   ["NOAA GEFS", "#0173B2"],
@@ -68,13 +67,13 @@ export function encodedWindowValues(windowDays) {
 
 // Per-metric display configuration.
 //
-// `better` is the direction a metric improves in, and it decides the order bars
-// are drawn in (best first within each lead time):
+// `better` is the direction a metric improves in, and it decides which bar is
+// marked best within each lead time:
 //   "lower"  — errors: smaller is better.
 //   "higher" — skill scores: larger is better, negative values included.
 //   "target" — closest to `refValue` is best (Bias at 0, Frequency Bias at 1),
 //              measured as plain |value − refValue|, so a Frequency Bias of 0.5
-//              ranks ahead of 2.
+//              beats 2.
 // `refValue` is where the chart draws its reference rule. It is the optimum only
 // for "target" metrics; for the skill scores it marks no skill, not perfection.
 export const METRIC_CONFIG = {
@@ -103,8 +102,8 @@ export const DEFAULT_METRIC = {
 };
 
 // Stable model order: pinned models in MODEL_STYLE order, then the rest
-// alphabetically. It orders the legend, assigns fallback colors, and breaks ties
-// between equal scores, so none of those move when the ranking does.
+// alphabetically. It orders the legend, assigns fallback colors, and places the
+// bars in every lead time, so a model keeps its slot whichever model is best.
 export function compareModels(a, b) {
   const knownOrder = [...MODEL_STYLE.keys()];
   const ai = knownOrder.indexOf(a);
@@ -129,7 +128,7 @@ export function modelColors(models) {
 
 // How far a value is from the best possible score, in the metric's direction:
 // smaller is better. A missing or non-finite value (null from an all-null AVG,
-// NaN) is Infinity, so it ranks after every real score instead of coercing to 0
+// NaN) is Infinity, so it loses to every real score instead of coercing to 0
 // — which would read as a perfect error — or winning a higher-is-better metric.
 export function scoreDistance(value, cfg) {
   if (typeof value !== "number" || !Number.isFinite(value)) return Infinity;
@@ -141,37 +140,29 @@ export function scoreDistance(value, cfg) {
   }
 }
 
-// Give each row a `slot`, its 0-based position best-first among the rows that
-// share its lead time. Every lead is ranked on its own, since which model is
-// best changes with lead time. Slots are unique even for tied scores, so tied
-// bars sit side by side rather than on top of each other.
-export function rankWithinLead(rows, cfg) {
-  const byLead = new Map();
-  for (const row of rows) {
-    if (!byLead.has(row.lead_time_days)) byLead.set(row.lead_time_days, []);
-    byLead.get(row.lead_time_days).push(row);
+// Flag each row `best` when no other row at its lead time scores better. Every
+// lead is judged on its own, since which model is best changes with lead time.
+// Tied scores are all best — Bias of equal size and opposite sign is a tie — and
+// a missing value never is, so a lead with no real scores has no best bar.
+export function markBest(rows, cfg) {
+  const bestAt = new Map();
+  for (const { lead_time_days: lead, value } of rows) {
+    bestAt.set(lead, Math.min(scoreDistance(value, cfg), bestAt.get(lead) ?? Infinity));
   }
-  const ranked = [];
-  for (const leadRows of byLead.values()) {
-    leadRows
-      .map((row) => ({ row, distance: scoreDistance(row.value, cfg) }))
-      .sort(
-        (a, b) =>
-          // Infinity − Infinity is NaN, so compare missing values explicitly.
-          (a.distance === b.distance ? 0 : a.distance < b.distance ? -1 : 1) ||
-          compareModels(a.row.model, b.row.model)
-      )
-      .forEach(({ row }, slot) => ranked.push({ ...row, slot }));
-  }
-  return ranked;
+  return rows.map((row) => {
+    const distance = scoreDistance(row.value, cfg);
+    return { ...row, best: distance !== Infinity && distance === bestAt.get(row.lead_time_days) };
+  });
 }
 
-export function orderNote(cfg) {
+export function bestNote(cfg) {
   const best =
     cfg.better === "target"
-      ? `closest to ${cfg.refValue} is best`
-      : `${cfg.better} is better`;
-  return `Bars run best to worst within each lead time; ${best}.`;
+      ? `closest to ${cfg.refValue}`
+      : cfg.better === "lower"
+        ? "lowest"
+        : "highest";
+  return `Triangles mark the best bar at each lead time; ${best} is best.`;
 }
 
 // Loading, empty, and error states all render as a message sized to the chart's
@@ -335,6 +326,74 @@ async function windowIsPublished(windowDays, context) {
   }
 }
 
+// One metric's bars: a facet per lead time, every model in the same slot at every
+// lead, and the best bar at each lead marked. Kept apart from the query so a spec
+// can draw rows it chose — ties, gaps, zero and negative winners — that the live
+// file may not hold on any given day.
+export function metricChart(Plot, rows, { cfg, yLabel, width }) {
+  // Derive available models from the data rather than a hardcoded list.
+  const colors = modelColors(rows.map((d) => d.model));
+
+  const bars = markBest(rows, cfg);
+  const barTitle = (d) =>
+    `${legendLabel(d.model)}: ${d.value?.toPrecision(3)}${d.best ? " (best)" : ""}`;
+  return Plot.plot({
+    width,
+    height: METRIC_HEIGHT,
+    ...CHART_MARGINS,
+    fx: { label: "Forecast lead time (days)", padding: 0.2 },
+    // The x domain is the legend order, shared by every facet, so each model
+    // keeps its slot at every lead and a lead it lacks leaves that slot empty.
+    x: { axis: null, padding: 0.1, domain: colors.domain },
+    // A bar hanging below zero may be best and carry a triangle under it; the
+    // inset keeps the lowest one's triangle off the lead-time labels.
+    y: {
+      label: yLabel,
+      grid: true,
+      labelArrow: "none",
+      insetBottom: rows.some((d) => d.value < 0) ? 12 : 0,
+    },
+    color: {
+      legend: true,
+      domain: colors.domain,
+      range: colors.range,
+      tickFormat: legendLabel,
+    },
+    caption: bestNote(cfg),
+    marks: [
+      Plot.barY(bars, {
+        fx: "lead_time_days",
+        x: "model",
+        y: "value",
+        fill: "model",
+        title: barTitle,
+        tip: false,
+      }),
+      Plot.ruleY([cfg.refValue]),
+      // A triangle just past the end of each best bar, pointing at it: down onto
+      // a bar that rises from zero, up onto one that hangs below. It sits outside
+      // the bar because phone widths draw bars about 3px wide, where an outline
+      // would swallow the fill that matches the legend, and currentColor keeps it
+      // the text color in either theme.
+      ...[
+        [(d) => d.value >= 0, { rotate: 180, dy: -7 }],
+        [(d) => d.value < 0, { dy: 7 }],
+      ].map(([side, placement]) =>
+        Plot.dot(bars.filter((d) => d.best && side(d)), {
+          fx: "lead_time_days",
+          x: "model",
+          y: "value",
+          symbol: "triangle",
+          r: 3.5,
+          fill: "currentColor",
+          title: barTitle,
+          ...placement,
+        })
+      ),
+    ],
+  });
+}
+
 export async function renderMetric(
   container,
   { variable, metric, stationIds, windowDays, scope = "country", stateAbbr }
@@ -391,46 +450,15 @@ export async function renderMetric(
       return;
     }
 
-    // Derive available models from the data rather than a hardcoded list.
-    const colors = modelColors(data.map((d) => d.model));
-
     const varUnits = variable === "temperature_2m" ? "°C" : "mm/s";
     const yLabel =
       cfg.unitType === "unitless"
         ? cfg.label
         : `${cfg.label} [${varUnits}]`;
 
-    const chart = Plot.plot({
-      width: container.clientWidth || 600,
-      height: METRIC_HEIGHT,
-      ...CHART_MARGINS,
-      fx: { label: "Forecast lead time (days)", padding: 0.2 },
-      x: { axis: null, padding: 0.1 },
-      y: { label: yLabel, grid: true, labelArrow: "none" },
-      color: {
-        legend: true,
-        domain: colors.domain,
-        range: colors.range,
-        tickFormat: legendLabel,
-      },
-      caption: orderNote(cfg),
-      marks: [
-        // x is the rank within the lead, not the model: the x scale is shared
-        // across facets, so ordering by model could only give every lead the
-        // same order. A lead with fewer models leaves its trailing slots empty.
-        Plot.barY(rankWithinLead(data, cfg), {
-          fx: "lead_time_days",
-          x: "slot",
-          y: "value",
-          fill: "model",
-          title: (d) => `${legendLabel(d.model)}: ${d.value?.toPrecision(3)}`,
-          tip: false,
-        }),
-        Plot.ruleY([cfg.refValue]),
-      ],
-    });
-
-    container.replaceChildren(chart);
+    container.replaceChildren(
+      metricChart(Plot, data, { cfg, yLabel, width: container.clientWidth || 600 })
+    );
   } catch (e) {
     captureError(e, {
       chart: "metric",

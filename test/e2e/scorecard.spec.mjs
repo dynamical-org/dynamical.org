@@ -279,7 +279,7 @@ async function expectMetricPlot(page, id, label) {
             el.querySelector('svg [aria-label="y-axis label"]')?.textContent?.trim() ??
             null,
           values: [...el.querySelectorAll('svg g[aria-label="bar"] rect title')].map(
-            (t) => Number(t.textContent.slice(t.textContent.lastIndexOf(": ") + 2)),
+            (t) => parseFloat(t.textContent.slice(t.textContent.lastIndexOf(": ") + 2)),
           ),
           status: el.querySelector("p")?.textContent?.trim() || null,
         }));
@@ -363,10 +363,9 @@ for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
   }
 }
 
-// What "best" means for the metrics the order test below walks, as a distance
-// where smaller is better. Written out here rather than imported from
-// scorecard.js, so a direction filed wrong there fails this spec instead of
-// agreeing with it.
+// What "best" means for each direction, as a distance where smaller is better.
+// Written out here rather than imported from scorecard.js, so a direction filed
+// wrong there fails this spec instead of agreeing with it.
 const DISTANCE = {
   RMSE: (v) => v,
   Bias: (v) => Math.abs(v),
@@ -374,49 +373,221 @@ const DISTANCE = {
   FrequencyBias: (v) => Math.abs(v - 1),
 };
 
-// Each lead-time facet's bars in on-screen order (by x, not DOM order), read
-// from the <title> every bar carries, plus the legend's color for each model.
-function readBars(page, id) {
+// The models with the best finite value at one lead: every one of them on a tie.
+function expectedBest(rows, distance) {
+  const finite = rows.filter((r) => Number.isFinite(r.value));
+  const best = Math.min(...finite.map((r) => distance(r.value)));
+  return finite
+    .filter((r) => distance(r.value) === best)
+    .map((r) => r.model)
+    .sort();
+}
+
+// A metric chart as drawn: the legend in order, the caption, each lead-time
+// facet's bars, and the best-bar triangles. Bars are read from the <title> each
+// carries; `x` is the bar's position within its facet, and the screen boxes are
+// what the triangles are matched against.
+function readChart(page, id) {
   return page.locator(`#${id}`).evaluate((el) => {
-    const legend = Object.fromEntries(
-      [...el.querySelectorAll('[class*="-swatch"]:not([class*="-swatches"])')].map(
-        (s) => [s.textContent.trim(), s.querySelector("svg").getAttribute("fill")],
-      ),
-    );
-    const facets = [...el.querySelectorAll('svg g[aria-label="bar"] > g')].map((g) =>
-      [...g.querySelectorAll("rect")]
-        .map((r) => {
-          const title = r.querySelector("title").textContent;
-          const at = title.lastIndexOf(": ");
-          return {
-            x: Number(r.getAttribute("x")),
-            model: title.slice(0, at),
-            value: Number(title.slice(at + 2)),
-            fill: r.getAttribute("fill"),
-          };
-        })
-        .sort((a, b) => a.x - b.x),
-    );
+    const box = (node) => {
+      const r = node.getBoundingClientRect();
+      return { cx: r.left + r.width / 2, top: r.top, bottom: r.bottom };
+    };
+    const parseTitle = (node) => {
+      const text = node.querySelector("title").textContent;
+      const at = text.lastIndexOf(": ");
+      return {
+        model: text.slice(0, at),
+        value: parseFloat(text.slice(at + 2)),
+        best: text.endsWith(" (best)"),
+      };
+    };
+    const swatches = [...el.querySelectorAll('[class*="-swatch"]:not([class*="-swatches"])')];
+    const plot = el.querySelector('svg g[aria-label="bar"]')?.ownerSVGElement;
     return {
-      legend,
-      facets,
+      legend: swatches.map((s) => s.textContent.trim()),
+      legendFill: Object.fromEntries(
+        swatches.map((s) => [s.textContent.trim(), s.querySelector("svg").getAttribute("fill")]),
+      ),
       caption: el.querySelector("figcaption")?.textContent ?? "",
+      frame: plot ? box(plot) : null,
+      facets: [...el.querySelectorAll('svg g[aria-label="bar"] > g')].map((g) =>
+        [...g.querySelectorAll("rect")]
+          .map((r) => ({
+            ...parseTitle(r),
+            x: Number(r.getAttribute("x")),
+            fill: r.getAttribute("fill"),
+            ...box(r),
+          }))
+          .sort((a, b) => a.x - b.x),
+      ),
+      markers: [...el.querySelectorAll('svg g[aria-label="dot"] path')].map((p) => ({
+        ...parseTitle(p),
+        pointsDown: /rotate\(180\)/.test(p.getAttribute("transform") ?? ""),
+        ...box(p),
+      })),
     };
   });
 }
 
-// How many bars each lead should draw on the index at the default window: the
-// finite station averages the chart's own query returns, for the models the
+// Holds a drawn chart to the fixed-order and best-marking rules:
+// - every model sits at one x in every facet, and facets run in legend order, so
+//   a missing model leaves a gap instead of shifting the bars after it;
+// - each facet marks exactly `expected[i]` as best, by title and by triangle;
+// - each triangle is centred on its bar, sits clear of the bar's end, and points
+//   at it: down onto a bar that rises from zero, up onto one that hangs below.
+function expectChartRules({ legend, legendFill, facets, markers, frame }, expected, label) {
+  expect(facets.length, `${label}: facets`).toBe(expected.length);
+  const slot = new Map();
+  for (const [i, bars] of facets.entries()) {
+    const models = bars.map((b) => b.model);
+    expect(models, `${label} facet ${i}: bars run in legend order`).toEqual(
+      legend.filter((m) => models.includes(m)),
+    );
+    for (const bar of bars) {
+      if (!slot.has(bar.model)) slot.set(bar.model, bar.x);
+      expect(bar.x, `${label} facet ${i}: ${bar.model} moved`).toBe(slot.get(bar.model));
+      expect(bar.fill, `${label}: ${bar.model} matches its legend swatch`).toBe(
+        legendFill[bar.model],
+      );
+    }
+    expect(
+      bars.filter((b) => b.best).map((b) => b.model).sort(),
+      `${label} facet ${i}: bars titled best`,
+    ).toEqual(expected[i]);
+  }
+
+  const best = facets.flat().filter((b) => b.best);
+  expect(markers.length, `${label}: one triangle per best bar`).toBe(best.length);
+  for (const marker of markers) {
+    const bar = best.reduce((a, b) =>
+      Math.abs(b.cx - marker.cx) < Math.abs(a.cx - marker.cx) ? b : a,
+    );
+    const where = `${label}: triangle for ${bar.model} at ${bar.value}`;
+    expect(Math.abs(bar.cx - marker.cx), `${where} is centred on it`).toBeLessThanOrEqual(1);
+    expect(marker.model, where).toBe(bar.model);
+    expect(marker.pointsDown, `${where} points at the bar`).toBe(bar.value >= 0);
+    if (bar.value >= 0) {
+      expect(marker.bottom, `${where} sits above the bar`).toBeLessThanOrEqual(bar.top);
+    } else {
+      expect(marker.top, `${where} sits below the bar`).toBeGreaterThanOrEqual(bar.bottom);
+    }
+    expect(marker.top, `${where} is inside the chart`).toBeGreaterThanOrEqual(frame.top);
+    expect(marker.bottom, `${where} is inside the chart`).toBeLessThanOrEqual(frame.bottom);
+  }
+}
+
+// Live data cannot be counted on to hold a tie, a missing model, a zero or a
+// negative winner on any given day, so this draws rows that do through the same
+// metricChart the page uses, at a phone and a desktop width: seven models and ten
+// leads, as dense as the index gets.
+const FIXTURE_MODELS = [
+  "ECMWF IFS ENS",
+  "NOAA GEFS",
+  "NOAA GFS",
+  "NOAA HRRR",
+  "ECMWF AIFS ENS",
+  "ECMWF AIFS Single",
+  "Google WeatherNext 2, virtual",
+];
+const [IFS, GEFS, GFS, HRRR, AIFS_ENS, AIFS, WN2] = FIXTURE_MODELS;
+const legendName = (m) => m.replace(", virtual", "");
+// Each lead lists one value per model in FIXTURE_MODELS order; `undefined` drops
+// the row and `null` sends it with no value, as an all-null AVG does.
+const FIXTURES = {
+  RMSE: {
+    yLabel: "RMSE [°C]",
+    leads: [
+      [[2.0, 2.1, 2.2, 1.5, 1.9, 1.8, 2.4], [HRRR]],
+      [[2.0, 1.4, undefined, 1.6, 1.9, 1.8, 2.4], [GEFS]], // a missing middle model
+      [[2.0, 2.1, 2.2, 1.6, null, 1.8, 1.2], [WN2]], // a null value; the last slot wins
+      [[2.0, 1.3, 1.3, 1.6, 1.9, 1.8, 2.4], [GEFS, GFS]], // adjacent tie
+      [[1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7], FIXTURE_MODELS], // everyone ties
+      [[null, null, null, null, null, null, null], []], // nothing to mark
+      [[0, 2.1, 2.2, 1.6, 1.9, 1.8, 2.4], [IFS]], // a perfect zero, first slot
+      [[3.0, 3.1, 4.6, undefined, 2.9, 3.2, 3.0], [AIFS_ENS]],
+      [[3.1, 3.3, 4.8, undefined, 3.4, 3.0, 3.0], [AIFS, WN2]],
+      [[3.2, 3.6, 5.0, undefined, 3.5, 3.3, 3.4], [IFS]],
+    ],
+  },
+  Bias: {
+    yLabel: "Bias [°C]",
+    leads: [
+      [[-0.2, -0.36, -0.21, 0.3, -0.08, -0.01, -0.22], [AIFS]], // negative winner
+      [[0.05, -0.12, -0.19, 0.26, 0.18, 0.05, -0.23], [IFS, AIFS]], // tie, apart
+      [[0.06, -0.09, -0.16, undefined, 0.2, 0, -0.25], [AIFS]], // zero winner
+      [[0.08, -0.06, -0.13, undefined, 0.23, 0.04, -0.04], [AIFS, WN2]], // a ±0.04 tie
+      [[0.1, -0.03, -0.13, undefined, 0.24, 0.05, -0.27], [GEFS]],
+      [[0.11, -0.01, -0.13, undefined, 0.24, 0.05, -0.29], [GEFS]],
+      [[0.08, -0.02, -0.13, undefined, 0.22, 0.05, -0.32], [GEFS]],
+      [[0.05, -0.04, -0.12, undefined, 0.18, 0.03, -0.37], [AIFS]],
+      [[0.01, -0.06, -0.1, undefined, 0.13, 0.02, -0.43], [IFS]],
+      [[undefined, undefined, undefined, undefined, undefined, undefined, -0.48], [WN2]], // a lone winner at the chart's minimum
+    ],
+  },
+};
+
+// The scorecard module's URL exactly as the page loaded it, cache-busting query
+// string and all, so an import shares the page's warm module instance.
+const PAGE_MODULE = () =>
+  performance
+    .getEntriesByType("resource")
+    .map((e) => e.name)
+    .find((n) => n.includes("/scorecard.js")) ?? "/scorecard.js";
+
+for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
+  test(`metric chart keeps each model's slot and marks every best bar on ${device}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const errors = collectPageErrors(page);
+    await gotoOk(page, "/scorecard/");
+    // Let the page's own render land first, so it cannot replace the fixture.
+    await expectPlot(page, "temperature-chart");
+
+    for (const [metric, { yLabel, leads }] of Object.entries(FIXTURES)) {
+      const rows = leads.flatMap(([values], lead) =>
+        values.flatMap((value, i) =>
+          value === undefined
+            ? []
+            : [{ lead_time_days: lead, model: FIXTURE_MODELS[i], value }],
+        ),
+      );
+      await page.evaluate(
+        async ({ spec, metric, yLabel, rows }) => {
+          const sc = await import(spec);
+          const Plot = await import("https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm");
+          const box = document.getElementById("temperature-chart");
+          box.replaceChildren(
+            sc.metricChart(Plot, rows, {
+              cfg: sc.METRIC_CONFIG[metric],
+              yLabel,
+              width: box.clientWidth,
+            }),
+          );
+        },
+        { spec: await page.evaluate(PAGE_MODULE), metric, yLabel, rows },
+      );
+      const chart = await readChart(page, "temperature-chart");
+      expect(chart.legend).toEqual(FIXTURE_MODELS.map(legendName));
+      expectChartRules(
+        chart,
+        leads.map(([, best]) => best.map(legendName).sort()),
+        `${metric} fixture on ${device}`,
+      );
+    }
+
+    expect(errors, `fixture on ${device} logged console errors`).toEqual([]);
+  });
+}
+
+// Every bar at a lead taken from the chart's own query, for the models the
 // country view covers. Asked of the page's own DuckDB and module, so it follows
 // whatever the file holds instead of assuming every model publishes every lead.
-function expectedBarCounts(page, variable, metric) {
+async function queriedLeads(page, variable, metric) {
   return page.evaluate(
-    async ({ variable, metric }) => {
-      const spec = performance
-        .getEntriesByType("resource")
-        .map((e) => e.name)
-        .find((n) => n.includes("/scorecard.js"));
-      const sc = await import(spec ?? "/scorecard.js");
+    async ({ spec, variable, metric }) => {
+      const sc = await import(spec);
       const db = await sc.initDB();
       const conn = await db.connect();
       try {
@@ -433,38 +604,35 @@ function expectedBarCounts(page, variable, metric) {
           .toArray()
           .map((r) => r.toJSON())
           .filter((r) => sc.modelCoversRegion(r.model));
-        const counts = new Map();
-        for (const { lead, value } of rows) {
-          counts.set(lead, (counts.get(lead) ?? 0) + (Number.isFinite(value) ? 1 : 0));
+        const leads = new Map();
+        for (const { lead, model, value } of rows) {
+          if (!leads.has(lead)) leads.set(lead, []);
+          leads.get(lead).push({ model: sc.legendLabel(model), value });
         }
-        return [...counts].sort(([a], [b]) => a - b).map(([, n]) => n);
+        return [...leads].sort(([a], [b]) => a - b).map(([, bars]) => bars);
       } finally {
         await conn.close();
       }
     },
-    { variable, metric },
+    { spec: await page.evaluate(PAGE_MODULE), variable, metric },
   );
 }
 
-// Titles round to three significant figures, so a parsed value can be off by
-// half a unit in its third figure. Every distance in DISTANCE moves no faster
-// than the value, so two bars' rounding errors together bound any apparent
-// inversion between them.
-const roundingError = (v) =>
-  v === 0 ? 0 : 0.5 * 10 ** (Math.floor(Math.log10(Math.abs(v))) - 2);
-
-// Which model is best changes with lead time, so every lead is ordered on its
-// own; this walks one metric of each direction against live data. Live
-// Frequency Bias currently sits above 1 for every model, so this cannot tell
-// closest-to-1 from plain ascending order; the unit tests cover both sides.
-test("scorecard index orders bars best-first within each lead", async ({ page }) => {
+// The same rules against live data, for one metric of each direction, with the
+// winners worked out from the query's full-precision values rather than the
+// three-figure titles. Live Frequency Bias currently sits above 1 for every
+// model, so this cannot tell closest-to-1 from lowest; the fixture above and the
+// unit tests cover both sides.
+test("scorecard index marks the best bar at each lead, in a fixed model order", async ({
+  page,
+}) => {
   const errors = collectPageErrors(page);
   await gotoOk(page, "/scorecard/");
 
   for (const [id, select, variable, metric, phrase] of [
-    ["temperature-chart", "#temp-metric", "temperature_2m", "RMSE", "lower is better"],
+    ["temperature-chart", "#temp-metric", "temperature_2m", "RMSE", "lowest is best"],
     ["temperature-chart", "#temp-metric", "temperature_2m", "Bias", "closest to 0 is best"],
-    ["precipitation-chart", "#precip-metric", "precipitation_surface", "ETS", "higher is better"],
+    ["precipitation-chart", "#precip-metric", "precipitation_surface", "ETS", "highest is best"],
     [
       "precipitation-chart",
       "#precip-metric",
@@ -474,38 +642,26 @@ test("scorecard index orders bars best-first within each lead", async ({ page })
     ],
   ]) {
     await page.selectOption(select, metric);
-    await expectPlot(page, id);
-    const { legend, facets, caption } = await readBars(page, id);
+    const label = await page.locator(`${select} option:checked`).textContent();
+    await expectMetricPlot(page, id, label);
+    const chart = await readChart(page, id);
+    const leads = await queriedLeads(page, variable, metric);
 
-    expect(caption, `${metric} caption`).toContain(phrase);
-    // Facets are drawn in lead order, as the counts are listed.
+    expect(chart.caption, `${metric} caption`).toContain(phrase);
+    // Facets are drawn in lead order, as the query's leads are listed.
     expect(
-      facets.map((bars) => bars.length),
+      chart.facets.map((bars) => bars.length),
       `${metric} bars per lead, drawn vs. queried`,
-    ).toEqual(await expectedBarCounts(page, variable, metric));
-    // An order needs at least two bars to mean anything.
+    ).toEqual(leads.map((bars) => bars.filter((b) => Number.isFinite(b.value)).length));
     expect(
-      facets.some((bars) => bars.length > 1),
-      `${metric} has no lead with more than one bar to order`,
+      chart.facets.some((bars) => bars.length > 1),
+      `${metric} has no lead with more than one bar to choose from`,
     ).toBe(true);
-    for (const [lead, bars] of facets.entries()) {
-      expect(new Set(bars.map((b) => b.model)).size).toBe(bars.length);
-      for (const bar of bars) {
-        expect(Number.isFinite(bar.value), `${bar.model} value`).toBe(true);
-        expect(bar.fill, `${bar.model}'s bar matches its legend swatch`).toBe(
-          legend[bar.model],
-        );
-      }
-      for (let i = 1; i < bars.length; i++) {
-        const [a, b] = [bars[i - 1], bars[i]];
-        const slack = roundingError(a.value) + roundingError(b.value);
-        expect(
-          DISTANCE[metric](a.value),
-          `${metric} lead ${lead}: ${a.model} (${a.value}) is drawn before ` +
-            `${b.model} (${b.value})`,
-        ).toBeLessThanOrEqual(DISTANCE[metric](b.value) + slack);
-      }
-    }
+    expectChartRules(
+      chart,
+      leads.map((bars) => expectedBest(bars, DISTANCE[metric])),
+      metric,
+    );
   }
 
   expect(errors, "scorecard index logged console errors").toEqual([]);

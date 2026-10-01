@@ -20,13 +20,13 @@ const {
   METRIC_CONFIG,
   VARIABLE_METRICS,
   DEFAULT_METRIC,
+  bestNote,
   encodedWindowValues,
   initDB,
   legendLabel,
+  markBest,
   modelColors,
   modelCoversRegion,
-  orderNote,
-  rankWithinLead,
   scoreDistance,
 } = await import(
   `data:text/javascript,${encodeURIComponent(readFileSync(SCORECARD_JS, "utf8"))}`
@@ -123,105 +123,163 @@ const rows = (lead, values) =>
     value,
   }));
 
-// Model order within one lead, best first.
-const order = (ranked, lead) =>
-  ranked
-    .filter((r) => r.lead_time_days === lead)
-    .sort((a, b) => a.slot - b.slot)
-    .map((r) => r.model);
+// The models marked best at one lead, sorted by name.
+const bestAt = (marked, lead) =>
+  marked
+    .filter((r) => r.lead_time_days === lead && r.best)
+    .map((r) => r.model)
+    .sort();
 
-test("errors rank lowest first", () => {
-  const ranked = rankWithinLead(
+test("errors mark the lowest", () => {
+  const marked = markBest(
     rows(0, { "NOAA GFS": 2.4, "NOAA HRRR": 1.8, "ECMWF IFS ENS": 2.0 }),
     METRIC_CONFIG.RMSE,
   );
-  assert.deepEqual(order(ranked, 0), ["NOAA HRRR", "ECMWF IFS ENS", "NOAA GFS"]);
+  assert.deepEqual(bestAt(marked, 0), ["NOAA HRRR"]);
 });
 
-test("skill scores rank highest first, negative scores included", () => {
-  const ranked = rankWithinLead(
+test("skill scores mark the highest, negative scores included", () => {
+  const marked = markBest(
     rows(0, { "NOAA GFS": -0.05, "NOAA HRRR": 0.3, "ECMWF IFS ENS": 0.01 }),
     METRIC_CONFIG.ETS,
   );
-  assert.deepEqual(order(ranked, 0), ["NOAA HRRR", "ECMWF IFS ENS", "NOAA GFS"]);
+  assert.deepEqual(bestAt(marked, 0), ["NOAA HRRR"]);
+  // A lead where every model has negative skill still has a best one.
+  const negative = markBest(
+    rows(0, { "NOAA GFS": -0.05, "NOAA HRRR": -0.3 }),
+    METRIC_CONFIG.HSS,
+  );
+  assert.deepEqual(bestAt(negative, 0), ["NOAA GFS"]);
 });
 
-test("bias ranks closest to zero first, whatever its sign", () => {
-  const ranked = rankWithinLead(
+test("bias marks the closest to zero, whatever its sign", () => {
+  const marked = markBest(
     rows(0, { "NOAA GFS": -0.5, "NOAA HRRR": 0.3, "ECMWF IFS ENS": -0.1, "NOAA GEFS": 0.8 }),
     METRIC_CONFIG.Bias,
   );
-  assert.deepEqual(order(ranked, 0), [
-    "ECMWF IFS ENS",
-    "NOAA HRRR",
-    "NOAA GFS",
-    "NOAA GEFS",
-  ]);
+  assert.deepEqual(bestAt(marked, 0), ["ECMWF IFS ENS"]);
+  // A perfect zero is a real score, not a missing one.
+  const zero = markBest(rows(0, { "NOAA GFS": 0, "NOAA HRRR": 0.3 }), METRIC_CONFIG.Bias);
+  assert.deepEqual(bestAt(zero, 0), ["NOAA GFS"]);
 });
 
-test("frequency bias ranks closest to one first, on either side of it", () => {
-  const ranked = rankWithinLead(
+test("frequency bias marks the closest to one, on either side of it", () => {
+  const marked = markBest(
     rows(0, { "NOAA GFS": 0.5, "NOAA HRRR": 1.2, "ECMWF IFS ENS": 0.9, "NOAA GEFS": 2 }),
     METRIC_CONFIG.FrequencyBias,
   );
+  assert.deepEqual(bestAt(marked, 0), ["ECMWF IFS ENS"]);
   // |0.5 − 1| beats |2 − 1|: the distance is linear, not a ratio.
-  assert.deepEqual(order(ranked, 0), [
-    "ECMWF IFS ENS",
-    "NOAA HRRR",
-    "NOAA GFS",
-    "NOAA GEFS",
-  ]);
+  const linear = markBest(rows(0, { "NOAA GFS": 0.5, "NOAA GEFS": 2 }), METRIC_CONFIG.FrequencyBias);
+  assert.deepEqual(bestAt(linear, 0), ["NOAA GFS"]);
 });
 
-test("each lead is ranked on its own", () => {
-  const ranked = rankWithinLead(
+test("each lead is judged on its own", () => {
+  const marked = markBest(
     [
       ...rows(0, { "NOAA GFS": 1, "ECMWF IFS ENS": 2, "NOAA HRRR": 3 }),
       ...rows(5, { "NOAA GFS": 4, "ECMWF IFS ENS": 3 }),
     ],
     METRIC_CONFIG.MAE,
   );
-  assert.deepEqual(order(ranked, 0), ["NOAA GFS", "ECMWF IFS ENS", "NOAA HRRR"]);
-  // A lead with fewer models fills the leading slots and leaves the rest empty.
-  assert.deepEqual(order(ranked, 5), ["ECMWF IFS ENS", "NOAA GFS"]);
-  assert.deepEqual(
-    ranked.filter((r) => r.lead_time_days === 5).map((r) => r.slot).sort(),
-    [0, 1],
-  );
+  assert.deepEqual(bestAt(marked, 0), ["NOAA GFS"]);
+  assert.deepEqual(bestAt(marked, 5), ["ECMWF IFS ENS"]);
 });
 
-test("ties get distinct slots in the stable model order, whatever the input order", () => {
-  const values = { "Some New Model": 1, "NOAA GFS": 1, "ECMWF IFS ENS": 1, "ECCC HRDPS": 1 };
-  const expected = ["ECMWF IFS ENS", "NOAA GFS", "ECCC HRDPS", "Some New Model"];
-  const input = rows(0, values);
-  for (const shuffled of [input, [...input].reverse()]) {
-    const ranked = rankWithinLead(shuffled, METRIC_CONFIG.RMSE);
-    assert.deepEqual(order(ranked, 0), expected);
-    assert.deepEqual(ranked.map((r) => r.slot).sort(), [0, 1, 2, 3]);
-  }
-  // Bias of equal size and opposite sign is a tie too.
-  const bias = rankWithinLead(
-    rows(0, { "NOAA GFS": 0.2, "ECMWF IFS ENS": -0.2 }),
+// A tie is an equal computed distance, with no tolerance: Bias ±0.2 and Frequency
+// Bias 0.5/1.5 are exact in binary and tie, while 0.9/1.1 land a few ulps apart
+// and do not. Titles round to three figures, so near-ties can look tied there.
+test("tied scores are all marked best", () => {
+  const all = markBest(
+    rows(0, { "NOAA GFS": 1, "ECMWF IFS ENS": 1, "NOAA HRRR": 1 }),
+    METRIC_CONFIG.RMSE,
+  );
+  assert.deepEqual(bestAt(all, 0), ["ECMWF IFS ENS", "NOAA GFS", "NOAA HRRR"]);
+  const two = markBest(
+    rows(0, { "NOAA GFS": 0.3, "ECMWF IFS ENS": 0.3, "NOAA HRRR": 0.1 }),
+    METRIC_CONFIG.ETS,
+  );
+  assert.deepEqual(bestAt(two, 0), ["ECMWF IFS ENS", "NOAA GFS"]);
+  const bias = markBest(
+    rows(0, { "NOAA GFS": 0.2, "ECMWF IFS ENS": -0.2, "NOAA HRRR": 0.3 }),
     METRIC_CONFIG.Bias,
   );
-  assert.deepEqual(order(bias, 0), ["ECMWF IFS ENS", "NOAA GFS"]);
+  assert.deepEqual(bestAt(bias, 0), ["ECMWF IFS ENS", "NOAA GFS"]);
+  const fb = markBest(
+    rows(0, { "NOAA GFS": 0.5, "ECMWF IFS ENS": 1.5, "NOAA HRRR": 2 }),
+    METRIC_CONFIG.FrequencyBias,
+  );
+  assert.deepEqual(bestAt(fb, 0), ["ECMWF IFS ENS", "NOAA GFS"]);
+  const nearTie = markBest(
+    rows(0, { "NOAA GFS": 0.9, "ECMWF IFS ENS": 1.1 }),
+    METRIC_CONFIG.FrequencyBias,
+  );
+  assert.equal(bestAt(nearTie, 0).length, 1);
 });
 
-test("missing values rank last in every direction and never count as perfect", () => {
+test("missing values are never best, in any direction", () => {
   for (const metric of ["RMSE", "ETS", "Bias", "FrequencyBias"]) {
     const cfg = METRIC_CONFIG[metric];
     for (const missing of [null, undefined, NaN, Infinity, -Infinity]) {
       assert.equal(scoreDistance(missing, cfg), Infinity, `${metric} ${missing}`);
     }
-    const ranked = rankWithinLead(
-      rows(0, { "ECMWF IFS ENS": null, "NOAA GEFS": NaN, "NOAA GFS": 5, "NOAA HRRR": -3 }),
+    // -Infinity would otherwise win RMSE and +Infinity would win ETS.
+    const marked = markBest(
+      [
+        ...rows(0, {
+          "ECMWF IFS ENS": null,
+          "NOAA GEFS": NaN,
+          "NOAA GFS": 0.5,
+          "NOAA HRRR": Infinity,
+          "ECMWF AIFS ENS": -Infinity,
+          "ECMWF AIFS Single": undefined,
+        }),
+        // A lead with no real score has no best bar, rather than marking every
+        // missing one because Infinity equals Infinity.
+        ...rows(1, { "ECMWF IFS ENS": null, "NOAA GEFS": NaN, "NOAA HRRR": Infinity }),
+      ],
       cfg,
     );
-    assert.deepEqual(
-      order(ranked, 0).slice(2),
-      ["ECMWF IFS ENS", "NOAA GEFS"],
-      `${metric} ranked a missing value ahead of a real one`,
-    );
+    assert.deepEqual(bestAt(marked, 0), ["NOAA GFS"], metric);
+    assert.deepEqual(bestAt(marked, 1), [], metric);
+  }
+  assert.deepEqual(markBest([], METRIC_CONFIG.RMSE), []);
+});
+
+test("marking best keeps every row and leaves the input alone", () => {
+  const input = rows(0, { "NOAA GFS": 2, "NOAA HRRR": 1, "ECMWF IFS ENS": null });
+  const before = structuredClone(input);
+  const marked = markBest(input, METRIC_CONFIG.RMSE);
+  assert.deepEqual(input, before);
+  assert.deepEqual(
+    marked.map(({ best, ...row }) => row),
+    input,
+    "markBest must not drop, reorder, or change rows",
+  );
+  assert.deepEqual(
+    marked.map((r) => r.best),
+    [false, true, false],
+  );
+});
+
+// Bars take their x slot from modelColors' domain, shared by every lead, so a
+// model sits in the same place at every lead whichever model is best there.
+test("bars keep the legend's model order whatever the scores or input order", () => {
+  const input = [
+    ...rows(0, { "Some New Model": 1, "NOAA GFS": 3, "ECMWF IFS ENS": 2, "ECCC HRDPS": null }),
+    ...rows(1, { "Another Model": 1, "NOAA GFS": 1, "NOAA HRRR": 5 }),
+  ];
+  const expected = [
+    "ECMWF IFS ENS",
+    "NOAA GFS",
+    "NOAA HRRR",
+    "ECCC HRDPS",
+    "Another Model",
+    "Some New Model",
+  ];
+  for (const shuffled of [input, [...input].reverse()]) {
+    // A model whose only value is missing keeps its slot too.
+    assert.deepEqual(modelColors(shuffled.map((r) => r.model)).domain, expected);
   }
 });
 
@@ -256,11 +314,17 @@ test("a model keeps its color whichever models share the chart", () => {
   assert.equal(domain.at(-1), "Some New Model");
 });
 
-test("the chart caption states the direction", () => {
-  assert.match(orderNote(METRIC_CONFIG.RMSE), /lower is better/);
-  assert.match(orderNote(METRIC_CONFIG.ETS), /higher is better/);
-  assert.match(orderNote(METRIC_CONFIG.Bias), /closest to 0 is best/);
-  assert.match(orderNote(METRIC_CONFIG.FrequencyBias), /closest to 1 is best/);
+test("the chart caption names the marker and the direction", () => {
+  for (const [metric, phrase] of [
+    ["RMSE", "lowest is best"],
+    ["ETS", "highest is best"],
+    ["Bias", "closest to 0 is best"],
+    ["FrequencyBias", "closest to 1 is best"],
+  ]) {
+    const note = bestNote(METRIC_CONFIG[metric]);
+    assert.match(note, /^Triangles mark the best bar at each lead time;/, metric);
+    assert.ok(note.endsWith(`; ${phrase}.`), `${metric}: ${note}`);
+  }
 });
 
 test("every variable's default metric is one it offers", () => {
