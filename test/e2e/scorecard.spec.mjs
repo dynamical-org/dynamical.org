@@ -417,6 +417,9 @@ function readChart(page, id) {
               {
                 rank: Number(svgEl.querySelector("g text").textContent),
                 fill: svgEl.querySelector("g circle").getAttribute("fill"),
+                ink: ["fill", "stroke", "paint-order"].map((a) =>
+                  svgEl.querySelector("g text").getAttribute(a),
+                ),
                 squareHidden: getComputedStyle(svgEl.querySelector("rect")).visibility === "hidden",
               },
             ];
@@ -501,6 +504,11 @@ function expectSelected(chart, i, ranks, label) {
   for (const [model, badge] of Object.entries(chart.badges)) {
     expect(badge.fill, `${where}: ${model}'s badge keeps its color`).toBe(chart.legendFill[model]);
     expect(badge.squareHidden, `${where}: ${model}'s square gives way`).toBe(true);
+    expect(badge.ink, `${where}: ${model}'s numeral is white outlined in black`).toEqual([
+      "#ffffff",
+      "#111111",
+      "stroke",
+    ]);
   }
   expect(chart.band, `${where}: band`).not.toBeNull();
   expect(Math.abs(chart.band.cx - cx), `${where}: band is over the lead`).toBeLessThan(1);

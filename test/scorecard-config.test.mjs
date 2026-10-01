@@ -22,11 +22,9 @@ const {
   DEFAULT_METRIC,
   encodedWindowValues,
   initDB,
-  inkOn,
   legendLabel,
   modelColors,
   modelCoversRegion,
-  MODEL_STYLE,
   rankNote,
   rankWithinLead,
   scoreDistance,
@@ -275,30 +273,6 @@ test("ranking keeps every row and leaves the input alone", () => {
     ranked.map((r) => r.rank),
     [2, 1, null],
   );
-});
-
-// WCAG contrast of the numeral on its badge, which takes the model's color.
-const contrast = (a, b) => {
-  const luminance = (hex) => {
-    const [r, g, b] = hex
-      .match(/\w\w/g)
-      .map((h) => parseInt(h, 16) / 255)
-      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-};
-
-test("every model's rank badge numeral reads against its color", () => {
-  const { range } = modelColors([...MODEL_STYLE.keys(), "Some New Model", "Another Model"]);
-  for (const color of range) {
-    const ink = inkOn(color);
-    assert.ok(["#111111", "#ffffff"].includes(ink), ink);
-    const other = ink === "#111111" ? "#ffffff" : "#111111";
-    assert.ok(contrast(color, ink) >= contrast(color, other), `${color}: picked the weaker ink`);
-    assert.ok(contrast(color, ink) >= 4.5, `${color} on ${ink}: ${contrast(color, ink).toFixed(2)}`);
-  }
 });
 
 // Bars take their x slot from modelColors' domain, shared by every lead, so a

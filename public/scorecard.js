@@ -384,21 +384,12 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 // badges all of its models: ranks 1, 1, 3, 3 badge four.
 const LEGEND_RANKS = 3;
 
-// Near-black or white, whichever contrasts more with a fill (WCAG luminance), so
-// a numeral reads on WeatherNext's yellow and on GEFS's dark blue alike.
-export function inkOn(hex) {
-  const [r, g, b] = hex
-    .match(/\w\w/g)
-    .map((h) => parseInt(h, 16) / 255)
-    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return (luminance + 0.05) / 0.0556 > 1.05 / (luminance + 0.05) ? "#111111" : "#ffffff";
-}
-
 // Turn a legend swatch into a circle of the same color with the model's rank on
 // it, or back into its square. Drawn inside the swatch's own 15px <svg>, so the
 // legend never reflows: a badge added beside the swatch wrapped legend rows at
 // phone width and shifted entries by up to 266px as the pointer crossed leads.
+// The numeral is white outlined in near-black on every color, so it reads the
+// same way on WeatherNext's yellow as on GEFS's dark blue.
 function setRankBadge(swatch, rank, color) {
   swatch.querySelector("g")?.remove();
   swatch.querySelector("rect").style.visibility = rank == null ? "" : "hidden";
@@ -406,8 +397,9 @@ function setRankBadge(swatch, rank, color) {
   const badge = document.createElementNS(SVG_NS, "g");
   badge.innerHTML =
     `<circle cx="7.5" cy="7.5" r="8" fill="${color}"/>` +
-    `<text x="7.5" y="7.5" fill="${inkOn(color)}" text-anchor="middle" ` +
-    `dominant-baseline="central" font-size="10" font-weight="700">${rank}</text>`;
+    `<text x="7.5" y="7.5" fill="#ffffff" stroke="#111111" stroke-width="2.5" ` +
+    `stroke-linejoin="round" paint-order="stroke" text-anchor="middle" ` +
+    `dominant-baseline="central" font-size="11" font-weight="700">${rank}</text>`;
   swatch.append(badge);
 }
 
