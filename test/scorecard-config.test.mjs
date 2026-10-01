@@ -283,9 +283,9 @@ test("bars keep the legend's model order whatever the scores or input order", ()
     ...rows(1, { "Another Model": 1, "NOAA GFS": 1, "NOAA HRRR": 5 }),
   ];
   const expected = [
-    "ECMWF IFS ENS",
     "NOAA GFS",
     "NOAA HRRR",
+    "ECMWF IFS ENS",
     "ECCC HRDPS",
     "Another Model",
     "Some New Model",
@@ -294,6 +294,32 @@ test("bars keep the legend's model order whatever the scores or input order", ()
     // A model whose only value is missing keeps its slot too.
     assert.deepEqual(modelColors(shuffled.map((r) => r.model)).domain, expected);
   }
+});
+
+// Spelled out rather than derived, so a model pinned in the wrong place fails
+// here: producers NOAA, ECMWF, then ECCC and Google; families kept together,
+// deterministic before ensemble.
+test("the legend groups models by producer and family", () => {
+  const published = [
+    "Google WeatherNext 2, virtual",
+    "ECMWF AIFS ENS",
+    "NOAA GEFS",
+    "ECCC HRDPS",
+    "ECMWF IFS ENS",
+    "NOAA HRRR",
+    "ECMWF AIFS Single",
+    "NOAA GFS",
+  ];
+  assert.deepEqual(modelColors(published).domain, [
+    "NOAA GFS",
+    "NOAA GEFS",
+    "NOAA HRRR",
+    "ECMWF IFS ENS",
+    "ECMWF AIFS Single",
+    "ECMWF AIFS ENS",
+    "ECCC HRDPS",
+    "Google WeatherNext 2, virtual",
+  ]);
 });
 
 test("a model keeps its color whichever models share the chart", () => {

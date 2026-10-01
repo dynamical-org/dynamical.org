@@ -10,15 +10,21 @@ const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 // back when the rest were colored from the fallback list by position, which
 // shifted them on state and station pages whenever HRDPS was present; HRDPS,
 // which the country page never shows, takes an unused color.
+//
+// The order is curated: producer groups NOAA, ECMWF, then the rest
+// alphabetically (ECCC, Google); within a producer, a family stays together,
+// deterministic before ensemble — GFS, GEFS, then the regional HRRR; IFS, then
+// AIFS. A model added here goes beside its family. One that is published before
+// it is listed falls after every listed model, alphabetically.
 export const MODEL_STYLE = new Map([
-  ["ECMWF IFS ENS", "#029E73"],
-  ["NOAA GEFS", "#0173B2"],
   ["NOAA GFS", "#56B4E9"],
+  ["NOAA GEFS", "#0173B2"],
   ["NOAA HRRR", "#DE8F05"],
-  ["ECMWF AIFS ENS", "#CC79A7"],
+  ["ECMWF IFS ENS", "#029E73"],
   ["ECMWF AIFS Single", "#D55E00"],
-  ["Google WeatherNext 2, virtual", "#F0E442"],
+  ["ECMWF AIFS ENS", "#CC79A7"],
   ["ECCC HRDPS", "#CA9161"],
+  ["Google WeatherNext 2, virtual", "#F0E442"],
 ]);
 // A model published before it is pinned above still gets a color, but one taken
 // by position among the unpinned models in the chart, so it can differ between

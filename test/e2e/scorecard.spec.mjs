@@ -458,11 +458,30 @@ function readChart(page, id) {
   });
 }
 
+// The legend and bar order: producers NOAA, ECMWF, then ECCC and Google, with
+// each family together. Written out here rather than read from MODEL_STYLE, so a
+// model pinned in the wrong place fails this spec instead of agreeing with it.
+const LEGEND_ORDER = [
+  "NOAA GFS",
+  "NOAA GEFS",
+  "NOAA HRRR",
+  "ECMWF IFS ENS",
+  "ECMWF AIFS Single",
+  "ECMWF AIFS ENS",
+  "ECCC HRDPS",
+  "Google WeatherNext 2",
+];
+
 // Holds a drawn chart to the fixed-order rule and its ranks:
+// - the legend follows LEGEND_ORDER;
 // - every model sits at one x in every facet, and facets run in legend order, so
 //   a missing model leaves a gap instead of shifting the bars after it;
 // - every bar's title carries its rank at that lead, `ranks[i]`.
 function expectChartRules({ legend, legendFill, facets }, ranks, label) {
+  expect(legend, `${label}: legend order`).toEqual(
+    LEGEND_ORDER.filter((m) => legend.includes(m)),
+  );
+  expect(legend.filter((m) => !LEGEND_ORDER.includes(m)), `${label}: unordered models`).toEqual([]);
   expect(facets.length, `${label}: facets`).toBe(ranks.length);
   const slot = new Map();
   for (const [i, bars] of facets.entries()) {
@@ -641,7 +660,7 @@ for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
       const ranks = fixtureRanks(metric, leads);
       const label = `${metric} fixture on ${device}`;
       let chart = await readChart(page, "temperature-chart");
-      expect(chart.legend).toEqual(FIXTURE_MODELS.map(legendName));
+      expect([...chart.legend].sort()).toEqual(FIXTURE_MODELS.map(legendName).sort());
       expectChartRules(chart, ranks, label);
       expectNothingSelected(chart, `${label}, before any hover`);
 
