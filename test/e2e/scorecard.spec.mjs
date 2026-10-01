@@ -373,84 +373,94 @@ const DISTANCE = {
   FrequencyBias: (v) => Math.abs(v - 1),
 };
 
-// The models with the best finite value at one lead: every one of them on a tie.
-function expectedBest(rows, distance) {
+// Each finite model's rank at one lead: 1 + how many score strictly better, so
+// tied models share a rank and the next one skips past them.
+function expectedRanks(rows, distance) {
   const finite = rows.filter((r) => Number.isFinite(r.value));
-  const best = Math.min(...finite.map((r) => distance(r.value)));
-  return finite
-    .filter((r) => distance(r.value) === best)
-    .map((r) => r.model)
-    .sort();
+  return Object.fromEntries(
+    finite.map((r) => [
+      r.model,
+      1 + finite.filter((o) => distance(o.value) < distance(r.value)).length,
+    ]),
+  );
 }
 
-// A metric chart as drawn: the legend in order, the caption, each lead-time
-// facet's bars, and the best-bar triangles. Bars are read from the <title> each
-// carries; `x` is the bar's position within its facet, and the screen boxes are
-// what the triangles are matched against.
+// The legend badges a lead should show: every model ranked third or better.
+const legendBadges = (ranks) =>
+  Object.fromEntries(Object.entries(ranks).filter(([, rank]) => rank <= 3));
+
+// A metric chart as drawn: the legend in order with each entry's color and rank
+// badge, the visible caption, the announcement, the selection band, each lead's
+// label and bars, read from the <title> each bar carries. `x` is a bar's place
+// within its facet; screen positions are what the pointer is aimed at.
 function readChart(page, id) {
   return page.locator(`#${id}`).evaluate((el) => {
-    const box = (node) => {
+    const svg = el.querySelector("figure > svg");
+    const center = (node) => {
       const r = node.getBoundingClientRect();
-      return { cx: r.left + r.width / 2, top: r.top, bottom: r.bottom };
+      return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, left: r.left, right: r.right };
     };
-    const parseTitle = (node) => {
-      const text = node.querySelector("title").textContent;
-      const at = text.lastIndexOf(": ");
-      return {
-        model: text.slice(0, at),
-        value: parseFloat(text.slice(at + 2)),
-        best: text.endsWith(" (best)"),
-      };
-    };
-    const swatches = [...el.querySelectorAll('[class*="-swatch"]:not([class*="-swatches"])')];
-    const plot = el.querySelector('svg g[aria-label="bar"]')?.ownerSVGElement;
-    const labels = [...el.querySelectorAll('[aria-label="fx-axis tick label"] text')];
+    const swatches = [...el.querySelectorAll("figure > div > span")];
+    const band = svg.querySelector(":scope > rect");
     return {
-      textColor: plot ? getComputedStyle(plot).color : null,
-      background: getComputedStyle(document.body).backgroundColor,
-      labelsTop: Math.min(...labels.map((t) => t.getBoundingClientRect().top)),
-      legend: swatches.map((s) => s.textContent.trim()),
+      legend: swatches.map((s) => s.textContent.replace(/^\d+/, "").trim()),
       legendFill: Object.fromEntries(
-        swatches.map((s) => [s.textContent.trim(), s.querySelector("svg").getAttribute("fill")]),
+        swatches.map((s) => [s.lastChild.textContent.trim(), s.querySelector("svg").getAttribute("fill")]),
       ),
-      caption: el.querySelector("figcaption")?.textContent ?? "",
-      frame: plot ? box(plot) : null,
-      facets: [...el.querySelectorAll('svg g[aria-label="bar"] > g')].map((g) =>
+      badges: Object.fromEntries(
+        swatches
+          .filter((s) => s.querySelector("svg g"))
+          .map((s) => {
+            const svgEl = s.querySelector("svg");
+            return [
+              s.lastChild.textContent.trim(),
+              {
+                rank: Number(svgEl.querySelector("g text").textContent),
+                fill: svgEl.querySelector("g circle").getAttribute("fill"),
+                squareHidden: getComputedStyle(svgEl.querySelector("rect")).visibility === "hidden",
+              },
+            ];
+          }),
+      ),
+      caption: [...el.querySelectorAll("figcaption > span")]
+        .filter((s) => getComputedStyle(s).visibility !== "hidden")
+        .map((s) => s.textContent)
+        .join(""),
+      announced: el.querySelector("[aria-live]")?.textContent ?? "",
+      band: band && getComputedStyle(band).display !== "none" ? center(band) : null,
+      leads: [...svg.querySelectorAll('[aria-label="fx-axis tick label"] text')].map((t) => ({
+        lead: Number(t.textContent),
+        bold: getComputedStyle(t).fontWeight === "700",
+        ...center(t),
+      })),
+      plotMiddle: center(svg).cy,
+      facets: [...svg.querySelectorAll('g[aria-label="bar"] > g')].map((g) =>
         [...g.querySelectorAll("rect")]
-          .map((r) => ({
-            ...parseTitle(r),
-            x: Number(r.getAttribute("x")),
-            fill: r.getAttribute("fill"),
-            ...box(r),
-          }))
+          .map((r) => {
+            const text = r.querySelector("title").textContent;
+            const at = text.lastIndexOf(": ");
+            return {
+              model: text.slice(0, at),
+              value: parseFloat(text.slice(at + 2)),
+              rank: Number(text.match(/ \(rank (\d+)\)$/)?.[1]) || null,
+              x: Number(r.getAttribute("x")),
+              fill: r.getAttribute("fill"),
+            };
+          })
+          // Plot draws a missing value as an empty bar on the baseline.
+          .filter((b) => Number.isFinite(b.value))
           .sort((a, b) => a.x - b.x),
       ),
-      markers: [...el.querySelectorAll('svg g[aria-label="dot"] path')].map((p) => ({
-        ...parseTitle(p),
-        pointsDown: /rotate\(180\)/.test(p.getAttribute("transform") ?? ""),
-        fill: getComputedStyle(p).fill,
-        opacity: Number(getComputedStyle(p).opacity) * Number(getComputedStyle(p).fillOpacity),
-        ...box(p),
-      })),
     };
   });
 }
 
-// Holds a drawn chart to the fixed-order and best-marking rules:
+// Holds a drawn chart to the fixed-order rule and its ranks:
 // - every model sits at one x in every facet, and facets run in legend order, so
 //   a missing model leaves a gap instead of shifting the bars after it;
-// - each facet marks exactly `expected[i]` as best, by title and by triangle;
-// - each triangle is centred on its bar, sits clear of the bar's end, and points
-//   at it: down onto a bar that rises from zero, up onto one that hangs below,
-//   staying above the lead-time labels;
-// - each triangle is opaque and painted in the chart's text color, which differs
-//   from the page background in either theme.
-function expectChartRules(
-  { legend, legendFill, facets, markers, frame, textColor, background, labelsTop },
-  expected,
-  label,
-) {
-  expect(facets.length, `${label}: facets`).toBe(expected.length);
+// - every bar's title carries its rank at that lead, `ranks[i]`.
+function expectChartRules({ legend, legendFill, facets }, ranks, label) {
+  expect(facets.length, `${label}: facets`).toBe(ranks.length);
   const slot = new Map();
   for (const [i, bars] of facets.entries()) {
     const models = bars.map((b) => b.model);
@@ -465,38 +475,50 @@ function expectChartRules(
       );
     }
     expect(
-      bars.filter((b) => b.best).map((b) => b.model).sort(),
-      `${label} facet ${i}: bars titled best`,
-    ).toEqual(expected[i]);
-  }
-
-  const best = facets.flat().filter((b) => b.best);
-  expect(markers.length, `${label}: one triangle per best bar`).toBe(best.length);
-  for (const marker of markers) {
-    const bar = best.reduce((a, b) =>
-      Math.abs(b.cx - marker.cx) < Math.abs(a.cx - marker.cx) ? b : a,
-    );
-    const where = `${label}: triangle for ${bar.model} at ${bar.value}`;
-    expect(Math.abs(bar.cx - marker.cx), `${where} is centred on it`).toBeLessThanOrEqual(1);
-    expect(marker.model, where).toBe(bar.model);
-    expect(marker.pointsDown, `${where} points at the bar`).toBe(bar.value >= 0);
-    if (bar.value >= 0) {
-      expect(marker.bottom, `${where} sits above the bar`).toBeLessThanOrEqual(bar.top);
-    } else {
-      expect(marker.top, `${where} sits below the bar`).toBeGreaterThanOrEqual(bar.bottom);
-    }
-    expect(marker.top, `${where} is inside the chart`).toBeGreaterThanOrEqual(frame.top);
-    expect(marker.bottom, `${where} clears the lead labels`).toBeLessThan(labelsTop - 1);
-    expect(marker.fill, `${where} is the text color`).toBe(textColor);
-    expect(marker.fill, `${where} stands out from the page`).not.toBe(background);
-    expect(marker.opacity, `${where} is opaque`).toBe(1);
+      Object.fromEntries(bars.map((b) => [b.model, b.rank])),
+      `${label} facet ${i}: ranks in the bar titles`,
+    ).toEqual(ranks[i]);
   }
 }
 
-// Live data cannot be counted on to hold a tie, a missing model, a zero or a
-// negative winner on any given day, so this draws rows that do through the same
-// metricChart the page uses, at a phone and a desktop width: seven models and ten
-// leads, as dense as the index gets.
+// Nothing is ranked: no badges, no band, no bold lead, the how-to caption.
+function expectNothingSelected(chart, label) {
+  expect(chart.badges, `${label}: badges`).toEqual({});
+  expect(chart.band, `${label}: band`).toBeNull();
+  expect(chart.leads.filter((l) => l.bold), `${label}: bold leads`).toEqual([]);
+  expect(chart.caption, `${label}: caption`).toMatch(/^Hover or tap a lead time to rank it/);
+  expect(chart.announced, `${label}: announcement`).toBe("");
+}
+
+// The legend, band, label, caption, and announcement all describe lead index `i`.
+function expectSelected(chart, i, ranks, label) {
+  const { lead, cx } = chart.leads[i];
+  const where = `${label}, day ${lead}`;
+  expect(
+    Object.fromEntries(Object.entries(chart.badges).map(([m, b]) => [m, b.rank])),
+    `${where}: legend badges`,
+  ).toEqual(legendBadges(ranks));
+  for (const [model, badge] of Object.entries(chart.badges)) {
+    expect(badge.fill, `${where}: ${model}'s badge keeps its color`).toBe(chart.legendFill[model]);
+    expect(badge.squareHidden, `${where}: ${model}'s square gives way`).toBe(true);
+  }
+  expect(chart.band, `${where}: band`).not.toBeNull();
+  expect(Math.abs(chart.band.cx - cx), `${where}: band is over the lead`).toBeLessThan(1);
+  expect(chart.leads.filter((l) => l.bold).map((l) => l.lead), `${where}: bold`).toEqual([lead]);
+  expect(chart.caption, `${where}: caption`).toMatch(
+    new RegExp(`^The legend ranks day ${lead}'s top three;`),
+  );
+  expect(chart.announced, `${where}: announcement`).toMatch(new RegExp(`, day ${lead}: `));
+  if (Object.keys(chart.badges).length === 0) {
+    expect(chart.announced, `${where}: announcement`).toMatch(/no scores$/);
+  }
+}
+
+// Live data cannot be counted on to hold ties, gaps, a missing lead, or zero and
+// negative values on any given day, so these draw rows that do through the same
+// metricChart the page uses: seven models and ten leads, as dense as the index
+// gets. Each lead lists one value per model in FIXTURE_MODELS order; `undefined`
+// drops the row and `null` sends it with no value, as an all-null AVG does.
 const FIXTURE_MODELS = [
   "ECMWF IFS ENS",
   "NOAA GEFS",
@@ -506,56 +528,65 @@ const FIXTURE_MODELS = [
   "ECMWF AIFS Single",
   "Google WeatherNext 2, virtual",
 ];
-const [IFS, GEFS, GFS, HRRR, AIFS_ENS, AIFS, WN2] = FIXTURE_MODELS;
 const legendName = (m) => m.replace(", virtual", "");
-// Each lead lists one value per model in FIXTURE_MODELS order; `undefined` drops
-// the row and `null` sends it with no value, as an all-null AVG does.
 const FIXTURES = {
   RMSE: {
     yLabel: "RMSE [°C]",
     leads: [
-      [[2.0, 2.1, 2.2, 1.5, 1.9, 1.8, 2.4], [HRRR]],
-      [[2.0, 1.4, undefined, 1.6, 1.9, 1.8, 2.4], [GEFS]], // a missing middle model
-      [[2.0, 2.1, 2.2, 1.6, null, 1.8, 1.2], [WN2]], // a null value; the last slot wins
-      [[2.0, 1.3, 1.3, 1.6, 1.9, 1.8, 2.4], [GEFS, GFS]], // adjacent tie
-      [[1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7], FIXTURE_MODELS], // everyone ties
-      [[null, null, null, null, null, null, null], []], // nothing to mark
-      [[0, 2.1, 2.2, 1.6, 1.9, 1.8, 2.4], [IFS]], // a perfect zero, first slot
-      [[3.0, 3.1, 4.6, undefined, 2.9, 3.2, 3.0], [AIFS_ENS]],
-      [[3.1, 3.3, 4.8, undefined, 3.4, 3.0, 3.0], [AIFS, WN2]],
-      [[3.2, 3.6, 5.0, undefined, 3.5, 3.3, 3.4], [IFS]],
+      [2.0, 2.1, 2.2, 1.5, 1.9, 1.8, 2.4],
+      [2.0, 1.4, undefined, 1.6, 1.9, 1.8, 2.4], // a missing middle model
+      [2.0, 2.1, 2.2, 1.6, null, 1.8, 1.2], // a null value
+      [2.0, 1.3, 1.3, 1.6, 1.6, 1.8, 2.4], // ranks 1, 1, 3, 3: four badges
+      [1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7], // everyone ties for first
+      [null, null, null, null, null, null, null], // nothing to rank
+      [0, 2.1, 2.2, 1.6, 1.9, 1.8, 2.4], // a perfect zero
+      [3.0, 3.1, 4.6, undefined, 2.9, 3.2, 3.0],
+      [3.1, 3.3, 4.8, undefined, 3.4, 3.0, 3.0],
+      [3.2, 3.6, 5.0, undefined, 3.5, 3.3, 3.4],
     ],
   },
   Bias: {
     yLabel: "Bias [°C]",
     leads: [
-      [[-0.2, -0.36, -0.21, 0.3, -0.08, -0.01, -0.22], [AIFS]], // negative winner
-      [[0.05, -0.12, -0.19, 0.26, 0.18, 0.05, -0.23], [IFS, AIFS]], // tie, apart
-      [[0.06, -0.09, -0.16, undefined, 0.2, 0, -0.25], [AIFS]], // zero winner
-      [[0.08, -0.06, -0.13, undefined, 0.23, 0.04, -0.04], [AIFS, WN2]], // a ±0.04 tie
-      [[0.1, -0.03, -0.13, undefined, 0.24, 0.05, -0.27], [GEFS]],
-      [[0.11, -0.01, -0.13, undefined, 0.24, 0.05, -0.29], [GEFS]],
-      [[0.08, -0.02, -0.13, undefined, 0.22, 0.05, -0.32], [GEFS]],
-      [[0.05, -0.04, -0.12, undefined, 0.18, 0.03, -0.37], [AIFS]],
-      [[0.01, -0.06, -0.1, undefined, 0.13, 0.02, -0.43], [IFS]],
-      [[undefined, undefined, undefined, undefined, undefined, undefined, -0.48], [WN2]], // a lone winner at the chart's minimum
+      [-0.2, -0.36, -0.21, 0.3, -0.08, -0.01, -0.22],
+      [0.05, -0.12, -0.19, 0.26, 0.18, 0.05, -0.23], // a tie, apart
+      [0.06, -0.09, -0.16, undefined, 0.2, 0, -0.25],
+      [0.08, -0.06, -0.13, undefined, 0.23, 0.04, -0.04], // a ±0.04 tie
+      [undefined, undefined, undefined, undefined, undefined, undefined, -0.48], // one model
     ],
   },
   ETS: {
     yLabel: "ETS",
     leads: [
-      [[0.22, 0.19, 0.23, 0.29, 0.13, 0.12, 0.13], [HRRR]],
-      [[-0.02, -0.05, -0.01, undefined, -0.03, -0.04, -0.06], [GFS]], // no skill anywhere
+      [0.22, 0.19, 0.23, 0.29, 0.13, 0.12, 0.13],
+      [-0.02, -0.05, -0.01, undefined, -0.03, -0.04, -0.06], // no skill anywhere
     ],
   },
   FrequencyBias: {
     yLabel: "Frequency Bias",
     leads: [
-      [[1.3, 0.8, 1.25, 1.6, 1.4, 1.5, 1.1], [WN2]], // below 1 is not best for being low
-      [[0.5, 1.5, 1.6, undefined, 2, 1.7, 1.8], [IFS, GEFS]], // a tie across 1
+      [1.3, 0.8, 1.25, 1.6, 1.4, 1.5, 1.1], // below 1 does not win for being low
+      [0.5, 1.5, 1.6, undefined, 2, 1.7, 1.8], // a tie across 1
     ],
   },
 };
+
+const fixtureRows = (leads) =>
+  leads.flatMap((values, lead) =>
+    values.flatMap((value, i) =>
+      value === undefined ? [] : [{ lead_time_days: lead, model: FIXTURE_MODELS[i], value }],
+    ),
+  );
+
+const fixtureRanks = (metric, leads) =>
+  leads.map((values) =>
+    expectedRanks(
+      values
+        .map((value, i) => ({ model: legendName(FIXTURE_MODELS[i]), value }))
+        .filter(({ value }) => value !== undefined),
+      DISTANCE[metric],
+    ),
+  );
 
 // The scorecard module's URL exactly as the page loaded it, cache-busting query
 // string and all, so an import shares the page's warm module instance.
@@ -565,56 +596,168 @@ const PAGE_MODULE = () =>
     .map((e) => e.name)
     .find((n) => n.includes("/scorecard.js")) ?? "/scorecard.js";
 
+// Opens the index, lets its own temperature render land so it cannot replace the
+// fixture, and returns a function that draws a fixture in its place.
+async function fixturePage(page) {
+  await gotoOk(page, "/scorecard/");
+  await expectPlot(page, "temperature-chart");
+  await page.locator("#temperature-chart").scrollIntoViewIfNeeded();
+  const spec = await page.evaluate(PAGE_MODULE);
+  return (metric) =>
+    page.evaluate(
+      async ({ spec, metric, yLabel, rows }) => {
+        const sc = await import(spec);
+        const Plot = await import("https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm");
+        const box = document.getElementById("temperature-chart");
+        box.replaceChildren(
+          sc.metricChart(Plot, rows, {
+            cfg: sc.METRIC_CONFIG[metric],
+            yLabel,
+            width: box.clientWidth,
+          }),
+        );
+      },
+      { spec, metric, yLabel: FIXTURES[metric].yLabel, rows: fixtureRows(FIXTURES[metric].leads) },
+    );
+}
+
 for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
-  test(`metric chart keeps each model's slot and marks every best bar on ${device}`, async ({
-    page,
-  }) => {
+  test(`hovering a lead ranks its top three on the legend on ${device}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const errors = collectPageErrors(page);
-    await gotoOk(page, "/scorecard/");
-    // Let the page's own render land first, so it cannot replace the fixture.
-    await expectPlot(page, "temperature-chart");
+    const draw = await fixturePage(page);
 
-    for (const [metric, { yLabel, leads }] of Object.entries(FIXTURES)) {
-      const rows = leads.flatMap(([values], lead) =>
-        values.flatMap((value, i) =>
-          value === undefined
-            ? []
-            : [{ lead_time_days: lead, model: FIXTURE_MODELS[i], value }],
-        ),
-      );
-      await page.evaluate(
-        async ({ spec, metric, yLabel, rows }) => {
-          const sc = await import(spec);
-          const Plot = await import("https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm");
-          const box = document.getElementById("temperature-chart");
-          box.replaceChildren(
-            sc.metricChart(Plot, rows, {
-              cfg: sc.METRIC_CONFIG[metric],
-              yLabel,
-              width: box.clientWidth,
-            }),
-          );
-        },
-        { spec: await page.evaluate(PAGE_MODULE), metric, yLabel, rows },
-      );
-      // currentColor resolves at paint time, so each theme reads the same chart.
-      for (const colorScheme of ["light", "dark"]) {
-        await page.emulateMedia({ colorScheme });
-        const chart = await readChart(page, "temperature-chart");
-        expect(chart.legend).toEqual(FIXTURE_MODELS.map(legendName));
-        expectChartRules(
-          chart,
-          leads.map(([, best]) => best.map(legendName).sort()),
-          `${metric} fixture on ${device}, ${colorScheme}`,
-        );
+    for (const [metric, { leads }] of Object.entries(FIXTURES)) {
+      await page.mouse.move(0, 0);
+      await draw(metric);
+      const ranks = fixtureRanks(metric, leads);
+      const label = `${metric} fixture on ${device}`;
+      let chart = await readChart(page, "temperature-chart");
+      expect(chart.legend).toEqual(FIXTURE_MODELS.map(legendName));
+      expectChartRules(chart, ranks, label);
+      expectNothingSelected(chart, `${label}, before any hover`);
+
+      // Low in the plot, between bars as often as on them: a group's whole slot
+      // selects it, gaps included.
+      for (const [i, { cx }] of chart.leads.entries()) {
+        await page.mouse.move(cx, chart.plotMiddle + 60);
+        expectSelected(await readChart(page, "temperature-chart"), i, ranks[i], label);
       }
-      await page.emulateMedia({ colorScheme: null });
     }
+
+    // The cases worth spelling out rather than recomputing.
+    const badgesAt = async (i) => {
+      const { leads } = await readChart(page, "temperature-chart");
+      await page.mouse.move(leads[i].cx, (await readChart(page, "temperature-chart")).plotMiddle);
+      const { badges } = await readChart(page, "temperature-chart");
+      return Object.fromEntries(Object.entries(badges).map(([m, b]) => [m, b.rank]));
+    };
+    await draw("RMSE");
+    expect(await badgesAt(3)).toEqual({
+      "NOAA GEFS": 1,
+      "NOAA GFS": 1,
+      "NOAA HRRR": 3,
+      "ECMWF AIFS ENS": 3,
+    });
+    expect(Object.values(await badgesAt(4))).toEqual(Array(7).fill(1));
+    expect(await badgesAt(5)).toEqual({});
+
+    // Moving on to read the legend keeps the lead; leaving the figure clears it.
+    const before = await readChart(page, "temperature-chart");
+    const swatch = await page.locator("#temperature-chart figure > div > span").first().boundingBox();
+    await page.mouse.move(before.leads[0].cx, before.plotMiddle);
+    await page.mouse.move(swatch.x + swatch.width / 2, swatch.y + swatch.height / 2, { steps: 5 });
+    expectSelected(
+      await readChart(page, "temperature-chart"),
+      0,
+      fixtureRanks("RMSE", FIXTURES.RMSE.leads)[0],
+      `RMSE fixture on ${device}, pointer on the legend`,
+    );
+    await page.mouse.move(1, 1, { steps: 5 });
+    expectNothingSelected(await readChart(page, "temperature-chart"), "after leaving the figure");
+    // A click focuses the plot, but the selection still follows the mouse out.
+    await page.mouse.click(before.leads[1].cx, before.plotMiddle);
+    await page.mouse.move(1, 1, { steps: 5 });
+    expectNothingSelected(await readChart(page, "temperature-chart"), "after clicking, then leaving");
 
     expect(errors, `fixture on ${device} logged console errors`).toEqual([]);
   });
 }
+
+test("the keyboard ranks lead by lead from one tab stop", async ({ page }) => {
+  const errors = collectPageErrors(page);
+  const draw = await fixturePage(page);
+  await draw("RMSE");
+  const ranks = fixtureRanks("RMSE", FIXTURES.RMSE.leads);
+  const plot = page.locator("#temperature-chart figure > svg");
+  const read = () => readChart(page, "temperature-chart");
+
+  await plot.focus();
+  expectSelected(await read(), 0, ranks[0], "on focus");
+  await page.keyboard.press("ArrowRight");
+  expectSelected(await read(), 1, ranks[1], "ArrowRight");
+  await page.keyboard.press("End");
+  expectSelected(await read(), 9, ranks[9], "End");
+  await page.keyboard.press("ArrowRight");
+  expectSelected(await read(), 9, ranks[9], "ArrowRight at the end");
+  await page.keyboard.press("Home");
+  expectSelected(await read(), 0, ranks[0], "Home");
+  expect((await read()).announced).toBe(
+    "RMSE, day 0: rank 1 NOAA HRRR, rank 2 ECMWF AIFS Single, rank 3 ECMWF AIFS ENS",
+  );
+  await page.keyboard.press("Escape");
+  expectNothingSelected(await read(), "Escape");
+  await page.keyboard.press("ArrowLeft");
+  expectSelected(await read(), 0, ranks[0], "an arrow after Escape");
+  // Leaving the plot hands the legend back.
+  await page.keyboard.press("Tab");
+  expect(await plot.evaluate((el) => el === document.activeElement)).toBe(false);
+  expectNothingSelected(await read(), "after Tab");
+
+  expect(errors, "keyboard fixture logged console errors").toEqual([]);
+});
+
+test("a tap ranks a lead until another tap, and a scroll does not", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: SWEEP_WIDTHS.phone, height: 800 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+  const draw = await fixturePage(page);
+  await draw("RMSE");
+  const ranks = fixtureRanks("RMSE", FIXTURES.RMSE.leads);
+  const read = () => readChart(page, "temperature-chart");
+  const { leads, plotMiddle } = await read();
+
+  await page.touchscreen.tap(leads[2].cx, plotMiddle);
+  // A touch's pointer leaves as soon as the finger lifts; the lead stays.
+  expectSelected(await read(), 2, ranks[2], "after a tap");
+  await page.touchscreen.tap(leads[6].cx, plotMiddle);
+  expectSelected(await read(), 6, ranks[6], "after tapping another lead");
+  await page.touchscreen.tap(leads[6].cx, plotMiddle);
+  expectNothingSelected(await read(), "after tapping the same lead again");
+
+  // A swipe across the plot scrolls the page; it is not a tap.
+  await page.evaluate(
+    ([x, y]) => {
+      const svg = document.querySelector("#temperature-chart figure > svg");
+      const fire = (type, dy) =>
+        svg.dispatchEvent(
+          new PointerEvent(type, { bubbles: true, pointerType: "touch", clientX: x, clientY: y + dy }),
+        );
+      fire("pointerdown", 0);
+      fire("pointermove", -40);
+      fire("pointercancel", -80);
+    },
+    [leads[3].cx, plotMiddle],
+  );
+  expectNothingSelected(await read(), "after a swipe");
+
+  expect(errors, "touch fixture logged console errors").toEqual([]);
+  await context.close();
+});
 
 // Every bar at a lead taken from the chart's own query, for the models the
 // country view covers. Asked of the page's own DuckDB and module, so it follows
@@ -654,13 +797,11 @@ async function queriedLeads(page, variable, metric) {
 }
 
 // The same rules against live data, for one metric of each direction, with the
-// winners worked out from the query's full-precision values rather than the
+// ranks worked out from the query's full-precision values rather than the
 // three-figure titles. Live Frequency Bias currently sits above 1 for every
-// model, so this cannot tell closest-to-1 from lowest; the fixture above and the
-// unit tests put values on both sides.
-test("scorecard index marks the best bar at each lead, in a fixed model order", async ({
-  page,
-}) => {
+// model, so this cannot tell closest-to-1 from lowest; the fixtures and the unit
+// tests put values on both sides.
+test("scorecard index ranks each lead in a fixed model order", async ({ page }) => {
   const errors = collectPageErrors(page);
   await gotoOk(page, "/scorecard/");
 
@@ -676,27 +817,29 @@ test("scorecard index marks the best bar at each lead, in a fixed model order", 
       "closest to 1 is best",
     ],
   ]) {
+    await page.mouse.move(0, 0);
     await page.selectOption(select, metric);
     const label = await page.locator(`${select} option:checked`).textContent();
     await expectMetricPlot(page, id, label);
+    await page.locator(`#${id}`).scrollIntoViewIfNeeded();
     const chart = await readChart(page, id);
-    const leads = await queriedLeads(page, variable, metric);
+    const ranks = (await queriedLeads(page, variable, metric)).map((bars) =>
+      expectedRanks(bars, DISTANCE[metric]),
+    );
 
     expect(chart.caption, `${metric} caption`).toContain(phrase);
-    // Facets are drawn in lead order, as the query's leads are listed.
-    expect(
-      chart.facets.map((bars) => bars.length),
-      `${metric} bars per lead, drawn vs. queried`,
-    ).toEqual(leads.map((bars) => bars.filter((b) => Number.isFinite(b.value)).length));
     expect(
       chart.facets.some((bars) => bars.length > 1),
-      `${metric} has no lead with more than one bar to choose from`,
+      `${metric} has no lead with more than one bar to rank`,
     ).toBe(true);
-    expectChartRules(
-      chart,
-      leads.map((bars) => expectedBest(bars, DISTANCE[metric])),
-      metric,
-    );
+    // Facets are drawn in lead order, as the query's leads are listed, and a
+    // re-render starts with nothing selected whatever the last chart showed.
+    expectChartRules(chart, ranks, metric);
+    expectNothingSelected(chart, metric);
+    for (const [i, { cx }] of chart.leads.entries()) {
+      await page.mouse.move(cx, chart.plotMiddle);
+      expectSelected(await readChart(page, id), i, ranks[i], metric);
+    }
   }
 
   expect(errors, "scorecard index logged console errors").toEqual([]);

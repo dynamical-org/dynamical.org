@@ -67,8 +67,8 @@ export function encodedWindowValues(windowDays) {
 
 // Per-metric display configuration.
 //
-// `better` is the direction a metric improves in, and it decides which bar is
-// marked best within each lead time:
+// `better` is the direction a metric improves in, and it decides how models rank
+// within each lead time:
 //   "lower"  — errors: smaller is better.
 //   "higher" — skill scores: larger is better, negative values included.
 //   "target" — closest to `refValue` is best (Bias at 0, Frequency Bias at 1),
@@ -103,7 +103,7 @@ export const DEFAULT_METRIC = {
 
 // Stable model order: pinned models in MODEL_STYLE order, then the rest
 // alphabetically. It orders the legend, assigns fallback colors, and places the
-// bars in every lead time, so a model keeps its slot whichever model is best.
+// bars in every lead time, so a model keeps its slot whichever model ranks first.
 export function compareModels(a, b) {
   const knownOrder = [...MODEL_STYLE.keys()];
   const ai = knownOrder.indexOf(a);
@@ -140,29 +140,40 @@ export function scoreDistance(value, cfg) {
   }
 }
 
-// Flag each row `best` when no other row at its lead time scores better. Every
-// lead is judged on its own, since which model is best changes with lead time.
-// Tied scores are all best — Bias of equal size and opposite sign is a tie — and
-// a missing value never is, so a lead with no real scores has no best bar.
-export function markBest(rows, cfg) {
-  const bestAt = new Map();
+// Give each row its `rank` among the rows that share its lead time: 1 is best,
+// and every lead is ranked on its own, since which model is best changes with
+// lead time. Tied scores share a rank and the next rank skips past them (1, 1,
+// 3) — Bias of equal size and opposite sign is a tie. A missing value has no
+// rank, so a lead with no real scores ranks nothing.
+export function rankWithinLead(rows, cfg) {
+  const distances = new Map();
   for (const { lead_time_days: lead, value } of rows) {
-    bestAt.set(lead, Math.min(scoreDistance(value, cfg), bestAt.get(lead) ?? Infinity));
+    const distance = scoreDistance(value, cfg);
+    if (distance === Infinity) continue;
+    if (!distances.has(lead)) distances.set(lead, []);
+    distances.get(lead).push(distance);
   }
   return rows.map((row) => {
     const distance = scoreDistance(row.value, cfg);
-    return { ...row, best: distance !== Infinity && distance === bestAt.get(row.lead_time_days) };
+    const rank =
+      distance === Infinity
+        ? null
+        : 1 + distances.get(row.lead_time_days).filter((d) => d < distance).length;
+    return { ...row, rank };
   });
 }
 
-export function bestNote(cfg) {
+// The chart caption: how to rank a lead time, or which lead the legend ranks.
+export function rankNote(cfg, lead = null) {
   const best =
     cfg.better === "target"
       ? `closest to ${cfg.refValue}`
       : cfg.better === "lower"
         ? "lowest"
         : "highest";
-  return `Triangles mark the best bars at each lead time; ${best} is best.`;
+  return lead === null
+    ? `Hover or tap a lead time to rank it in the legend; ${best} is best.`
+    : `The legend ranks day ${lead}'s top three; ${best} is best.`;
 }
 
 // Loading, empty, and error states all render as a message sized to the chart's
@@ -327,17 +338,15 @@ async function windowIsPublished(windowDays, context) {
 }
 
 // One metric's bars: a facet per lead time, every model in the same slot at every
-// lead, and the best bar at each lead marked. Kept apart from the query so a spec
-// can draw rows it chose — ties, gaps, zero and negative winners — that the live
-// file may not hold on any given day.
+// lead, and each lead's ranking ready to show on the legend. Kept apart from the
+// query so a spec can draw rows it chose — ties, gaps, missing values — that the
+// live file may not hold on any given day.
 export function metricChart(Plot, rows, { cfg, yLabel, width }) {
   // Derive available models from the data rather than a hardcoded list.
   const colors = modelColors(rows.map((d) => d.model));
 
-  const bars = markBest(rows, cfg);
-  const barTitle = (d) =>
-    `${legendLabel(d.model)}: ${d.value?.toPrecision(3)}${d.best ? " (best)" : ""}`;
-  return Plot.plot({
+  const bars = rankWithinLead(rows, cfg);
+  const chart = Plot.plot({
     width,
     height: METRIC_HEIGHT,
     ...CHART_MARGINS,
@@ -345,53 +354,164 @@ export function metricChart(Plot, rows, { cfg, yLabel, width }) {
     // The x domain is the legend order, shared by every facet, so each model
     // keeps its slot at every lead and a lead it lacks leaves that slot empty.
     x: { axis: null, padding: 0.1, domain: colors.domain },
-    // A bar hanging below zero may be best and carry a triangle under it; the
-    // inset keeps the lowest one's triangle off the lead-time labels.
-    y: {
-      label: yLabel,
-      grid: true,
-      labelArrow: "none",
-      insetBottom: rows.some((d) => d.value < 0) ? 12 : 0,
-    },
+    y: { label: yLabel, grid: true, labelArrow: "none" },
     color: {
       legend: true,
       domain: colors.domain,
       range: colors.range,
       tickFormat: legendLabel,
     },
-    caption: bestNote(cfg),
+    caption: rankNote(cfg),
     marks: [
       Plot.barY(bars, {
         fx: "lead_time_days",
         x: "model",
         y: "value",
         fill: "model",
-        title: barTitle,
+        title: (d) =>
+          `${legendLabel(d.model)}: ${d.value?.toPrecision(3)}${d.rank ? ` (rank ${d.rank})` : ""}`,
         tip: false,
       }),
       Plot.ruleY([cfg.refValue]),
-      // A triangle just past the end of each best bar, pointing at it: down onto
-      // a bar that rises from zero, up onto one that hangs below. It sits outside
-      // the bar because phone widths draw bars about 3px wide, where an outline
-      // would swallow the fill that matches the legend, and currentColor keeps it
-      // the text color in either theme.
-      ...[
-        [(d) => d.value >= 0, { rotate: 180, dy: -7 }],
-        [(d) => d.value < 0, { dy: 7 }],
-      ].map(([side, placement]) =>
-        Plot.dot(bars.filter((d) => d.best && side(d)), {
-          fx: "lead_time_days",
-          x: "model",
-          y: "value",
-          symbol: "triangle",
-          r: 3.5,
-          fill: "currentColor",
-          title: barTitle,
-          ...placement,
-        })
-      ),
     ],
   });
+  rankLegendByLead(chart, bars, colors, cfg);
+  return chart;
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+// Badges go to every model ranked this high or better, so a tie at the cutoff
+// badges all of its models: ranks 1, 1, 3, 3 badge four.
+const LEGEND_RANKS = 3;
+
+// Near-black or white, whichever contrasts more with a fill (WCAG luminance), so
+// a numeral reads on WeatherNext's yellow and on GEFS's dark blue alike.
+export function inkOn(hex) {
+  const [r, g, b] = hex
+    .match(/\w\w/g)
+    .map((h) => parseInt(h, 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return (luminance + 0.05) / 0.0556 > 1.05 / (luminance + 0.05) ? "#111111" : "#ffffff";
+}
+
+// Turn a legend swatch into a circle of the same color with the model's rank on
+// it, or back into its square. Drawn inside the swatch's own 15px <svg>, so the
+// legend never reflows: a badge added beside the swatch wrapped legend rows at
+// phone width and shifted entries by up to 266px as the pointer crossed leads.
+function setRankBadge(swatch, rank, color) {
+  swatch.querySelector("g")?.remove();
+  swatch.querySelector("rect").style.visibility = rank == null ? "" : "hidden";
+  if (rank == null) return;
+  const badge = document.createElementNS(SVG_NS, "g");
+  badge.innerHTML =
+    `<circle cx="7.5" cy="7.5" r="8" fill="${color}"/>` +
+    `<text x="7.5" y="7.5" fill="${inkOn(color)}" text-anchor="middle" ` +
+    `dominant-baseline="central" font-size="10" font-weight="700">${rank}</text>`;
+  swatch.append(badge);
+}
+
+// Selecting a lead time ranks its top three models on the legend, shades the
+// lead's group, bolds its label, and names it in the caption; nothing is
+// selected until the reader asks. A mouse selects whatever group it is over and
+// keeps it while it moves on to read the legend, clearing once it leaves the
+// figure. A touch has no hover, so a completed tap selects (a scroll does not)
+// and tapping the selected group again clears it. From the keyboard the plot is
+// one tab stop: arrows, Home and End move between leads and Escape clears, with
+// each choice announced, since the badges alone are not read out.
+function rankLegendByLead(chart, bars, colors, cfg) {
+  const svg = chart.querySelector(":scope > svg");
+  const swatches = [...chart.querySelectorAll(":scope > div > span > svg")];
+  // The caption holds both its texts in one grid cell and shows one, so it keeps
+  // the taller one's height and swapping them never moves the page below.
+  const hint = document.createElement("span");
+  const named = document.createElement("span");
+  chart.querySelector("figcaption").replaceChildren(hint, named);
+  const fx = chart.scale("fx");
+  const [yBottom, yTop] = chart.scale("y").range;
+  const leads = fx.domain;
+  const tickLabels = [...svg.querySelectorAll('[aria-label="fx-axis tick label"] text')];
+  const ranks = new Map(leads.map((lead) => [lead, new Map()]));
+  for (const { lead_time_days: lead, model, rank } of bars) {
+    if (rank) ranks.get(lead).set(model, rank);
+  }
+
+  const band = document.createElementNS(SVG_NS, "rect");
+  band.setAttribute("y", yTop);
+  band.setAttribute("height", yBottom - yTop);
+  band.setAttribute("width", fx.step);
+  band.setAttribute("fill", "currentColor");
+  band.setAttribute("fill-opacity", "0.07");
+  band.setAttribute("aria-hidden", "true");
+  svg.insertBefore(band, svg.querySelector('[aria-label="bar"]'));
+
+  const live = document.createElement("span");
+  live.className = "visually-hidden";
+  live.setAttribute("aria-live", "polite");
+  chart.append(live);
+
+  let selected;
+  const select = (lead) => {
+    if (lead === selected) return;
+    selected = lead;
+    band.style.display = lead === null ? "none" : "";
+    if (lead !== null) band.setAttribute("x", fx.apply(lead) - (fx.step - fx.bandwidth) / 2);
+    tickLabels.forEach((t, i) => (t.style.fontWeight = leads[i] === lead ? "700" : ""));
+    hint.textContent = rankNote(cfg);
+    named.textContent = rankNote(cfg, lead ?? leads.at(-1));
+    (lead === null ? named : hint).style.visibility = "hidden";
+    (lead === null ? hint : named).style.visibility = "";
+    const badged = [];
+    colors.domain.forEach((model, i) => {
+      const rank = lead === null ? undefined : ranks.get(lead).get(model);
+      const shown = rank <= LEGEND_RANKS;
+      setRankBadge(swatches[i], shown ? rank : null, colors.range[i]);
+      if (shown) badged.push([rank, legendLabel(model)]);
+    });
+    const order = badged
+      .sort(([a], [b]) => a - b)
+      .map(([rank, name]) => `rank ${rank} ${name}`)
+      .join(", ");
+    live.textContent = lead === null ? "" : `${cfg.label}, day ${lead}: ${order || "no scores"}`;
+  };
+
+  // The group whose slot holds the pointer, gaps and lead label included.
+  const leadAt = (event) => {
+    const box = svg.getBoundingClientRect();
+    const x = ((event.clientX - box.left) * svg.width.baseVal.value) / box.width;
+    return leads.find((lead) => Math.abs(fx.apply(lead) + fx.bandwidth / 2 - x) <= fx.step / 2);
+  };
+  let pointerType;
+  svg.addEventListener("pointerdown", (e) => (pointerType = e.pointerType));
+  svg.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "mouse") select(leadAt(e) ?? selected);
+  });
+  // A click focuses the plot too, but only a keyboard focus (focus-visible) owns
+  // the selection past the pointer leaving.
+  chart.addEventListener("pointerleave", (e) => {
+    if (e.pointerType === "mouse" && !svg.matches(":focus-visible")) select(null);
+  });
+  svg.addEventListener("click", (e) => {
+    if (pointerType === "mouse") return;
+    const lead = leadAt(e);
+    if (lead !== undefined) select(lead === selected ? null : lead);
+  });
+  svg.tabIndex = 0;
+  svg.setAttribute(
+    "aria-label",
+    `${cfg.label} by forecast lead time. Use the arrow keys to rank a lead time's models in the legend.`
+  );
+  svg.addEventListener("focus", () => select(selected ?? leads[0]));
+  svg.addEventListener("blur", () => select(null));
+  svg.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") return select(null);
+    const at = leads.indexOf(selected);
+    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: leads.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    select(leads[Math.max(0, Math.min(leads.length - 1, next))]);
+  });
+  select(null);
 }
 
 export async function renderMetric(
