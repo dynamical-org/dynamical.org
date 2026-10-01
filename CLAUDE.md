@@ -19,7 +19,7 @@ npm run test:e2e   # Browser specs (test/e2e/, explorer/test/e2e/) — starts it
 
 `npm run test:e2e` needs a browser once: `npx playwright install chromium`. Two kinds
 of spec live there. The scorecard ones render its charts for real, so they hit CDNs and
-the published parquet files and take about a minute; they are the only check that
+the published parquet files and take a few minutes; they are the only check that
 catches the data those charts read drifting out from under them. `pipeline.spec.mjs`
 instead stubs every request from `test/fixtures/pipeline-dashboard.json`, so it is
 offline and finishes in seconds — it exists because `/status/pipeline/` is laid out by

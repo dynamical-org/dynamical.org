@@ -247,6 +247,122 @@ test("station charts re-render for every window and metric option", async ({
   expect(errors, "station page logged console errors").toEqual([]);
 });
 
+// The station walk above filters to one station; the index charts average every
+// station, so their data shape (which models reach which leads, how many bars a
+// facet holds) is the one most readers see. This draws every chart the index
+// offers, both variables × every metric × every window, at a desktop width and a
+// phone width set before the page loads, so each width's first render counts too.
+// One test per width and window keeps each within the per-test timeout and lets a
+// retry repeat only the combination that failed.
+//
+// A plot alone doesn't prove the selected metric rendered: the container can
+// still hold the previous metric's chart, and an axis with no bars is a plot too.
+// So a chart only counts once its y-axis names the metric that was picked and it
+// draws at least one bar, every one with a finite value in its title.
+//
+// renderMetric doesn't cancel a render it has superseded, so a slow earlier query
+// can land on top of a later one. Each render is settled before the next starts,
+// which keeps the chart on screen the one that was asked for.
+//
+// This runs against the dev server's origin, which the parquet's CORS allows; an
+// origin the CORS rules leave out fails every chart and is not something this
+// can see.
+async function expectMetricPlot(page, id, label) {
+  const box = page.locator(`#${id}`);
+  let state = "an empty container";
+
+  await expect
+    .poll(
+      async () => {
+        const seen = await box.evaluate((el) => ({
+          yLabel:
+            el.querySelector('svg [aria-label="y-axis label"]')?.textContent?.trim() ??
+            null,
+          values: [...el.querySelectorAll('svg g[aria-label="bar"] rect title')].map(
+            (t) => Number(t.textContent.slice(t.textContent.lastIndexOf(": ") + 2)),
+          ),
+          status: el.querySelector("p")?.textContent?.trim() || null,
+        }));
+        if (seen.yLabel === label || seen.yLabel?.startsWith(`${label} [`)) {
+          // Plot replaces the whole chart at once, so a labelled plot is final.
+          state =
+            seen.values.length === 0
+              ? "a plot with no bars"
+              : seen.values.every(Number.isFinite)
+                ? "rendered a plot"
+                : `a plot with a non-finite bar: ${seen.values.join(", ")}`;
+          return true;
+        }
+        state = seen.status || `a plot labelled ${seen.yLabel}`;
+        return Boolean(seen.status) && seen.status !== LOADING_TEXT;
+      },
+      { message: `#${id} never drew its ${label} plot`, timeout: 90_000, intervals: [500] },
+    )
+    .toBe(true);
+
+  expect(state, `#${id} should have rendered its ${label} plot`).toBe("rendered a plot");
+}
+
+const SWEEP_WIDTHS = { desktop: 1280, phone: 390 };
+const SWEEP_WINDOWS = ["180", "90", "30", "14", "7"];
+const SWEEP_CHARTS = [
+  ["#temp-metric", "temperature-chart"],
+  ["#precip-metric", "precipitation-chart"],
+];
+
+for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
+  for (const days of SWEEP_WINDOWS) {
+    test(`scorecard index draws every metric at ${days} days on ${device}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const errors = collectPageErrors(page);
+      await gotoOk(page, "/scorecard/");
+
+      const windows = await page
+        .locator("#window option")
+        .evaluateAll((opts) => opts.map((o) => o.value));
+      expect(windows, "the window options changed; update SWEEP_WINDOWS").toEqual(
+        SWEEP_WINDOWS,
+      );
+
+      const charts = [];
+      for (const [select, id] of SWEEP_CHARTS) {
+        const options = await page
+          .locator(`${select} option`)
+          .evaluateAll((opts) =>
+            opts.map((o) => ({ value: o.value, label: o.textContent, selected: o.selected })),
+          );
+        expect(options.length, `${select} offers no metrics`).toBeGreaterThan(0);
+        charts.push({ select, id, options });
+      }
+      const settleDefaults = async () => {
+        for (const { id, options } of charts) {
+          await expectMetricPlot(page, id, options.find((o) => o.selected).label);
+        }
+      };
+
+      // The page's own first render, at the default window.
+      await settleDefaults();
+      // Picking the default window again still fires a change and redraws both.
+      await page.selectOption("#window", days);
+      await settleDefaults();
+
+      for (const { select, id, options } of charts) {
+        for (const { value, label, selected } of options) {
+          if (selected) continue;
+          await test.step(value, async () => {
+            await page.selectOption(select, value);
+            await expectMetricPlot(page, id, label);
+          });
+        }
+      }
+
+      expect(errors, `${days} days on ${device} logged console errors`).toEqual([]);
+    });
+  }
+}
+
 // What "best" means for the metrics the order test below walks, as a distance
 // where smaller is better. Written out here rather than imported from
 // scorecard.js, so a direction filed wrong there fails this spec instead of
