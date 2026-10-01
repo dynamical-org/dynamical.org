@@ -3,23 +3,28 @@
 const STATS_URL = "https://assets.dynamical.org/scorecard/statistics.parquet";
 const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 
-// Color for each published model, and the legend order. Bars reorder by score
-// within every lead time, so color is what identifies a model; it must not depend
-// on which other models a chart happens to hold. Every model in
-// statistics.parquet is pinned here. AIFS ENS, AIFS Single and WeatherNext keep
-// the colors the country page gave them back when the rest were colored from the
-// fallback list by position, which shifted them on state and station pages
-// whenever HRDPS was present; HRDPS, which the country page never shows, takes
-// an unused color.
+// Color for each published model, and the legend and bar order. Color is what
+// ties a bar to its legend entry, so it must not depend on which other models a
+// chart happens to hold. Every model in statistics.parquet is pinned here. AIFS
+// ENS, AIFS Single and WeatherNext keep the colors the country page gave them
+// back when the rest were colored from the fallback list by position, which
+// shifted them on state and station pages whenever HRDPS was present; HRDPS,
+// which the country page never shows, takes an unused color.
+//
+// The order is curated: producer groups NOAA, ECMWF, then the rest
+// alphabetically (ECCC, Google); within a producer, a family stays together,
+// deterministic before ensemble — GFS, GEFS, then the regional HRRR; IFS, then
+// AIFS. A model added here goes beside its family. One that is published before
+// it is listed falls after every listed model, alphabetically.
 export const MODEL_STYLE = new Map([
-  ["ECMWF IFS ENS", "#029E73"],
-  ["NOAA GEFS", "#0173B2"],
   ["NOAA GFS", "#56B4E9"],
+  ["NOAA GEFS", "#0173B2"],
   ["NOAA HRRR", "#DE8F05"],
-  ["ECMWF AIFS ENS", "#CC79A7"],
+  ["ECMWF IFS ENS", "#029E73"],
   ["ECMWF AIFS Single", "#D55E00"],
-  ["Google WeatherNext 2, virtual", "#F0E442"],
+  ["ECMWF AIFS ENS", "#CC79A7"],
   ["ECCC HRDPS", "#CA9161"],
+  ["Google WeatherNext 2, virtual", "#F0E442"],
 ]);
 // A model published before it is pinned above still gets a color, but one taken
 // by position among the unpinned models in the chart, so it can differ between
@@ -68,13 +73,13 @@ export function encodedWindowValues(windowDays) {
 
 // Per-metric display configuration.
 //
-// `better` is the direction a metric improves in, and it decides the order bars
-// are drawn in (best first within each lead time):
+// `better` is the direction a metric improves in, and it decides how models rank
+// within each lead time:
 //   "lower"  — errors: smaller is better.
 //   "higher" — skill scores: larger is better, negative values included.
 //   "target" — closest to `refValue` is best (Bias at 0, Frequency Bias at 1),
 //              measured as plain |value − refValue|, so a Frequency Bias of 0.5
-//              ranks ahead of 2.
+//              beats 2.
 // `refValue` is where the chart draws its reference rule. It is the optimum only
 // for "target" metrics; for the skill scores it marks no skill, not perfection.
 export const METRIC_CONFIG = {
@@ -97,14 +102,17 @@ export const VARIABLE_METRICS = {
   precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias", "HSS", "FSS"],
 };
 
+// Precipitation opens on ETS: whether rain (a 6-hour mean rate of 0.1 mm/h or
+// more) was forecast when it fell, net of chance hits. Every model has it, where
+// the pipeline publishes CRPS only for ensembles; MAE, for amounts, stays a pick.
 export const DEFAULT_METRIC = {
   temperature_2m:       "RMSE",
-  precipitation_surface: "MAE",
+  precipitation_surface: "ETS",
 };
 
 // Stable model order: pinned models in MODEL_STYLE order, then the rest
-// alphabetically. It orders the legend, assigns fallback colors, and breaks ties
-// between equal scores, so none of those move when the ranking does.
+// alphabetically. It orders the legend, assigns fallback colors, and places the
+// bars in every lead time, so a model keeps its slot whichever model ranks first.
 export function compareModels(a, b) {
   const knownOrder = [...MODEL_STYLE.keys()];
   const ai = knownOrder.indexOf(a);
@@ -129,7 +137,7 @@ export function modelColors(models) {
 
 // How far a value is from the best possible score, in the metric's direction:
 // smaller is better. A missing or non-finite value (null from an all-null AVG,
-// NaN) is Infinity, so it ranks after every real score instead of coercing to 0
+// NaN) is Infinity, so it loses to every real score instead of coercing to 0
 // — which would read as a perfect error — or winning a higher-is-better metric.
 export function scoreDistance(value, cfg) {
   if (typeof value !== "number" || !Number.isFinite(value)) return Infinity;
@@ -141,37 +149,40 @@ export function scoreDistance(value, cfg) {
   }
 }
 
-// Give each row a `slot`, its 0-based position best-first among the rows that
-// share its lead time. Every lead is ranked on its own, since which model is
-// best changes with lead time. Slots are unique even for tied scores, so tied
-// bars sit side by side rather than on top of each other.
+// Give each row its `rank` among the rows that share its lead time: 1 is best,
+// and every lead is ranked on its own, since which model is best changes with
+// lead time. Tied scores share a rank and the next rank skips past them (1, 1,
+// 3) — Bias of equal size and opposite sign is a tie. A missing value has no
+// rank, so a lead with no real scores ranks nothing.
 export function rankWithinLead(rows, cfg) {
-  const byLead = new Map();
-  for (const row of rows) {
-    if (!byLead.has(row.lead_time_days)) byLead.set(row.lead_time_days, []);
-    byLead.get(row.lead_time_days).push(row);
+  const distances = new Map();
+  for (const { lead_time_days: lead, value } of rows) {
+    const distance = scoreDistance(value, cfg);
+    if (distance === Infinity) continue;
+    if (!distances.has(lead)) distances.set(lead, []);
+    distances.get(lead).push(distance);
   }
-  const ranked = [];
-  for (const leadRows of byLead.values()) {
-    leadRows
-      .map((row) => ({ row, distance: scoreDistance(row.value, cfg) }))
-      .sort(
-        (a, b) =>
-          // Infinity − Infinity is NaN, so compare missing values explicitly.
-          (a.distance === b.distance ? 0 : a.distance < b.distance ? -1 : 1) ||
-          compareModels(a.row.model, b.row.model)
-      )
-      .forEach(({ row }, slot) => ranked.push({ ...row, slot }));
-  }
-  return ranked;
+  return rows.map((row) => {
+    const distance = scoreDistance(row.value, cfg);
+    const rank =
+      distance === Infinity
+        ? null
+        : 1 + distances.get(row.lead_time_days).filter((d) => d < distance).length;
+    return { ...row, rank };
+  });
 }
 
-export function orderNote(cfg) {
+// The chart caption: how to rank a lead time, or which lead the legend ranks.
+export function rankNote(cfg, lead = null) {
   const best =
     cfg.better === "target"
-      ? `closest to ${cfg.refValue} is best`
-      : `${cfg.better} is better`;
-  return `Bars run best to worst within each lead time; ${best}.`;
+      ? `closest to ${cfg.refValue}`
+      : cfg.better === "lower"
+        ? "lowest"
+        : "highest";
+  return lead === null
+    ? `Hover or tap a lead time to rank it in the legend; ${best} is best.`
+    : `The legend ranks day ${lead}'s top three; ${best} is best.`;
 }
 
 // Loading, empty, and error states all render as a message sized to the chart's
@@ -335,6 +346,197 @@ async function windowIsPublished(windowDays, context) {
   }
 }
 
+// One metric's bars: a facet per lead time, every model in the same slot at every
+// lead, and each lead's ranking ready to show on the legend. Kept apart from the
+// query so a spec can draw rows it chose — ties, gaps, missing values — that the
+// live file may not hold on any given day.
+export function metricChart(Plot, rows, { cfg, yLabel, width }) {
+  // Derive available models from the data rather than a hardcoded list.
+  const colors = modelColors(rows.map((d) => d.model));
+
+  const bars = rankWithinLead(rows, cfg);
+  const chart = Plot.plot({
+    width,
+    height: METRIC_HEIGHT,
+    ...CHART_MARGINS,
+    fx: { label: "Forecast lead time (days)", padding: 0.2 },
+    // The x domain is the legend order, shared by every facet, so each model
+    // keeps its slot at every lead and a lead it lacks leaves that slot empty.
+    x: { axis: null, padding: 0.1, domain: colors.domain },
+    y: { label: yLabel, grid: true, labelArrow: "none" },
+    color: {
+      legend: true,
+      domain: colors.domain,
+      range: colors.range,
+      tickFormat: legendLabel,
+    },
+    caption: rankNote(cfg),
+    marks: [
+      Plot.barY(bars, {
+        fx: "lead_time_days",
+        x: "model",
+        y: "value",
+        fill: "model",
+        title: (d) =>
+          `${legendLabel(d.model)}: ${d.value?.toPrecision(3)}${d.rank ? ` (rank ${d.rank})` : ""}`,
+        tip: false,
+      }),
+      Plot.ruleY([cfg.refValue]),
+    ],
+  });
+  rankLegendByLead(chart, bars, colors, cfg);
+  return chart;
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+// Badges go to every model ranked this high or better, so a tie at the cutoff
+// badges all of its models: ranks 1, 1, 3, 3 badge four.
+const LEGEND_RANKS = 3;
+
+// Turn a legend swatch into a circle of the same color with the model's rank on
+// it, or back into its square. Drawn inside the swatch's own 15px <svg>, so the
+// legend never reflows: a badge added beside the swatch wrapped legend rows at
+// phone width and shifted entries by up to 266px as the pointer crossed leads.
+// The numeral is white outlined in near-black on every color, so it reads the
+// same way on WeatherNext's yellow as on GEFS's dark blue.
+function setRankBadge(swatch, rank, color) {
+  swatch.querySelector("g")?.remove();
+  swatch.querySelector("rect").style.visibility = rank == null ? "" : "hidden";
+  if (rank == null) return;
+  const badge = document.createElementNS(SVG_NS, "g");
+  badge.innerHTML =
+    `<circle cx="7.5" cy="7.5" r="8" fill="${color}"/>` +
+    `<text x="7.5" y="7.5" fill="#ffffff" stroke="#111111" stroke-width="2.5" ` +
+    `stroke-linejoin="round" paint-order="stroke" text-anchor="middle" ` +
+    `dominant-baseline="central" font-size="11" font-weight="700">${rank}</text>`;
+  swatch.append(badge);
+}
+
+// Selecting a lead time ranks its top three models on the legend, shades the
+// lead's group, bolds its label, and names it in the caption; nothing is
+// selected until the reader asks. A mouse selects whatever group it is over and
+// keeps it while it moves on to read the legend, clearing once it leaves the
+// figure. A touch has no hover, so a completed tap selects (a scroll does not)
+// and tapping the selected group again clears it. From the keyboard the plot is
+// one tab stop: arrows, Home and End move between leads, Escape clears, and so
+// does tabbing away, with each choice announced, since the badges alone are not
+// read out.
+function rankLegendByLead(chart, bars, colors, cfg) {
+  const svg = chart.querySelector(":scope > svg");
+  const swatches = [...chart.querySelectorAll(":scope > div > span > svg")];
+  // The caption holds both its texts in one grid cell and shows one, so it keeps
+  // the taller one's height and swapping them never moves the page below.
+  const hint = document.createElement("span");
+  const named = document.createElement("span");
+  chart.querySelector("figcaption").replaceChildren(hint, named);
+  const fx = chart.scale("fx");
+  const [yBottom, yTop] = chart.scale("y").range;
+  const leads = fx.domain;
+  const tickLabels = [...svg.querySelectorAll('[aria-label="fx-axis tick label"] text')];
+  const ranks = new Map(leads.map((lead) => [lead, new Map()]));
+  for (const { lead_time_days: lead, model, rank } of bars) {
+    if (rank) ranks.get(lead).set(model, rank);
+  }
+
+  const band = document.createElementNS(SVG_NS, "rect");
+  band.setAttribute("y", yTop);
+  band.setAttribute("height", yBottom - yTop);
+  band.setAttribute("width", fx.step);
+  band.setAttribute("fill", "currentColor");
+  band.setAttribute("fill-opacity", "0.07");
+  band.setAttribute("aria-hidden", "true");
+  svg.insertBefore(band, svg.querySelector('[aria-label="bar"]'));
+
+  const live = document.createElement("span");
+  live.className = "visually-hidden";
+  live.setAttribute("aria-live", "polite");
+  chart.append(live);
+
+  // Which input made the current selection decides what ends it: the mouse's
+  // ends when it leaves the figure, the keyboard's when focus leaves the plot,
+  // and a tap's only on another tap. Whichever input selects last takes over.
+  let selected;
+  let owner = null;
+  const select = (lead, by = owner) => {
+    owner = lead === null ? null : by;
+    if (lead === selected) return;
+    selected = lead;
+    band.style.display = lead === null ? "none" : "";
+    if (lead !== null) band.setAttribute("x", fx.apply(lead) - (fx.step - fx.bandwidth) / 2);
+    tickLabels.forEach((t, i) => (t.style.fontWeight = leads[i] === lead ? "700" : ""));
+    hint.textContent = rankNote(cfg);
+    named.textContent = rankNote(cfg, lead ?? leads.at(-1));
+    (lead === null ? named : hint).style.visibility = "hidden";
+    (lead === null ? hint : named).style.visibility = "";
+    const badged = [];
+    colors.domain.forEach((model, i) => {
+      const rank = lead === null ? undefined : ranks.get(lead).get(model);
+      const shown = rank <= LEGEND_RANKS;
+      setRankBadge(swatches[i], shown ? rank : null, colors.range[i]);
+      if (shown) badged.push([rank, legendLabel(model)]);
+    });
+    const order = badged
+      .sort(([a], [b]) => a - b)
+      .map(([rank, name]) => `rank ${rank} ${name}`)
+      .join(", ");
+    live.textContent = lead === null ? "" : `${cfg.label}, day ${lead}: ${order || "no scores"}`;
+  };
+
+  // The group whose slot holds the pointer, gaps and lead label included.
+  const leadAt = (event) => {
+    const box = svg.getBoundingClientRect();
+    const x = ((event.clientX - box.left) * svg.width.baseVal.value) / box.width;
+    return leads.find((lead) => Math.abs(fx.apply(lead) + fx.bandwidth / 2 - x) <= fx.step / 2);
+  };
+  // A pointer focuses the plot on its way to a click; that focus selects
+  // nothing, so a tap on the first lead is not undone by focus selecting it.
+  let pointerType;
+  let pointerFocus = false;
+  svg.addEventListener("pointerdown", (e) => {
+    pointerType = e.pointerType;
+    pointerFocus = true;
+  });
+  svg.addEventListener("pointercancel", () => (pointerFocus = false));
+  svg.addEventListener("pointermove", (e) => {
+    const lead = leadAt(e);
+    if (e.pointerType === "mouse" && lead !== undefined) select(lead, "mouse");
+  });
+  chart.addEventListener("pointerleave", (e) => {
+    if (e.pointerType === "mouse" && owner === "mouse") select(null);
+  });
+  svg.addEventListener("click", (e) => {
+    pointerFocus = false;
+    if (pointerType === "mouse") return;
+    const lead = leadAt(e);
+    if (lead !== undefined) select(lead === selected ? null : lead, "touch");
+  });
+  svg.tabIndex = 0;
+  svg.setAttribute(
+    "aria-label",
+    `${cfg.label} by forecast lead time. Use the arrow keys, Home and End to rank ` +
+      "a lead time's models in the legend, and Escape to clear it."
+  );
+  svg.addEventListener("focus", () => {
+    if (!pointerFocus) select(selected ?? leads[0], "keys");
+    pointerFocus = false;
+  });
+  svg.addEventListener("blur", () => {
+    // A press dragged off the plot never clicks; don't let it mark the next
+    // keyboard focus as the pointer's.
+    pointerFocus = false;
+    if (owner === "keys") select(null);
+  });
+  svg.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") return select(null);
+    const at = leads.indexOf(selected);
+    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: leads.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    select(leads[Math.max(0, Math.min(leads.length - 1, next))], "keys");
+  });
+  select(null);
+}
+
 export async function renderMetric(
   container,
   { variable, metric, stationIds, windowDays, scope = "country", stateAbbr }
@@ -390,9 +592,13 @@ export async function renderMetric(
       );
       return;
     }
-
-    // Derive available models from the data rather than a hardcoded list.
-    const colors = modelColors(data.map((d) => d.model));
+    // Rows can all be null: ETS and HSS are undefined at a station where rain was
+    // neither forecast nor observed. That is an honest gap, not drift, so say so
+    // instead of drawing a legend over an empty plot.
+    if (!data.some(({ value }) => Number.isFinite(value))) {
+      showStatus(container, METRIC_HEIGHT, `No ${cfg.label} scores for the last ${windowDays} days.`);
+      return;
+    }
 
     const varUnits = variable === "temperature_2m" ? "°C" : "mm/s";
     const yLabel =
@@ -400,37 +606,9 @@ export async function renderMetric(
         ? cfg.label
         : `${cfg.label} [${varUnits}]`;
 
-    const chart = Plot.plot({
-      width: container.clientWidth || 600,
-      height: METRIC_HEIGHT,
-      ...CHART_MARGINS,
-      fx: { label: "Forecast lead time (days)", padding: 0.2 },
-      x: { axis: null, padding: 0.1 },
-      y: { label: yLabel, grid: true, labelArrow: "none" },
-      color: {
-        legend: true,
-        domain: colors.domain,
-        range: colors.range,
-        tickFormat: legendLabel,
-      },
-      caption: orderNote(cfg),
-      marks: [
-        // x is the rank within the lead, not the model: the x scale is shared
-        // across facets, so ordering by model could only give every lead the
-        // same order. A lead with fewer models leaves its trailing slots empty.
-        Plot.barY(rankWithinLead(data, cfg), {
-          fx: "lead_time_days",
-          x: "slot",
-          y: "value",
-          fill: "model",
-          title: (d) => `${legendLabel(d.model)}: ${d.value?.toPrecision(3)}`,
-          tip: false,
-        }),
-        Plot.ruleY([cfg.refValue]),
-      ],
-    });
-
-    container.replaceChildren(chart);
+    container.replaceChildren(
+      metricChart(Plot, data, { cfg, yLabel, width: container.clientWidth || 600 })
+    );
   } catch (e) {
     captureError(e, {
       chart: "metric",

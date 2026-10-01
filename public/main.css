@@ -1035,9 +1035,28 @@ a.work-item:hover h3 { text-decoration: underline; }
   margin: 0;
 }
 
+/* Plot draws its legends and axes in system-ui; the charts take the site's face
+   instead. Plot's own rules are zero-specificity (:where) or SVG presentation
+   attributes, and any rule beats both. */
+.scorecard-chart figure > div,
+.scorecard-chart svg {
+  font-family: inherit;
+}
+
+/* The metric plot is one tab stop; arrow keys move its legend ranking. */
+.scorecard-chart figure > svg:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+}
+
 .scorecard-chart figcaption {
+  display: grid;
   font-size: 0.9em;
   color: var(--muted-text);
+}
+
+.scorecard-chart figcaption > span {
+  grid-area: 1 / 1;
 }
 
 /* Loading, empty, and error states replace the plot with a box of the same
