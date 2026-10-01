@@ -187,8 +187,8 @@ test("each lead is judged on its own", () => {
 });
 
 // A tie is an equal computed distance, with no tolerance: Bias ±0.2 and Frequency
-// Bias 0.5/1.5 are exact in binary and tie, while 0.9/1.1 land a few ulps apart
-// and do not. Titles round to three figures, so near-ties can look tied there.
+// Bias 0.5/1.5 compute exactly equal distances and tie, while 0.9/1.1 land a few
+// ulps apart and do not. Titles round to three figures, so near-ties can look tied there.
 test("tied scores are all marked best", () => {
   const all = markBest(
     rows(0, { "NOAA GFS": 1, "ECMWF IFS ENS": 1, "NOAA HRRR": 1 }),
@@ -322,7 +322,7 @@ test("the chart caption names the marker and the direction", () => {
     ["FrequencyBias", "closest to 1 is best"],
   ]) {
     const note = bestNote(METRIC_CONFIG[metric]);
-    assert.match(note, /^Triangles mark the best bar at each lead time;/, metric);
+    assert.match(note, /^Triangles mark the best bars at each lead time;/, metric);
     assert.ok(note.endsWith(`; ${phrase}.`), `${metric}: ${note}`);
   }
 });

@@ -162,7 +162,7 @@ export function bestNote(cfg) {
       : cfg.better === "lower"
         ? "lowest"
         : "highest";
-  return `Triangles mark the best bar at each lead time; ${best} is best.`;
+  return `Triangles mark the best bars at each lead time; ${best} is best.`;
 }
 
 // Loading, empty, and error states all render as a message sized to the chart's

@@ -404,7 +404,11 @@ function readChart(page, id) {
     };
     const swatches = [...el.querySelectorAll('[class*="-swatch"]:not([class*="-swatches"])')];
     const plot = el.querySelector('svg g[aria-label="bar"]')?.ownerSVGElement;
+    const labels = [...el.querySelectorAll('[aria-label="fx-axis tick label"] text')];
     return {
+      textColor: plot ? getComputedStyle(plot).color : null,
+      background: getComputedStyle(document.body).backgroundColor,
+      labelsTop: Math.min(...labels.map((t) => t.getBoundingClientRect().top)),
       legend: swatches.map((s) => s.textContent.trim()),
       legendFill: Object.fromEntries(
         swatches.map((s) => [s.textContent.trim(), s.querySelector("svg").getAttribute("fill")]),
@@ -424,6 +428,8 @@ function readChart(page, id) {
       markers: [...el.querySelectorAll('svg g[aria-label="dot"] path')].map((p) => ({
         ...parseTitle(p),
         pointsDown: /rotate\(180\)/.test(p.getAttribute("transform") ?? ""),
+        fill: getComputedStyle(p).fill,
+        opacity: Number(getComputedStyle(p).opacity) * Number(getComputedStyle(p).fillOpacity),
         ...box(p),
       })),
     };
@@ -435,8 +441,15 @@ function readChart(page, id) {
 //   a missing model leaves a gap instead of shifting the bars after it;
 // - each facet marks exactly `expected[i]` as best, by title and by triangle;
 // - each triangle is centred on its bar, sits clear of the bar's end, and points
-//   at it: down onto a bar that rises from zero, up onto one that hangs below.
-function expectChartRules({ legend, legendFill, facets, markers, frame }, expected, label) {
+//   at it: down onto a bar that rises from zero, up onto one that hangs below,
+//   staying above the lead-time labels;
+// - each triangle is opaque and painted in the chart's text color, which differs
+//   from the page background in either theme.
+function expectChartRules(
+  { legend, legendFill, facets, markers, frame, textColor, background, labelsTop },
+  expected,
+  label,
+) {
   expect(facets.length, `${label}: facets`).toBe(expected.length);
   const slot = new Map();
   for (const [i, bars] of facets.entries()) {
@@ -473,7 +486,10 @@ function expectChartRules({ legend, legendFill, facets, markers, frame }, expect
       expect(marker.top, `${where} sits below the bar`).toBeGreaterThanOrEqual(bar.bottom);
     }
     expect(marker.top, `${where} is inside the chart`).toBeGreaterThanOrEqual(frame.top);
-    expect(marker.bottom, `${where} is inside the chart`).toBeLessThanOrEqual(frame.bottom);
+    expect(marker.bottom, `${where} clears the lead labels`).toBeLessThan(labelsTop - 1);
+    expect(marker.fill, `${where} is the text color`).toBe(textColor);
+    expect(marker.fill, `${where} stands out from the page`).not.toBe(background);
+    expect(marker.opacity, `${where} is opaque`).toBe(1);
   }
 }
 
@@ -525,6 +541,20 @@ const FIXTURES = {
       [[undefined, undefined, undefined, undefined, undefined, undefined, -0.48], [WN2]], // a lone winner at the chart's minimum
     ],
   },
+  ETS: {
+    yLabel: "ETS",
+    leads: [
+      [[0.22, 0.19, 0.23, 0.29, 0.13, 0.12, 0.13], [HRRR]],
+      [[-0.02, -0.05, -0.01, undefined, -0.03, -0.04, -0.06], [GFS]], // no skill anywhere
+    ],
+  },
+  FrequencyBias: {
+    yLabel: "Frequency Bias",
+    leads: [
+      [[1.3, 0.8, 1.25, 1.6, 1.4, 1.5, 1.1], [WN2]], // below 1 is not best for being low
+      [[0.5, 1.5, 1.6, undefined, 2, 1.7, 1.8], [IFS, GEFS]], // a tie across 1
+    ],
+  },
 };
 
 // The scorecard module's URL exactly as the page loaded it, cache-busting query
@@ -568,13 +598,18 @@ for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
         },
         { spec: await page.evaluate(PAGE_MODULE), metric, yLabel, rows },
       );
-      const chart = await readChart(page, "temperature-chart");
-      expect(chart.legend).toEqual(FIXTURE_MODELS.map(legendName));
-      expectChartRules(
-        chart,
-        leads.map(([, best]) => best.map(legendName).sort()),
-        `${metric} fixture on ${device}`,
-      );
+      // currentColor resolves at paint time, so each theme reads the same chart.
+      for (const colorScheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme });
+        const chart = await readChart(page, "temperature-chart");
+        expect(chart.legend).toEqual(FIXTURE_MODELS.map(legendName));
+        expectChartRules(
+          chart,
+          leads.map(([, best]) => best.map(legendName).sort()),
+          `${metric} fixture on ${device}, ${colorScheme}`,
+        );
+      }
+      await page.emulateMedia({ colorScheme: null });
     }
 
     expect(errors, `fixture on ${device} logged console errors`).toEqual([]);
@@ -622,7 +657,7 @@ async function queriedLeads(page, variable, metric) {
 // winners worked out from the query's full-precision values rather than the
 // three-figure titles. Live Frequency Bias currently sits above 1 for every
 // model, so this cannot tell closest-to-1 from lowest; the fixture above and the
-// unit tests cover both sides.
+// unit tests put values on both sides.
 test("scorecard index marks the best bar at each lead, in a fixed model order", async ({
   page,
 }) => {
