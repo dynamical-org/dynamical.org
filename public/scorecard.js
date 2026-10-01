@@ -102,9 +102,12 @@ export const VARIABLE_METRICS = {
   precipitation_surface: ["MAE", "Bias", "CRPS", "ETS", "FrequencyBias", "HSS", "FSS"],
 };
 
+// Precipitation opens on ETS: whether rain (a 6-hour mean rate of 0.1 mm/h or
+// more) was forecast when it fell, net of chance hits. Every model has it, where
+// the pipeline publishes CRPS only for ensembles; MAE, for amounts, stays a pick.
 export const DEFAULT_METRIC = {
   temperature_2m:       "RMSE",
-  precipitation_surface: "MAE",
+  precipitation_surface: "ETS",
 };
 
 // Stable model order: pinned models in MODEL_STYLE order, then the rest
@@ -587,6 +590,13 @@ export async function renderMetric(
           ? `No ${cfg.label} data for the last ${windowDays} days.`
           : "There was an error loading this plot."
       );
+      return;
+    }
+    // Rows can all be null: ETS and HSS are undefined at a station where rain was
+    // neither forecast nor observed. That is an honest gap, not drift, so say so
+    // instead of drawing a legend over an empty plot.
+    if (!data.some(({ value }) => Number.isFinite(value))) {
+      showStatus(container, METRIC_HEIGHT, `No ${cfg.label} scores for the last ${windowDays} days.`);
       return;
     }
 
