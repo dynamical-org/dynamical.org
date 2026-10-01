@@ -416,10 +416,17 @@ function readChart(page, id) {
               s.lastChild.textContent.trim(),
               {
                 rank: Number(svgEl.querySelector("g text").textContent),
-                fill: svgEl.querySelector("g circle").getAttribute("fill"),
-                ink: ["fill", "stroke", "stroke-width", "paint-order", "font-size", "font-weight"].map((a) =>
-                  svgEl.querySelector("g text").getAttribute(a),
+                ring: ["fill", "stroke", "stroke-width"].map((a) =>
+                  svgEl.querySelector("g circle").getAttribute(a),
                 ),
+                // The numeral's paint, size, and weight beside its label's.
+                ink: [
+                  [svgEl.querySelector("g text"), "fill"],
+                  [s, "color"],
+                ].map(([node, paint]) => {
+                  const cs = getComputedStyle(node);
+                  return [cs[paint], cs.fontSize, cs.fontWeight];
+                }),
                 squareHidden: getComputedStyle(svgEl.querySelector("rect")).visibility === "hidden",
               },
             ];
@@ -520,16 +527,14 @@ function expectSelected(chart, i, ranks, label) {
     `${where}: legend badges`,
   ).toEqual(legendBadges(ranks));
   for (const [model, badge] of Object.entries(chart.badges)) {
-    expect(badge.fill, `${where}: ${model}'s badge keeps its color`).toBe(chart.legendFill[model]);
-    expect(badge.squareHidden, `${where}: ${model}'s square gives way`).toBe(true);
-    expect(badge.ink, `${where}: ${model}'s numeral is white outlined in black`).toEqual([
-      "#ffffff",
-      "#111111",
-      "1.5",
-      "stroke",
-      "9",
-      "400",
+    expect(badge.ring, `${where}: ${model}'s badge is a 2px ring in its color`).toEqual([
+      "none",
+      chart.legendFill[model],
+      "2",
     ]);
+    expect(badge.squareHidden, `${where}: ${model}'s square gives way`).toBe(true);
+    const [numeral, label] = badge.ink;
+    expect(numeral, `${where}: ${model}'s numeral is set like its label`).toEqual(label);
   }
   expect(chart.band, `${where}: band`).not.toBeNull();
   expect(Math.abs(chart.band.cx - cx), `${where}: band is over the lead`).toBeLessThan(1);
