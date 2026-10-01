@@ -520,6 +520,9 @@ function rankLegendByLead(chart, bars, colors, cfg) {
     pointerFocus = false;
   });
   svg.addEventListener("blur", () => {
+    // A press dragged off the plot never clicks; don't let it mark the next
+    // keyboard focus as the pointer's.
+    pointerFocus = false;
     if (owner === "keys") select(null);
   });
   svg.addEventListener("keydown", (e) => {

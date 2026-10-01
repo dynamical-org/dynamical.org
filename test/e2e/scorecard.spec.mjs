@@ -726,6 +726,16 @@ test("the keyboard ranks lead by lead from one tab stop", async ({ page }) => {
   expect(await plot.evaluate((el) => el === document.activeElement)).toBe(true);
   expectNothingSelected(await read(), "keyboard, then the mouse, then leaving");
 
+  // A press dragged off the plot never clicks; tabbing back in still ranks.
+  await page.mouse.move(leads[2].cx, plotMiddle);
+  await page.mouse.down();
+  await page.mouse.move(1, 1, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  expect(await plot.evaluate((el) => el === document.activeElement)).toBe(true);
+  expectSelected(await read(), 0, ranks[0], "tabbing back after a drag-out");
+
   expect(errors, "keyboard fixture logged console errors").toEqual([]);
 });
 
