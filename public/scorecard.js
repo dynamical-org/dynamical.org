@@ -379,28 +379,32 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 // badges all of its models: ranks 1, 1, 3, 3 badge four.
 const LEGEND_RANKS = 3;
 
-// Turn a legend swatch into a circle of the same color with the model's rank on
-// it, or back into its square. Drawn inside the swatch's own 15px <svg>, so the
-// legend never reflows: a badge added beside the swatch wrapped legend rows at
-// phone width and shifted entries by up to 266px as the pointer crossed leads.
-// The numeral is white outlined in near-black on every color, so it reads the
-// same way on WeatherNext's yellow as on GEFS's dark blue.
+// Turn a legend swatch into an empty square outlined in the model's color with
+// the model's rank in it, or back into its filled square. Drawn inside the
+// swatch's own 15px <svg>, so the legend never reflows: a badge added beside the
+// swatch wrapped legend rows at phone width and shifted entries by up to 266px
+// as the pointer crossed leads. The stroke sits inside the swatch's box, so a
+// ranked square is the size of an unranked one. The numeral is set like the
+// legend label beside it, in its size and color, so it reads on the page
+// background in either theme.
 function setRankBadge(swatch, rank, color) {
   swatch.querySelector("g")?.remove();
   swatch.querySelector("rect").style.visibility = rank == null ? "" : "hidden";
   if (rank == null) return;
-  const family = getComputedStyle(swatch).fontFamily;
-  const { dx, dy } = inkOffset(String(rank), BADGE_FONT_SIZE, family);
+  const { fontFamily, fontSize } = getComputedStyle(swatch);
+  const size = parseFloat(fontSize);
+  const { dx, dy } = inkOffset(String(rank), size, fontFamily);
+  const inset = BADGE_STROKE / 2;
   const badge = document.createElementNS(SVG_NS, "g");
   badge.innerHTML =
-    `<circle cx="7.5" cy="7.5" r="8" fill="${color}"/>` +
-    `<text x="${7.5 + dx}" y="${7.5 + dy}" fill="#ffffff" stroke="#111111" ` +
-    `stroke-width="1.5" stroke-linejoin="round" paint-order="stroke" ` +
-    `font-size="${BADGE_FONT_SIZE}" font-weight="400">${rank}</text>`;
+    `<rect x="${inset}" y="${inset}" width="${15 - BADGE_STROKE}" height="${15 - BADGE_STROKE}" ` +
+    `fill="none" stroke="${color}" stroke-width="${BADGE_STROKE}"/>` +
+    `<text x="${7.5 + dx}" y="${7.5 + dy}" fill="currentColor" ` +
+    `font-size="${size}" font-weight="400">${rank}</text>`;
   swatch.append(badge);
 }
 
-const BADGE_FONT_SIZE = 9;
+const BADGE_STROKE = 2;
 let inkContext;
 
 // How far to move a numeral from its alphabetic baseline and start so its ink,
