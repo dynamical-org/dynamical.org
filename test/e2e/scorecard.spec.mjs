@@ -416,8 +416,8 @@ function readChart(page, id) {
               s.lastChild.textContent.trim(),
               {
                 rank: Number(svgEl.querySelector("g text").textContent),
-                ring: ["fill", "stroke", "stroke-width"].map((a) =>
-                  svgEl.querySelector("g circle").getAttribute(a),
+                frame: ["fill", "stroke", "stroke-width"].map((a) =>
+                  svgEl.querySelector("g rect").getAttribute(a),
                 ),
                 // The numeral's paint, size, and weight beside its label's.
                 ink: [
@@ -527,7 +527,7 @@ function expectSelected(chart, i, ranks, label) {
     `${where}: legend badges`,
   ).toEqual(legendBadges(ranks));
   for (const [model, badge] of Object.entries(chart.badges)) {
-    expect(badge.ring, `${where}: ${model}'s badge is a 2px ring in its color`).toEqual([
+    expect(badge.frame, `${where}: ${model}'s badge is an empty square outlined in its color`).toEqual([
       "none",
       chart.legendFill[model],
       "2",
@@ -780,12 +780,12 @@ test("the keyboard ranks lead by lead from one tab stop", async ({ page }) => {
   expect(errors, "keyboard fixture logged console errors").toEqual([]);
 });
 
-// Where a badge's numeral sits on its circle, read from pixels, since the bug
+// Where a badge's numeral sits in its square, read from pixels, since the bug
 // was in how the browser placed the glyph rather than in any attribute: centered
 // on the font's em box, digits sat off center. At 8x a CSS pixel is eight device
 // pixels, so the offset is measured, not lost to rounding. Ink is the numeral's
-// near-black outline; the circle is everything that differs from the page.
-test("each legend badge's numeral sits on its circle's center", async ({ browser }) => {
+// near-black glyph; the square is everything that differs from the page.
+test("each legend badge's numeral sits on its square's center", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: SWEEP_WIDTHS.desktop, height: 900 },
     deviceScaleFactor: 8,
@@ -827,10 +827,10 @@ test("each legend badge's numeral sits on its circle's center", async ({ browser
             return [(x0 + x1) / 2, (y0 + y1) / 2];
           };
           const [r0, g0, b0] = px;
-          const circle = center((r, g, b) => Math.abs(r - r0) + Math.abs(g - g0) + Math.abs(b - b0) > 60);
+          const square = center((r, g, b) => Math.abs(r - r0) + Math.abs(g - g0) + Math.abs(b - b0) > 60);
           const ink = center((r, g, b) => r < 60 && g < 60 && b < 60);
           const scale = img.width / cssWidth;
-          return { dx: (ink[0] - circle[0]) / scale, dy: (ink[1] - circle[1]) / scale };
+          return { dx: (ink[0] - square[0]) / scale, dy: (ink[1] - square[1]) / scale };
         },
         { b64: png.toString("base64"), cssWidth: clip.width },
       );

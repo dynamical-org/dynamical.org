@@ -379,14 +379,14 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 // badges all of its models: ranks 1, 1, 3, 3 badge four.
 const LEGEND_RANKS = 3;
 
-// Turn a legend swatch into a ring of the same color with the model's rank in
-// it, or back into its square. Drawn inside the swatch's own 15px <svg>, so the
-// legend never reflows: a badge added beside the swatch wrapped legend rows at
-// phone width and shifted entries by up to 266px as the pointer crossed leads.
-// The numeral is set like the legend label beside it, in its size and color, so
-// it reads as text rather than as a mark on the swatch: near-black on the light
-// page and near-white on the dark one, where black would vanish. The ring is
-// sized to clear a digit by a pixel inside its stroke.
+// Turn a legend swatch into an empty square outlined in the model's color with
+// the model's rank in it, or back into its filled square. Drawn inside the
+// swatch's own 15px <svg>, so the legend never reflows: a badge added beside the
+// swatch wrapped legend rows at phone width and shifted entries by up to 266px
+// as the pointer crossed leads. The stroke sits inside the swatch's box, so a
+// ranked square is the size of an unranked one. The numeral is set like the
+// legend label beside it, in its size and color, so it reads on the page
+// background in either theme.
 function setRankBadge(swatch, rank, color) {
   swatch.querySelector("g")?.remove();
   swatch.querySelector("rect").style.visibility = rank == null ? "" : "hidden";
@@ -394,11 +394,11 @@ function setRankBadge(swatch, rank, color) {
   const { fontFamily, fontSize } = getComputedStyle(swatch);
   const size = parseFloat(fontSize);
   const { dx, dy } = inkOffset(String(rank), size, fontFamily);
-  const r = inkRadius(size, fontFamily) + 1 + BADGE_STROKE / 2;
+  const inset = BADGE_STROKE / 2;
   const badge = document.createElementNS(SVG_NS, "g");
   badge.innerHTML =
-    `<circle cx="7.5" cy="7.5" r="${r}" fill="none" stroke="${color}" ` +
-    `stroke-width="${BADGE_STROKE}"/>` +
+    `<rect x="${inset}" y="${inset}" width="${15 - BADGE_STROKE}" height="${15 - BADGE_STROKE}" ` +
+    `fill="none" stroke="${color}" stroke-width="${BADGE_STROKE}"/>` +
     `<text x="${7.5 + dx}" y="${7.5 + dy}" fill="currentColor" ` +
     `font-size="${size}" font-weight="400">${rank}</text>`;
   swatch.append(badge);
@@ -407,32 +407,19 @@ function setRankBadge(swatch, rank, color) {
 const BADGE_STROKE = 2;
 let inkContext;
 
-const measureInk = (text, family) => {
-  inkContext ??= document.createElement("canvas").getContext("2d");
-  inkContext.font = `400 100px ${family}`;
-  return inkContext.measureText(text);
-};
-
 // How far to move a numeral from its alphabetic baseline and start so its ink,
 // not its em box, lands on the point it is drawn at. text-anchor="middle" and
 // dominant-baseline="central" center the em box instead, which sat digits off
 // center on the badge. The canvas reports glyph bounds in whole pixels, so they
 // are measured at 100px and scaled down.
 function inkOffset(text, size, family) {
-  const m = measureInk(text, family);
+  inkContext ??= document.createElement("canvas").getContext("2d");
+  inkContext.font = `400 100px ${family}`;
+  const m = inkContext.measureText(text);
   return {
     dx: ((m.actualBoundingBoxLeft - m.actualBoundingBoxRight) / 2) * (size / 100),
     dy: ((m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2) * (size / 100),
   };
-}
-
-// The radius that reaches the corners of a digit's ink box, taken from "0", so
-// every rank's ring is the same size whichever digit it holds.
-function inkRadius(size, family) {
-  const m = measureInk("0", family);
-  const w = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
-  const h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
-  return (Math.hypot(w, h) / 2) * (size / 100);
 }
 
 // Selecting a lead time ranks its top three models on the legend, shades the
