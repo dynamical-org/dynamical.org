@@ -390,7 +390,7 @@ const legendBadges = (ranks) =>
   Object.fromEntries(Object.entries(ranks).filter(([, rank]) => rank <= 3));
 
 // A metric chart as drawn: the legend in order with each entry's color and rank
-// badge, the visible caption, the announcement, the selection band, each lead's
+// badge, any caption, the announcement, the selection band, each lead's
 // label and bars, read from the <title> each bar carries. `x` is a bar's place
 // within its facet; screen positions are what the pointer is aimed at.
 function readChart(page, id) {
@@ -425,10 +425,7 @@ function readChart(page, id) {
             ];
           }),
       ),
-      caption: [...el.querySelectorAll("figcaption > span")]
-        .filter((s) => getComputedStyle(s).visibility !== "hidden")
-        .map((s) => s.textContent)
-        .join(""),
+      caption: el.querySelector("figcaption")?.textContent ?? null,
       announced: el.querySelector("[aria-live]")?.textContent ?? "",
       band: band && getComputedStyle(band).display !== "none" ? center(band) : null,
       leads: [...svg.querySelectorAll('[aria-label="fx-axis tick label"] text')].map((t) => ({
@@ -503,16 +500,18 @@ function expectChartRules({ legend, legendFill, facets }, ranks, label) {
   }
 }
 
-// Nothing is ranked: no badges, no band, no bold lead, the how-to caption.
+// Nothing is ranked: no badges, no band, no bold lead, and no caption, since
+// the chart carries no instructions.
 function expectNothingSelected(chart, label) {
   expect(chart.badges, `${label}: badges`).toEqual({});
   expect(chart.band, `${label}: band`).toBeNull();
   expect(chart.leads.filter((l) => l.bold), `${label}: bold leads`).toEqual([]);
-  expect(chart.caption, `${label}: caption`).toMatch(/^Hover or tap a lead time to rank it/);
+  expect(chart.caption, `${label}: caption`).toBeNull();
   expect(chart.announced, `${label}: announcement`).toBe("");
 }
 
-// The legend, band, label, caption, and announcement all describe lead index `i`.
+// The legend, band, label, and announcement all describe lead index `i`, and no
+// caption appears to name it.
 function expectSelected(chart, i, ranks, label) {
   const { lead, cx } = chart.leads[i];
   const where = `${label}, day ${lead}`;
@@ -526,18 +525,16 @@ function expectSelected(chart, i, ranks, label) {
     expect(badge.ink, `${where}: ${model}'s numeral is white outlined in black`).toEqual([
       "#ffffff",
       "#111111",
-      "2.5",
+      "1.5",
       "stroke",
-      "11",
-      "700",
+      "9",
+      "400",
     ]);
   }
   expect(chart.band, `${where}: band`).not.toBeNull();
   expect(Math.abs(chart.band.cx - cx), `${where}: band is over the lead`).toBeLessThan(1);
   expect(chart.leads.filter((l) => l.bold).map((l) => l.lead), `${where}: bold`).toEqual([lead]);
-  expect(chart.caption, `${where}: caption`).toMatch(
-    new RegExp(`^The legend ranks day ${lead}'s top three;`),
-  );
+  expect(chart.caption, `${where}: caption`).toBeNull();
   expect(chart.announced, `${where}: announcement`).toMatch(new RegExp(`, day ${lead}: `));
   if (Object.keys(chart.badges).length === 0) {
     expect(chart.announced, `${where}: announcement`).toMatch(/no scores$/);
@@ -630,6 +627,10 @@ const PAGE_MODULE = () =>
 // fixture, and returns a function that draws a fixture in its place.
 async function fixturePage(page) {
   await gotoOk(page, "/scorecard/");
+  // The latest-update popup floats over the window's bottom corner, where it can
+  // sit on a lead the pointer is aimed at; close it as a reader would.
+  const close = page.locator("#latest-close");
+  if (await close.isVisible()) await close.click();
   await expectPlot(page, "temperature-chart");
   await page.locator("#temperature-chart").scrollIntoViewIfNeeded();
   const spec = await page.evaluate(PAGE_MODULE);
@@ -666,6 +667,11 @@ for (const [device, width] of Object.entries(SWEEP_WIDTHS)) {
       expect([...chart.legend].sort()).toEqual(FIXTURE_MODELS.map(legendName).sort());
       expectChartRules(chart, ranks, label);
       expectNothingSelected(chart, `${label}, before any hover`);
+      // With no caption to say so, the cursor is what tells a reader to point.
+      expect(
+        await page.locator("#temperature-chart figure > svg").evaluate((e) => getComputedStyle(e).cursor),
+        `${label}: plot cursor`,
+      ).toBe("pointer");
 
       // Low in the plot, between bars as often as on them: a group's whole slot
       // selects it, gaps included.
@@ -767,6 +773,68 @@ test("the keyboard ranks lead by lead from one tab stop", async ({ page }) => {
   expectSelected(await read(), 0, ranks[0], "tabbing back after a drag-out");
 
   expect(errors, "keyboard fixture logged console errors").toEqual([]);
+});
+
+// Where a badge's numeral sits on its circle, read from pixels, since the bug
+// was in how the browser placed the glyph rather than in any attribute: centered
+// on the font's em box, digits sat off center. At 8x a CSS pixel is eight device
+// pixels, so the offset is measured, not lost to rounding. Ink is the numeral's
+// near-black outline; the circle is everything that differs from the page.
+test("each legend badge's numeral sits on its circle's center", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: SWEEP_WIDTHS.desktop, height: 900 },
+    deviceScaleFactor: 8,
+  });
+  const page = await context.newPage();
+  const draw = await fixturePage(page);
+  await draw("RMSE");
+  const { leads, plotMiddle } = await readChart(page, "temperature-chart");
+  // Day 0 badges 1, 2, 3; day 3 badges a tie on 1 and on 3.
+  for (const i of [0, 3]) {
+    await page.mouse.move(leads[i].cx, plotMiddle);
+    const swatches = page.locator("#temperature-chart figure > div > span svg:has(g)");
+    expect(await swatches.count(), `day ${i}: badges`).toBeGreaterThanOrEqual(3);
+    for (const swatch of await swatches.all()) {
+      const box = await swatch.boundingBox();
+      const pad = 3;
+      const clip = { x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad };
+      const png = await page.screenshot({ clip });
+      const offset = await page.evaluate(
+        async ({ b64, cssWidth }) => {
+          const img = new Image();
+          img.src = `data:image/png;base64,${b64}`;
+          await img.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          const px = ctx.getImageData(0, 0, img.width, img.height).data;
+          const center = (keep) => {
+            let [x0, x1, y0, y1] = [Infinity, -1, Infinity, -1];
+            for (let y = 0; y < img.height; y++) {
+              for (let x = 0; x < img.width; x++) {
+                const j = (y * img.width + x) * 4;
+                if (!keep(px[j], px[j + 1], px[j + 2])) continue;
+                [x0, x1, y0, y1] = [Math.min(x0, x), Math.max(x1, x), Math.min(y0, y), Math.max(y1, y)];
+              }
+            }
+            return [(x0 + x1) / 2, (y0 + y1) / 2];
+          };
+          const [r0, g0, b0] = px;
+          const circle = center((r, g, b) => Math.abs(r - r0) + Math.abs(g - g0) + Math.abs(b - b0) > 60);
+          const ink = center((r, g, b) => r < 60 && g < 60 && b < 60);
+          const scale = img.width / cssWidth;
+          return { dx: (ink[0] - circle[0]) / scale, dy: (ink[1] - circle[1]) / scale };
+        },
+        { b64: png.toString("base64"), cssWidth: clip.width },
+      );
+      const rank = await swatch.locator("text").textContent();
+      expect(Math.abs(offset.dx), `day ${i}, rank ${rank}: across`).toBeLessThan(0.15);
+      expect(Math.abs(offset.dy), `day ${i}, rank ${rank}: down`).toBeLessThan(0.15);
+    }
+  }
+  await context.close();
 });
 
 test("a tap ranks a lead until another tap, and a scroll does not", async ({ browser }) => {
@@ -877,17 +945,11 @@ test("scorecard index ranks each lead in a fixed model order", async ({ page }) 
   const errors = collectPageErrors(page);
   await gotoOk(page, "/scorecard/");
 
-  for (const [id, select, variable, metric, phrase] of [
-    ["temperature-chart", "#temp-metric", "temperature_2m", "RMSE", "lowest is best"],
-    ["temperature-chart", "#temp-metric", "temperature_2m", "Bias", "closest to 0 is best"],
-    ["precipitation-chart", "#precip-metric", "precipitation_surface", "ETS", "highest is best"],
-    [
-      "precipitation-chart",
-      "#precip-metric",
-      "precipitation_surface",
-      "FrequencyBias",
-      "closest to 1 is best",
-    ],
+  for (const [id, select, variable, metric] of [
+    ["temperature-chart", "#temp-metric", "temperature_2m", "RMSE"],
+    ["temperature-chart", "#temp-metric", "temperature_2m", "Bias"],
+    ["precipitation-chart", "#precip-metric", "precipitation_surface", "ETS"],
+    ["precipitation-chart", "#precip-metric", "precipitation_surface", "FrequencyBias"],
   ]) {
     await page.mouse.move(0, 0);
     await page.selectOption(select, metric);
@@ -899,7 +961,6 @@ test("scorecard index ranks each lead in a fixed model order", async ({ page }) 
       expectedRanks(bars, DISTANCE[metric]),
     );
 
-    expect(chart.caption, `${metric} caption`).toContain(phrase);
     expect(
       chart.facets.some((bars) => bars.length > 1),
       `${metric} has no lead with more than one bar to rank`,

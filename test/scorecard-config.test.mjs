@@ -25,7 +25,6 @@ const {
   legendLabel,
   modelColors,
   modelCoversRegion,
-  rankNote,
   rankWithinLead,
   scoreDistance,
 } = await import(
@@ -351,22 +350,6 @@ test("a model keeps its color whichever models share the chart", () => {
   // An unpinned model still gets a color, after the pinned ones in the legend.
   const { domain } = modelColors(["Some New Model", ...published]);
   assert.equal(domain.at(-1), "Some New Model");
-});
-
-test("the chart caption says how to rank a lead, then which lead is ranked", () => {
-  for (const [metric, phrase] of [
-    ["RMSE", "lowest is best"],
-    ["ETS", "highest is best"],
-    ["Bias", "closest to 0 is best"],
-    ["FrequencyBias", "closest to 1 is best"],
-  ]) {
-    const cfg = METRIC_CONFIG[metric];
-    assert.equal(
-      rankNote(cfg),
-      `Hover or tap a lead time to rank it in the legend; ${phrase}.`,
-    );
-    assert.equal(rankNote(cfg, 0), `The legend ranks day 0's top three; ${phrase}.`);
-  }
 });
 
 test("every variable's default metric is one it offers", () => {

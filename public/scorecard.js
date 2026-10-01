@@ -172,19 +172,6 @@ export function rankWithinLead(rows, cfg) {
   });
 }
 
-// The chart caption: how to rank a lead time, or which lead the legend ranks.
-export function rankNote(cfg, lead = null) {
-  const best =
-    cfg.better === "target"
-      ? `closest to ${cfg.refValue}`
-      : cfg.better === "lower"
-        ? "lowest"
-        : "highest";
-  return lead === null
-    ? `Hover or tap a lead time to rank it in the legend; ${best} is best.`
-    : `The legend ranks day ${lead}'s top three; ${best} is best.`;
-}
-
 // Loading, empty, and error states all render as a message sized to the chart's
 // own footprint (styled by `.scorecard-chart p` in main.css) so a chart that
 // never arrives leaves a labelled gap instead of a single line of text.
@@ -370,7 +357,6 @@ export function metricChart(Plot, rows, { cfg, yLabel, width }) {
       range: colors.range,
       tickFormat: legendLabel,
     },
-    caption: rankNote(cfg),
     marks: [
       Plot.barY(bars, {
         fx: "lead_time_days",
@@ -403,20 +389,41 @@ function setRankBadge(swatch, rank, color) {
   swatch.querySelector("g")?.remove();
   swatch.querySelector("rect").style.visibility = rank == null ? "" : "hidden";
   if (rank == null) return;
+  const family = getComputedStyle(swatch).fontFamily;
+  const { dx, dy } = inkOffset(String(rank), BADGE_FONT_SIZE, family);
   const badge = document.createElementNS(SVG_NS, "g");
   badge.innerHTML =
     `<circle cx="7.5" cy="7.5" r="8" fill="${color}"/>` +
-    `<text x="7.5" y="7.5" fill="#ffffff" stroke="#111111" stroke-width="2.5" ` +
-    `stroke-linejoin="round" paint-order="stroke" text-anchor="middle" ` +
-    `dominant-baseline="central" font-size="11" font-weight="700">${rank}</text>`;
+    `<text x="${7.5 + dx}" y="${7.5 + dy}" fill="#ffffff" stroke="#111111" ` +
+    `stroke-width="1.5" stroke-linejoin="round" paint-order="stroke" ` +
+    `font-size="${BADGE_FONT_SIZE}" font-weight="400">${rank}</text>`;
   swatch.append(badge);
 }
 
+const BADGE_FONT_SIZE = 9;
+let inkContext;
+
+// How far to move a numeral from its alphabetic baseline and start so its ink,
+// not its em box, lands on the point it is drawn at. text-anchor="middle" and
+// dominant-baseline="central" center the em box instead, which sat digits off
+// center on the badge. The canvas reports glyph bounds in whole pixels, so they
+// are measured at 100px and scaled down.
+function inkOffset(text, size, family) {
+  inkContext ??= document.createElement("canvas").getContext("2d");
+  inkContext.font = `400 100px ${family}`;
+  const m = inkContext.measureText(text);
+  return {
+    dx: ((m.actualBoundingBoxLeft - m.actualBoundingBoxRight) / 2) * (size / 100),
+    dy: ((m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2) * (size / 100),
+  };
+}
+
 // Selecting a lead time ranks its top three models on the legend, shades the
-// lead's group, bolds its label, and names it in the caption; nothing is
-// selected until the reader asks. A mouse selects whatever group it is over and
-// keeps it while it moves on to read the legend, clearing once it leaves the
-// figure. A touch has no hover, so a completed tap selects (a scroll does not)
+// lead's group, and bolds its label; nothing is selected until the reader asks.
+// The chart carries no instructions: a pointer cursor over the plot and the
+// shading that follows the mouse are what invite a reader to try it. A mouse
+// selects whatever group it is over and keeps it while it moves on to read the
+// legend, clearing once it leaves the figure. A touch has no hover, so a completed tap selects (a scroll does not)
 // and tapping the selected group again clears it. From the keyboard the plot is
 // one tab stop: arrows, Home and End move between leads, Escape clears, and so
 // does tabbing away, with each choice announced, since the badges alone are not
@@ -424,11 +431,6 @@ function setRankBadge(swatch, rank, color) {
 function rankLegendByLead(chart, bars, colors, cfg) {
   const svg = chart.querySelector(":scope > svg");
   const swatches = [...chart.querySelectorAll(":scope > div > span > svg")];
-  // The caption holds both its texts in one grid cell and shows one, so it keeps
-  // the taller one's height and swapping them never moves the page below.
-  const hint = document.createElement("span");
-  const named = document.createElement("span");
-  chart.querySelector("figcaption").replaceChildren(hint, named);
   const fx = chart.scale("fx");
   const [yBottom, yTop] = chart.scale("y").range;
   const leads = fx.domain;
@@ -464,10 +466,6 @@ function rankLegendByLead(chart, bars, colors, cfg) {
     band.style.display = lead === null ? "none" : "";
     if (lead !== null) band.setAttribute("x", fx.apply(lead) - (fx.step - fx.bandwidth) / 2);
     tickLabels.forEach((t, i) => (t.style.fontWeight = leads[i] === lead ? "700" : ""));
-    hint.textContent = rankNote(cfg);
-    named.textContent = rankNote(cfg, lead ?? leads.at(-1));
-    (lead === null ? named : hint).style.visibility = "hidden";
-    (lead === null ? hint : named).style.visibility = "";
     const badged = [];
     colors.domain.forEach((model, i) => {
       const rank = lead === null ? undefined : ranks.get(lead).get(model);
