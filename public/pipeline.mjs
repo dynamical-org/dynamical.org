@@ -224,6 +224,20 @@ export function displayRowLabel(label) {
   return label === "dynamical.org · virtual" ? "dynamical.org" : label;
 }
 
+export function agencyGroups(groups) {
+  const agencies = new Map();
+  for (const group of groups) {
+    const agency = group.agency ?? group.label.trim().split(/\s+/)[0];
+    if (!agencies.has(agency)) agencies.set(agency, []);
+    agencies.get(agency).push(group);
+  }
+  return Array.from(agencies, ([agency, groups]) => ({ agency, groups }));
+}
+
+export function tocModelLabel(label, agency) {
+  return label.startsWith(`${agency} `) ? label.slice(agency.length + 1) : label;
+}
+
 function productsOf(dashboard) {
   return dashboard.groups.flatMap((group) => group.products);
 }
@@ -2553,10 +2567,15 @@ function Advisories({ advisories }) {
   </div>`;
 }
 
-function TocTree({ groups }) {
-  return groups.map(
-    (group) => html`<li key=${group.id} class="toc-h2">
-      <a href=${`#pipeline-group-${group.id}`}>${group.label}</a>
+function TocTree({ agencies }) {
+  return agencies.map(
+    ({ agency, groups }) => html`<li key=${agency} class="toc-h2">
+      <strong>${agency}</strong>
+      <ul>${groups.map(
+        (group) => html`<li key=${group.id} class="toc-h3">
+          <a href=${`#pipeline-group-${group.id}`}>${tocModelLabel(group.label, agency)}</a>
+        </li>`,
+      )}</ul>
     </li>`,
   );
 }
@@ -2564,13 +2583,16 @@ function TocTree({ groups }) {
 /* The groups and their rows, keyed by id so a poll that reorders or adds a
    product moves nodes rather than rebuilding them. */
 
-function Groups({ state, actions }) {
+function Groups({ state, actions, agencies }) {
   const { dashboard } = state;
   // the toc script caches the group headings and their links, so it is told
   // when they first exist and whenever the set of groups changes — nothing
   // below a group is its business
   const signature = dashboard
-    ? dashboard.groups.map((group) => group.id).join("\n")
+    ? JSON.stringify(agencies.map(({ agency, groups }) => [
+        agency,
+        groups.map((group) => group.id),
+      ]))
     : null;
   useEffect(() => {
     if (signature === null) return;
@@ -2581,7 +2603,7 @@ function Groups({ state, actions }) {
     return html`<p data-slot="loading">Loading pipeline status…</p>`;
   }
   const advisories = dashboard.advisories ?? [];
-  return dashboard.groups.map(
+  return agencies.flatMap(({ groups }) => groups).map(
     (group) => html`<section key=${group.id} class="pipeline-group">
       <h3 id=${`pipeline-group-${group.id}`}>${group.label}</h3>
       ${group.products.map(
@@ -2650,6 +2672,7 @@ function start(app) {
   let painted = {};
   function paint(state) {
     const { dashboard } = state;
+    const agencies = agencyGroups(dashboard?.groups ?? []);
     document.body.classList.toggle("pipeline-time-local", state.local);
     timeToggle.value = state.local ? "local" : "utc";
     timeControl.hidden = !dashboard;
@@ -2673,8 +2696,11 @@ function start(app) {
       html`<${Advisories} advisories=${dashboard?.advisories ?? []} />`,
       slots.advisories,
     );
-    render(html`<${TocTree} groups=${dashboard?.groups ?? []} />`, slots.tocTree);
-    render(html`<${Groups} state=${state} actions=${actions} />`, slots.groups);
+    render(html`<${TocTree} agencies=${agencies} />`, slots.tocTree);
+    render(
+      html`<${Groups} state=${state} actions=${actions} agencies=${agencies} />`,
+      slots.groups,
+    );
     // the health strip is a polite live region outside any root; it is written
     // only when what it says can have changed, not on every countdown tick
     if (dashboard && dashboard !== painted.dashboard) {

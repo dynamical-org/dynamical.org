@@ -17,6 +17,7 @@
   "groups": [
     {
       "id": "noaa-gfs",
+      "agency": "NOAA",
       "label": "NOAA GFS forecast",
       "products": [
         {
@@ -2376,6 +2377,7 @@
     },
     {
       "id": "eccc-hrdps",
+      "agency": "ECCC",
       "label": "ECCC HRDPS continental 2.5 km",
       "products": [
         {
