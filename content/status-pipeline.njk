@@ -44,6 +44,10 @@ pageStylesheet: /pipeline.css
   <noscript><p>Pipeline status requires JavaScript.</p></noscript>
 </main>
 
-<style>{{ tocCSS | safe }}</style>
+<style>
+  {{ tocCSS | safe }}
+  [data-slot="pipeline-toc"] .toc-h2 > ul { display: block; }
+  [data-slot="pipeline-toc"] .toc-h3 > a { white-space: normal; }
+</style>
 <script>{{ tocJS | safe }}</script>
 <script type="module" src="/pipeline.mjs?v={{ "public/pipeline.mjs" | fileHash }}"></script>

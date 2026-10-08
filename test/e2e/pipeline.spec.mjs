@@ -20,6 +20,38 @@ const FIXTURE = JSON.parse(
   readFileSync(new URL("../fixtures/pipeline-dashboard.json", import.meta.url)),
 );
 
+// [group id, full heading, TOC entry]: the TOC drops the agency (its heading),
+// "forecast", domain and grid resolution; the section heading keeps the full label.
+const TOC_MODELS = [
+  ["noaa-gfs", "NOAA GFS forecast", "GFS"],
+  ["noaa-gefs-long", "NOAA GEFS forecast, 35 day", "GEFS, 35 day"],
+  ["noaa-gefs-short", "NOAA GEFS forecast, 16 day", "GEFS, 16 day"],
+  ["noaa-hrrr", "NOAA HRRR forecast, 48 hour", "HRRR, 48 hour"],
+  ["noaa-hrrr-18h", "NOAA HRRR forecast, 18 hour", "HRRR, 18 hour"],
+  ["ecmwf-aifs", "ECMWF AIFS Single forecast", "AIFS Single"],
+  ["ecmwf-aifs-ens", "ECMWF AIFS ENS forecast", "AIFS ENS"],
+  ["ecmwf-ifs-ens-long", "ECMWF IFS ENS forecast, 15 day, 0.25 degree", "IFS ENS, 15 day"],
+  ["ecmwf-ifs-ens-short", "ECMWF IFS ENS 6-day", "IFS ENS 6-day"],
+  ["dwd-icon-eu", "DWD ICON-EU forecast, 5 day", "ICON-EU, 5 day"],
+  ["eccc-hrdps", "ECCC HRDPS continental 2.5 km", "HRDPS"],
+];
+
+function withAgencyModels(payload, legacy = false) {
+  const existing = new Map(payload.groups.map((group) => [group.id, group]));
+  const models = TOC_MODELS.map(([id, label]) => ({
+    id,
+    label,
+    ...(legacy ? {} : { agency: label.split(" ")[0] }),
+    products: existing.get(id)?.products ?? [
+      { id: `${id}-source`, row_label: "Source", recent_inits: [] },
+    ],
+  }));
+  // Interleave agencies to prove that both body and TOC actually group them,
+  // while preserving first appearance and the order within each agency.
+  payload.groups = [models[0], models[5], ...models.slice(1, 5), ...models.slice(6)];
+  return payload;
+}
+
 const JSON_HEADERS = { "access-control-allow-origin": "*" };
 const REPEATED_LEAD_LABELS = Array.from(
   { length: 5 },
@@ -189,8 +221,8 @@ test("the table of contents follows the rendered pipeline groups", async ({
   ).toBe("absolute");
 
   await expect(links).toHaveText([
-    "NOAA GFS forecast",
-    "ECCC HRDPS continental 2.5 km",
+    "GFS",
+    "HRDPS",
   ]);
   expect(
     await links.evaluateAll((nodes) =>
@@ -201,6 +233,68 @@ test("the table of contents follows the rendered pipeline groups", async ({
   await links.nth(1).click();
   await expect(page).toHaveURL(/#pipeline-group-eccc-hrdps$/);
   await expect(links.nth(1)).toHaveClass(/active/);
+});
+
+for (const width of [1440, 390]) {
+  for (const legacy of [false, true]) {
+    test(`agency TOC shows every full model name at ${width}px (${legacy ? "legacy" : "agency"} payload)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openPipeline(page, (payload) => withAgencyModels(payload, legacy));
+      const toc = page.locator('[data-slot="pipeline-toc"]');
+      const agencies = toc.locator(".toc-tree > .toc-h2");
+      const links = toc.locator(".toc-h3 > a");
+      await expect(agencies.locator(":scope > strong")).toHaveText(["NOAA", "ECMWF", "DWD", "ECCC"]);
+      await expect(toc.locator(".toc-tree > .toc-h3")).toHaveCount(0);
+      await expect(links).toHaveText(TOC_MODELS.map(([, , entry]) => entry));
+      await expect(page.locator(".pipeline-group > h3")).toHaveText(TOC_MODELS.map(([, label]) => label));
+      expect(await links.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("href"))))
+        .toEqual(TOC_MODELS.map(([id]) => `#pipeline-group-${id}`));
+      expect(await agencies.evaluateAll((nodes) => nodes.map((node) => node.querySelectorAll("ul > .toc-h3").length)))
+        .toEqual([5, 4, 1, 1]);
+      expect(await page.locator('[data-slot="pipeline-toc-rail"]').evaluate((node) => getComputedStyle(node).position))
+        .toBe(width === 1440 ? "absolute" : "static");
+      for (const link of await links.all()) {
+        await expect(link).toBeVisible();
+        const geometry = await link.evaluate((node) => ({
+          label: node.textContent,
+          scrollWidth: node.scrollWidth,
+          clientWidth: node.clientWidth,
+        }));
+        expect(geometry.scrollWidth, `${geometry.label} truncates at ${width}px`).toBeLessThanOrEqual(geometry.clientWidth);
+      }
+      if (process.env.PIPELINE_TOC_SCREENSHOTS === "1" && !legacy) {
+        await toc.screenshot({ path: `/tmp/wxopticon-pgrb2b-toc-${width}.png` });
+      }
+      await links.last().click();
+      await expect(page).toHaveURL(/#pipeline-group-eccc-hrdps$/);
+      await expect(links.last()).toHaveClass(/active/);
+      await expect(agencies.last()).toHaveClass(/expanded/);
+      // Scroll-spy expansion must never hide another agency's models.
+      for (const link of await links.all()) await expect(link).toBeVisible();
+    });
+  }
+}
+
+test("a poll that changes agency membership refreshes TOC anchors and scroll-spy", async ({ page }) => {
+  await page.clock.install();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openPipeline(page, (payload, served) => {
+    withAgencyModels(payload);
+    if (served > 1) {
+      payload.groups[0].agency = "ECMWF";
+      payload.groups[0].label = "ECMWF GFS forecast";
+    }
+    return payload;
+  });
+  await page.clock.fastForward(15_000);
+  const toc = page.locator('[data-slot="pipeline-toc"]');
+  await expect(toc.locator(".toc-tree > .toc-h2 > strong")).toHaveText(["ECMWF", "NOAA", "DWD", "ECCC"]);
+  await expect(page.locator(".pipeline-group > h3").first()).toHaveText("ECMWF GFS forecast");
+  const link = toc.locator('a[href="#pipeline-group-noaa-gfs"]');
+  await link.click();
+  await page.clock.runFor(100);
+  await expect(link).toHaveClass(/active/);
+  await expect(toc.locator(".toc-h2.expanded > strong")).toHaveText("ECMWF");
 });
 
 test("a source with no mirror and no facets draws one row that does not cycle", async ({

@@ -5,6 +5,8 @@ import test from "node:test";
 import { sourceBudgetProduct } from "./fixtures/pipeline-source-budget.mjs";
 import {
   agencySummary,
+  agencyGroups,
+  tocModelLabel,
   bandsOf,
   cellOf,
   cellTitle,
@@ -75,6 +77,48 @@ function dashboard() {
 
 test("accepts the granular v2 dashboard contract", () => {
   assert.equal(validateDashboard(dashboard()).groups[0].id, "noaa-gfs");
+});
+
+test("groups models by agency in first-appearance order, preserving each agency's order", () => {
+  const groups = [
+    { id: "gfs", agency: "NOAA", label: "NOAA GFS forecast" },
+    { id: "ifs", agency: "ECMWF", label: "ECMWF IFS ENS forecast, 15 day, 0.25 degree" },
+    { id: "hrrr", agency: "NOAA", label: "NOAA HRRR forecast, 48 hour" },
+    { id: "icon", agency: "DWD", label: "DWD ICON-EU forecast, 5 day" },
+    { id: "hrdps", agency: "ECCC", label: "ECCC HRDPS continental 2.5 km" },
+  ];
+  const grouped = agencyGroups(groups);
+  assert.deepEqual(grouped.map(({ agency }) => agency), ["NOAA", "ECMWF", "DWD", "ECCC"]);
+  assert.deepEqual(grouped.flatMap(({ groups }) => groups.map(({ id }) => id)), ["gfs", "hrrr", "ifs", "icon", "hrdps"]);
+  assert.equal(grouped[0].groups[0], groups[0]);
+  assert.deepEqual(groups.map(({ id }) => id), ["gfs", "ifs", "hrrr", "icon", "hrdps"]);
+  assert.deepEqual(agencyGroups([]), []);
+  assert.deepEqual(agencyGroups([groups[4], groups[0]]).map(({ agency }) => agency), ["ECCC", "NOAA"]);
+});
+
+test("old and mixed payloads infer the agency from the first whitespace-delimited word", () => {
+  const groups = [
+    { id: "gfs", label: "NOAA GFS forecast" },
+    { id: "ifs", label: "ECMWF\tIFS forecast" },
+    { id: "hrrr", agency: "NOAA", label: "NOAA HRRR forecast, 48 hour" },
+    { id: "other", agency: "DWD", label: "ICON forecast" },
+  ];
+  assert.deepEqual(agencyGroups(groups).map(({ agency, groups }) => [agency, groups.map(({ id }) => id)]), [
+    ["NOAA", ["gfs", "hrrr"]], ["ECMWF", ["ifs"]], ["DWD", ["other"]],
+  ]);
+  assert.equal(validateDashboard(dashboard()).groups[0].agency, undefined);
+});
+
+test("TOC model labels drop the agency prefix, 'forecast', domain and grid resolution", () => {
+  assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS, 15 day");
+  assert.equal(tocModelLabel("NOAA GFS forecast", "NOAA"), "GFS");
+  assert.equal(tocModelLabel("NOAA GEFS forecast, 35 day", "NOAA"), "GEFS, 35 day");
+  assert.equal(tocModelLabel("ECMWF AIFS Single forecast", "ECMWF"), "AIFS Single");
+  assert.equal(tocModelLabel("ECMWF IFS ENS 6-day", "ECMWF"), "IFS ENS 6-day");
+  assert.equal(tocModelLabel("ECCC HRDPS continental 2.5 km", "ECCC"), "HRDPS");
+  // only the exact agency prefix comes off
+  assert.equal(tocModelLabel("ICON forecast", "DWD"), "ICON");
+  assert.equal(tocModelLabel("NOAAish forecast", "NOAA"), "NOAAish");
 });
 
 test("accepts the HRRR virtual-family v3 dashboard contract", () => {
