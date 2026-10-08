@@ -55,9 +55,14 @@ test("the explorer follows the example, and the listings sit under External list
   await expect(page.locator(".agent-setup-pill")).toHaveCount(0);
 });
 
+// A product with no entry in _data/listings.js, found rather than named: a
+// hard-coded id broke the moment its listings landed (#273). As of 2026-10-08
+// every catalog product is listed, so this skips until one is not.
+const unlisted = catalog.entries.find((entry) => !(entry.id in require("../../_data/listings.js")));
+
 test("a product with no listing has no External listings", async ({ page }) => {
-  // No platform lists the GFS virtual products yet (_data/listings.js).
-  await page.goto("/catalog/noaa-gfs-forecast-virtual/");
+  test.skip(!unlisted, "every catalog product has an entry in _data/listings.js");
+  await page.goto(`/catalog/${unlisted.id}/`);
   await expect(page.locator("h3", { hasText: "External listings" })).toHaveCount(0);
   expect(await order(page)).toEqual(["examples", "frame", "explore", "dimensions", "details"]);
 });
