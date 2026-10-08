@@ -20,18 +20,20 @@ const FIXTURE = JSON.parse(
   readFileSync(new URL("../fixtures/pipeline-dashboard.json", import.meta.url)),
 );
 
+// [group id, full heading, TOC entry]: the TOC drops the agency (its heading),
+// "forecast" and grid resolution; the section heading keeps the full label.
 const TOC_MODELS = [
-  ["noaa-gfs", "NOAA GFS forecast"],
-  ["noaa-gefs-long", "NOAA GEFS forecast, 35 day"],
-  ["noaa-gefs-short", "NOAA GEFS forecast, 16 day"],
-  ["noaa-hrrr", "NOAA HRRR forecast, 48 hour"],
-  ["noaa-hrrr-18h", "NOAA HRRR forecast, 18 hour"],
-  ["ecmwf-aifs", "ECMWF AIFS Single forecast"],
-  ["ecmwf-aifs-ens", "ECMWF AIFS ENS forecast"],
-  ["ecmwf-ifs-ens-long", "ECMWF IFS ENS forecast, 15 day, 0.25 degree"],
-  ["ecmwf-ifs-ens-short", "ECMWF IFS ENS 6-day"],
-  ["dwd-icon-eu", "DWD ICON-EU forecast, 5 day"],
-  ["eccc-hrdps", "ECCC HRDPS continental 2.5 km"],
+  ["noaa-gfs", "NOAA GFS forecast", "GFS"],
+  ["noaa-gefs-long", "NOAA GEFS forecast, 35 day", "GEFS, 35 day"],
+  ["noaa-gefs-short", "NOAA GEFS forecast, 16 day", "GEFS, 16 day"],
+  ["noaa-hrrr", "NOAA HRRR forecast, 48 hour", "HRRR, 48 hour"],
+  ["noaa-hrrr-18h", "NOAA HRRR forecast, 18 hour", "HRRR, 18 hour"],
+  ["ecmwf-aifs", "ECMWF AIFS Single forecast", "AIFS Single"],
+  ["ecmwf-aifs-ens", "ECMWF AIFS ENS forecast", "AIFS ENS"],
+  ["ecmwf-ifs-ens-long", "ECMWF IFS ENS forecast, 15 day, 0.25 degree", "IFS ENS, 15 day"],
+  ["ecmwf-ifs-ens-short", "ECMWF IFS ENS 6-day", "IFS ENS 6-day"],
+  ["dwd-icon-eu", "DWD ICON-EU forecast, 5 day", "ICON-EU, 5 day"],
+  ["eccc-hrdps", "ECCC HRDPS continental 2.5 km", "HRDPS continental 2.5 km"],
 ];
 
 function withAgencyModels(payload, legacy = false) {
@@ -219,7 +221,7 @@ test("the table of contents follows the rendered pipeline groups", async ({
   ).toBe("absolute");
 
   await expect(links).toHaveText([
-    "GFS forecast",
+    "GFS",
     "HRDPS continental 2.5 km",
   ]);
   expect(
@@ -243,7 +245,7 @@ for (const width of [1440, 390]) {
       const links = toc.locator(".toc-h3 > a");
       await expect(agencies.locator(":scope > strong")).toHaveText(["NOAA", "ECMWF", "DWD", "ECCC"]);
       await expect(toc.locator(".toc-tree > .toc-h3")).toHaveCount(0);
-      await expect(links).toHaveText(TOC_MODELS.map(([, label]) => label.slice(label.indexOf(" ") + 1)));
+      await expect(links).toHaveText(TOC_MODELS.map(([, , entry]) => entry));
       await expect(page.locator(".pipeline-group > h3")).toHaveText(TOC_MODELS.map(([, label]) => label));
       expect(await links.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("href"))))
         .toEqual(TOC_MODELS.map(([id]) => `#pipeline-group-${id}`));

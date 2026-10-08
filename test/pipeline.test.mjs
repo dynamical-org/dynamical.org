@@ -109,11 +109,16 @@ test("old and mixed payloads infer the agency from the first whitespace-delimite
   assert.equal(validateDashboard(dashboard()).groups[0].agency, undefined);
 });
 
-test("TOC model labels strip only the exact agency prefix", () => {
-  assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS forecast, 15 day, 0.25 degree");
-  assert.equal(tocModelLabel("NOAA GFS forecast", "NOAA"), "GFS forecast");
-  assert.equal(tocModelLabel("ICON forecast", "DWD"), "ICON forecast");
-  assert.equal(tocModelLabel("NOAAish forecast", "NOAA"), "NOAAish forecast");
+test("TOC model labels drop the agency prefix, 'forecast' and grid resolution", () => {
+  assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS, 15 day");
+  assert.equal(tocModelLabel("NOAA GFS forecast", "NOAA"), "GFS");
+  assert.equal(tocModelLabel("NOAA GEFS forecast, 35 day", "NOAA"), "GEFS, 35 day");
+  assert.equal(tocModelLabel("ECMWF AIFS Single forecast", "ECMWF"), "AIFS Single");
+  assert.equal(tocModelLabel("ECMWF IFS ENS 6-day", "ECMWF"), "IFS ENS 6-day");
+  assert.equal(tocModelLabel("ECCC HRDPS continental 2.5 km", "ECCC"), "HRDPS continental 2.5 km");
+  // only the exact agency prefix comes off
+  assert.equal(tocModelLabel("ICON forecast", "DWD"), "ICON");
+  assert.equal(tocModelLabel("NOAAish forecast", "NOAA"), "NOAAish");
 });
 
 test("accepts the HRRR virtual-family v3 dashboard contract", () => {
