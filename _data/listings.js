@@ -23,6 +23,16 @@ module.exports = {
     source_coop: "https://source.coop/dynamical/noaa-gfs-forecast",
     aws: "https://registry.opendata.aws/dynamical-noaa-gfs/",
   },
+  "noaa-gfs-analysis-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6ac6a11151d708605e5a28c3",
+    source_coop: "https://source.coop/dynamical/noaa-gfs-analysis-virtual",
+    aws: "https://registry.opendata.aws/dynamical-noaa-gfs/",
+  },
+  "noaa-gfs-forecast-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6ac6a14e01721a49772844fa",
+    source_coop: "https://source.coop/dynamical/noaa-gfs-forecast-virtual",
+    aws: "https://registry.opendata.aws/dynamical-noaa-gfs/",
+  },
   "noaa-gefs-forecast-35-day": {
     earthmover: "https://app.earthmover.io/marketplace/697055dd0ddd53afe1329ca7",
     source_coop: "https://source.coop/dynamical/noaa-gefs-forecast-35-day",
@@ -31,6 +41,26 @@ module.exports = {
   "noaa-gefs-analysis": {
     earthmover: "https://app.earthmover.io/marketplace/6970566255e09e23d5bcbbc0",
     source_coop: "https://source.coop/dynamical/noaa-gefs-analysis",
+    aws: "https://registry.opendata.aws/dynamical-noaa-gefs/",
+  },
+  "noaa-gefs-analysis-0-25-degree-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6ac6a182bd810c4c0dbec05a",
+    source_coop: "https://source.coop/dynamical/noaa-gefs-analysis-0-25-degree-virtual",
+    aws: "https://registry.opendata.aws/dynamical-noaa-gefs/",
+  },
+  "noaa-gefs-forecast-10-day-0-25-degree-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6ac6a1ae494b854e9e3bad25",
+    source_coop: "https://source.coop/dynamical/noaa-gefs-10-day-0-25-degree-virtual",
+    aws: "https://registry.opendata.aws/dynamical-noaa-gefs/",
+  },
+  "noaa-gefs-forecast-16-day-0-5-degree-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6ac6a1d8709a9697d934bd6b",
+    source_coop: "https://source.coop/dynamical/noaa-gefs-16-day-0-5-degree-virtual",
+    aws: "https://registry.opendata.aws/dynamical-noaa-gefs/",
+  },
+  "noaa-gefs-forecast-35-day-0-5-degree-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6ac6a20540cffca72070e1bc",
+    source_coop: "https://source.coop/dynamical/noaa-gefs-35-day-0-5-degree-virtual",
     aws: "https://registry.opendata.aws/dynamical-noaa-gefs/",
   },
   "noaa-hrrr-forecast-18-hour-virtual": {
