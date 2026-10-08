@@ -21,7 +21,7 @@ const FIXTURE = JSON.parse(
 );
 
 // [group id, full heading, TOC entry]: the TOC drops the agency (its heading),
-// "forecast" and grid resolution; the section heading keeps the full label.
+// "forecast", domain and grid resolution; the section heading keeps the full label.
 const TOC_MODELS = [
   ["noaa-gfs", "NOAA GFS forecast", "GFS"],
   ["noaa-gefs-long", "NOAA GEFS forecast, 35 day", "GEFS, 35 day"],
@@ -33,7 +33,7 @@ const TOC_MODELS = [
   ["ecmwf-ifs-ens-long", "ECMWF IFS ENS forecast, 15 day, 0.25 degree", "IFS ENS, 15 day"],
   ["ecmwf-ifs-ens-short", "ECMWF IFS ENS 6-day", "IFS ENS 6-day"],
   ["dwd-icon-eu", "DWD ICON-EU forecast, 5 day", "ICON-EU, 5 day"],
-  ["eccc-hrdps", "ECCC HRDPS continental 2.5 km", "HRDPS continental 2.5 km"],
+  ["eccc-hrdps", "ECCC HRDPS continental 2.5 km", "HRDPS"],
 ];
 
 function withAgencyModels(payload, legacy = false) {
@@ -222,7 +222,7 @@ test("the table of contents follows the rendered pipeline groups", async ({
 
   await expect(links).toHaveText([
     "GFS",
-    "HRDPS continental 2.5 km",
+    "HRDPS",
   ]);
   expect(
     await links.evaluateAll((nodes) =>

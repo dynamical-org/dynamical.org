@@ -109,13 +109,13 @@ test("old and mixed payloads infer the agency from the first whitespace-delimite
   assert.equal(validateDashboard(dashboard()).groups[0].agency, undefined);
 });
 
-test("TOC model labels drop the agency prefix, 'forecast' and grid resolution", () => {
+test("TOC model labels drop the agency prefix, 'forecast', domain and grid resolution", () => {
   assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS, 15 day");
   assert.equal(tocModelLabel("NOAA GFS forecast", "NOAA"), "GFS");
   assert.equal(tocModelLabel("NOAA GEFS forecast, 35 day", "NOAA"), "GEFS, 35 day");
   assert.equal(tocModelLabel("ECMWF AIFS Single forecast", "ECMWF"), "AIFS Single");
   assert.equal(tocModelLabel("ECMWF IFS ENS 6-day", "ECMWF"), "IFS ENS 6-day");
-  assert.equal(tocModelLabel("ECCC HRDPS continental 2.5 km", "ECCC"), "HRDPS continental 2.5 km");
+  assert.equal(tocModelLabel("ECCC HRDPS continental 2.5 km", "ECCC"), "HRDPS");
   // only the exact agency prefix comes off
   assert.equal(tocModelLabel("ICON forecast", "DWD"), "ICON");
   assert.equal(tocModelLabel("NOAAish forecast", "NOAA"), "NOAAish");

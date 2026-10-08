@@ -235,13 +235,16 @@ export function agencyGroups(groups) {
 }
 
 /* The TOC's short name for a model: the agency is its heading, every entry is a
-   forecast, and the grid resolution is the dataset's business, not the model's,
-   so all three come off. The section heading keeps the full label. */
+   forecast, and the domain and grid resolution ("continental 2.5 km",
+   "0.25 degree") are the dataset's business, not the model's, so all of them
+   come off. The section heading keeps the full label. */
 export function tocModelLabel(label, agency) {
   const name = label.startsWith(`${agency} `) ? label.slice(agency.length + 1) : label;
   return name
     .replace(/\s+forecast\b/gi, "")
     .replace(/,\s*[\d.]+\s*degrees?\b/gi, "")
+    .replace(/\s+continental\b/gi, "")
+    .replace(/\s+[\d.]+\s*km\b/gi, "")
     .trim();
 }
 
