@@ -53,6 +53,13 @@ test("summarizes an analysis dataset with its record extent instead of a horizon
   );
 });
 
+test("pluralizes dataset variable counts", () => {
+  for (const [variable_count, expected] of [[0, "0 variables"], [1, "1 variable"], [2, "2 variables"]]) {
+    assert.equal(datasetFacts({ variable_count })[1], expected);
+    assert.equal(datasetFacts({ variable_count, optimization: "space" })[1], "all variables");
+  }
+});
+
 test("counts a model's live forecasts and analyses, skipping deprecated ones", () => {
   const datasets = [
     { forecast_domain: "Forecast lead time 0-18 hours ahead" },

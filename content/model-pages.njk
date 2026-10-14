@@ -102,7 +102,7 @@ eleventyComputed:
   </p>
 
   {% macro variantRow(ds) %}
-    {%- set vars = "all variables" if ds.optimization == "space" else (ds.variable_count | string) + " variables" -%}
+    {%- set vars = "all variables" if ds.optimization == "space" else (ds.variable_count | string) + " variable" + ("s" if ds.variable_count != 1) -%}
     <li>
       {%- set tags %}<div class="cat-tags">{% for t in ds.access_tags %}{{ tagIcon(t.icon) }}{{ t.label }}{{ " · " if not loop.last }}{% endfor %}</div>{% endset -%}
       {% if ds.status == 'live' or ds.status == 'available' %}
