@@ -17,9 +17,11 @@ permalink: 'aws/dynamical-{{model.id}}.yaml'
     (awslabs/open-data-registry@78a7166, "dynamical markdown fix"). Emit the
     house style — blank-line separated blocks, `- [Title](url) - description`
     rows — so regenerated YAML matches what's already upstream. -#}
+{#- Indent every non-blank line of the model description: a paragraph at
+    column 0 ends the block scalar and breaks the whole file. -#}
 Name: {{model.name}} - dynamical.org Icechunk Zarr
 Description: |
-    {{ model.description | safe | trim }}
+    {{ model.description | trim | replace(r/\n(?=[^\n])/g, "\n    ") | safe }}
 
     These datasets have been translated to cloud-optimized Icechunk Zarr format by [dynamical.org](https://dynamical.org).
 {% for entry in entries %}
