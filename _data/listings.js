@@ -87,6 +87,24 @@ module.exports = {
     source_coop: "https://source.coop/dynamical/noaa-hrrr-analysis-virtual",
     aws: "https://registry.opendata.aws/dynamical-noaa-hrrr/",
   },
+  "noaa-rrfs-forecast-sub-hourly-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6acff762cfdcfca228e0205a",
+  },
+  "noaa-rrfs-forecast-18-hour-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6acff7f389cf2fe3bfece288",
+  },
+  "noaa-rrfs-forecast-84-hour-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6acff823ab692f42b53ba8a3",
+  },
+  "noaa-rrfs-ens-forecast-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6acff853cbec9a659f5138cc",
+  },
+  "noaa-refs-forecast-hourly-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6acff880a843853c313af96a",
+  },
+  "noaa-refs-forecast-3-hourly-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6acff8b2444308a163f0ba58",
+  },
   "noaa-mrms-conus-analysis-hourly": {
     earthmover: "https://app.earthmover.io/marketplace/69b17d6d9b47e3348aeb99dc",
     source_coop: "https://source.coop/dynamical/noaa-mrms-conus-analysis-hourly",
