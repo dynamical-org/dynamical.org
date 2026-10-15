@@ -4,7 +4,7 @@
 // No current dataset requires an opt-out.
 const optOuts = [];
 
-// Newly enabled first views, measured 2026-10-15 in headless Chromium, a
+// Newly enabled first views, measured 2026-10-15 UTC in headless Chromium, a
 // 1280-wide page and the current 778×438 CSS px map. Decimal MB of compressed
 // data response bodies (store metadata/chunks + upstream GRIB; excludes JS,
 // WASM and borders). These products need no row unless overriding a default:

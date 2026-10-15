@@ -79,7 +79,7 @@ for (const [name, value] of [["refs-zero-group-zero.grib2", 0], ["refs-zero-grou
   });
 }
 
-test("real RRFS PEVAP implicit descriptors preserve scaled values and missing bitmap cells", async () => {
+test("reduced RRFS PEVAP implicit descriptors preserve scaled values and missing bitmap cells", async () => {
   const bytes = readFileSync(new URL("rrfs-implicit-descriptors-bitmap.grib2", fixtures));
   const s5 = new DataView(sections(bytes).get(5));
   assert.equal(s5.getUint16(9), 2);

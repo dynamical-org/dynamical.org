@@ -57,7 +57,7 @@ test("the explorer follows the example, and the listings sit under External list
 
 // A product with no entry in _data/listings.js, found rather than named: a
 // hard-coded id broke the moment its listings landed (#273). Explore is enabled
-// independently of external listings, including for new virtual products.
+// independently of external listings, including for newly added products.
 const unlisted = catalog.entries.find((entry) => !(entry.id in require("../../_data/listings.js")));
 
 test("a product with no listing has no External listings", async ({ page }) => {

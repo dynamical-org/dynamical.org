@@ -10,8 +10,8 @@ license = "MIT"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Released gribberish 1.8.4 fixes zero-group constant fields and RRFS/REFS SDEN
-# decoding while retaining the stores' codec configuration. No default features:
+# Released gribberish 1.8.4 fixes zero-group constant fields and implicit complex-
+# packing descriptors/bitmaps while retaining the stores' codec configuration. No default features:
 # "png" is pure Rust, and CCSDS (DRS 5.42) uses gribberish's
 # built-in pure-Rust decoder when "libaec" is off, so there is no C code in the build.
 gribberish = { git = "https://github.com/mpiannucci/gribberish", rev = "5e039e1f87b9cf6586c4fc060bb52b563ed3ef36", default-features = false, features = ["png"] }
