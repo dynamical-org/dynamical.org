@@ -168,6 +168,11 @@ for (const width of WIDTHS) {
       inside(m);
       for (const t of visibleTabs) expect(t.x + t.width <= m.x || t.y + t.height <= m.y || m.y + m.height <= t.y).toBe(true);
     }
+    // The scroll hint may fade, but must not draw a divider after the tabs.
+    const { data, info } = await require("sharp")(await frame.getByRole("tablist").screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (let y = 4; y < 8; y++) {
+      expect(data[(y * info.width + info.width - 1) * info.channels]).toBe(0);
+    }
     // At 320px something else on the page already overflows by 8px (on main
     // too, 2026-09-29), so the page-width check holds from 375px.
     if (width >= 375) expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
