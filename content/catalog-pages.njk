@@ -165,7 +165,7 @@ eleventyComputed:
      example title in a status bar beneath the code. Colors are the frame's
      fixed dark palette (see .frame/.frameHeader in main.css) — the widget is
      always dark regardless of page theme. The frame is a query container so its
-     header spacing can tighten without crowding the wordmark. */
+     header can give the tabs the full width on narrow screens. */
   .frame {
     container-type: inline-size;
   }
@@ -298,8 +298,11 @@ eleventyComputed:
     clip: auto;
     white-space: normal;
   }
-  /* Keep the wordmark visible; the tabs scroll within the remaining space. */
+  /* Give access-approach tabs room in narrow frames. */
   @container (max-width: 640px) {
+    .frameBrand {
+      display: none;
+    }
     .frameHeader {
       padding: 0 10px;
       gap: 8px;

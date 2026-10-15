@@ -137,10 +137,10 @@ test("choosing a code variant is tracked, visiting the prompt tab is not", async
   expect(events).toEqual([["snippet_variant_selected", { dataset: "noaa-gfs-forecast", variant: expect.stringMatching(PYSTAC_LABEL) }]]);
 });
 
-// Every tab and the visible brand mark stay inside the header, clear of each
-// other, from a small phone through desktop. Offscreen tabs stay clipped to
-// their scroll viewport; they never wrap or displace the wordmark.
-const WIDTHS = [375, 1024, ...Array.from({ length: 25 }, (_, i) => 320 + 20 * i)];
+// Narrow frames give the tabs the full header; wider frames keep the brand
+// clear of the tabs. Offscreen tabs stay clipped to their scroll viewport.
+// 677–679px viewports straddle the 640px frame container breakpoint.
+const WIDTHS = [375, 677, 678, 679, 1024, ...Array.from({ length: 25 }, (_, i) => 320 + 20 * i)];
 for (const width of WIDTHS) {
   test(`the frame header fits at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
@@ -158,6 +158,8 @@ for (const width of WIDTHS) {
     for (const tab of tabs) expect(tab.y).toBe(tabs[0].y);
     const visibleTabs = tabs.map(t => ({ ...t, x: Math.max(t.x, list.x), width: Math.max(0, Math.min(t.x + t.width, list.x + list.width) - Math.max(t.x, list.x)) })).filter(t => t.width > 0);
     visibleTabs.forEach(inside);
+    const narrow = await frame.evaluate(el => el.clientWidth <= 640);
+    await expect(frame.locator(".frameBrand")).toBeVisible({ visible: !narrow });
     const marks = frame.locator(".frameBrand-wordmark img, .frameBrand-icon");
     for (const mark of await marks.all()) {
       if (!(await mark.isVisible())) continue;
@@ -332,7 +334,7 @@ for (const colorScheme of ["light", "dark"]) {
     expect(await list.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
     const boxes = await Promise.all((await tabs.all()).map(t => t.boundingBox()));
     expect(boxes.every(b => b.y === boxes[0].y)).toBe(true);
-    await expect(frame.locator(".frameBrand-wordmark")).toBeVisible();
+    await expect(frame.locator(".frameBrand-wordmark")).toBeHidden();
     expect(await edges()).toEqual({ left: false, right: true });
     await tabs.first().focus();
     await page.keyboard.press("End");
