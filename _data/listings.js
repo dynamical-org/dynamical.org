@@ -155,6 +155,12 @@ module.exports = {
     source_coop: "https://source.coop/dynamical/nasa-imerg-analysis-late",
     aws: "https://registry.opendata.aws/dynamical-nasa-imerg/",
   },
+  "ucsb-chc-chirps-analysis-final": {
+    earthmover: "https://app.earthmover.io/marketplace/6ad111f3549593cb0581ec6f",
+  },
+  "ucsb-chc-chirps-analysis-preliminary": {
+    earthmover: "https://app.earthmover.io/marketplace/6ad1121f3ba11e1128b688ca",
+  },
   "eccc-hrdps-forecast": {
     earthmover: "https://app.earthmover.io/marketplace/6a9716dc243cda5a26c7f728",
     source_coop: "https://source.coop/dynamical/eccc-hrdps-forecast",
