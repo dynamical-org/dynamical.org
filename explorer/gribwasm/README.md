@@ -11,7 +11,7 @@ The built output is committed in `explorer/src/grib/`. The explorer's normal `np
 
 ## Rebuild
 
-Pinned: Rust **1.97.0** (`rust-toolchain.toml`, with the `wasm32-unknown-unknown` target), **wasm-bindgen-cli 0.2.129** (it must equal the `wasm-bindgen` crate pin), and gribberish **1.8.0 at commit `746e986ed5ac46c58d5137e458dc8ba715abd5d7`** with `default-features = false, features = ["png"]`. `Cargo.lock` pins everything else.
+Pinned: Rust **1.97.0** (`rust-toolchain.toml`, with the `wasm32-unknown-unknown` target), **wasm-bindgen-cli 0.2.129** (it must equal the `wasm-bindgen` crate pin), and gribberish **1.8.4 at released tag commit `5e039e1f87b9cf6586c4fc060bb52b563ed3ef36`** with `default-features = false, features = ["png"]`. `Cargo.lock` pins everything else.
 
 ```sh
 cargo install wasm-bindgen-cli --version 0.2.129 --locked
@@ -28,6 +28,15 @@ wasm-bindgen --target web --no-typescript --out-dir explorer/src/grib <target>/w
 It then rewrites `SHA256SUMS`. It keeps `target/` outside the repo (in `$CARGO_TARGET_DIR`, default `$TMPDIR/dynamical-gribwasm-target`). It also remaps the Cargo home and crate paths out of the binary, so a rebuild with the same toolchain gives byte-identical files. That was checked by rebuilding into a fresh target directory. Set `WASM_BINDGEN=/path/to/wasm-bindgen` if the binary isn't on `PATH`.
 
 After a rebuild, run `npm test`. `explorer/test/explorer-grib.test.mjs` checks the checksums and decodes the fixtures in `explorer/test/fixtures/grib/` against values from gribberish's Python codec. If you move the gribberish pin, regenerate those fixtures and expectations with `uv run explorer/test/fixtures/grib/make_fixtures.py`.
+
+The 1.8.4 fixtures include two complete REFS DRT 5.3 zero-group constant
+messages and a reduced RRFS DRT 5.2 implicit-descriptor message with a bitmap.
+Their immutable upstream copies and original NOAA provenance are recorded in
+the generator and expectations. The former panicked under 1.8.0; the latter
+silently decoded as eight zeros instead of three values and five missing cells.
+The five original GFS/AIFS fixtures and their decoded expectations are unchanged.
+Use `uv run explorer/test/fixtures/grib/make_fixtures.py --check` to compare
+committed expectations with the pinned Python codec without fetching sources.
 
 ## Template coverage
 

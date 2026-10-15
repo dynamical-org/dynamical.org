@@ -96,6 +96,16 @@ export function classifyDims(dimNames, { spatialAnywhere = false } = {}) {
   return out;
 }
 
+/**
+ * Preserve categorical coordinate labels while converting int64 values to numbers
+ * for time decoding, spatial arithmetic and numeric ensemble-member defaults.
+ * @param {ArrayLike<number | bigint | string>} data
+ * @returns {(number | string)[]}
+ */
+export function coordinateValues(data) {
+  return Array.from(data, (v) => typeof v === "string" ? v : Number(v));
+}
+
 /** A pinned or selected dim's label from its coordinate value, e.g. "member 0", "500 hPa". */
 export function dimLabel(dim, value, units) {
   if (dim === "ensemble_member") return `member ${value}`;
@@ -107,7 +117,7 @@ export function dimLabel(dim, value, units) {
  * The index a selected dim opens at: for ensemble_member the member whose coordinate value
  * is 0 (the first when there is none), else the first.
  * @param {string} dim
- * @param {number[]} values coordinate values
+ * @param {(number | string)[]} values coordinate values
  */
 export function defaultIndex(dim, values) {
   return dim === "ensemble_member" ? Math.max(0, values.indexOf(0)) : 0;

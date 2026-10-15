@@ -7,6 +7,7 @@ import {
   absolutePath,
   blockRange,
   classifyDims,
+  coordinateValues,
   decodeIndexEntry,
   defaultIndex,
   dimLabel,
@@ -24,6 +25,7 @@ import {
   viewData,
 } from "../src/lib/dims.js";
 import { decodeCf, formatLead, formatUtc, parseCfUnits } from "../src/lib/time.js";
+import { buildGrid } from "../src/lib/grid.js";
 
 test("classifies forecast, ensemble, level and analysis dims", () => {
   assert.deepEqual(classifyDims(["init_time", "lead_time", "latitude", "longitude"]), {
@@ -48,6 +50,33 @@ test("pinned and selected dims are labelled with their coordinate value", () => 
   assert.equal(dimLabel("ensemble_member", 0, "1"), "member 0");
   assert.equal(dimLabel("pressure_level", 500, "hPa"), "500 hPa");
   assert.equal(dimLabel("model_level", 3, "1"), "3");
+});
+
+test("REFS string statistic coordinates retain their labels and ensemble-mean default", () => {
+  // Public REFS vlen-utf8 coordinate: index 0 is the ensemble mean; index 1
+  // is NOAA's member-weighted population standard deviation (spread).
+  const values = coordinateValues(["mean", "standard_deviation"]);
+  assert.deepEqual(values, ["mean", "standard_deviation"]);
+  const labels = values.map((value) => dimLabel("statistic", value, "1"));
+  assert.deepEqual(labels, ["mean", "standard_deviation"]);
+  assert.equal(labels[defaultIndex("statistic", values)], "mean");
+  assert.deepEqual(coordinateValues(["001", "control", ""]), ["001", "control", ""], "even numeric-looking category labels are strings");
+});
+
+test("coordinate conversion keeps numeric time, duration, member and spatial behavior", () => {
+  const times = coordinateValues(BigInt64Array.from([0n, 3600n]));
+  assert.deepEqual(times, [0, 3600]);
+  assert.deepEqual(decodeCf(times, "seconds since 1970-01-01"), [0, 3_600_000]);
+  assert.deepEqual(decodeCf(coordinateValues(new Int32Array([3600, 7200])), "seconds"), [3_600_000, 7_200_000]);
+  const members = coordinateValues(BigUint64Array.from([1n, 0n, 2n]));
+  assert.equal(defaultIndex("ensemble_member", members), 1);
+  assert.equal(dimLabel("ensemble_member", members[1], "1"), "member 0");
+  const grid = buildGrid({ yName: "latitude", xName: "longitude",
+    y: coordinateValues(new Float64Array([40, 39.5, 39])),
+    x: coordinateValues(new Float32Array([-100, -99.5, -99])),
+  });
+  assert.deepEqual(grid.attrs["spatial:transform"], [0.5, 0, -100, 0, -0.5, 40]);
+  assert.equal(dimLabel("pressure_level", coordinateValues(new Int32Array([500]))[0], "hPa"), "500 hPa");
 });
 
 test("block math: window bounded by the texture limit and the inner chunk", () => {

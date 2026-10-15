@@ -69,28 +69,65 @@ test("builds mount options for an enabled dataset", () => {
   });
 });
 
-test("passes the virtual flag through only when a dataset sets it", () => {
+test("infers virtual from the suffix, with explicit true and false overrides", () => {
   const virtual = [{ ...datasets[0], virtual: true }];
   assert.equal(explorerMountOptions(entry, virtual).virtual, true);
   assert.equal("virtual" in explorerMountOptions(entry, datasets), false);
+  const suffixed = { ...entry, id: "new-forecast-virtual" };
+  assert.equal(explorerMountOptions(suffixed).virtual, true);
+  assert.equal("virtual" in explorerMountOptions(suffixed, [{ id: suffixed.id, virtual: false }]), false);
+  assert.equal("virtual" in explorerMountOptions({ ...entry, id: "virtual-in-the-middle" }), false);
 });
 
-test("returns null for datasets without the explorer or an HTTPS store", () => {
-  assert.equal(explorerMountOptions({ ...entry, id: "noaa-hrrr-analysis" }, datasets), null);
+test("unlisted entries automatically get Explore; only HTTPS Icechunk assets qualify", () => {
+  const newEntry = { ...entry, id: "new-unlisted-dataset" };
+  assert.equal(explorerMountOptions(newEntry, datasets).id, newEntry.id);
+  assert.equal(explorerMountOptions(newEntry).defaultVariable, "temperature_2m");
   assert.equal(explorerMountOptions({ ...entry, assets: {} }, datasets), null);
+  for (const href of ["http://example.org/store.icechunk", "s3://bucket/store.icechunk", "/store.icechunk", "invalid"])
+    assert.equal(explorerMountOptions({ ...entry, assets: { "icechunk-https": { href } } }), null);
 });
 
-test("every enabled dataset in explorer/site/datasets.cjs is well formed", () => {
-  const enabled = require("../site/datasets.cjs").datasets;
-  assert.ok(enabled.length > 0);
-  assert.equal(new Set(enabled.map((d) => d.id)).size, enabled.length, "ids are unique");
-  for (const dataset of enabled) {
+test("opt-outs require reasons and take precedence over overrides", () => {
+  const optOuts = [{ id: entry.id, reason: "This fixture uses an unsupported grid." }];
+  assert.equal(explorerMountOptions(entry, datasets, optOuts), null);
+  assert.ok(explorerMountOptions({ ...entry, id: "another-dataset" }, datasets, optOuts));
+  for (const reason of [undefined, "", "   "])
+    assert.throws(() => explorerMountOptions(entry, datasets, [{ id: entry.id, reason }]), /needs a reason/);
+  const configured = require("../site/datasets.cjs").optOuts;
+  const overrides = require("../site/datasets.cjs").datasets;
+  assert.equal(new Set(configured.map((d) => d.id)).size, configured.length);
+  for (const { id, reason } of configured) {
+    assert.match(id, /^[a-z0-9-]+$/);
+    assert.ok(typeof reason === "string" && reason.trim().length > 0, `${id} needs a reason`);
+    assert.ok(!overrides.some((d) => d.id === id), `${id} must not also have overrides`);
+  }
+});
+
+test("dataset overrides may omit any field", () => {
+  const options = explorerMountOptions(entry, [{ id: entry.id }]);
+  assert.deepEqual(options, explorerMountOptions(entry));
+  assert.equal("proj4" in options, false);
+  assert.equal(explorerMountOptions(entry, [{ id: entry.id, proj4: "+proj=lcc" }]).proj4, "+proj=lcc");
+  const chosen = explorerMountOptions(entry, [{ id: entry.id, defaultVariable: "isobaric/temperature" }]);
+  assert.equal(chosen.defaultVariable, "isobaric/temperature");
+  assert.deepEqual(chosen.initialView, options.initialView);
+  const view = { bounds: [-10, 30, 10, 50] };
+  assert.deepEqual(explorerMountOptions(entry, [{ id: entry.id, initialView: view }]).initialView, view);
+});
+
+test("every optional dataset override in explorer/site/datasets.cjs is well formed", () => {
+  const overrides = require("../site/datasets.cjs").datasets;
+  assert.equal(new Set(overrides.map((d) => d.id)).size, overrides.length, "ids are unique");
+  for (const dataset of overrides) {
     assert.match(dataset.id, /^[a-z0-9-]+$/);
-    assert.equal(dataset.virtual === true || !dataset.id.includes("-virtual"), true, `${dataset.id} is virtual but not flagged`);
-    assert.equal(typeof dataset.defaultVariable, "string");
-    const { bounds } = dataset.initialView;
-    assert.equal(bounds.length, 4);
-    assert.ok(bounds[0] < bounds[2] && bounds[1] < bounds[3], `${dataset.id} bounds are west, south, east, north`);
+    if (dataset.virtual !== undefined) assert.equal(typeof dataset.virtual, "boolean");
+    if (dataset.defaultVariable !== undefined) assert.equal(typeof dataset.defaultVariable, "string");
+    if (dataset.initialView?.bounds) {
+      const { bounds } = dataset.initialView;
+      assert.equal(bounds.length, 4);
+      assert.ok(bounds[0] < bounds[2] && bounds[1] < bounds[3], `${dataset.id} bounds are west, south, east, north`);
+    }
   }
 });
 
@@ -161,8 +198,9 @@ test("the preview is an SVG path of the topology's borders in the site's colours
 
 const { exploreSection } = require("../site/plugin.cjs");
 
-test("the explorer shortcode renders nothing for a dataset without the explorer", () => {
-  assert.equal(exploreSection({ ...entry, id: "not-enabled" }, () => "<svg/>"), "");
+test("the explorer shortcode enables an unlisted id and omits entries without HTTPS Icechunk", () => {
+  assert.match(exploreSection({ ...entry, id: "new-unlisted-dataset" }, () => "<svg/>"), /<section class="explore"/);
+  assert.equal(exploreSection({ ...entry, assets: {} }, () => "<svg/>"), "");
 });
 
 test("the explorer shortcode renders the preview, the button and options that round-trip", () => {
@@ -195,6 +233,119 @@ const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
 const latOf = (y) => (2 * Math.atan(Math.exp(y * RAD)) - Math.PI / 2) / RAD;
 // The desktop frame, 778 × 437, fits bounds inside 20 px of padding: 738 × 397.
 const ASPECT = 738 / 397;
+
+test("all existing dataset views and default variables remain unchanged", () => {
+  const overrides = require("../site/datasets.cjs").datasets;
+  // Frozen pre-default policy, independent of the implementation's override rows.
+  const legacy = [
+    ["noaa-gfs-forecast", "conus"], ["noaa-gfs-analysis", "conus"],
+    ["noaa-gefs-forecast-35-day", "conus"], ["noaa-gefs-analysis", "conus"],
+    ["noaa-hrrr-forecast-48-hour", "conus"], ["noaa-hrrr-analysis", "houston"],
+    ["noaa-mrms-conus-analysis-hourly", "houston", "precipitation_surface"],
+    ["ecmwf-aifs-single-forecast", "conus"], ["ecmwf-aifs-ens-forecast", "conus"],
+    ["ecmwf-ifs-ens-forecast-15-day-0-25-degree", "conus"],
+    ["ecmwf-ifs-ens-forecast-46-day-daily-1-5-degree", "conus", "average_temperature_2m"],
+    ["ecmwf-ifs-ens-forecast-46-day-6-hourly-1-5-degree", "conus", "maximum_temperature_2m"],
+    ["dwd-icon-eu-forecast-5-day", "europe"], ["eccc-hrdps-forecast", "canada"],
+    ["nasa-imerg-analysis-early", "conus", "precipitation_surface"],
+    ["nasa-imerg-analysis-late", "conus", "precipitation_surface"],
+    ["noaa-gfs-forecast-virtual", "world"], ["noaa-gfs-analysis-virtual", "world"],
+    ["noaa-gefs-forecast-10-day-0-25-degree-virtual", "world"],
+    ["noaa-gefs-forecast-16-day-0-5-degree-virtual", "world"],
+    ["noaa-gefs-forecast-35-day-0-5-degree-virtual", "world"],
+    ["noaa-gefs-analysis-0-25-degree-virtual", "world"],
+    ["noaa-hrrr-forecast-48-hour-virtual", "conus"], ["noaa-hrrr-forecast-18-hour-virtual", "conus"],
+    ["noaa-hrrr-analysis-virtual", "conus"], ["ecmwf-aifs-single-forecast-virtual", "world"],
+  ];
+  const frames = { conus: [-125, 24, -66, 50], houston: [-97.5, 28.5, -93.5, 31.5],
+    europe: [-12, 35, 35, 62], canada: [-140, 40, -55, 65], world: [-180, -60, 180, 75] };
+  for (const [id, frame, variable = "temperature_2m"] of legacy) {
+    const options = explorerMountOptions({ ...entry, id, spatial_bbox: [-180, -90, 180, 90] }, overrides);
+    assert.deepEqual(options.initialView, { bounds: frames[frame] }, id);
+    assert.equal(options.defaultVariable, variable, id);
+    assert.equal(options.proj4, null, id);
+    assert.equal(options.virtual === true, id.endsWith("-virtual"), id);
+  }
+});
+
+test("new initial views use bbox before extent before domain, and stay Mercator-safe", () => {
+  const view = (metadata) => explorerMountOptions({ ...entry, ...metadata }).initialView.bounds;
+  assert.deepEqual(view({ spatial_bbox: [-20, 30, 25, 60], extent: { spatial: { bbox: [[-180, -90, 180, 90]] } } }), [-20, 30, 25, 60]);
+  assert.deepEqual(view({ spatial_bbox: [NaN, 0, 1, 2], extent: { spatial: { bbox: [[10, -20, 40, 30]] } } }), [10, -20, 40, 30]);
+  assert.deepEqual(view({ spatial_bbox: [-20, 30, -100, 25, 60, 1000] }), [-20, 30, 25, 60]);
+  const polar = view({ spatial_bbox: [10, -90, 30, 90] });
+  assert.deepEqual([polar[0], polar[2]], [10, 30]);
+  assert.ok(polar[1] > -90 && polar[3] < 90);
+  assert.ok(polar.every(Number.isFinite));
+  assert.deepEqual(view({ spatial_bbox: [170, -20, -170, 20] }), [170, -20, 190, 20]);
+  assert.deepEqual(view({ spatial_bbox: [200, -20, 240, 20] }), [-160, -20, -120, 20]);
+  assert.deepEqual(view({ spatial_bbox: [0, -90, 360, 90] }), [-125, 24, -66, 50]);
+  assert.deepEqual(view({ id: "global-virtual", spatial_bbox: [-180, -90, 180, 90] }), [-180, -60, 180, 75]);
+  assert.deepEqual(view({ spatial_domain: "Continental United States" }), [-125, 24, -66, 50]);
+  assert.deepEqual(view({ summaries: { spatial_domain: ["Global land, 60N-60S"] } }), [-180, -60, 180, 60]);
+  assert.deepEqual(view({ spatial_domain: "Canada" }), [-140, 40, -55, 65]);
+  assert.deepEqual(view({ spatial_domain: "Europe" }), [-12, 35, 35, 62]);
+  assert.deepEqual(view({ spatial_bbox: [0, 0, 0, 0] }), [-180, -60, 180, 75]);
+});
+
+test("derived variables prefer temperature then precipitation then a drawable spatial path", () => {
+  const variable = (name, dimension_names = ["time", "latitude", "longitude"]) => ({ name, dimension_names });
+  const choose = (variables, extra = {}) => explorerMountOptions({ ...entry, variableGroups: [], variables, ...extra }).defaultVariable;
+  const rain = variable("precipitation_surface");
+  const temp = variable("temperature_2m");
+  const wind = variable("wind_speed");
+  assert.equal(choose([wind, rain, temp]), "temperature_2m");
+  assert.equal(choose([wind, rain]), "precipitation_surface");
+  assert.equal(choose([variable("crs", []), variable("station_temp", ["station"]), wind]), "wind_speed");
+  assert.equal(choose([variable("temperature_2m", []), rain]), "precipitation_surface");
+  assert.equal(choose([variable("temperature", ["time", "y", "x", "level"]), rain]), "precipitation_surface");
+  const nested = { variableGroups: [{ name: "level", variables: [variable("wind", ["time", "y", "x", "level"])] }] };
+  assert.equal(choose([], { id: "new-virtual", ...nested }), "level/wind");
+  assert.equal(choose([variable("crs", [])]), undefined);
+});
+
+test("all eight new products are enabled, with derived frames and one variable override", () => {
+  const overrides = require("../site/datasets.cjs").datasets;
+  const regional = [-134.09547424316406, 21.13812255859375, -60.91719436645508, 52.61565399169922];
+  const ids = ["noaa-rrfs-forecast-sub-hourly-virtual", "noaa-rrfs-forecast-18-hour-virtual",
+    "noaa-rrfs-forecast-84-hour-virtual", "noaa-rrfs-ens-forecast-virtual",
+    "noaa-refs-forecast-hourly-virtual", "noaa-refs-forecast-3-hourly-virtual"];
+  for (const id of ids) {
+    const variable = id === "noaa-refs-forecast-3-hourly-virtual" ? "total_precipitation_3_hour_surface" : "temperature_2m";
+    const options = explorerMountOptions({ ...entry, id, spatial_bbox: regional,
+      variables: [{ name: variable, dimension_names: ["init_time", "lead_time", "y", "x"] }],
+      variableGroups: [],
+      ...cube(["init_time", "lead_time", "y", "x"], [1, 1, 1059, 1799], {
+        x: { extent: [-2697520, 2696480], size: 1799, unit: "m" },
+        y: { extent: [-1587306, 1586694], size: 1059, unit: "m" },
+      }),
+    }, overrides);
+    assert.deepEqual(options.initialView.bounds, [-125, 24, -66, 50], id);
+    assert.equal(options.defaultVariable, variable, id);
+    assert.equal(options.virtual, true, id);
+    assert.equal("proj4" in options, false, "CF Lambert mapping is used at runtime");
+  }
+  for (const id of ["ucsb-chc-chirps-analysis-final", "ucsb-chc-chirps-analysis-preliminary"]) {
+    const chirps = { ...entry, id, variableGroups: [],
+      spatial_bbox: [-179.975, -59.975, 179.975, 59.975],
+      variables: [{ name: "precipitation_surface", dimension_names: ["time", "latitude", "longitude"] }],
+    };
+    const options = explorerMountOptions(chirps);
+    assert.deepEqual(options.initialView.bounds, [-125, 24, -66, 50]);
+    assert.equal(options.defaultVariable, "precipitation_surface");
+    assert.equal("virtual" in options, false);
+    const chunked = explorerMountOptions({ ...chirps,
+      "cube:variables": { precipitation_surface: { dimensions: ["time", "latitude", "longitude"], chunks: [365, 60, 60] } },
+      "cube:dimensions": {
+        latitude: { extent: [-59.975, 59.975], size: 2400, unit: "degree_north" },
+        longitude: { extent: [-179.975, 179.975], size: 7200, unit: "degree_east" },
+      },
+    });
+    const view = shown(chunked.initialView.bounds);
+    assert.ok(Math.abs(view.lon + 95.5) < 0.01, "CHIRPS opens over the southern Plains, not at (0, 0)");
+    assert.ok(Math.abs(view.width - 18) < 0.01 && view.height <= 12, "CHIRPS obeys the 6 × 4 chunk budget");
+  }
+});
 
 // Bounds as the frame shows them, padding included: the width and height in degrees
 // the whole frame covers, the bounds' Mercator aspect, and their centre.

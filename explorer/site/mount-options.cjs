@@ -1,4 +1,4 @@
-// Turns a catalog entry plus its datasets.cjs row into the options the
+// Turns a catalog entry plus optional datasets.cjs overrides into the options the
 // explorer's mount() takes (see explorer/README.md). The page serializes them
 // into the Explore section, so this runs at build time only.
 
@@ -14,7 +14,7 @@ function explorerVariables(entry) {
     dims: v.dimension_names,
   });
   return [
-    ...entry.variables.map((v) => pick(v, v.name)),
+    ...(entry.variables || []).map((v) => pick(v, v.name)),
     ...(entry.variableGroups || []).flatMap((g) =>
       g.variables.map((v) => pick(v, `${g.name}/${v.name}`)),
     ),
@@ -31,6 +31,52 @@ const RAD = Math.PI / 180;
 // Web Mercator y in longitude-degree units, and back.
 const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
 const latOf = (y) => (2 * Math.atan(Math.exp(y * RAD)) - Math.PI / 2) / RAD;
+const MAX_LAT = 85.0511287798066;
+
+// Prefer the published geographic bbox, including for projected grids (RRFS/REFS
+// use Lambert like HRRR). Never interpret their metre-valued x/y extent as degrees.
+function initialView(entry, virtual) {
+  const safeBounds = (bbox) => {
+    if (!Array.isArray(bbox) || ![4, 6].includes(bbox.length) || !bbox.every(Number.isFinite)) return null;
+    let [w, s, e, n] = bbox.length === 6 ? [bbox[0], bbox[1], bbox[3], bbox[4]] : bbox;
+    if (e < w) e += 360; // a domain crossing the antimeridian
+    if (e - w >= 360) [w, e] = [-180, 180];
+    else {
+      const shift = 360 * Math.floor((w + 180) / 360);
+      w -= shift;
+      e -= shift;
+    }
+    s = Math.max(-MAX_LAT, Math.min(MAX_LAT, s));
+    n = Math.max(-MAX_LAT, Math.min(MAX_LAT, n));
+    return w < e && s < n ? [w, s, e, n] : null;
+  };
+  const published = safeBounds(entry.spatial_bbox) || safeBounds(entry.extent?.spatial?.bbox?.[0]);
+  if (published) {
+    const [w, s, e, n] = published;
+    // Follow the catalog's existing opening convention. A land-only global
+    // product such as CHIRPS would otherwise open in the Gulf of Guinea.
+    const bounds = virtual && e - w >= 359 ? [-180, -60, 180, 75]
+      : w <= -125 && s <= 24 && e >= -66 && n >= 50 ? [-125, 24, -66, 50]
+      : published;
+    return { bounds };
+  }
+  const domain = entry.spatial_domain || entry.summaries?.spatial_domain?.[0] || "";
+  const bounds = /60N.*60S/i.test(domain) ? [-180, -60, 180, 60]
+    : /continental united states|conus/i.test(domain) ? [-125, 24, -66, 50]
+    : /europe/i.test(domain) ? [-12, 35, 35, 62]
+    : /canada/i.test(domain) ? [-140, 40, -55, 65]
+    : [-180, -60, 180, 75];
+  return { bounds };
+}
+
+function defaultVariable(variables, virtual) {
+  const drawable = variables.filter(({ dims = [] }) => dims.some((d, i) =>
+    /^(latitude|lat|y)$/i.test(d) && /^(longitude|lon|x)$/i.test(dims[i + 1]) &&
+    (virtual || i === dims.length - 2),
+  ));
+  return (drawable.find((v) => v.name === "temperature_2m") ||
+    drawable.find((v) => v.name === "precipitation_surface") || drawable[0])?.path;
+}
 
 // A materialized dataset's first view: the row's initialView as the map shows it on a
 // desktop page (fitted to the 16:9 frame, like mount()), shrunk about its centre until the
@@ -81,19 +127,35 @@ function chunkView(entry, dataset) {
   return { bounds: [cLon - (width * f) / 2, s1, cLon + (width * f) / 2, n1].map(round) };
 }
 
-// Null when the dataset isn't enabled or publishes no HTTPS Icechunk asset,
+// Null when the dataset is explicitly opted out or publishes no HTTPS Icechunk asset,
 // which is the template's cue to leave the Explore section out.
-function explorerMountOptions(entry, datasets) {
-  const dataset = datasets.find((d) => d.id === entry.id);
+function explorerMountOptions(entry, datasets = [], optOuts = []) {
+  const optOut = optOuts.find((d) => d.id === entry.id);
+  if (optOut) {
+    if (typeof optOut.reason !== "string" || !optOut.reason.trim()) throw new Error(`Explore opt-out ${entry.id} needs a reason`);
+    return null;
+  }
   const href = entry.assets?.["icechunk-https"]?.href;
-  if (!dataset || !href) return null;
+  try {
+    if (new URL(href).protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
+  const overrides = datasets.find((d) => d.id === entry.id) || {};
+  const virtual = overrides.virtual ?? entry.id.endsWith("-virtual");
+  const variables = explorerVariables(entry);
+  const dataset = {
+    initialView: overrides.initialView ?? initialView(entry, virtual),
+    defaultVariable: overrides.defaultVariable ?? defaultVariable(variables, virtual),
+    virtual,
+  };
   return {
     id: entry.id,
     href,
-    variables: explorerVariables(entry),
+    variables,
     defaultVariable: dataset.defaultVariable,
     initialView: chunkView(entry, dataset),
-    proj4: dataset.proj4,
+    ...(overrides.proj4 !== undefined ? { proj4: overrides.proj4 } : {}),
     ...(dataset.virtual ? { virtual: true } : {}),
   };
 }

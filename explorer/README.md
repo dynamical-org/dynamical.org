@@ -23,12 +23,47 @@ The plugin
   `package.json` or `package-lock.json` changes. The bundle in `dist/` is build output
   and is not committed;
 - copies `dist/` to `/explorer/`;
-- renders the Explore section for the datasets listed in `site/datasets.cjs`, and
-  nothing for the rest: an empty map of the initial view (`site/preview.cjs`, SVG
+- renders the Explore section for every catalog entry with an HTTPS `icechunk-https`
+  asset, except explicit opt-outs in `site/datasets.cjs`: an empty map of the initial
+  view (`site/preview.cjs`, SVG
   built from the same borders the map draws) under a "Load interactive map" button,
   the section's styles (`site/section.css`) and the click handler that imports
   `/explorer/explorer.js` (`site/loader.js`). No explorer JS or weather data loads
   before the click.
+
+`site/datasets.cjs` exports an `optOuts` list of `{ id, reason }` objects, currently
+empty. Add an opt-out only when a dataset cannot work, with a one-line reason;
+an opt-out without a reason fails the build. Its `datasets` list contains optional
+overrides, not the set of enabled datasets. A new catalog entry needs no row.
+Any of `initialView`, `defaultVariable`, `virtual` and `proj4` may be omitted.
+The existing rows retain their initial views and default variables, including
+the chunk-based zoom described below.
+
+Without overrides, `site/mount-options.cjs` derives:
+
+- The initial frame from `spatial_bbox`, then `extent.spatial.bbox[0]`, then the
+  spatial domain (CONUS, Europe, Canada or 60N–60S); otherwise a world frame.
+  Bbox latitudes are clamped to Web Mercator's limits; longitude bounds are
+  normalized, retaining domains that cross the antimeridian. Global virtual
+  stores (at least 359° wide) use the world frame; otherwise a bbox containing
+  CONUS opens on CONUS, and regional bboxes open on their own bounds. This keeps
+  land-only global products such as CHIRPS from opening at (0, 0) in the ocean.
+  Materialized stores then shrink to at most 6 × 4 spatial chunks of the default variable at desktop
+  size when STAC supplies chunk metadata. Virtual stores keep the full frame.
+- The first variable from drawable spatial variables, preferring `temperature_2m`,
+  then `precipitation_surface`, then the first spatial variable (including nested
+  group paths). Variables with no map dimensions are skipped for this default;
+  the browser still checks codecs and grid metadata and disables unsupported
+  choices. If no spatial candidate exists, the browser selects its first usable
+  variable or reports that none can be drawn.
+- `virtual: true` for an id ending in `-virtual`; an explicit boolean overrides it.
+- No projection override: the browser uses the store's CF grid mapping.
+
+RRFS/REFS therefore open on CONUS and use CF Lambert conformal mapping like HRRR.
+CHIRPS uses its 60N–60S latitude/longitude domain
+and opens on CONUS, shrinking to the chunk budget, with precipitation selected.
+REFS 3-hourly has neither preferred variable, so its optional override selects
+`total_precipitation_3_hour_surface`. Neither family needs enable-list entries.
 
 Elsewhere, the repo's `npm test` and `playwright.config.mjs` run `explorer/test/`, the
 browser-test workflow's path filter includes `explorer/**` and the two files above, and
@@ -372,13 +407,16 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 - layouts with a trailing level dim;
 - the failure-evicting promise cache;
 - the GRIB codec against gribberish's Python codec, on fixtures for DRS 5.0,
-  5.0 + bitmap, 5.3, 5.3 + bitmap and 5.42;
+  5.0 + bitmap, 5.3, 5.3 + bitmap and 5.42, plus REFS zero-group constant
+  fields and RRFS implicit group descriptors with a bitmap;
 - the retrying fetch client;
 - the data-received meter, alone and through the retrying client;
 - the legend text: units, close bounds, constant, sparse and empty samples;
 - the tile facade;
 - the byte cache: ranges, eviction, failed and missing reads, copies;
-- the site plugin: mount options, the chunk-derived first view, the Explore section's
+- the site plugin: automatic HTTPS Icechunk eligibility, reasoned opt-outs, optional
+  overrides, preserved existing defaults, derived views and variables, the
+  chunk-derived first view, the Explore section's
   markup and escaping, the preview's projection and clipping, and when the build hook
   installs and builds.
 

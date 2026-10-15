@@ -5,13 +5,13 @@
 //   process: watch-mode rebuilds reuse it;
 // - copies that bundle to /explorer/;
 // - renders the section: an empty-map preview with the load button, its styles
-//   (section.css) and the click loader (loader.js). Datasets not listed in
-//   datasets.cjs render nothing.
+//   (section.css) and the click loader (loader.js). Every HTTPS Icechunk entry
+//   gets a section unless explicitly opted out in datasets.cjs.
 const fs = require("fs");
 const path = require("path");
 const fetch = require("@11ty/eleventy-fetch");
 const { makeExplorerBuilder } = require("./build.cjs");
-const { datasets } = require("./datasets.cjs");
+const { datasets, optOuts } = require("./datasets.cjs");
 const { explorerMountOptions } = require("./mount-options.cjs");
 const { previewSvg } = require("./preview.cjs");
 
@@ -29,7 +29,7 @@ const escapeAttribute = (s) =>
 // The Explore section for one catalog entry, or "" when it has no explorer.
 // `preview(bounds)` is the empty-map SVG of the view the map opens on.
 function exploreSection(entry, preview) {
-  const options = explorerMountOptions(entry, datasets);
+  const options = explorerMountOptions(entry, datasets, optOuts);
   if (!options) return "";
   return `<style>
 ${CSS}</style>

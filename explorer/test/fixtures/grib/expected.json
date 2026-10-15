@@ -2,7 +2,7 @@
  "generatedWith": {
   "eccodes": "2.49.0",
   "eccodes_api": "2.49.0",
-  "gribberish": "1.8.0",
+  "gribberish": "1.8.4",
   "zarr": "3.4.0"
  },
  "fixtures": {
@@ -465,6 +465,368 @@
        "row": 33,
        "col": 71,
        "value": 284.170654296875
+      }
+     ]
+    }
+   ]
+  },
+  "refs-zero-group-nonzero.grib2": {
+   "fileSha256": "b9d40a689f5ab0a99c2db48109da198d9ead1f50d8bf1c735955f369b8d25b1f",
+   "bytes": 229,
+   "source": {
+    "url": "https://raw.githubusercontent.com/mpiannucci/gribberish/5e039e1f87b9cf6586c4fc060bb52b563ed3ef36/test-data/20260915-12-prob-f01-22.grib2",
+    "offset": 0,
+    "length": 229
+   },
+   "drs": 3,
+   "grid": 30,
+   "bitmap": false,
+   "shape": [
+    1059,
+    1799
+   ],
+   "southFirst": true,
+   "shortName": "cin",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "39104639dd4e7d64002c2005135610e1159d9406da6d0b941379cd80e4fc70d3",
+     "nanCount": 0,
+     "min": 100.00001525878906,
+     "max": 100.00001525878906,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 0,
+       "col": 1798,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 529,
+       "col": 0,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 529,
+       "col": 898,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 529,
+       "col": 899,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 1058,
+       "col": 1798,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 100.00001525878906
+      }
+     ]
+    },
+    {
+     "config": {
+      "adjust_longitude_range": false,
+      "north_up": false
+     },
+     "sha256": "39104639dd4e7d64002c2005135610e1159d9406da6d0b941379cd80e4fc70d3",
+     "nanCount": 0,
+     "min": 100.00001525878906,
+     "max": 100.00001525878906,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 0,
+       "col": 1798,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 529,
+       "col": 0,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 529,
+       "col": 898,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 529,
+       "col": 899,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 1058,
+       "col": 1798,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 100.00001525878906
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 100.00001525878906
+      }
+     ]
+    }
+   ],
+   "originalSource": {
+    "url": "https://noaa-rrfs-ops-pds.s3.amazonaws.com/refs.20260915/12/ensprod/refs.t12z.prob.f01.conus.grib2",
+    "offset": 4204057,
+    "length": 229
+   }
+  },
+  "refs-zero-group-zero.grib2": {
+   "fileSha256": "ba807b00bda3cf0abe60223ddfc4476a3b764dcefa07bdbefb86adcc8384cfc4",
+   "bytes": 218,
+   "source": {
+    "url": "https://raw.githubusercontent.com/mpiannucci/gribberish/5e039e1f87b9cf6586c4fc060bb52b563ed3ef36/test-data/20260915-12-sprd-f01-63.grib2",
+    "offset": 0,
+    "length": 218
+   },
+   "drs": 3,
+   "grid": 30,
+   "bitmap": false,
+   "shape": [
+    1059,
+    1799
+   ],
+   "southFirst": true,
+   "shortName": "crain",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "b0379dce013d12446af5c48bf41b14a3f7571c8c5e20cecacd48f2026881d61c",
+     "nanCount": 0,
+     "min": 0.0,
+     "max": 0.0,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 0.0
+      },
+      {
+       "row": 0,
+       "col": 1798,
+       "value": 0.0
+      },
+      {
+       "row": 529,
+       "col": 0,
+       "value": 0.0
+      },
+      {
+       "row": 529,
+       "col": 898,
+       "value": 0.0
+      },
+      {
+       "row": 529,
+       "col": 899,
+       "value": 0.0
+      },
+      {
+       "row": 1058,
+       "col": 1798,
+       "value": 0.0
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 0.0
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 0.0
+      }
+     ]
+    },
+    {
+     "config": {
+      "adjust_longitude_range": false,
+      "north_up": false
+     },
+     "sha256": "b0379dce013d12446af5c48bf41b14a3f7571c8c5e20cecacd48f2026881d61c",
+     "nanCount": 0,
+     "min": 0.0,
+     "max": 0.0,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 0.0
+      },
+      {
+       "row": 0,
+       "col": 1798,
+       "value": 0.0
+      },
+      {
+       "row": 529,
+       "col": 0,
+       "value": 0.0
+      },
+      {
+       "row": 529,
+       "col": 898,
+       "value": 0.0
+      },
+      {
+       "row": 529,
+       "col": 899,
+       "value": 0.0
+      },
+      {
+       "row": 1058,
+       "col": 1798,
+       "value": 0.0
+      },
+      {
+       "row": 10,
+       "col": 17,
+       "value": 0.0
+      },
+      {
+       "row": 33,
+       "col": 71,
+       "value": 0.0
+      }
+     ]
+    }
+   ],
+   "originalSource": {
+    "url": "https://noaa-rrfs-ops-pds.s3.amazonaws.com/refs.20260915/12/ensprod/refs.t12z.sprd.f01.conus.grib2",
+    "offset": 61047683,
+    "length": 218
+   }
+  },
+  "rrfs-implicit-descriptors-bitmap.grib2": {
+   "fileSha256": "b14f56617a85e7f6124d42922dd75062769c2376cc6ab0ce59fd214c06a5f383",
+   "bytes": 242,
+   "source": {
+    "url": "https://raw.githubusercontent.com/mpiannucci/gribberish/5e039e1f87b9cf6586c4fc060bb52b563ed3ef36/test-data/rrfs.t12z.f084-PEVAP-complex-descriptors-tiny.grib2",
+    "offset": 0,
+    "length": 242
+   },
+   "drs": 2,
+   "grid": 30,
+   "bitmap": true,
+   "shape": [
+    2,
+    4
+   ],
+   "southFirst": true,
+   "shortName": "pevap",
+   "cases": [
+    {
+     "config": {
+      "adjust_longitude_range": true,
+      "north_up": true
+     },
+     "sha256": "e2697d61c084fddbd4253954964a8cc3a21fbbe129f34477670eb104490fed9b",
+     "nanCount": 5,
+     "min": 54500.0,
+     "max": 57700.0,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": 54500.0
+      },
+      {
+       "row": 0,
+       "col": 3,
+       "value": null
+      },
+      {
+       "row": 1,
+       "col": 0,
+       "value": null
+      },
+      {
+       "row": 1,
+       "col": 1,
+       "value": 57700.0
+      },
+      {
+       "row": 1,
+       "col": 2,
+       "value": null
+      },
+      {
+       "row": 1,
+       "col": 3,
+       "value": null
+      }
+     ]
+    },
+    {
+     "config": {
+      "adjust_longitude_range": false,
+      "north_up": false
+     },
+     "sha256": "252a44c51848cbbac901e572da1932d99ce82df3e62d96874c5b3fb736690863",
+     "nanCount": 5,
+     "min": 54500.0,
+     "max": 57700.0,
+     "samples": [
+      {
+       "row": 0,
+       "col": 0,
+       "value": null
+      },
+      {
+       "row": 0,
+       "col": 3,
+       "value": null
+      },
+      {
+       "row": 1,
+       "col": 0,
+       "value": 54500.0
+      },
+      {
+       "row": 1,
+       "col": 1,
+       "value": null
+      },
+      {
+       "row": 1,
+       "col": 2,
+       "value": 54500.0
+      },
+      {
+       "row": 1,
+       "col": 3,
+       "value": null
       }
      ]
     }

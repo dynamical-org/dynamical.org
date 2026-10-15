@@ -1,7 +1,25 @@
-// Catalog datasets whose page offers the in-browser map explorer: the
-// {% explorer entry %} shortcode (plugin.cjs) renders an Explore section for
-// these ids only. An id missing from this list gets no Explore section. Per
-// dataset:
+// Explore is enabled for every catalog entry with an HTTPS Icechunk asset.
+// Opt-outs must name an id and explain why its map cannot work, e.g.
+// { id: "example", reason: "Its grid is not supported by the browser renderer." }.
+// No current dataset requires an opt-out.
+const optOuts = [];
+
+// Newly enabled first views, measured 2026-10-15 UTC in headless Chromium, a
+// 1280-wide page and the current 778×438 CSS px map. Decimal MB of compressed
+// data response bodies (store metadata/chunks + upstream GRIB; excludes JS,
+// WASM and borders). These products need no row unless overriding a default:
+// noaa-rrfs-forecast-sub-hourly-virtual: 1.84 MB (0.17 store + 1.67 GRIB), 10-15 00Z, +0.25 h.
+// noaa-rrfs-forecast-18-hour-virtual: 1.89 MB (0.21 + 1.68), 10-15 00Z, +0 h.
+// noaa-rrfs-forecast-84-hour-virtual: 2.37 MB (0.64 + 1.74), 10-14 18Z, +0 h.
+// noaa-rrfs-ens-forecast-virtual: 3.30 MB (1.56 + 1.74), 10-14 18Z, +0 h, member 0.
+// noaa-refs-forecast-hourly-virtual: 1.51 MB (0.43 + 1.08), 10-14 18Z, +1 h, mean.
+// noaa-refs-forecast-3-hourly-virtual: 2.10 MB (0.30 + 1.80), 10-14 18Z, +3 h, mean.
+// ucsb-chc-chirps-analysis-final: 20.76 MB, time 2026-08-31.
+// ucsb-chc-chirps-analysis-preliminary: 21.07 MB, time 2026-10-10.
+
+// Optional per-dataset overrides. Missing rows and fields use catalog/STAC
+// defaults in mount-options.cjs; this is not an enable list. Existing rows keep
+// their measured opening views and variable choices. Per dataset:
 //
 // - initialView: what the map fits on load, bounds [west, south, east, north].
 //   - Materialized: the outer frame. Global and US products use CONUS, regional
@@ -245,6 +263,12 @@ const datasets = [
     // 0.81 MB (0.19 store + 0.62 GRIB), snapshot X4G5D2WQDY7YXXM53XD0, init
     // 2026-09-25 12Z.
   },
+  {
+    id: "noaa-refs-forecast-3-hourly-virtual",
+    // Neither preferred variable exists; open on the 3-hour precipitation
+    // accumulation rather than the first ensemble-agreement probability.
+    defaultVariable: "total_precipitation_3_hour_surface",
+  },
 ];
 
-module.exports = { datasets };
+module.exports = { datasets, optOuts };
