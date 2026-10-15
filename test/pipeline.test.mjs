@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
+import { matchedDependencyFixtures } from "./fixtures/pipeline-matched-dependencies.mjs";
 import { sourceBudgetProduct } from "./fixtures/pipeline-source-budget.mjs";
 import {
   agencySummary,
@@ -1330,6 +1331,81 @@ test("validates ready and pending published pipeline lag", () => {
     },
   });
   assert.equal(validateDashboard(current), current);
+});
+
+for (const { product: fixture, source, expectedLags } of matchedDependencyFixtures()) {
+  test(`matched dependencies accept ready, pending and empty statistics: ${fixture.id}`, () => {
+    for (const status of ["ready", "pending", "empty"]) {
+      const product = structuredClone(fixture);
+      if (status === "pending") {
+        Object.assign(product.pipeline_lag, {
+          status, window_start: null, window_end: null, generated_at: null, stats: null,
+        });
+      } else if (status === "empty") {
+        product.pipeline_lag.stats = {
+          p50_s: null, p95_s: null, p99_s: null, avg_s: null, sample_init_count: 0, sample_day_count: 0,
+        };
+      }
+      const payload = { ...dashboard(), v: 3 };
+      payload.groups[0].products = [source, product];
+      assert.equal(validateDashboard(payload), payload);
+      assert.deepEqual(lagSources(product, payload.groups[0].products), [source]);
+    }
+    const unknown = structuredClone(fixture);
+    unknown.pipeline_lag.basis = "unknown";
+    assert.deepEqual(lagSources(unknown, [source, unknown]), []);
+  });
+
+  test(`matched band lag uses each published subset clock: ${fixture.id}`, () => {
+    const product = structuredClone(fixture);
+    const details = lagAt(product, lagSources(product, [source, product]));
+    assert.equal(details.lagged, true);
+    assert.deepEqual(details.rows.map(row => row.last.lag), expectedLags);
+    assert.equal(product.recent_inits[0].pipeline_lag_s, -10);
+    // Raw horizons can change or disappear without changing the published subset.
+    const unrelated = { ...source, lead_group_stats: [], recent_inits: [] };
+    assert.deepEqual(lagAt(product, [unrelated]), details);
+
+    const current = structuredClone(product.recent_inits[0]);
+    current.init_time = "2026-01-01T06:00:00Z";
+    current.status = "in_flight";
+    current.lead_groups.at(-1).status = "in_flight";
+    product.recent_inits.push(current);
+    const active = lagAt(product, [source]);
+    assert.deepEqual(active.rows.map(row => row.run.lag), [...expectedLags.slice(0, -1), "—"]);
+  });
+}
+
+test("matched band lag needs a completed band and finite latency, deadline and budget", () => {
+  const { product: fixture, source } = matchedDependencyFixtures()[0];
+  for (const field of ["latency_s", "deadline_s", "budget_after_source_s"]) {
+    for (const value of field === "latency_s" ? [undefined, null] : [undefined, null, NaN, Infinity]) {
+      const product = structuredClone(fixture);
+      const target = field === "budget_after_source_s" ? product : product.recent_inits[0].lead_groups[0];
+      target[field] = value;
+      assert.equal(lagAt(product, [source]).rows[0].last.lag, "—", `${field}=${value}`);
+    }
+  }
+  for (const status of ["pending", "in_flight"]) {
+    const product = structuredClone(fixture);
+    product.recent_inits[0].lead_groups[0].status = status;
+    assert.equal(lagAt(product, [source]).rows[0].last.lag, "—");
+  }
+});
+
+test("existing lag bases retain the source horizon clock even with deadlines", () => {
+  const { product: fixture, source } = matchedDependencyFixtures()[1];
+  for (const basis of ["whole_run", "shared_nat_prs_sfc"]) {
+    const product = structuredClone(fixture);
+    product.pipeline_lag.basis = basis;
+    const sources = lagSources(product, [source, product]);
+    assert.deepEqual(sources, [source]);
+    const before = lagAt(product, sources);
+    assert.deepEqual(before.rows.map(row => row.last.lag), ["−14m", "−13m", "−13m"]);
+    delete product.budget_after_source_s;
+    for (const band of product.recent_inits[0].lead_groups) delete band.deadline_s;
+    assert.deepEqual(lagAt(product, sources), before);
+  }
 });
 
 test("malformed optional lag fields degrade only the affected lag", () => {

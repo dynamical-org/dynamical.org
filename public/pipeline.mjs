@@ -108,7 +108,7 @@ function validPipelineLag(lag) {
   if (
     !lag ||
     !["ready", "pending"].includes(lag.status) ||
-    !["shared_nat_prs_sfc", "whole_run"].includes(lag.basis) ||
+    !["shared_nat_prs_sfc", "whole_run", "matched_dependencies"].includes(lag.basis) ||
     !Array.isArray(lag.source_ids) ||
     lag.source_ids.length === 0 ||
     !lag.source_ids.every((sourceId) => typeof sourceId === "string" && sourceId !== "") ||
@@ -1240,8 +1240,16 @@ export function detailRows(product, now, local, sources = []) {
   const afterLast = sourceArrivals(sources, last?.init_time);
   const afterActive = sourceArrivals(sources, active?.init_time);
   const horizons = horizonIndex(product);
-  // this run's horizon, less the source's own arrival for the same horizon
+  // Matched subsets publish their own source clock through the deadline.
   const lagOf = (init, arrivals, stats) => {
+    if (product.pipeline_lag?.basis === "matched_dependencies") {
+      const ours = arrivedAt(init, stats.name);
+      const deadline = namedGroup(init, stats.name)?.deadline_s;
+      const budget = product.budget_after_source_s;
+      return [ours, deadline, budget].every(Number.isFinite)
+        ? ours - (deadline - budget)
+        : null;
+    }
     const key = horizons.keyByName.get(stats.name);
     if (key == null || horizons.ambiguous.has(key)) return null;
     const ours = arrivedAt(init, stats.name);
