@@ -64,7 +64,8 @@ test("a product with no listing has no External listings", async ({ page }) => {
   test.skip(!unlisted, "every catalog product has an entry in _data/listings.js");
   await page.goto(`/catalog/${unlisted.id}/`);
   await expect(page.locator("h3", { hasText: "External listings" })).toHaveCount(0);
-  expect(await order(page)).toEqual(["examples", "frame", "explore", "dimensions", "details"]);
+  // Unlisted products can lack an explorer (for example, virtual datasets).
+  expect((await order(page)).filter(section => section !== "explore")).toEqual(["examples", "frame", "dimensions", "details"]);
 });
 
 test("the prompt tab shows and copies this product's prompt", async ({ page }) => {
