@@ -3,7 +3,7 @@
 # dependencies = [
 #   "eccodes==2.48.0",
 #   "eccodeslib==2.49.0.30",
-#   "gribberish==1.8.0",
+#   "gribberish==1.8.4",
 #   "numpy==2.5.3",
 #   "zarr==3.4.0",
 # ]
@@ -12,19 +12,24 @@
 
     uv run explorer/test/fixtures/grib/make_fixtures.py
 
-Each fixture starts from a real message that a virtual store references. It is subsampled
+The global fixtures start from real messages that virtual stores reference, subsampled
 to a 4° global grid (46 x 90) and re-encoded with eccodes in one data representation
-template, which keeps the files at a few KB. The expected values come from gribberish's own
+template. The tiny RRFS/REFS regressions come unchanged from the pinned upstream release:
+two complete REFS zero-group constant messages and a reduced PEVAP message retaining its
+original packed data. The expected values come from gribberish's own
 Python zarr codec (the one that wrote the stores' metadata), run through zarr on the fixture
 bytes with the codec configuration the stores use. That makes the JS test a check against
 the reference implementation, not against itself.
 
 The AIFS source lives on ECMWF's open-data bucket, which only keeps recent runs. Once it
-has aged out, point AIFS_T2M at a newer message; the committed fixtures stay valid.
+has aged out, point AIFS_T2M at a newer message; the committed fixtures stay valid. Before
+refreshing sources, use --check to compare existing expectations with the pinned codec.
 """
 
+import argparse
 import hashlib
 import json
+from importlib.metadata import version
 import urllib.request
 from pathlib import Path
 
@@ -50,6 +55,33 @@ AIFS_T2M = (
     538304,
 )  # ecmwf-aifs-single-forecast-virtual temperature_2m, DRS 5.42
 
+# Immutable copies of public NOAA messages; see upstream constant_fields.rs and
+# complex_group_descriptors.rs for their original provenance and independent checks.
+UPSTREAM = "https://raw.githubusercontent.com/mpiannucci/gribberish/5e039e1f87b9cf6586c4fc060bb52b563ed3ef36/test-data/"
+UPSTREAM_FIXTURES = {
+    "refs-zero-group-nonzero.grib2": (
+        "20260915-12-prob-f01-22.grib2", 229,
+        "b9d40a689f5ab0a99c2db48109da198d9ead1f50d8bf1c735955f369b8d25b1f",
+    ),
+    "refs-zero-group-zero.grib2": (
+        "20260915-12-sprd-f01-63.grib2", 218,
+        "ba807b00bda3cf0abe60223ddfc4476a3b764dcefa07bdbefb86adcc8384cfc4",
+    ),
+    "rrfs-implicit-descriptors-bitmap.grib2": (
+        "rrfs.t12z.f084-PEVAP-complex-descriptors-tiny.grib2", 242,
+        "b14f56617a85e7f6124d42922dd75062769c2376cc6ab0ce59fd214c06a5f383",
+    ),
+}
+# Verified byte-for-byte against these NOAA REFS messages. The immutable upstream
+# copies above keep regeneration possible after NOAA's rolling retention expires.
+REFS = "https://noaa-rrfs-ops-pds.s3.amazonaws.com/refs.20260915/12/ensprod/"
+ORIGINAL_SOURCES = {
+    # Index row 22: CIN, 90–0 mb above ground, probability <0, f01.
+    "refs-zero-group-nonzero.grib2": (REFS + "refs.t12z.prob.f01.conus.grib2", 4204057, 229),
+    # Index row 63: CRAIN, surface, ensemble spread, f01.
+    "refs-zero-group-zero.grib2": (REFS + "refs.t12z.sprd.f01.conus.grib2", 61047683, 218),
+}
+
 STORE_CONFIG = {"adjust_longitude_range": True, "north_up": True}
 RAW_CONFIG = {"adjust_longitude_range": False, "north_up": False}
 MISSING = 9999.0
@@ -60,10 +92,12 @@ def fetch(ref: tuple[str, int, int]) -> bytes:
     req = urllib.request.Request(
         url, headers={"Range": f"bytes={offset}-{offset + length - 1}"}
     )
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, timeout=60) as r:
         data = r.read()
     if len(data) != length:
         raise RuntimeError(f"{url}: expected {length} bytes, got {len(data)}")
+    if data[:4] != b"GRIB" or int.from_bytes(data[8:16], "big") != length or data[-4:] != b"7777":
+        raise RuntimeError(f"{url}: range is not one complete GRIB2 message")
     return data
 
 
@@ -160,6 +194,7 @@ def expected_case(message: bytes, shape: list[int], config: dict) -> dict:
         (10, 17),
         (33, 71),
     ]
+    probes = [(r, c) for r, c in probes if r < shape[0] and c < shape[1]]
     return {
         "config": config,
         "sha256": hashlib.sha256(v.tobytes()).hexdigest(),
@@ -174,6 +209,20 @@ def expected_case(message: bytes, shape: list[int], config: dict) -> dict:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="check committed fixtures against Python without fetching or writing")
+    args = parser.parse_args()
+    assert version("gribberish") == "1.8.4"
+    if args.check:
+        expected = json.loads((HERE / "expected.json").read_text())["fixtures"]
+        for name, info in expected.items():
+            message = (HERE / name).read_bytes()
+            assert hashlib.sha256(message).hexdigest() == info["fileSha256"], name
+            for case in info["cases"]:
+                actual = expected_case(message, info["shape"], case["config"])
+                assert actual == case, f"{name}: {case['config']}\nexpected: {case}\nactual: {actual}"
+            print(name, "unchanged under gribberish", version("gribberish"))
+        return
     gfs_t2m, gfs_soill, aifs_t2m = fetch(GFS_T2M), fetch(GFS_SOILL), fetch(AIFS_T2M)
     fixtures = {
         "simple.grib2": (derive(gfs_t2m, "grid_simple"), GFS_T2M, [STORE_CONFIG]),
@@ -198,6 +247,11 @@ def main() -> None:
             [STORE_CONFIG, RAW_CONFIG],
         ),
     }
+    for name, (path, length, checksum) in UPSTREAM_FIXTURES.items():
+        source = (UPSTREAM + path, 0, length)
+        message = fetch(source)
+        assert hashlib.sha256(message).hexdigest() == checksum, name
+        fixtures[name] = (message, source, [STORE_CONFIG, RAW_CONFIG])
     expected = {}
     for name, (message, source, configs) in fixtures.items():
         (HERE / name).write_bytes(message)
@@ -209,11 +263,14 @@ def main() -> None:
             **info,
             "cases": [expected_case(message, info["shape"], cfg) for cfg in configs],
         }
+        if name in ORIGINAL_SOURCES:
+            url, offset, length = ORIGINAL_SOURCES[name]
+            expected[name]["originalSource"] = {"url": url, "offset": offset, "length": length}
         print(name, len(message), "B", info)
     versions = {
         "eccodes": eccodes.__version__,
         "eccodes_api": eccodes.codes_get_api_version(),
-        "gribberish": "1.8.0",
+        "gribberish": version("gribberish"),
         "zarr": zarr.__version__,
     }
     (HERE / "expected.json").write_text(

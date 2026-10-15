@@ -11,7 +11,7 @@ import { createTileFacade, isWholeGridChunked } from "../src/grib/tile-facade.js
 
 const grib = new URL("../src/grib/", import.meta.url);
 const fixtures = new URL("fixtures/grib/", import.meta.url);
-const expected = JSON.parse(readFileSync(new URL("expected.json", fixtures), "utf8")).fixtures;
+const { generatedWith, fixtures: expected } = JSON.parse(readFileSync(new URL("expected.json", fixtures), "utf8"));
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 await initGrib(readFileSync(new URL("gribwasm_bg.wasm", grib)));
@@ -23,6 +23,10 @@ test("built decoder matches SHA256SUMS", () => {
     const [sum, name] = line.split(/\s+/);
     assert.equal(sha256(readFileSync(new URL(name, grib))), sum, name);
   }
+});
+
+test("reference expectations use the released gribberish 1.8.4 Python codec", () => {
+  assert.equal(generatedWith.gribberish, "1.8.4");
 });
 
 for (const [name, fx] of Object.entries(expected)) {
@@ -47,6 +51,46 @@ for (const [name, fx] of Object.entries(expected)) {
     }
   });
 }
+
+function sections(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const out = new Map();
+  for (let offset = 16; offset < bytes.length - 4;) {
+    const length = view.getUint32(offset);
+    assert.ok(length >= 5 && offset + length <= bytes.length - 4);
+    out.set(bytes[offset + 4], view.buffer.slice(view.byteOffset + offset, view.byteOffset + offset + length));
+    offset += length;
+  }
+  return out;
+}
+
+for (const [name, value] of [["refs-zero-group-zero.grib2", 0], ["refs-zero-group-nonzero.grib2", 100.00001525878906]]) {
+  test(`${name}: real REFS DRT 5.3 zero groups expand the unscaled reference across the whole grid`, async () => {
+    const bytes = readFileSync(new URL(name, fixtures));
+    const parts = sections(bytes);
+    const s5 = new DataView(parts.get(5));
+    assert.equal(s5.getUint16(9), 3);
+    assert.equal(s5.getUint32(31), 0, "zero groups");
+    assert.equal(s5.getUint8(48), 0, "zero spatial descriptor octets");
+    assert.equal(parts.get(7).byteLength, 5, "no packed data payload");
+    assert.equal(s5.getFloat32(11), value);
+    const chunk = await GribberishCodec.fromConfig({}, { dataType: "float64", shape: [1059, 1799] }).decode(bytes);
+    assert.ok(chunk.data.every((v) => v === value), "every point equals the reference value");
+  });
+}
+
+test("real RRFS PEVAP implicit descriptors preserve scaled values and missing bitmap cells", async () => {
+  const bytes = readFileSync(new URL("rrfs-implicit-descriptors-bitmap.grib2", fixtures));
+  const s5 = new DataView(sections(bytes).get(5));
+  assert.equal(s5.getUint16(9), 2);
+  assert.equal(s5.getUint32(31), 1, "one group");
+  assert.equal(s5.getUint8(19), 0, "implicit group references");
+  assert.equal(s5.getUint8(36), 0, "implicit group widths");
+  assert.equal(s5.getUint8(46), 0, "implicit group lengths");
+  const chunk = await GribberishCodec.fromConfig({}, { dataType: "float64", shape: [2, 4] }).decode(bytes);
+  // Upstream also independently verified these values with wgrib2.
+  assert.deepEqual(Array.from(chunk.data), [NaN, 57700, NaN, NaN, 54500, NaN, 54500, NaN]);
+});
 
 test("float32 arrays get Float32Array chunks", async () => {
   const bytes = new Uint8Array(readFileSync(new URL("complex-spatial.grib2", fixtures)));

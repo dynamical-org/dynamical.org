@@ -1,7 +1,11 @@
-// Catalog datasets whose page offers the in-browser map explorer: the
-// {% explorer entry %} shortcode (plugin.cjs) renders an Explore section for
-// these ids only. An id missing from this list gets no Explore section. Per
-// dataset:
+// Explore is enabled for every catalog entry with an HTTPS Icechunk asset.
+// Opt-outs must name an id and explain why its map cannot work, e.g.
+// { id: "example", reason: "Its grid is not supported by the browser renderer." }.
+// No current dataset requires an opt-out.
+const optOuts = [];
+// Optional per-dataset overrides. Missing rows and fields use catalog/STAC
+// defaults in mount-options.cjs; this is not an enable list. Existing rows keep
+// their measured opening views and variable choices. Per dataset:
 //
 // - initialView: what the map fits on load, bounds [west, south, east, north].
 //   - Materialized: the outer frame. Global and US products use CONUS, regional
@@ -245,6 +249,12 @@ const datasets = [
     // 0.81 MB (0.19 store + 0.62 GRIB), snapshot X4G5D2WQDY7YXXM53XD0, init
     // 2026-09-25 12Z.
   },
+  {
+    id: "noaa-refs-forecast-3-hourly-virtual",
+    // Neither preferred variable exists; open on the 3-hour precipitation
+    // accumulation rather than the first ensemble-agreement probability.
+    defaultVariable: "total_precipitation_3_hour_surface",
+  },
 ];
 
-module.exports = { datasets };
+module.exports = { datasets, optOuts };

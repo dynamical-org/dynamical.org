@@ -56,16 +56,16 @@ test("the explorer follows the example, and the listings sit under External list
 });
 
 // A product with no entry in _data/listings.js, found rather than named: a
-// hard-coded id broke the moment its listings landed (#273). As of 2026-10-08
-// every catalog product is listed, so this skips until one is not.
+// hard-coded id broke the moment its listings landed (#273). Explore is enabled
+// independently of external listings, including for new virtual products.
 const unlisted = catalog.entries.find((entry) => !(entry.id in require("../../_data/listings.js")));
 
 test("a product with no listing has no External listings", async ({ page }) => {
   test.skip(!unlisted, "every catalog product has an entry in _data/listings.js");
   await page.goto(`/catalog/${unlisted.id}/`);
   await expect(page.locator("h3", { hasText: "External listings" })).toHaveCount(0);
-  // Unlisted products can lack an explorer (for example, virtual datasets).
-  expect((await order(page)).filter(section => section !== "explore")).toEqual(["examples", "frame", "dimensions", "details"]);
+  await expect(page.locator("section.explore")).toBeVisible();
+  expect(await order(page)).toEqual(["examples", "frame", "explore", "dimensions", "details"]);
 });
 
 test("the prompt tab shows and copies this product's prompt", async ({ page }) => {

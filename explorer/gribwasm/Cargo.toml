@@ -10,10 +10,11 @@ license = "MIT"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Pinned to the exact gribberish commit whose Python codec wrote the virtual stores' metadata
-# (1.8.0). No default features: "png" is pure Rust, and CCSDS (DRS 5.42) uses gribberish's
+# Released gribberish 1.8.4 fixes zero-group constant fields and RRFS/REFS SDEN
+# decoding while retaining the stores' codec configuration. No default features:
+# "png" is pure Rust, and CCSDS (DRS 5.42) uses gribberish's
 # built-in pure-Rust decoder when "libaec" is off, so there is no C code in the build.
-gribberish = { git = "https://github.com/mpiannucci/gribberish", rev = "746e986ed5ac46c58d5137e458dc8ba715abd5d7", default-features = false, features = ["png"] }
+gribberish = { git = "https://github.com/mpiannucci/gribberish", rev = "5e039e1f87b9cf6586c4fc060bb52b563ed3ef36", default-features = false, features = ["png"] }
 wasm-bindgen = "=0.2.129"
 
 [profile.release]

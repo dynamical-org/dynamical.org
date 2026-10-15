@@ -182,8 +182,8 @@ dependencies = [
 
 [[package]]
 name = "gribberish"
-version = "1.8.0"
-source = "git+https://github.com/mpiannucci/gribberish?rev=746e986ed5ac46c58d5137e458dc8ba715abd5d7#746e986ed5ac46c58d5137e458dc8ba715abd5d7"
+version = "1.8.4"
+source = "git+https://github.com/mpiannucci/gribberish?rev=5e039e1f87b9cf6586c4fc060bb52b563ed3ef36#5e039e1f87b9cf6586c4fc060bb52b563ed3ef36"
 dependencies = [
  "bitflags 2.13.2",
  "bitvec",
@@ -200,8 +200,8 @@ dependencies = [
 
 [[package]]
 name = "gribberish-macros"
-version = "1.8.0"
-source = "git+https://github.com/mpiannucci/gribberish?rev=746e986ed5ac46c58d5137e458dc8ba715abd5d7#746e986ed5ac46c58d5137e458dc8ba715abd5d7"
+version = "1.8.4"
+source = "git+https://github.com/mpiannucci/gribberish?rev=5e039e1f87b9cf6586c4fc060bb52b563ed3ef36#5e039e1f87b9cf6586c4fc060bb52b563ed3ef36"
 dependencies = [
  "gribberish-types",
  "quote",
@@ -210,8 +210,8 @@ dependencies = [
 
 [[package]]
 name = "gribberish-types"
-version = "1.8.0"
-source = "git+https://github.com/mpiannucci/gribberish?rev=746e986ed5ac46c58d5137e458dc8ba715abd5d7#746e986ed5ac46c58d5137e458dc8ba715abd5d7"
+version = "1.8.4"
+source = "git+https://github.com/mpiannucci/gribberish?rev=5e039e1f87b9cf6586c4fc060bb52b563ed3ef36#5e039e1f87b9cf6586c4fc060bb52b563ed3ef36"
 
 [[package]]
 name = "gribwasm"

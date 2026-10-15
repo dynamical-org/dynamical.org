@@ -8,7 +8,7 @@ import { lonLatToCell, projectionDef } from "./crs.js";
 import { createTileFacade } from "./grib/tile-facade.js";
 import { cachedPromise } from "./lib/cache.js";
 import { missingSentinels } from "./lib/colour.js";
-import { absolutePath, defaultIndex, dimLabel, latestWithChunk, layoutOf, probeLatest } from "./lib/dims.js";
+import { absolutePath, coordinateValues, defaultIndex, dimLabel, latestWithChunk, layoutOf, probeLatest } from "./lib/dims.js";
 import { buildGrid } from "./lib/grid.js";
 import { decodeCf } from "./lib/time.js";
 
@@ -76,7 +76,7 @@ export function makeSource(store, config) {
       // A failed read is not cached, so Retry fetches it again.
       return cachedPromise(coords, path, () =>
         store.open(path).then(async (arr) => ({
-          values: Array.from((await zarr.get(arr)).data, Number),
+          values: coordinateValues((await zarr.get(arr)).data),
           attrs: /** @type {Record<string, any>} */ (arr.attrs),
         })),
       );
