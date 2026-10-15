@@ -32,14 +32,14 @@ The plugin
 
 Elsewhere, the repo's `npm test` and `playwright.config.mjs` run `explorer/test/`, the
 browser-test workflow's path filter includes `explorer/**` and the two files above, and
-CLAUDE.md's command list names `explorer/test/`.
+AGENTS.md's command list names `explorer/test/`.
 
 Vite 8 needs Node `^20.19.0 || >=22.12.0`. The Cloudflare Pages preview builds meet
 that without a repo Node pin (checked 2026-09-28); the production build settings were
 not inspected.
 
 To remove the explorer: delete `explorer/`, the two lines above, and those test, CI and
-CLAUDE.md entries.
+AGENTS.md entries.
 
 ## API
 
