@@ -89,6 +89,19 @@ test("summarizes only the components this page renders", () => {
   });
 });
 
+test("marks status data from more than five minutes ahead as stale", () => {
+  const generatedAt = "2026-07-24T20:05:00Z";
+
+  assert.equal(
+    isStatusDataStale(generatedAt, new Date("2026-07-24T20:00:00Z")),
+    false,
+  );
+  assert.equal(
+    isStatusDataStale(generatedAt, new Date("2026-07-24T19:59:59.999Z")),
+    true,
+  );
+});
+
 test("marks status data stale after twenty minutes", () => {
   const generatedAt = "2026-07-24T19:40:00Z";
 
@@ -517,10 +530,12 @@ test("accepts legacy history metadata during publisher rollout", () => {
 });
 
 test("history must be close to the current snapshot", () => {
+  const now = new Date("2026-07-24T20:00:00Z");
   assert.equal(
     isHistoryCurrent(
       new Date("2026-07-24T19:40:00Z"),
       "2026-07-24T20:00:00Z",
+      now,
     ),
     true,
   );
@@ -528,6 +543,7 @@ test("history must be close to the current snapshot", () => {
     isHistoryCurrent(
       new Date("2026-07-24T19:39:59.999Z"),
       "2026-07-24T20:00:00Z",
+      now,
     ),
     false,
   );
@@ -535,7 +551,26 @@ test("history must be close to the current snapshot", () => {
     isHistoryCurrent(
       new Date("2026-07-24T20:20:00.001Z"),
       "2026-07-24T20:00:00Z",
+      new Date("2026-07-24T20:20:00Z"),
     ),
+    false,
+  );
+});
+
+test("an aligned but expired history pair is not current", () => {
+  const asOf = new Date("2026-07-24T19:00:00Z");
+
+  assert.equal(
+    isHistoryCurrent(asOf, "2026-07-24T19:00:00Z", new Date("2026-07-24T19:20:00Z")),
+    true,
+  );
+  assert.equal(
+    isHistoryCurrent(asOf, "2026-07-24T19:00:00Z", new Date("2026-07-24T20:00:00Z")),
+    false,
+  );
+  // A fresh snapshot does not vouch for history that has aged out on its own.
+  assert.equal(
+    isHistoryCurrent(asOf, "2026-07-24T19:15:00Z", new Date("2026-07-24T19:30:00Z")),
     false,
   );
 });

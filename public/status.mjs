@@ -24,6 +24,9 @@ import { setupTimeToggle } from "./status-time.mjs";
 const PUBLIC_STATUSES = new Set(["operational", "degraded", "down"]);
 const PUBLIC_GROUPS = new Set(["endpoint", "tool"]);
 const STALE_AFTER_MS = 20 * 60 * 1000;
+// Clock skew tolerated before an observation from the future is rejected.
+const FUTURE_SKEW_MS = 5 * 60 * 1000;
+const REPAINT_INTERVAL_MS = 60 * 1000;
 const FETCH_TIMEOUT_MS = 10 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const BAR_DAYS = 90;
@@ -33,6 +36,8 @@ const BAR_DAYS = 90;
 const GROUP_DAY_STATES = { observation: "observation", planned: "planned" };
 const REFRAMED_DAYS = new Set(Object.values(GROUP_DAY_STATES));
 export const STALE_MESSAGE = "Stale: status page experiencing delayed updates";
+const STALE_SUMMARY =
+  "Current status is unknown: the latest observations are out of date.";
 
 function isStatusEntry(entry) {
   return (
@@ -142,7 +147,7 @@ export function validateStatusData(data) {
 
 export function isStatusDataStale(generatedAt, now = new Date()) {
   const age = now.getTime() - Date.parse(generatedAt);
-  return !Number.isFinite(age) || age > STALE_AFTER_MS;
+  return !Number.isFinite(age) || age > STALE_AFTER_MS || age < -FUTURE_SKEW_MS;
 }
 
 export function summarizeOverallStatus(data) {
@@ -622,13 +627,14 @@ export function buildHistory(eventsText, metaText) {
   };
 }
 
-export function isHistoryCurrent(asOf, generatedAt) {
+export function isHistoryCurrent(asOf, generatedAt, now = new Date()) {
   const snapshot = Date.parse(generatedAt);
   return (
     asOf instanceof Date &&
     Number.isFinite(asOf.getTime()) &&
     Number.isFinite(snapshot) &&
-    Math.abs(snapshot - asOf.getTime()) <= STALE_AFTER_MS
+    Math.abs(snapshot - asOf.getTime()) <= STALE_AFTER_MS &&
+    !isStatusDataStale(asOf.toISOString(), now)
   );
 }
 
@@ -656,7 +662,9 @@ async function loadHistory(root) {
 function Updated({ data, local, stale }) {
   if (!data) return "As of —";
   if (stale) {
-    return html`<span aria-hidden="true">⚠</span>${" "}<strong>Stale:</strong>${STALE_MESSAGE.slice("Stale:".length)}`;
+    return html`<span aria-hidden="true">⚠</span>${" "}<strong>Stale:</strong>${STALE_MESSAGE.slice("Stale:".length)}${". Last observed "}<time
+        datetime=${data.generated_at}
+      >${formatTimestamp(data.generated_at, local)}</time>`;
   }
   return html`${"As of "}<time datetime=${data.generated_at}
     >${formatTimestamp(data.generated_at, local, false)}</time>`;
@@ -917,32 +925,39 @@ function start(root) {
     }
     if (!state.loaded) return;
 
-    const { data, history, loadedHistory } = state;
+    const { data, loadedHistory } = state;
+    // Ages are taken at paint time so an open tab expires without a fetch.
     const stale = data ? isStatusDataStale(data.generated_at) : false;
+    const history =
+      state.history &&
+      !stale &&
+      isHistoryCurrent(state.history.asOf, data.generated_at)
+        ? state.history
+        : null;
     asOf.classList.toggle("status-stale", stale);
     timeControl.hidden = !data || stale;
-    overallPanel.hidden = !state.unavailable;
+    overallPanel.hidden = !state.unavailable && !stale;
     slots.incidents.hidden = true;
-    groups.hidden = !data;
-    render(state.overallSummary, slots.summary);
+    groups.hidden = !data || stale;
+    render(stale ? STALE_SUMMARY : state.overallSummary, slots.summary);
     render(null, slots.incidents);
     render(
       html`<${Updated} data=${data} local=${state.local} stale=${stale} />`,
       slots.updated,
     );
-    renderHealth(root, "system-health", systemHealth(data));
+    renderHealth(root, "system-health", systemHealth(stale ? null : data));
 
     const historyMessage = state.unavailable
       ? null
       : history
         ? null
-        : loadedHistory
+        : loadedHistory || stale
           ? "Uptime history is stale and has been hidden."
           : "Uptime history is temporarily unavailable.";
     slots.historyNotice.hidden = historyMessage === null;
     render(historyMessage ?? "", slots.historyNotice);
 
-    if (data) {
+    if (data && !stale) {
       const emptyCells = dailyBars(new Map([["", []]]), {
         asOf: history?.asOf ?? new Date(data.generated_at),
         days: BAR_DAYS,
@@ -965,7 +980,10 @@ function start(root) {
 
     const incidents = incidentView(history, data ?? { endpoints: [] });
     slots.incidentEmpty.hidden = incidents.visible.length > 0;
-    render(incidents.empty, slots.incidentEmpty);
+    render(
+      stale ? "Incident history is stale and has been hidden." : incidents.empty,
+      slots.incidentEmpty,
+    );
     render(
       html`<${IncidentLog}
         visible=${incidents.visible}
@@ -1000,6 +1018,12 @@ function start(root) {
   loadAgencyHealth(root, update);
   setInterval(() => loadStatus(root, update), REFRESH_INTERVAL_MS);
   setInterval(() => loadAgencyHealth(root, update), REFRESH_INTERVAL_MS);
+  const repaint = () => update({});
+  setInterval(repaint, REPAINT_INTERVAL_MS);
+  window.addEventListener("focus", repaint);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") repaint();
+  });
 }
 
 if (typeof document !== "undefined") {

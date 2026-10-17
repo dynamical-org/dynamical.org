@@ -457,3 +457,114 @@ test("an unavailable status feed renders the established fallback", async ({ pag
     "unavailable",
   );
 });
+
+test.describe("expired observations are not current health", () => {
+  const MINUTE = 60 * 1000;
+  const GENERATED = Date.parse(STATUS.generated_at);
+
+  async function expectStale(page) {
+    await expect(page.locator('[data-slot="system-health"]')).toHaveAttribute(
+      "data-state",
+      "unavailable",
+    );
+    await expect(page.locator("#status-groups")).toBeHidden();
+    await expect(page.locator("#status-overall")).toBeVisible();
+    await expect(page.locator("#status-summary")).toHaveText(
+      "Current status is unknown: the latest observations are out of date.",
+    );
+    const updated = page.locator('[data-slot="status-updated"]');
+    await expect(updated).toContainText(
+      "Stale: status page experiencing delayed updates",
+    );
+    await expect(updated.locator("time")).toHaveAttribute(
+      "datetime",
+      STATUS.generated_at,
+    );
+    await expect(updated).toContainText("Last observed");
+    await expect(page.locator("#status-as-of")).toHaveClass(/status-stale/);
+    await expect(page.locator("#status-history")).toHaveText(
+      "Uptime history is stale and has been hidden.",
+    );
+    await expect(page.locator("#status-incident-empty")).toHaveText(
+      "Incident history is stale and has been hidden.",
+    );
+    await expect(page.locator("#status-incident-log > li")).toHaveCount(0);
+  }
+
+  async function expectFresh(page) {
+    await expect(page.locator('[data-slot="system-health"]')).toHaveAttribute(
+      "data-state",
+      "down",
+    );
+    await expect(page.locator("#status-groups")).toBeVisible();
+    await expect(page.locator("#status-overall")).toBeHidden();
+    await expect(page.locator("#status-history")).toBeHidden();
+    await expect(page.locator("#status-as-of")).not.toHaveClass(/status-stale/);
+    await expect(page.locator('[data-slot="status-updated"]')).toHaveText(/^As of /);
+    await expect(page.locator("#status-incident-log > li").first()).toBeVisible();
+  }
+
+  test("an old operational snapshot reads as unknown, not green", async ({ page }) => {
+    await page.clock.install({ time: new Date(GENERATED + 21 * MINUTE) });
+    await stubStatus(page);
+    await page.goto(PATH);
+    await expectStale(page);
+  });
+
+  test("a snapshot more than five minutes ahead is not current", async ({ page }) => {
+    await page.clock.install({ time: new Date(GENERATED - 6 * MINUTE) });
+    await stubStatus(page);
+    await page.goto(PATH);
+    await expectStale(page);
+  });
+
+  test("a snapshot under five minutes ahead stays current", async ({ page }) => {
+    await page.clock.install({ time: new Date(GENERATED - 4 * MINUTE) });
+    await stubStatus(page);
+    await page.goto(PATH);
+    await expectFresh(page);
+  });
+
+  test("an open tab ages out without a new fetch", async ({ page }) => {
+    await page.clock.install({ time: new Date(GENERATED + 19.5 * MINUTE) });
+    await stubStatus(page);
+    await page.goto(PATH);
+    await expectFresh(page);
+
+    await page.clock.runFor(MINUTE);
+    await expectStale(page);
+  });
+
+  test("returning to a tab repaints its age", async ({ page }) => {
+    await page.clock.install({ time: new Date(GENERATED + 2 * MINUTE) });
+    await stubStatus(page);
+    await page.goto(PATH);
+    await expectFresh(page);
+
+    await page.clock.setSystemTime(new Date(GENERATED + 25 * MINUTE));
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expectStale(page);
+  });
+
+  test("a fresh snapshot restores the normal page", async ({ page }) => {
+    await page.clock.install({ time: new Date(GENERATED + 21 * MINUTE) });
+    const refreshed = new Date(GENERATED + 25 * MINUTE).toISOString();
+    await stubStatus(page, (payload, served) => {
+      if (served > 1) payload.generated_at = refreshed;
+      return payload;
+    });
+    await page.goto(PATH);
+    await expectStale(page);
+
+    await page.route("**/meta.json", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ ...META, reconciled_at: refreshed }),
+      }),
+    );
+    await page.clock.runFor(REFRESH_INTERVAL_MS);
+    await expectFresh(page);
+  });
+});
