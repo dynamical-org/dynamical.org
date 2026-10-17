@@ -104,11 +104,23 @@ function validPipelineLagStats(stats) {
   );
 }
 
+// a selected-families lag names the source's file families it was measured
+// against: a list of them, each named once
+function validFamilyNames(names) {
+  return (
+    Array.isArray(names) &&
+    names.length > 0 &&
+    names.every((name) => typeof name === "string" && name !== "") &&
+    new Set(names).size === names.length
+  );
+}
+
 function validPipelineLag(lag) {
   if (
     !lag ||
     !["ready", "pending"].includes(lag.status) ||
-    !["shared_nat_prs_sfc", "whole_run"].includes(lag.basis) ||
+    !["shared_nat_prs_sfc", "whole_run", "selected_families"].includes(lag.basis) ||
+    (lag.basis === "selected_families" && !validFamilyNames(lag.family_group_names)) ||
     !Array.isArray(lag.source_ids) ||
     lag.source_ids.length === 0 ||
     !lag.source_ids.every((sourceId) => typeof sourceId === "string" && sourceId !== "") ||
@@ -222,6 +234,31 @@ export function displaySource(source) {
 
 export function displayRowLabel(label) {
   return label === "dynamical.org · virtual" ? "dynamical.org" : label;
+}
+
+/* Old section URLs. A group that absorbed others carries their ids as aliases,
+   each rendered as an empty anchor beside the canonical heading. An alias is
+   kept only when it names no real group and no other group claims it, so an
+   id never lands twice on the page. */
+
+const ANCHOR_ID = /^[A-Za-z0-9_-]+$/;
+
+export function groupAliases(groups) {
+  const ids = new Set(groups.map((group) => group.id));
+  const claims = new Map();
+  const own = groups.map((group) => {
+    const aliases = Array.isArray(group.aliases)
+      ? [...new Set(group.aliases.filter((alias) => typeof alias === "string" && ANCHOR_ID.test(alias)))]
+      : [];
+    for (const alias of aliases) claims.set(alias, (claims.get(alias) ?? 0) + 1);
+    return [group.id, aliases];
+  });
+  return new Map(
+    own.map(([id, aliases]) => [
+      id,
+      aliases.filter((alias) => !ids.has(alias) && claims.get(alias) === 1),
+    ]),
+  );
 }
 
 export function agencyGroups(groups) {
@@ -1064,6 +1101,31 @@ function statsHeader(sampleInitCount, note = null) {
   return note ? `${header} · ${note}` : header;
 }
 
+/* What a selected-families lag was measured against, in the reader's words.
+   The feed's family names are its own, so the note names none of them. The
+   other bases say nothing beyond the column header. */
+
+export function lagBasisNote(lag) {
+  if (!validPipelineLag(lag) || lag.basis !== "selected_families") return null;
+  return "Lag uses the source file families required by this dataset, not the source's whole run.";
+}
+
+/* When the source landed each of this run's horizons, as the feed measured it
+   over the selected families: target horizon name -> seconds after init, or
+   null for not known. A missing or malformed map is not known either, and
+   nothing falls back to the source's whole run. */
+
+function selectedSourceArrival(init, name) {
+  const groups = init?.source_lead_groups;
+  if (groups == null || typeof groups !== "object" || Array.isArray(groups)) {
+    return null;
+  }
+  if (!Object.values(groups).every((value) => value === null || Number.isFinite(value))) {
+    return null;
+  }
+  return Object.hasOwn(groups, name) ? groups[name] : null;
+}
+
 /* The sources the published lag is measured against, as rows of this group.
    All or nothing: a lag whose source has no row here cannot be compared
    against the sources that do — that would measure the wrong distance rather
@@ -1240,8 +1302,19 @@ export function detailRows(product, now, local, sources = []) {
   const afterLast = sourceArrivals(sources, last?.init_time);
   const afterActive = sourceArrivals(sources, active?.init_time);
   const horizons = horizonIndex(product);
+  // a selected-families lag reads only its own map, and only when the lag
+  // block that names it is whole; it never falls back to the source row
+  const selected = product.pipeline_lag?.basis === "selected_families";
+  const selectedValid =
+    selected && sources.length > 0 && validPipelineLag(product.pipeline_lag);
   // this run's horizon, less the source's own arrival for the same horizon
   const lagOf = (init, arrivals, stats) => {
+    if (selected) {
+      if (!selectedValid) return null;
+      const ours = arrivedAt(init, stats.name);
+      const theirs = selectedSourceArrival(init, stats.name);
+      return ours == null || theirs == null ? null : ours - theirs;
+    }
     const key = horizons.keyByName.get(stats.name);
     if (key == null || horizons.ambiguous.has(key)) return null;
     const ours = arrivedAt(init, stats.name);
@@ -2358,10 +2431,13 @@ function Details({
       </tbody>
     </table>
   </div>`;
+  // a lag over the source's selected families says what it was measured against
+  const lagNote = afterSource && lagBasisNote(product.pipeline_lag);
+  const note = lagNote && html`<p key="lag-note">${lagNote}</p>`;
   const facets = facetRows(product);
-  if (facets.length === 0) return html`${chart}${leadTable}`;
+  if (facets.length === 0) return html`${chart}${note}${leadTable}`;
 
-  return html`${chart}${leadTable}
+  return html`${chart}${note}${leadTable}
     <div key="facets" class="table-container">
       <table class="pipeline-facets">
         <thead>
@@ -2613,9 +2689,13 @@ function Groups({ state, actions, agencies }) {
     return html`<p data-slot="loading">Loading pipeline status…</p>`;
   }
   const advisories = dashboard.advisories ?? [];
+  const aliases = groupAliases(dashboard.groups);
   return agencies.flatMap(({ groups }) => groups).map(
     (group) => html`<section key=${group.id} class="pipeline-group">
-      <h3 id=${`pipeline-group-${group.id}`}>${group.label}</h3>
+      ${aliases.get(group.id).map(
+        (alias) => html`<span key=${alias} id=${`pipeline-group-${alias}`}></span>`,
+      )}
+      <h3 key="heading" id=${`pipeline-group-${group.id}`}>${group.label}</h3>
       ${group.products.map(
         (product) => html`<${Row}
           key=${product.id}

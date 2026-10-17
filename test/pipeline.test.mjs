@@ -38,6 +38,8 @@ import {
   displaySource,
   isDynamicalRow,
   lagSources,
+  lagBasisNote,
+  groupAliases,
   etaLineText,
   facetRows,
   initColumnPx,
@@ -1414,6 +1416,140 @@ test("a horizon reads its lag against the source's own arrival for it", () => {
     lagSourceRow([lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300)]),
   ];
   assert.equal(lagAt(product, together).rows[0].last.lag, "0s");
+});
+
+function selectedFamiliesLag(overrides = {}) {
+  return readyPipelineLag({
+    basis: "selected_families",
+    family_group_names: ["component:atmos/pgrb2a.0p50", "component:atmos/pgrb2b.0p50"],
+    ...overrides,
+  });
+}
+
+test("a selected-families lag needs its families named, each once", () => {
+  const valid = dashboard();
+  const [product] = valid.groups[0].products;
+  product.source_label = null;
+  const source = lagSourceRow([], { row_label: "AWS" });
+  valid.groups[0].products.push(source);
+
+  product.pipeline_lag = selectedFamiliesLag();
+  assert.equal(validateDashboard(valid), valid);
+  assert.deepEqual(lagSources(product, valid.groups[0].products), [source]);
+
+  for (const names of [undefined, null, [], [""], [1], ["a", "a"], "a"]) {
+    product.pipeline_lag = selectedFamiliesLag({ family_group_names: names });
+    assert.equal(validateDashboard(valid), valid);
+    assert.deepEqual(lagSources(product, valid.groups[0].products), []);
+  }
+
+  // the older bases neither need nor read the list
+  product.pipeline_lag = readyPipelineLag();
+  assert.deepEqual(lagSources(product, valid.groups[0].products), [source]);
+  product.pipeline_lag = readyPipelineLag({ basis: "shared_nat_prs_sfc" });
+  assert.deepEqual(lagSources(product, valid.groups[0].products), [source]);
+});
+
+test("only a selected-families lag explains what it was measured against", () => {
+  assert.equal(lagBasisNote(readyPipelineLag()), null);
+  assert.equal(lagBasisNote(readyPipelineLag({ basis: "shared_nat_prs_sfc" })), null);
+  const note = lagBasisNote(selectedFamiliesLag());
+  assert.equal(
+    note,
+    "Lag uses the source file families required by this dataset, not the source's whole run.",
+  );
+  // the feed's own family names never reach the reader
+  assert.doesNotMatch(note, /component|pgrb2/);
+  assert.equal(lagBasisNote(selectedFamiliesLag({ family_group_names: [] })), null);
+});
+
+test("a selected-families lag reads the source's arrival from its own run's map", () => {
+  const ours = (sourceLeadGroups) => {
+    const init = lagInit("2026-07-25T12:00:00Z", 999, "complete", 4300);
+    if (sourceLeadGroups !== undefined) init.source_lead_groups = sourceLeadGroups;
+    return init;
+  };
+  // the source's whole run straggled in an hour later, on a family this
+  // dataset does not read; its row keeps saying so
+  const straggler = lagSourceRow([
+    lagInit("2026-07-25T12:00:00Z", undefined, "complete", 8000),
+  ]);
+  const at = (sourceLeadGroups, lag = selectedFamiliesLag()) =>
+    lagAt(lagProduct([ours(sourceLeadGroups)], lag), [straggler]);
+
+  const measured = at({ forecast: 4000 });
+  assert.equal(measured.lagged, true);
+  assert.equal(measured.rows[0].last.lag, "5m");
+  assert.equal(at({ forecast: 4600 }).rows[0].last.lag, "−5m");
+  // the source row itself is left as it was
+  assert.equal(straggler.recent_inits[0].lead_groups[0].latency_s, 8000);
+
+  // not known: explicit null, a missing key, a missing map, a malformed one —
+  // none falls back to the source's whole run or to the run's scalar lag
+  for (const unknown of [
+    { forecast: null },
+    { other: 4000 },
+    undefined,
+    null,
+    { forecast: "4000" },
+    { forecast: true },
+    { forecast: Number.NaN },
+    { forecast: 4000, other: "late" },
+    [4000],
+    "4000",
+  ]) {
+    const { lagged, rows } = at(unknown);
+    assert.equal(lagged, true);
+    assert.equal(rows[0].last.lag, "—", JSON.stringify(unknown));
+  }
+
+  // our own horizon still out has no lag, whatever the map says
+  const running = lagProduct(
+    [{ ...ours({ forecast: 4000 }), status: "in_flight", lead_groups: [{ name: "forecast", status: "in_flight", latency_s: null }] }],
+    selectedFamiliesLag(),
+  );
+  assert.equal(lagAt(running, [straggler]).rows[0].run.lag, "—");
+
+  // malformed selected-families metadata computes nothing, even when a caller
+  // hands detailRows a source directly — and never falls back to the source row
+  for (const lag of [
+    selectedFamiliesLag({ family_group_names: undefined }),
+    selectedFamiliesLag({ family_group_names: [] }),
+    selectedFamiliesLag({ family_group_names: ["a", "a"] }),
+    selectedFamiliesLag({ family_group_names: [""] }),
+    selectedFamiliesLag({ status: "stale" }),
+  ]) {
+    const { rows } = at({ forecast: 4000 }, lag);
+    assert.equal(rows[0].last.lag, "—", JSON.stringify(lag));
+  }
+
+  // the older bases ignore the map and keep subtracting the source row
+  assert.equal(at({ forecast: 4000 }, readyPipelineLag()).rows[0].last.lag, "−1h 2m");
+});
+
+test("group aliases keep old section ids without colliding", () => {
+  const groups = [
+    { id: "noaa-gefs", aliases: ["noaa-gefs-long", "noaa-gefs-short", "noaa-gefs-long"] },
+    { id: "noaa-gfs", aliases: ["noaa-gefs", "shared", "bad id", "", 7] },
+    { id: "noaa-hrrr", aliases: ["shared"] },
+    { id: "ecmwf-ifs", aliases: "noaa-gefs-long" },
+    { id: "dwd-icon-eu" },
+  ];
+  assert.deepEqual(
+    Object.fromEntries(groupAliases(groups)),
+    {
+      "noaa-gefs": ["noaa-gefs-long", "noaa-gefs-short"],
+      // a real group's id, and one two groups claim, belong to neither
+      "noaa-gfs": [],
+      "noaa-hrrr": [],
+      "ecmwf-ifs": [],
+      "dwd-icon-eu": [],
+    },
+  );
+  const current = dashboard();
+  current.v = 3;
+  current.groups[0].aliases = ["noaa-gfs-old"];
+  assert.equal(validateDashboard(current), current);
 });
 
 test("a lag needs the same horizon, landed on both sides", () => {

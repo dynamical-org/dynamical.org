@@ -663,6 +663,79 @@ test("a dynamical row reads behind source beside its arrival", async ({
   ).toHaveCount(10);
 });
 
+/** The virtual row's lag over selected source families, with the source's
+ * arrival for its last run's horizon given by `forecast`. */
+function selectedFamilies(forecast) {
+  return (payload) => {
+    const virtual = payload.groups[0].products.find(
+      (product) => product.id === "noaa-gfs-forecast-virtual",
+    );
+    virtual.pipeline_lag.basis = "selected_families";
+    virtual.pipeline_lag.family_group_names = [
+      "component:atmos/pgrb2a.0p50",
+      "component:atmos/pgrb2b.0p50",
+    ];
+    const last = virtual.recent_inits.find(
+      (init) => init.init_time === "2026-07-25T00:00:00Z",
+    );
+    last.source_lead_groups = { forecast };
+    return payload;
+  };
+}
+
+test("a selected-families lag reads its own source map and says so", async ({
+  page,
+}) => {
+  await openPipeline(page, selectedFamilies(5880));
+  const row = page.locator(
+    '.pipeline-row[data-product-id="noaa-gfs-forecast-virtual"]',
+  );
+  await row.locator('[data-slot="details-button"]').click();
+  await expect(row.locator(".pipeline-row-details > p")).toHaveText(
+    "Lag uses the source file families required by this dataset, not the source's whole run.",
+  );
+  const lead = row.locator(".pipeline-row-details .table-container").first();
+  // 2m behind the selected families, not the 5m behind the source's whole run
+  await expect(lead.locator("tbody tr:first-child td").nth(4)).toHaveText("2m");
+});
+
+test("a selected-families lag the source map leaves unknown reads no lag", async ({
+  page,
+}) => {
+  await openPipeline(page, selectedFamilies(null));
+  const row = page.locator(
+    '.pipeline-row[data-product-id="noaa-gfs-forecast-virtual"]',
+  );
+  await row.locator('[data-slot="details-button"]').click();
+  const lead = row.locator(".pipeline-row-details .table-container").first();
+  await expect(lead.locator("thead tr:last-child th").nth(3)).toHaveText("behind source");
+  await expect(lead.locator("tbody tr:first-child td").nth(4)).toHaveText("—");
+});
+
+test("a merged section keeps its old ids as anchors, and its heading once", async ({
+  page,
+}) => {
+  await openPipeline(page, (payload) => {
+    payload.v = 3;
+    // one old id, one that names a real group, one that both groups claim
+    payload.groups[0].aliases = ["noaa-gfs-old", "eccc-hrdps", "shared"];
+    payload.groups[1].aliases = ["shared"];
+    return payload;
+  });
+  await expect(page.locator("#pipeline-group-noaa-gfs-old")).toHaveCount(1);
+  await expect(page.locator("#pipeline-group-shared")).toHaveCount(0);
+  await expect(page.locator("#pipeline-group-eccc-hrdps")).toHaveCount(1);
+  await expect(page.locator("#pipeline-group-eccc-hrdps")).toHaveJSProperty("tagName", "H3");
+  // the alias sits with the section it now names
+  await expect(
+    page.locator(".pipeline-group:has(#pipeline-group-noaa-gfs-old) > h3"),
+  ).toHaveAttribute("id", "pipeline-group-noaa-gfs");
+  await expect(page.locator(".pipeline-group > h3")).toHaveCount(2);
+  await expect(page.locator('a[href^="#pipeline-group-"]')).toHaveCount(2);
+  const ids = await page.locator("[id]").evaluateAll((nodes) => nodes.map((node) => node.id));
+  expect(new Set(ids).size).toBe(ids.length);
+});
+
 test("each details table scrolls itself, under a header that names its column", async ({
   page,
 }) => {
