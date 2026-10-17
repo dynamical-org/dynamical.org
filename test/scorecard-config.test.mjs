@@ -301,18 +301,24 @@ test("bars keep the legend's model order whatever the scores or input order", ()
 test("the legend groups models by producer and family", () => {
   const published = [
     "Google WeatherNext 2, virtual",
+    "NOAA REFS, virtual",
     "ECMWF AIFS ENS",
     "NOAA GEFS",
     "ECCC HRDPS",
+    "NOAA RRFS ENS, virtual",
     "ECMWF IFS ENS",
     "NOAA HRRR",
     "ECMWF AIFS Single",
+    "NOAA RRFS, virtual",
     "NOAA GFS",
   ];
   assert.deepEqual(modelColors(published).domain, [
     "NOAA GFS",
     "NOAA GEFS",
     "NOAA HRRR",
+    "NOAA RRFS, virtual",
+    "NOAA RRFS ENS, virtual",
+    "NOAA REFS, virtual",
     "ECMWF IFS ENS",
     "ECMWF AIFS Single",
     "ECMWF AIFS ENS",
@@ -331,6 +337,9 @@ test("a model keeps its color whichever models share the chart", () => {
     "NOAA GEFS",
     "NOAA GFS",
     "NOAA HRRR",
+    "NOAA REFS, virtual",
+    "NOAA RRFS ENS, virtual",
+    "NOAA RRFS, virtual",
   ];
   const colorOf = (models) => {
     const { domain, range } = modelColors(models);
@@ -341,7 +350,13 @@ test("a model keeps its color whichever models share the chart", () => {
   // The country page drops HRDPS; CRPS carries only the ensembles.
   for (const subset of [
     published.filter((m) => m !== "ECCC HRDPS"),
-    ["ECMWF AIFS ENS", "ECMWF IFS ENS", "Google WeatherNext 2, virtual", "NOAA GEFS"],
+    [
+      "ECMWF AIFS ENS",
+      "ECMWF IFS ENS",
+      "Google WeatherNext 2, virtual",
+      "NOAA GEFS",
+      "NOAA RRFS ENS, virtual",
+    ],
     ["ECCC HRDPS", "NOAA HRRR"],
   ]) {
     const colors = colorOf(subset);
