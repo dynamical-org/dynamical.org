@@ -13,13 +13,16 @@ const ASOS_BASE = "https://data.source.coop/dynamical/asos-parquet";
 //
 // The order is curated: producer groups NOAA, ECMWF, then the rest
 // alphabetically (ECCC, Google); within a producer, a family stays together,
-// deterministic before ensemble — GFS, GEFS, then the regional HRRR; IFS, then
-// AIFS. A model added here goes beside its family. One that is published before
+// deterministic before ensemble — GFS, GEFS, then the regional HRRR, RRFS, RRFS
+// ENS and REFS (scored from its ensemble mean); IFS, then AIFS. A model added here goes beside its family. One that is published before
 // it is listed falls after every listed model, alphabetically.
 export const MODEL_STYLE = new Map([
   ["NOAA GFS", "#56B4E9"],
   ["NOAA GEFS", "#0173B2"],
   ["NOAA HRRR", "#DE8F05"],
+  ["NOAA RRFS, virtual", "#E15759"],
+  ["NOAA RRFS ENS, virtual", "#9E1B32"],
+  ["NOAA REFS, virtual", "#76B7B2"],
   ["ECMWF IFS ENS", "#029E73"],
   ["ECMWF AIFS Single", "#D55E00"],
   ["ECMWF AIFS ENS", "#CC79A7"],
