@@ -833,6 +833,23 @@ a.work-item:hover h3 { text-decoration: underline; }
   .area-grid { grid-template-columns: 1fr; }
 }
 
+/* Supported by (_includes/supported-by.njk, home and about): each logo above
+   its name, side by side, wrapping on a phone. */
+.supported-by {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem 4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 1.4rem;
+  color: var(--muted-text);
+}
+.supported-by img {
+  display: block;
+  margin-bottom: 0.8rem;
+}
+
 .frame {
   margin: 2rem auto;
   border: 1px solid #292929;
