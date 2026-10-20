@@ -833,21 +833,31 @@ a.work-item:hover h3 { text-decoration: underline; }
   .area-grid { grid-template-columns: 1fr; }
 }
 
-/* Supported by (_includes/supported-by.njk, home and about): each logo above
-   its name, side by side, wrapping on a phone. */
+/* Supported by (_includes/supported-by.njk, home and about): one credit per
+   platform, read the way sponsor strips are: a small logo, the name in the
+   weight of the titles above, then a muted line saying what it is. */
 .supported-by {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem 4rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: 2.4rem 1rem;
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: 1.4rem;
   color: var(--muted-text);
 }
+.supported-by li > a:first-child {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-color);
+  text-decoration: none;
+}
+.supported-by li > a:first-child:hover { text-decoration: underline; }
 .supported-by img {
   display: block;
-  margin-bottom: 0.8rem;
+  margin-bottom: 1rem;
 }
 
 .frame {

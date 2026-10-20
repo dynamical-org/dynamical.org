@@ -12,8 +12,8 @@ const LINKS = [
   ["Radiant Earth", "https://radiant.earth/"],
 ];
 const LOGOS = {
-  light: ["/assets/supported-by/powered-by-aws.png", "/assets/supported-by/source-cooperative-light.svg"],
-  dark: ["/assets/supported-by/powered-by-aws-white.png", "/assets/supported-by/source-cooperative-dark.svg"],
+  light: ["/assets/supported-by/powered-by-aws.png", "/assets/supported-by/source-cooperative-mark-light.svg"],
+  dark: ["/assets/supported-by/powered-by-aws-white.png", "/assets/supported-by/source-cooperative-mark-dark.svg"],
 };
 
 for (const path of PAGES) {
@@ -47,7 +47,7 @@ for (const path of PAGES) {
         const logo = logos.nth(i);
         await expect.poll(() => logo.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
         expect(new URL(await logo.evaluate((img) => img.currentSrc)).pathname).toBe(src);
-        expect((await logo.boundingBox()).height).toBe(32);
+        expect((await logo.boundingBox()).height).toBe(28);
       }
     });
   }
