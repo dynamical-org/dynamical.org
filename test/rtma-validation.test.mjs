@@ -42,6 +42,9 @@ test("RTMA validation evidence and plots resolve under the stable report path", 
     "availability_cloud_ceiling_height.png",
   ]) {
     assert.ok(html.includes(`href="${baseUrl}${filename}"`), filename);
+    if (filename.endsWith(".png")) {
+      assert.ok(html.includes(`src="${baseUrl}${filename}"`), filename);
+    }
   }
   assert.ok(html.includes('href="https://www.nco.ncep.noaa.gov/pmb/products/rtma/"'));
   assert.doesNotMatch(html, /\/drafts\/|href="evidence\//);
