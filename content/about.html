@@ -5,10 +5,13 @@ socialTitle: "A not-for-profit research lab for data about our world"
 description: "A not-for-profit research lab advancing how we access, understand, and act on data about our world."
 keywords: "dynamical.org, environmental data research lab, open weather data, cloud-optimized data, weather data infrastructure, forecast evaluation, weather data product design, data utility, public benefit corporation, climate data"
 redirects_from: /about.html
+templateEngineOverride: njk
 ---
 
 <style>
-  .about-page {
+  /* The closing Supported by section shares the prose column. */
+  .about-page,
+  .about-page + section {
     max-width: 70ch;
     font-size: 1.6rem;
     line-height: 1.65;
@@ -114,3 +117,5 @@ redirects_from: /about.html
     <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a>.
   </p>
 </div>
+
+{% include "supported-by.njk" %}
