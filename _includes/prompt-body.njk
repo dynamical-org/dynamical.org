@@ -57,7 +57,7 @@ curl -sS --fail -X POST https://api.dynamical.org/v1/forecasts -H 'content-type:
 - Resolve storage from STAC at run time (`dynamical_catalog.open` does). Never hard-code buckets, asset hrefs, or version numbers, and never write new code against `data.dynamical.org` URLs; they are retired after 2026-09-30.
 - Select the variables, the region, and the time window before loading anything. The archives run to terabytes.
 - Forecast datasets are indexed by `init_time` (the model run, UTC) and `lead_time`; the latest run is the last `init_time`. Analysis datasets have one `time` dimension. Check the values you need are present before presenting them; gaps are NaN.
-- Credit the data with each collection's `attribution` string; the license is CC-BY-4.0.
+- Credit the data with each collection's `attribution` string, and follow the terms in its `license` field and `rel: "license"` links: usually CC-BY-4.0, with some datasets adding terms.
 
 ## 5. Tell the user
 
