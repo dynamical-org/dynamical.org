@@ -13,7 +13,7 @@ eleventyComputed:
   socialTitle: '{{ entry.title }} — dynamical.org'
   socialDescription: '{{ entry.facts | join(" · ") }}'
   socialCardImage: '{{ entry.thumbnail }}'
-  licenseName: '{{ entry.license_links[0].title }}'
+  licenseName: '{{ entry.license_links[0].title | safe }}'
   licenseUrl: '{{ entry.license_links[0].href }}'
 ---
 
