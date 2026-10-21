@@ -315,7 +315,8 @@ function buildDatasetJsonLd(entry) {
     })),
   };
   if (entry.version) schema.version = entry.version;
-  if (entry.license_url) schema.license = entry.license_url;
+  const licenseUrls = entry.license_links.map((l) => l.href);
+  if (licenseUrls.length) schema.license = licenseUrls.length === 1 ? licenseUrls[0] : licenseUrls;
   if (entry.keywords) schema.keywords = entry.keywords;
   if (entry.spatial_bbox) {
     // STAC bbox is [west, south, east, north]; schema.org GeoShape.box is
