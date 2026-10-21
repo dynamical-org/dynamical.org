@@ -11,7 +11,7 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
 <style>
   /* Catalog grouped by model: each model heads a short .index-list of its
      dataset variants (materialized / virtual / both). Uses the shared
-     .index-list skeleton plus these row styles (title flex + full-width specs).
+     .index-list skeleton plus these row styles (title + full-width specs).
      The scroll-spy TOC rail (lib/markdown-toc.js, tocCSS/tocJS) navigates the
      model-group <h2>s. */
   .model-group {
@@ -27,25 +27,6 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
     font-weight: 700;
     text-decoration: underline;
     color: var(--link-color);
-  }
-
-  /* Title row: title on the left, id pushed to the right (hidden on narrow
-     screens). */
-  .cat-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.6rem;
-  }
-  .cat-id {
-    margin-left: auto;
-    flex-shrink: 0;
-    color: var(--muted-text);
-  }
-  @media (max-width: 640px) {
-    .cat-id {
-      display: none;
-    }
   }
 
   /* Benefit tags: inline icon + label list. Icons inherit currentColor. */
@@ -108,12 +89,12 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
         <li>
         {% if ds.status == 'live' or ds.status == 'available' %}
           <a href="/catalog/{{ ds.id | slugify }}">
-            <div class="cat-head"><span class="cat-name">{{ ds.title }}</span><span class="cat-id">{{ ds.id }}</span></div>
+            <div><span class="cat-name">{{ ds.title }}</span></div>
             {{ tags(ds) }}
             <div class="cat-meta">{{ meta(ds) }}</div>
           </a>
         {% else %}
-          <div class="cat-head"><span class="cat-name">{{ ds.title }} ({{ ds.status }})</span><span class="cat-id">{{ ds.id }}</span></div>
+          <div><span class="cat-name">{{ ds.title }} ({{ ds.status }})</span></div>
           {{ tags(ds) }}
           <div class="cat-meta">{{ meta(ds) }}</div>
         {% endif %}
@@ -128,7 +109,7 @@ keywords: "cloud-optimized weather data, weather data catalog, analysis-ready we
     <ul class="index-list">
     <li>
       <a href="/catalog/asos-parquet">
-        <div class="cat-head"><span class="cat-name">Global Airport Observations (ASOS/AWOS)</span></div>
+        <div><span class="cat-name">Global Airport Observations (ASOS/AWOS)</span></div>
         <div class="cat-meta">Historical and near-real-time METAR observations from ~2,500 stations. Updated hourly in GeoParquet.</div>
       </a>
     </li>
