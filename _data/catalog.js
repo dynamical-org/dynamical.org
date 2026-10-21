@@ -80,6 +80,11 @@ module.exports = async function () {
 
   Object.values(modelGroups).forEach((model) => {
     model.facts = modelFacts(model.datasets);
+    // An AWS Open Data registry entry describes a model's own S3 bucket, so only
+    // models whose datasets all live on S3 get one.
+    model.onS3 = model.datasets.every((dataset) =>
+      dataset.distributions.some((d) => d.key === "icechunk" && d.href.startsWith("s3://")),
+    );
   });
 
   // Split live (non-deprecated) datasets into the two families the catalog
@@ -90,18 +95,10 @@ module.exports = async function () {
   const forecasts = liveEntries.filter((e) => e.forecast_domain);
   const analyses = liveEntries.filter((e) => !e.forecast_domain);
 
-  // An AWS Open Data registry entry describes a model's own S3 bucket, so only
-  // models whose datasets all live on S3 get one.
-  const awsRegistryModels = Object.values(modelGroups).filter((model) =>
-    model.datasets.every((dataset) =>
-      dataset.distributions.some((d) => d.key === "icechunk" && d.href.startsWith("s3://")),
-    ),
-  );
-
   return {
     entries,
     models: Object.values(modelGroups),
-    awsRegistryModels,
+    awsRegistryModels: Object.values(modelGroups).filter((model) => model.onS3),
     forecasts,
     analyses,
   };
