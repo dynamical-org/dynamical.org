@@ -10,30 +10,40 @@ summary: >-
   Draft results. As of each decision time, use the newest run whose needed lead
   is recorded readable, and score it at the horizon from that time. HRRR hourly
   vs 6-hourly runs, per-lead availability at the upstream source vs our virtual
-  datasets, and a short multi-model comparison, for 2 m temperature at five
-  airports.
+  datasets, and a short multi-model comparison, for 2 m temperature at 63 major
+  US airports.
 ---
 
-Draft, results only. Scope: virtual datasets and their upstream sources. 2 m temperature at five ASOS stations (ORD, BOS, SEA, DEN, ATL). Per-lead availability comes from wxopticon's public archive (`https://assets.dynamical.org/wxopticon/archive/{product}/{YYYY-MM-DD}.jsonl`).
+Draft, results only. Scope: virtual datasets and their upstream sources. 2 m temperature at the ASOS stations of 63 large and medium US hub airports (FAA calendar-year 2025 hub classes). HRRR comparisons use the 60 inside its CONUS domain (no Anchorage, Honolulu or Kahului). Per-lead availability comes from wxopticon's public archive (`https://assets.dynamical.org/wxopticon/archive/{product}/{YYYY-MM-DD}.jsonl`).
 
 **Method.** As of decision time T (hourly), use the newest run whose needed lead is recorded readable by T, and score it at horizon V − T. Cases are paired across policies. 90% CIs are pointwise, from a circular 5-day block bootstrap over valid days. Every selection is checked against a brute-force oracle.
 
 ## HRRR hourly (18 h) vs 6-hourly (48 h) runs
 
-{% figure "/assets/notes/latency-hrrr-18-vs-48.png", "Six panels comparing HRRR 18-hour and 48-hour virtual datasets as of decision time: lead availability after init, coverage, run age, RMSE by horizon, paired RMSE difference, and how often a newer hourly run is used." %}HRRR 18 h vs 48 h virtual. T hourly 2026-08-02 to 10-21 00Z (~11.5 weeks), V hourly. (a) Lead recorded readable after init. (b) Coverage of (T, V, station) cases. (c) Median age of the selected run. (d) RMSE vs horizon. (e) Paired difference vs 48 h only. (f) How often "either" uses a newer run, and by how many hours.{% endfigure %}
+{% figure "/assets/notes/latency-hrrr-18-vs-48.png", "Six panels comparing HRRR 18-hour and 48-hour virtual datasets as of decision time: lead availability after init, coverage, run age, RMSE by horizon, paired RMSE difference, and how often a newer hourly run is used." %}HRRR 18 h vs 48 h virtual, 60 CONUS airports. T hourly 2026-08-02 to 10-21 00Z (~11.5 weeks), V hourly. (a) Lead recorded readable after init. (b) Coverage of (T, V, station) cases. (c) Median age of the selected run. (d) RMSE vs horizon. (e) Paired difference vs 48 h only. (f) How often "either" uses a newer run, and by how many hours.{% endfigure %}
 
-| horizon (h) | RMSE, 48 h only (°C) | RMSE, either (°C) | either − 48 h only (°C) [90% CI] | cases with a newer run | mean hours newer |
+| horizon (h) | RMSE, 48 h only (°C) | RMSE, either (°C) | either − 48 h only (°C) [90% CI] | T at :30 | cases with a newer run | mean hours newer |
+|---|---|---|---|---|---|---|
+| 0–3 | 1.579 | 1.435 | **−0.144 [−0.153, −0.134]** | −0.137 [−0.144, −0.129] | 77.5% | 2.2 |
+| 3–6 | 1.706 | 1.667 | −0.039 [−0.046, −0.031] | −0.046 [−0.055, −0.036] | 73.2% | 2.0 |
+| 6–9 | 1.784 | 1.763 | −0.020 [−0.031, −0.010] | −0.020 [−0.030, −0.010] | 83.0% | 2.5 |
+| 9–12 | 1.819 | 1.805 | −0.014 [−0.026, −0.001] | −0.014 [−0.025, −0.001] | 83.2% | 2.5 |
+| 12–15 | 1.844 | 1.840 | −0.004 [−0.015, +0.008] | −0.003 [−0.015, +0.009] | 83.2% | 2.5 |
+| 15–18 | 1.871 | 1.863 | −0.008 [−0.013, −0.004] | – | 54.9% | 1.6 |
+| ≥ 18 | identical | identical | 0 | 0 | 0% | 0 |
+
+- n = 345,417 paired (T, V, station) cases per bin.
+- Per airport at 0–3 h: median −0.129 °C (IQR −0.163 to −0.100); 59 of 60 gain. Largest: PHX −0.40, LAS −0.34, ONT −0.32, BUR −0.30, PDX −0.27. Smallest: BNA −0.06, IND −0.04, BUF −0.04, SFO −0.02, BOS +0.02.
+
+By region (Census), either − 48 h only (°C [90% CI]):
+
+| region | airports | 0–3 h | 3–6 h | 6–9 h | 9–12 h |
 |---|---|---|---|---|---|
-| 0–3 | 1.518 | 1.445 | **−0.074 [−0.097, −0.050]** | 77.5% | 2.2 |
-| 3–6 | 1.631 | 1.623 | −0.008 [−0.027, +0.012] | 73.2% | 2.0 |
-| 6–9 | 1.718 | 1.713 | −0.006 [−0.041, +0.029] | 83.0% | 2.5 |
-| 9–12 | 1.775 | 1.747 | −0.028 [−0.060, +0.000] | 83.2% | 2.5 |
-| 12–15 | 1.817 | 1.805 | −0.012 [−0.035, +0.011] | 83.2% | 2.5 |
-| 15–18 | 1.854 | 1.849 | −0.006 [−0.019, +0.010] | 54.9% | 1.6 |
-| ≥ 18 | identical | identical | 0 | 0% | 0 |
+| West | 17 | −0.188 [−0.202, −0.173] | −0.076 [−0.087, −0.065] | −0.057 [−0.071, −0.043] | −0.019 [−0.031, −0.007] |
+| South | 24 | −0.134 [−0.146, −0.121] | −0.023 [−0.036, −0.010] | +0.001 [−0.012, +0.016] | −0.014 [−0.030, +0.006] |
+| Midwest | 11 | −0.123 [−0.146, −0.100] | −0.027 [−0.047, −0.006] | −0.008 [−0.032, +0.015] | −0.001 [−0.025, +0.026] |
+| Northeast | 8 | −0.098 [−0.122, −0.073] | −0.011 [−0.033, +0.010] | −0.009 [−0.027, +0.007] | −0.018 [−0.040, +0.004] |
 
-- n = 28,815 paired (T, V, station) cases per bin.
-- Phase check, T shifted +15/+30/+45 min: the 0–3 h gain is −0.063 / −0.065 / −0.067 °C.
 - Median run age at T: 2 h (max 3) with hourly runs; 4–5 h (max 13) with 6-hourly runs.
 - Every "newer run" case is an extra hourly cycle. Earlier copies of a shared 00/06/12/18Z cycle are ≤ 0.1%.
 - Hourly-only coverage: 66% at 15–18 h, 0% beyond. 48 h-only coverage falls in the 42–48 h bins.
@@ -65,35 +75,38 @@ Recorded virtual − source per matched (init, lead), in minutes:
 
 ## Multi-model, and virtual vs upstream timing
 
-{% figure "/assets/notes/latency-asof-by-source.png", "Three panels: RMSE vs horizon for HRRR, GFS and AIFS single using upstream-source timing; paired RMSE difference vs AIFS single; and the paired RMSE difference between virtual and upstream timing for each model." %}T hourly 2026-09-10 to 10-18 00Z, V at 00/06/12/18Z. HRRR is the newest of the hourly and 6-hourly runs. (a) RMSE vs horizon, newest run readable at the upstream source. (b) Paired difference vs AIFS single, same timing. (c) Same model, virtual timing minus upstream timing, on each model's own overlap.{% endfigure %}
+{% figure "/assets/notes/latency-asof-by-source.png", "Three panels: RMSE vs horizon for HRRR, GFS and AIFS single using upstream-source timing; paired RMSE difference vs AIFS single; and the paired RMSE difference between virtual and upstream timing for each model." %}T hourly 2026-09-10 to 10-18 00Z, V at 00/06/12/18Z. HRRR on 60 CONUS airports, GFS and AIFS single on 63. HRRR is the newest of the hourly and 6-hourly runs. (a) RMSE vs horizon, newest run readable at the upstream source. (b) Paired difference vs AIFS single, same timing. (c) Same model, virtual timing minus upstream timing, on each model's own overlap.{% endfigure %}
 
 Paired RMSE minus AIFS single, upstream timing (°C [90% CI]):
 
-| horizon (h) | HRRR | GFS |
+| horizon (h) | HRRR (60 CONUS) | GFS (63) |
 |---|---|---|
-| 0–6 | −0.04 [−0.10, +0.02] | +0.22 [+0.07, +0.37] |
-| 6–12 | +0.18 [+0.12, +0.26] | +0.28 [+0.15, +0.40] |
-| 12–18 | +0.31 [+0.20, +0.43] | +0.31 [+0.19, +0.42] |
-| 24–30 | +0.47 [+0.31, +0.65] | +0.30 [+0.17, +0.41] |
-| 30–36 | +0.58 [+0.42, +0.76] | +0.31 [+0.19, +0.41] |
-| 48–54 | – | +0.40 [+0.26, +0.53] |
-| 78–84 | – | +0.51 [+0.36, +0.66] |
+| 0–6 | −0.035 [−0.065, −0.002] | +0.363 [+0.336, +0.386] |
+| 6–12 | +0.203 [+0.163, +0.238] | +0.387 [+0.362, +0.412] |
+| 12–18 | +0.255 [+0.212, +0.298] | +0.406 [+0.377, +0.437] |
+| 24–30 | +0.406 [+0.356, +0.463] | +0.409 [+0.386, +0.435] |
+| 30–36 | +0.475 [+0.404, +0.546] | +0.416 [+0.391, +0.447] |
+| 48–54 | – | +0.438 [+0.398, +0.482] |
+| 78–84 | – | +0.506 [+0.447, +0.575] |
 
-- HRRR at 0–6 h with T at :30: +0.01 [−0.05, +0.08].
+- HRRR at 0–6 h with T at :30: +0.018 [−0.014, +0.050].
+- GFS on the 60 CONUS airports only: +0.380 to +0.521.
+
+HRRR minus AIFS single at 0–6 h, by region: West −0.376 [−0.441, −0.307]; Midwest +0.077 [+0.022, +0.131]; South +0.138 [+0.108, +0.168]; Northeast +0.279 [+0.230, +0.324]. In the West, HRRR and AIFS tie at 6–18 h and AIFS leads from 24 h (+0.157 [+0.074, +0.234]). GFS minus AIFS is positive at every horizon in every region (Alaska/Hawaii +0.07 to +0.20; South +0.57 to +0.63).
 
 Same model, virtual timing minus upstream timing:
 
 | model | overlap from T | (T, V) cases | older run via virtual | RMSE effect |
 |---|---|---|---|---|
-| HRRR | 09-10 00Z | 7,135 | 2.4% (149 by 1 h, 24 by 6 h) | +0.011 [0.003, 0.022] °C at 0–6 h; ≤ 0.005 elsewhere (36–42 h: +0.020 [−0.001, 0.060]) |
-| GFS | 10-07 16Z | 3,484 | 0.6% (all 6 h, long horizons) | ≤ 0.003 °C |
+| HRRR | 09-10 00Z | 7,135 | 2.4% (149 by 1 h, 24 by 6 h) | +0.011 [0.005, 0.020] °C at 0–6 h; ≤ 0.003 elsewhere |
+| GFS | 10-07 16Z | 3,484 | 0.6% (all 6 h, long horizons) | ≤ 0.005 °C |
 | AIFS single | 09-26 06Z | 7,322 | 0% | 0 |
 
-- With T at :30: HRRR 1.9% and ~0 °C; AIFS 0.08%.
+- With T at :30: HRRR 1.9% and ~0 °C; GFS 0%; AIFS 0.08%.
 
 ## Virtual vs materialized values
 
-Inits 2026-10-07 to 10-20, leads 0–144 h (HRRR 0–48 h), same five stations.
+Five stations (ORD, BOS, SEA, DEN, ATL); inits 2026-10-07 to 10-20, leads 0–144 h (HRRR 0–48 h). On the 63-airport extraction, GFS and AIFS single virtual agree with these materialized extracts within the same rounding (max 0.125 °C) on every overlapping case.
 
 | virtual | materialized twin | 2 m temperature difference | per-run errors |
 |---|---|---|---|
@@ -124,11 +137,11 @@ Inits 2026-10-07 to 10-20, leads 0–144 h (HRRR 0–48 h), same five stations.
 
 ## Caveats
 
-- 2 m temperature only; five stations; ensemble means only; 5.5–11.5 weeks.
+- 2 m temperature only; 63 airports (60 for HRRR), 8–24 per region, 3 outside CONUS; ensemble means only; 5.5–11.5 weeks.
 - Availability is recorded evidence, not proven first availability. Interior leads of a virtual band are upper bounds.
 - Source rows require both the data and index files (time = the later of the two). A data-only rule would shift some selections at the hour boundary.
 - Early source rows are reconstructed from object Last-Modified times; their precision vs live detection isn't shown.
 - HRRR is recorded readable ~52 min after init, so an on-the-hour T sits at the threshold. Results are phase-sensitive (checked at :15, :30, :45).
-- Today's store values are paired with historical timing.
+- Today's store values are paired with historical timing. All errors come from the virtual stores.
 - Download, decode and point-read time are excluded.
 - AIFS's late-lead virtual lag from 10-20 falls outside the skill window.
