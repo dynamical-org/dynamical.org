@@ -973,7 +973,11 @@ a.work-item:hover h3 { text-decoration: underline; }
   gap: 0.35rem;
 }
 /* The line itself reads as a caption under the pill: still a field, so it
-   selects and copies without JavaScript, but no box competing with the pill. */
+   selects and copies without JavaScript, but no box competing with the pill.
+   Form fields don't inherit text-align, so it's asked for: the line then sits
+   under the button wherever its container (the narrow-screen hero) centers it.
+   No resize grip either; it would sit at the far edge of the column, away
+   from the line, and field-sizing already fits the height to the text. */
 .agent-setup-pill textarea {
   margin-top: 0.6rem;
   padding: 0;
@@ -981,6 +985,8 @@ a.work-item:hover h3 { text-decoration: underline; }
   background: none;
   font-size: 1.2rem;
   color: var(--muted-text);
+  text-align: inherit;
+  resize: none;
 }
 /* On narrow screens the pill and the prompt line under it read better
    centered than pinned to the left edge. */
@@ -990,9 +996,6 @@ a.work-item:hover h3 { text-decoration: underline; }
   }
   .agent-setup-pill button {
     justify-content: center;
-  }
-  .agent-setup-pill textarea {
-    text-align: center;
   }
 }
 

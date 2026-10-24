@@ -97,6 +97,19 @@ for (const path of ["/"]) {
   });
 }
 
+// Up to 1000px the hero stacks and centers, and the line under the pill has to
+// follow it: a textarea doesn't inherit text-align, so it once stayed pinned to
+// the left edge between 641px and 1000px. Beside the globe it stays flush left.
+for (const [width, align] of [[900, "center"], [1440, "start"]]) {
+  test(`the prompt line follows the pill at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    const line = page.locator(".agent-setup-pill textarea");
+    await expect(line).toHaveCSS("text-align", align);
+    await expect(line).toHaveCSS("resize", "none");
+  });
+}
+
 // The dataset ID row is the same control drawn as an id and an icon. It has to
 // stay one table row tall, even for the longest id on a phone, where the id
 // ellipsizes rather than widening the table.
