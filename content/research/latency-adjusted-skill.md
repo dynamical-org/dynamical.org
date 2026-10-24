@@ -103,7 +103,7 @@ Same model, virtual timing minus upstream timing:
 | model | overlap from T | (T, V) cases | older run via virtual | RMSE effect |
 |---|---|---|---|---|
 | HRRR | 09-10 00Z | 7,135 | 2.4% (149 by 1 h, 24 by 6 h) | +0.011 [0.005, 0.020] °C at 0–6 h; ≤ 0.003 elsewhere |
-| GFS | 10-07 16Z | 3,484 | 0.6% (all 6 h, long horizons) | about +0.005 °C at 78–84 h; 0 elsewhere |
+| GFS | 10-07 16Z | 3,484 | 0.6% (all 6 h, long horizons) | about +0.005 °C at 78–84 h, about +0.0005 at 72–78 h; zero at shorter horizons |
 | AIFS single | 09-26 06Z | 7,322 | 0% | 0 |
 
 - With T at :30: HRRR 1.9%, ~0 at 0–6 h and at most +0.007 [0.004, 0.010] °C (24–30 h); GFS 0%; AIFS 0.08%.
