@@ -652,7 +652,7 @@ test("read scope records ride alongside the events without entering them", () =>
 
 test("read scope keeps only the records for this entry's onset", () => {
   const view = readScopeView(OPEN_ENTRY, [
-    scopeRecord({ ts: "2026-07-22T00:00:00.000+00:00" }),
+    scopeRecord({ ts: "2026-07-22T00:00:00+00:00" }),
     scopeRecord({
       ts: "2026-07-21T00:00:00Z",
       as_of: "2026-07-22T00:06:00Z",
@@ -673,6 +673,8 @@ test("read scope refuses every malformed field rather than rendering it", () => 
     { through: "not a time" },
     // Strict like the publisher's reader: Date.parse would accept both.
     { through: "2026-07-21 23:59:00Z" },
+    { through: "2026-07-21T23:59:60Z" },
+    { through: "2026-07-21T23:59:00+24:00" },
     { as_of: "2026-07-22T00:05:00+0000" },
     { final: "false" },
     { ended_at: undefined },

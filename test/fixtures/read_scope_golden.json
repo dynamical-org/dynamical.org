@@ -3,16 +3,72 @@
   "cases": [
     {
       "name": "no records",
-      "entry": {"started_at": "2026-10-26T11:44:15Z", "ended_at": "2026-10-26T11:50:20Z"},
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
       "records": [],
       "expected": null
     },
     {
       "name": "closed partial, one dataset, final record",
-      "entry": {"started_at": "2026-10-26T11:44:15Z", "ended_at": "2026-10-26T11:50:20Z"},
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
       "records": [
-        {"ts": "2026-10-26T11:44:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T11:45:20Z", "final": false, "ended_at": null, "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "through": "2026-10-26T11:44:12Z", "scope": "partial", "failed": [{"id": "ecmwf-aifs-single-forecast-virtual", "name": "ECMWF AIFS Single forecast, virtual"}], "unverified": [], "latest": {"at": "2026-10-26T11:44:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null},
-        {"ts": "2026-10-26T11:44:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T11:55:20Z", "final": true, "ended_at": "2026-10-26T11:50:20Z", "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "through": "2026-10-26T11:44:12Z", "scope": "partial", "failed": [{"id": "ecmwf-aifs-single-forecast-virtual", "name": "ECMWF AIFS Single forecast, virtual"}], "unverified": [], "latest": {"at": "2026-10-26T11:44:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null}
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:45:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:55:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
       ],
       "expected": {
         "name": "ECMWF AIFS Single forecast, virtual reads",
@@ -25,25 +81,118 @@
     },
     {
       "name": "closed entry with only a non-final record renders as today",
-      "entry": {"started_at": "2026-10-26T11:44:15Z", "ended_at": "2026-10-26T11:50:20Z"},
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
       "records": [
-        {"ts": "2026-10-26T11:44:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T11:45:20Z", "final": false, "ended_at": null, "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "through": "2026-10-26T11:44:12Z", "scope": "partial", "failed": [{"id": "ecmwf-aifs-single-forecast-virtual", "name": "ECMWF AIFS Single forecast, virtual"}], "unverified": [], "latest": {"at": "2026-10-26T11:44:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null}
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:45:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
       ],
       "expected": null
     },
     {
       "name": "final record whose ended_at no longer matches the entry renders as today",
-      "entry": {"started_at": "2026-10-26T11:44:15Z", "ended_at": "2026-10-26T11:55:20Z"},
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:55:20Z"
+      },
       "records": [
-        {"ts": "2026-10-26T11:44:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T11:55:20Z", "final": true, "ended_at": "2026-10-26T11:50:20Z", "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "through": "2026-10-26T11:44:12Z", "scope": "partial", "failed": [{"id": "ecmwf-aifs-single-forecast-virtual", "name": "ECMWF AIFS Single forecast, virtual"}], "unverified": [], "latest": {"at": "2026-10-26T11:44:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null}
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:55:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
       ],
       "expected": null
     },
     {
       "name": "open partial, two datasets and one unverified",
-      "entry": {"started_at": "2026-10-26T12:04:15Z", "ended_at": null},
+      "entry": {
+        "started_at": "2026-10-26T12:04:15Z",
+        "ended_at": null
+      },
       "records": [
-        {"ts": "2026-10-26T12:04:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T12:25:20Z", "final": false, "ended_at": null, "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "through": "2026-10-26T12:24:12Z", "scope": "partial", "failed": [{"id": "noaa-gfs-forecast", "name": "NOAA GFS forecast"}, {"id": "noaa-hrrr-forecast-48-hour", "name": "NOAA HRRR forecast, 48 hour"}], "unverified": [{"id": "noaa-gefs-analysis", "name": "NOAA GEFS analysis"}], "latest": {"at": "2026-10-26T12:24:12Z", "passed": 33, "failed": 2, "unverified": 1}, "full_witness": null}
+        {
+          "ts": "2026-10-26T12:04:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T12:25:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-26T12:24:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "noaa-gfs-forecast",
+              "name": "NOAA GFS forecast"
+            },
+            {
+              "id": "noaa-hrrr-forecast-48-hour",
+              "name": "NOAA HRRR forecast, 48 hour"
+            }
+          ],
+          "unverified": [
+            {
+              "id": "noaa-gefs-analysis",
+              "name": "NOAA GEFS analysis"
+            }
+          ],
+          "latest": {
+            "at": "2026-10-26T12:24:12Z",
+            "passed": 33,
+            "failed": 2,
+            "unverified": 1
+          },
+          "full_witness": null
+        }
       ],
       "expected": {
         "name": "Data product reads",
@@ -58,10 +207,63 @@
     },
     {
       "name": "the newest record wins: partial then unknown",
-      "entry": {"started_at": "2026-10-26T12:04:15Z", "ended_at": null},
+      "entry": {
+        "started_at": "2026-10-26T12:04:15Z",
+        "ended_at": null
+      },
       "records": [
-        {"ts": "2026-10-26T12:04:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T12:05:20Z", "final": false, "ended_at": null, "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "through": "2026-10-26T12:04:12Z", "scope": "partial", "failed": [{"id": "noaa-gfs-forecast", "name": "NOAA GFS forecast"}], "unverified": [], "latest": {"at": "2026-10-26T12:04:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null},
-        {"ts": "2026-10-26T12:04:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T12:15:20Z", "final": false, "ended_at": null, "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "through": "2026-10-26T12:14:12Z", "scope": "unknown", "failed": [{"id": "noaa-gfs-forecast", "name": "NOAA GFS forecast"}], "unverified": [], "latest": {"at": "2026-10-26T12:04:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null}
+        {
+          "ts": "2026-10-26T12:04:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T12:05:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-26T12:04:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "noaa-gfs-forecast",
+              "name": "NOAA GFS forecast"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T12:04:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T12:04:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T12:15:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-26T12:14:12Z",
+          "scope": "unknown",
+          "failed": [
+            {
+              "id": "noaa-gfs-forecast",
+              "name": "NOAA GFS forecast"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T12:04:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
       ],
       "expected": {
         "name": "Data product reads",
@@ -75,9 +277,44 @@
     },
     {
       "name": "closed full",
-      "entry": {"started_at": "2026-10-26T13:04:15Z", "ended_at": "2026-10-26T13:20:20Z"},
+      "entry": {
+        "started_at": "2026-10-26T13:04:15Z",
+        "ended_at": "2026-10-26T13:20:20Z"
+      },
       "records": [
-        {"ts": "2026-10-26T13:04:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T13:25:20Z", "final": true, "ended_at": "2026-10-26T13:20:20Z", "since": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "through": "2026-10-26T13:14:12Z", "scope": "full", "failed": [{"id": "noaa-gfs-forecast", "name": "NOAA GFS forecast"}, {"id": "noaa-gfs-analysis", "name": "NOAA GFS analysis"}], "unverified": [], "latest": {"at": "2026-10-26T13:14:12Z", "passed": 1, "failed": 1, "unverified": 0}, "full_witness": {"at": "2026-10-26T13:04:12Z", "selected": 2}}
+        {
+          "ts": "2026-10-26T13:04:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T13:25:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T13:20:20Z",
+          "since": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "through": "2026-10-26T13:14:12Z",
+          "scope": "full",
+          "failed": [
+            {
+              "id": "noaa-gfs-forecast",
+              "name": "NOAA GFS forecast"
+            },
+            {
+              "id": "noaa-gfs-analysis",
+              "name": "NOAA GFS analysis"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T13:14:12Z",
+            "passed": 1,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": {
+            "at": "2026-10-26T13:04:12Z",
+            "selected": 2
+          }
+        }
       ],
       "expected": {
         "name": "Data product reads",
@@ -91,27 +328,151 @@
     },
     {
       "name": "unknown without names renders as today",
-      "entry": {"started_at": "2026-10-26T14:04:15Z", "ended_at": null},
+      "entry": {
+        "started_at": "2026-10-26T14:04:15Z",
+        "ended_at": null
+      },
       "records": [
-        {"ts": "2026-10-26T14:04:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T14:05:20Z", "final": false, "ended_at": null, "since": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "through": "2026-10-26T14:04:12Z", "scope": "unknown", "failed": [], "unverified": [], "latest": null, "full_witness": null}
+        {
+          "ts": "2026-10-26T14:04:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T14:05:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "through": "2026-10-26T14:04:12Z",
+          "scope": "unknown",
+          "failed": [],
+          "unverified": [],
+          "latest": null,
+          "full_witness": null
+        }
       ],
       "expected": null
     },
     {
       "name": "any invalid record for the onset renders as today",
-      "entry": {"started_at": "2026-10-26T11:44:15Z", "ended_at": "2026-10-26T11:50:20Z"},
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
       "records": [
-        {"ts": "2026-10-26T11:44:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T11:55:20Z", "final": true, "ended_at": "2026-10-26T11:50:20Z", "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "through": "2026-10-26T11:44:12Z", "scope": "partial", "failed": [{"id": "ecmwf-aifs-single-forecast-virtual", "name": "ECMWF AIFS Single forecast, virtual"}], "unverified": [], "latest": {"at": "2026-10-26T11:44:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null},
-        {"ts": "2026-10-26T11:44:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T11:56:20Z", "final": true, "ended_at": "2026-10-26T11:50:20Z", "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "through": "2026-10-26T11:44:12Z", "scope": "partial", "failed": [{"id": "Not An Id", "name": "x"}], "unverified": [], "latest": {"at": "2026-10-26T11:44:12Z", "passed": true, "failed": 1, "unverified": 0}, "full_witness": null}
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:55:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:56:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "Not An Id",
+              "name": "x"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": true,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
       ],
       "expected": null
     },
     {
       "name": "same as_of: the most severe record wins",
-      "entry": {"started_at": "2026-10-26T12:04:15Z", "ended_at": null},
+      "entry": {
+        "started_at": "2026-10-26T12:04:15Z",
+        "ended_at": null
+      },
       "records": [
-        {"ts": "2026-10-26T12:04:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T12:05:20Z", "final": false, "ended_at": null, "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "through": "2026-10-26T12:04:12Z", "scope": "partial", "failed": [{"id": "noaa-gfs-forecast", "name": "NOAA GFS forecast"}], "unverified": [], "latest": {"at": "2026-10-26T12:04:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null},
-        {"ts": "2026-10-26T12:04:15Z", "kind": "read_scope", "component": "data-product-reads", "v": 1, "as_of": "2026-10-26T12:05:20Z", "final": false, "ended_at": null, "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "through": "2026-10-26T12:04:12Z", "scope": "unknown", "failed": [{"id": "noaa-gfs-forecast", "name": "NOAA GFS forecast"}], "unverified": [], "latest": {"at": "2026-10-26T12:04:12Z", "passed": 35, "failed": 1, "unverified": 0}, "full_witness": null}
+        {
+          "ts": "2026-10-26T12:04:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T12:05:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-26T12:04:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "noaa-gfs-forecast",
+              "name": "NOAA GFS forecast"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T12:04:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T12:04:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T12:05:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-26T12:04:12Z",
+          "scope": "unknown",
+          "failed": [
+            {
+              "id": "noaa-gfs-forecast",
+              "name": "NOAA GFS forecast"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T12:04:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
       ],
       "expected": {
         "name": "Data product reads",
@@ -120,6 +481,199 @@
           "Scope as of 2026-10-26T12:05:20Z.",
           "Affected during this incident (scope unknown): NOAA GFS forecast.",
           "Latest available detail (2026-10-26T12:04:12Z): 1 of 36 checked collections failed."
+        ]
+      }
+    },
+    {
+      "name": "an impossible calendar date makes the record invalid",
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
+      "records": [
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:45:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:55:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-02-30T00:00:00Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "a fractional-second timestamp makes the record invalid",
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
+      "records": [
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:45:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:55:20.500Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "an integral float count reads as that count",
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
+      "records": [
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:45:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35.0,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:55:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35.0,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
+      ],
+      "expected": {
+        "name": "ECMWF AIFS Single forecast, virtual reads",
+        "label": "partial outage",
+        "sentences": [
+          "Affected during this incident: ECMWF AIFS Single forecast, virtual.",
+          "Latest available detail (2026-10-26T11:44:12Z): 1 of 36 checked collections failed."
         ]
       }
     }

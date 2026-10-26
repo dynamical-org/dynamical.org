@@ -371,13 +371,40 @@ function inflate(percent) {
 // page says when the record behind it is whole and unambiguous.
 
 // The same strict shape the publisher accepts, so both ends read a record's
-// timestamps identically.
+// timestamps identically: whole seconds, an explicit offset, and a real
+// calendar date (Date.parse would roll February 30 into March).
 const RECORD_INSTANT =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:Z|([+-])(\d{2}):(\d{2}))$/;
 
 function utcInstant(value) {
   if (typeof value !== "string") return null;
-  if (!RECORD_INSTANT.test(value)) return null;
+  const match = RECORD_INSTANT.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second, sign, offH, offM] = match;
+  const fields = [year, month, day, hour, minute, second].map(Number);
+  const local = Date.UTC(fields[0], fields[1] - 1, fields[2], ...fields.slice(3));
+  const check = new Date(local);
+  if (
+    check.getUTCFullYear() !== fields[0] ||
+    check.getUTCMonth() !== fields[1] - 1 ||
+    check.getUTCDate() !== fields[2] ||
+    check.getUTCHours() !== fields[3] ||
+    check.getUTCMinutes() !== fields[4] ||
+    check.getUTCSeconds() !== fields[5] ||
+    Number(offH ?? 0) > 23 ||
+    Number(offM ?? 0) > 59
+  ) {
+    return null;
+  }
+  const offsetMinutes = sign
+    ? (sign === "-" ? -1 : 1) * (Number(offH) * 60 + Number(offM))
+    : 0;
+  return local - offsetMinutes * 60_000;
+}
+
+// An entry's own instants come from the page's Date, with milliseconds.
+function entryInstant(value) {
+  if (typeof value !== "string") return null;
   const at = Date.parse(value);
   return Number.isFinite(at) ? at : null;
 }
@@ -469,7 +496,7 @@ function utcIso(value) {
  * while open); `records` may hold any read-scope records from the log.
  */
 export function readScopeView(entry, records) {
-  const start = utcInstant(entry.started_at);
+  const start = entryInstant(entry.started_at);
   if (start === null) return null;
   const forOnset = records.filter(
     (record) =>
@@ -480,7 +507,7 @@ export function readScopeView(entry, records) {
   );
   if (!forOnset.every(isReadScopeRecord)) return null;
 
-  const end = entry.ended_at == null ? null : utcInstant(entry.ended_at);
+  const end = entry.ended_at == null ? null : entryInstant(entry.ended_at);
   if (entry.ended_at != null && end === null) return null;
   const candidates =
     end === null
