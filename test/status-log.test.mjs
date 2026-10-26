@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -6,7 +7,9 @@ import {
   dailyBars,
   effectiveAsOf,
   incidentLog,
+  parseEventLog,
   parseEvents,
+  readScopeView,
   uptimeSummary,
 } from "../public/status-log.mjs";
 
@@ -590,4 +593,137 @@ test("an offset-less event timestamp is refused rather than shifted", () => {
     events.map((e) => e.ts),
     ["2026-07-21T00:00:00Z"],
   );
+});
+
+// --- read scope -----------------------------------------------------------
+
+const READS = "data-product-reads";
+const GOLDEN = JSON.parse(
+  readFileSync(new URL("./fixtures/read_scope_golden.json", import.meta.url), "utf8"),
+);
+
+for (const golden of GOLDEN.cases) {
+  test(`read scope golden: ${golden.name}`, () => {
+    assert.deepEqual(readScopeView(golden.entry, golden.records), golden.expected);
+  });
+}
+
+const scopeRecord = (overrides = {}) => ({
+  ts: "2026-07-22T00:00:00Z",
+  kind: "read_scope",
+  component: READS,
+  v: 1,
+  as_of: "2026-07-22T00:05:00Z",
+  final: false,
+  ended_at: null,
+  since: "a".repeat(64),
+  through: "2026-07-21T23:59:00Z",
+  scope: "partial",
+  failed: [{ id: "noaa-gfs-forecast", name: "NOAA GFS forecast" }],
+  unverified: [],
+  latest: { at: "2026-07-21T23:59:00Z", passed: 35, failed: 1, unverified: 0 },
+  full_witness: null,
+  ...overrides,
+});
+const OPEN_ENTRY = { started_at: "2026-07-22T00:00:00Z", ended_at: null };
+
+test("read scope records ride alongside the events without entering them", () => {
+  const health = [
+    coverage("2026-07-20T00:00:00Z", READS, true, "operational"),
+    transition("2026-07-22T00:00:00Z", READS, "down"),
+    transition("2026-07-23T00:00:00Z", READS, "operational"),
+  ];
+  const record = scopeRecord({ as_of: "2026-07-25T11:00:00Z" });
+  const plain = parseEventLog(jsonl(...health));
+  const withRecords = parseEventLog(jsonl(...health, record));
+
+  assert.deepEqual(plain.readScopes, []);
+  assert.deepEqual(withRecords.readScopes, [record]);
+  assert.deepEqual(withRecords.events, plain.events);
+  assert.equal(withRecords.recordCount, plain.recordCount + 1);
+  const spans = (parsed) => componentSpans(parsed.events, { asOf: AS_OF });
+  assert.deepEqual(spans(withRecords), spans(plain));
+  assert.deepEqual(
+    uptimeSummary(spans(withRecords), { asOf: AS_OF, days: 90 }),
+    uptimeSummary(spans(plain), { asOf: AS_OF, days: 90 }),
+  );
+  assert.deepEqual(incidentLog(withRecords.events), incidentLog(plain.events));
+});
+
+test("read scope keeps only the records for this entry's onset", () => {
+  const view = readScopeView(OPEN_ENTRY, [
+    scopeRecord({ ts: "2026-07-22T00:00:00.000+00:00" }),
+    scopeRecord({
+      ts: "2026-07-21T00:00:00Z",
+      as_of: "2026-07-22T00:06:00Z",
+      failed: [{ id: "other", name: "Other" }],
+    }),
+    scopeRecord({ component: "stac-catalog", as_of: "2026-07-22T00:07:00Z" }),
+  ]);
+
+  assert.equal(view.name, "NOAA GFS forecast reads");
+  assert.equal(view.label, "partial outage");
+});
+
+test("read scope refuses every malformed field rather than rendering it", () => {
+  const malformed = [
+    { v: 2 },
+    { scope: "minor" },
+    { as_of: "2026-07-22T00:05:00" },
+    { through: "not a time" },
+    { final: "false" },
+    { ended_at: undefined },
+    { since: "A".repeat(64) },
+    { failed: [{ id: "noaa-gfs-forecast", name: "NOAA\nGFS" }] },
+    { failed: [{ id: "noaa-gfs-forecast", name: "x".repeat(121) }] },
+    { failed: [{ id: "noaa-gfs-forecast" }] },
+    {
+      failed: [
+        { id: "noaa-gfs-forecast", name: "NOAA GFS forecast" },
+        { id: "noaa-gfs-forecast", name: "NOAA GFS forecast" },
+      ],
+    },
+    { unverified: [{ id: "noaa-gfs-forecast", name: "NOAA GFS forecast" }] },
+    { latest: { at: "2026-07-21T23:59:00Z", passed: -1, failed: 1, unverified: 0 } },
+    { latest: { at: "2026-07-21T23:59:00Z", passed: 1.5, failed: 1, unverified: 0 } },
+    { full_witness: { at: "2026-07-21T23:59:00Z", selected: 0 } },
+    { full_witness: { selected: 2 } },
+  ];
+  assert.notEqual(readScopeView(OPEN_ENTRY, [scopeRecord()]), null);
+  for (const overrides of malformed) {
+    assert.equal(
+      readScopeView(OPEN_ENTRY, [scopeRecord(overrides)]),
+      null,
+      JSON.stringify(overrides),
+    );
+  }
+});
+
+test("a name of 120 code points is accepted even past 120 UTF-16 units", () => {
+  const name = "🌀".repeat(120);
+  const view = readScopeView(OPEN_ENTRY, [
+    scopeRecord({ failed: [{ id: "noaa-gfs-forecast", name }] }),
+  ]);
+  assert.equal(view.name, `${name} reads`);
+});
+
+test("records tied on as-of and scope but differing in content render as today", () => {
+  const view = readScopeView(OPEN_ENTRY, [
+    scopeRecord(),
+    scopeRecord({ failed: [{ id: "noaa-gfs-analysis", name: "NOAA GFS analysis" }] }),
+  ]);
+  assert.equal(view, null);
+});
+
+test("a partial scope with several failed datasets keeps the component name", () => {
+  const view = readScopeView(OPEN_ENTRY, [
+    scopeRecord({
+      failed: [
+        { id: "noaa-gfs-forecast", name: "NOAA GFS forecast" },
+        { id: "noaa-gfs-analysis", name: "NOAA GFS analysis" },
+      ],
+    }),
+  ]);
+  assert.equal(view.name, "Data product reads");
+  assert.equal(view.label, "partial outage");
 });

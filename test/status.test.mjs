@@ -1246,3 +1246,113 @@ test("a coalesced entry counts its windows, not the span between them", () => {
     "Planned work affected Pipeline for 22 minutes.",
   );
 });
+
+test("history carries a data-product-reads outage's read scope", () => {
+  const record = {
+    ts: "2026-07-24T19:00:00Z",
+    kind: "read_scope",
+    component: "data-product-reads",
+    v: 1,
+    as_of: "2026-07-24T19:40:00Z",
+    final: true,
+    ended_at: "2026-07-24T19:30:00Z",
+    since: "a".repeat(64),
+    through: "2026-07-24T18:59:00Z",
+    scope: "partial",
+    failed: [{ id: "noaa-gfs-forecast", name: "NOAA GFS forecast" }],
+    unverified: [],
+    latest: { at: "2026-07-24T18:59:00Z", passed: 35, failed: 1, unverified: 0 },
+    full_witness: null,
+  };
+  const health = [
+    {
+      ts: "2026-07-24T18:00:00Z",
+      kind: "coverage",
+      component: "data-product-reads",
+      monitored: true,
+      state: "operational",
+    },
+    {
+      ts: "2026-07-24T19:00:00Z",
+      kind: "transition",
+      component: "data-product-reads",
+      to: "down",
+    },
+    {
+      ts: "2026-07-24T19:30:00Z",
+      kind: "transition",
+      component: "data-product-reads",
+      to: "operational",
+    },
+  ];
+  const meta = (count) =>
+    JSON.stringify({
+      v: 1,
+      reconciled_at: "2026-07-24T20:00:00Z",
+      events_count: count,
+    });
+  const lines = (events) => events.map(JSON.stringify).join("\n");
+
+  const plain = buildHistory(lines(health), meta(3));
+  const scoped = buildHistory(lines([...health, record]), meta(4));
+
+  assert.equal(plain.incidents[0].readScope, undefined);
+  assert.deepEqual(scoped.incidents[0].readScope, {
+    name: "NOAA GFS forecast reads",
+    label: "partial outage",
+    sentences: [
+      "Affected during this incident: NOAA GFS forecast.",
+      "Latest available detail (2026-07-24T18:59:00Z): 1 of 36 checked collections failed.",
+    ],
+  });
+  const { readScope, ...incident } = scoped.incidents[0];
+  assert.deepEqual(incident, plain.incidents[0]);
+  assert.deepEqual(scoped.spans, plain.spans);
+  assert.deepEqual(scoped.cells, plain.cells);
+  assert.deepEqual(scoped.uptime, plain.uptime);
+  assert.deepEqual(scoped.asOf, plain.asOf);
+});
+
+test("an incident group may mark its outage as partial", () => {
+  const group = {
+    id: "aifs-single-gcp-read-error-20261014",
+    kind: "outage",
+    scope: "partial",
+    selected: 26,
+    failed: [
+      {
+        id: "ecmwf-aifs-single-forecast-virtual",
+        name: "ECMWF AIFS Single forecast, virtual",
+      },
+    ],
+    summary: "ECMWF AIFS Single forecast, virtual reads",
+    started_at: "2026-10-14T10:00:00Z",
+    ended_at: "2026-10-14T11:00:00Z",
+    components: ["data-product-reads"],
+  };
+  const data = validateStatusData({
+    ...operationalData,
+    incident_groups: [group, { ...group, id: "other", scope: "full" }],
+  });
+  const incident = {
+    id: "incident-data-product-reads-1",
+    component: "data-product-reads",
+    kind: "outage",
+    start: Date.parse("2026-10-14T10:05:00Z"),
+    end: Date.parse("2026-10-14T10:30:00Z"),
+    ending: "resolved",
+  };
+
+  const [partial] = applyIncidentGroups(
+    { incidents: [incident], cells: new Map() },
+    [data.incident_groups[0]],
+  ).incidents;
+  const [unscoped] = applyIncidentGroups(
+    { incidents: [incident], cells: new Map() },
+    [data.incident_groups[1]],
+  ).incidents;
+
+  assert.equal(partial.kind, "outage");
+  assert.equal(partial.scope, "partial");
+  assert.equal(unscoped.scope, undefined);
+});

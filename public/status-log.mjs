@@ -10,6 +10,12 @@
 
 const COVERAGE = "coverage";
 const TRANSITION = "transition";
+const READ_SCOPE = "read_scope";
+const READ_SCOPE_COMPONENT = "data-product-reads";
+const SCOPE_SEVERITY = { partial: 0, unknown: 1, full: 2 };
+const COLLECTION_ID = /^[a-z0-9][a-z0-9-]{0,99}$/;
+// Unicode category Cc, which is what the publisher refuses in a name.
+const CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f]/;
 const PUBLIC_STATES = new Set(["operational", "degraded", "down"]);
 // At equal ts the order is: coverage entry, then transitions, then coverage exit.
 // Entry first because a component must be observed before a state change of it
@@ -37,6 +43,7 @@ function publicState(state) {
 
 export function parseEventLog(text) {
   const events = [];
+  const readScopes = [];
   let recordCount = 0;
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
@@ -47,6 +54,12 @@ export function parseEventLog(text) {
       continue; // A truncated tail must not cost us the whole history.
     }
     recordCount += 1;
+    // Read-scope records annotate an outage; they never bear state, so they
+    // stay out of the fold and are only read by readScopeView.
+    if (event?.kind === READ_SCOPE) {
+      readScopes.push(event);
+      continue;
+    }
     // Skip unknown kinds so additive records remain safe for an old client.
     // A state-bearing semantic addition bumps `v`.
     if (event?.kind !== COVERAGE && event?.kind !== TRANSITION) continue;
@@ -65,7 +78,7 @@ export function parseEventLog(text) {
     (a, b) =>
       Date.parse(a.ts) - Date.parse(b.ts) || kindRank(a) - kindRank(b),
   );
-  return { events, recordCount };
+  return { events, recordCount, readScopes };
 }
 
 export function parseEvents(text) {
@@ -344,4 +357,183 @@ function truncate(percent) {
 // 0% — the mirror of confirmed downtime never presenting as 100% uptime.
 function inflate(percent) {
   return Math.ceil(percent * 1000) / 1000;
+}
+
+// --- read scope ------------------------------------------------------------
+//
+// How much of a data-product-reads outage the read canary saw fail. The
+// publisher writes these records beside the health events and the feed renders
+// them with the same rules (the publisher's `read_scope_view`); the golden
+// cases in test/fixtures/read_scope_golden.json hold both ends to one answer.
+//
+// Every doubt resolves to null, which renders the entry exactly as before: a
+// plain "outage" of data product reads. Scope may only ever narrow what the
+// page says when the record behind it is whole and unambiguous.
+
+function utcInstant(value) {
+  if (typeof value !== "string") return null;
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(value)) return null;
+  const at = Date.parse(value);
+  return Number.isFinite(at) ? at : null;
+}
+
+function isCount(value) {
+  return Number.isInteger(value) && value >= 0;
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isCollectionList(list) {
+  return (
+    Array.isArray(list) &&
+    list.every(
+      (item) =>
+        isPlainObject(item) &&
+        typeof item.id === "string" &&
+        COLLECTION_ID.test(item.id) &&
+        typeof item.name === "string" &&
+        [...item.name].length <= 120 &&
+        !CONTROL_CHARACTER.test(item.name),
+    )
+  );
+}
+
+function isReadScopeRecord(record) {
+  if (
+    record.v !== 1 ||
+    typeof record.scope !== "string" ||
+    !Object.hasOwn(SCOPE_SEVERITY, record.scope) ||
+    utcInstant(record.as_of) === null ||
+    utcInstant(record.through) === null ||
+    utcInstant(record.ts) === null ||
+    typeof record.final !== "boolean" ||
+    (record.ended_at !== null && utcInstant(record.ended_at) === null) ||
+    typeof record.since !== "string" ||
+    !/^[0-9a-f]{64}$/.test(record.since) ||
+    !isCollectionList(record.failed) ||
+    !isCollectionList(record.unverified)
+  ) {
+    return false;
+  }
+  const ids = [...record.failed, ...record.unverified].map(({ id }) => id);
+  if (new Set(ids).size !== ids.length) return false;
+  const { latest, full_witness: witness } = record;
+  if (
+    latest !== null &&
+    !(
+      isPlainObject(latest) &&
+      utcInstant(latest.at) !== null &&
+      isCount(latest.passed) &&
+      isCount(latest.failed) &&
+      isCount(latest.unverified)
+    )
+  ) {
+    return false;
+  }
+  return (
+    witness === null ||
+    (isPlainObject(witness) &&
+      utcInstant(witness.at) !== null &&
+      Number.isInteger(witness.selected) &&
+      witness.selected > 0)
+  );
+}
+
+// Key-order-independent, so two records equal as JSON compare equal here.
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (isPlainObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+// The publisher's utc_iso: whole seconds, Z.
+function utcIso(value) {
+  return `${new Date(utcInstant(value)).toISOString().slice(0, 19)}Z`;
+}
+
+/**
+ * The scope view for one data-product-reads outage entry, or null to render it
+ * as today. `entry` is `{started_at, ended_at}` as ISO strings (ended_at null
+ * while open); `records` may hold any read-scope records from the log.
+ */
+export function readScopeView(entry, records) {
+  const start = utcInstant(entry.started_at);
+  if (start === null) return null;
+  const forOnset = records.filter(
+    (record) =>
+      isPlainObject(record) &&
+      record.kind === READ_SCOPE &&
+      record.component === READ_SCOPE_COMPONENT &&
+      utcInstant(record.ts) === start,
+  );
+  if (!forOnset.every(isReadScopeRecord)) return null;
+
+  const end = entry.ended_at == null ? null : utcInstant(entry.ended_at);
+  if (entry.ended_at != null && end === null) return null;
+  const candidates =
+    end === null
+      ? forOnset
+      : forOnset.filter(
+          (record) => record.final && utcInstant(record.ended_at) === end,
+        );
+  if (!candidates.length) return null;
+  const rank = (record) => [
+    utcInstant(record.as_of),
+    SCOPE_SEVERITY[record.scope],
+  ];
+  const best = candidates.reduce((a, b) => {
+    const [aAt, aSeverity] = rank(a);
+    const [bAt, bSeverity] = rank(b);
+    return bAt > aAt || (bAt === aAt && bSeverity > aSeverity) ? b : a;
+  });
+  const [bestAt, bestSeverity] = rank(best);
+  // At most one record per onset per poll, so a tie that disagrees is a fault.
+  const tied = candidates.filter(
+    (record) =>
+      rank(record)[0] === bestAt && rank(record)[1] === bestSeverity,
+  );
+  if (new Set(tied.map(canonical)).size > 1) return null;
+
+  const { scope, failed, unverified, latest, full_witness: witness } = best;
+  if (scope === "unknown" && !failed.length && !unverified.length) return null;
+  const names = (list) => list.map(({ name }) => name).join("; ");
+  const sentences = [];
+  if (end === null) sentences.push(`Scope as of ${utcIso(best.as_of)}.`);
+  if (scope === "full" && witness) {
+    sentences.push(
+      `All ${witness.selected} checked collections failed at ${utcIso(witness.at)}.`,
+    );
+  }
+  if (failed.length) {
+    sentences.push(
+      scope === "unknown"
+        ? `Affected during this incident (scope unknown): ${names(failed)}.`
+        : `Affected during this incident: ${names(failed)}.`,
+    );
+  }
+  if (unverified.length) {
+    sentences.push(`Readability could not be verified: ${names(unverified)}.`);
+  }
+  if (latest) {
+    sentences.push(
+      `Latest available detail (${utcIso(latest.at)}): ${latest.failed} of ${
+        latest.passed + latest.failed
+      } checked collections failed.`,
+    );
+  }
+  return scope === "partial"
+    ? {
+        name:
+          failed.length === 1 ? `${failed[0].name} reads` : "Data product reads",
+        label: "partial outage",
+        sentences,
+      }
+    : { name: "Data product reads", label: "outage", sentences };
 }

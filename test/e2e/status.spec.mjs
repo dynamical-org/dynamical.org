@@ -568,3 +568,113 @@ test.describe("expired observations are not current health", () => {
     await expectFresh(page);
   });
 });
+
+test.describe("read-outage scope", () => {
+  const READS_INCIDENT_ID =
+    `incident-data-product-reads-${Date.parse("2026-07-24T14:55:00Z") / 1000}`;
+  const SCOPED_EVENTS = withEvents(EVENTS, [
+    {
+      ts: "2026-07-24T14:55:00Z",
+      kind: "read_scope",
+      component: "data-product-reads",
+      v: 1,
+      as_of: "2026-07-24T15:05:20Z",
+      final: false,
+      ended_at: null,
+      since: "a".repeat(64),
+      through: "2026-07-24T14:54:12Z",
+      scope: "partial",
+      failed: [
+        {
+          id: "ecmwf-aifs-single-forecast-virtual",
+          name: "ECMWF AIFS Single forecast, virtual",
+        },
+      ],
+      unverified: [{ id: "noaa-gefs-analysis", name: "NOAA GEFS analysis" }],
+      latest: {
+        at: "2026-07-24T14:54:12Z",
+        passed: 34,
+        failed: 1,
+        unverified: 1,
+      },
+      full_witness: null,
+    },
+  ]);
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install({
+      time: new Date(Date.parse(STATUS.generated_at) + 2 * 60 * 1000),
+    });
+  });
+
+  test("a partial read outage names what failed", async ({ page }) => {
+    await openStatus(page, undefined, () => SCOPED_EVENTS);
+    const incident = page.locator(`#${READS_INCIDENT_ID}`);
+
+    await expect(incident.locator("h3")).toHaveText(
+      "ECMWF AIFS Single forecast, virtual reads",
+    );
+    await expect(incident.locator("header strong")).toHaveText(
+      "partial outage · ongoing",
+    );
+    await expect(incident.locator("p").nth(1)).toHaveText(
+      "Scope as of 2026-07-24T15:05:20Z. " +
+        "Affected during this incident: ECMWF AIFS Single forecast, virtual. " +
+        "Readability could not be verified: NOAA GEFS analysis. " +
+        "Latest available detail (2026-07-24T14:54:12Z): 1 of 35 checked collections failed.",
+    );
+    await expect(incident.locator("p").last()).toContainText("ongoing");
+    await expect(
+      componentRow(page, "Data product reads").locator("h3"),
+    ).toHaveText("Data product reads");
+  });
+
+  test("a read outage without a scope record renders as before", async ({
+    page,
+  }) => {
+    await openStatus(page);
+    const incident = page.locator(`#${READS_INCIDENT_ID}`);
+
+    await expect(incident.locator("h3")).toHaveText("Data product reads");
+    await expect(incident.locator("header strong")).toHaveText(
+      "outage · ongoing",
+    );
+    await expect(incident.locator("p")).toHaveCount(2);
+  });
+
+  test("an incident group scoped as partial says so", async ({ page }) => {
+    await openStatus(
+      page,
+      (payload) => ({
+        ...payload,
+        incident_groups: [
+          {
+            id: "aifs-single-gcp-read-error",
+            kind: "outage",
+            scope: "partial",
+            selected: 26,
+            failed: [
+              {
+                id: "ecmwf-aifs-single-forecast-virtual",
+                name: "ECMWF AIFS Single forecast, virtual",
+              },
+            ],
+            summary: "ECMWF AIFS Single forecast, virtual reads",
+            started_at: "2026-07-21T13:59:00Z",
+            ended_at: "2026-07-21T14:30:00Z",
+            components: ["data-product-reads"],
+          },
+        ],
+      }),
+      () => OVERLAPPING_EVENTS,
+    );
+    const group = page.locator("#incident-group-aifs-single-gcp-read-error");
+
+    await expect(group.locator("header strong")).toHaveText(
+      "partial outage · resolved",
+    );
+    await expect(
+      page.locator(`#${STAC_INCIDENT_ID} a[href="#incident-group-aifs-single-gcp-read-error"]`),
+    ).toHaveText("the ECMWF AIFS Single forecast, virtual reads partial outage");
+  });
+});
