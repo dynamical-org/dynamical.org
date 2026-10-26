@@ -12,6 +12,7 @@ import {
   effectiveAsOf,
   incidentLog,
   parseEventLog,
+  readScopeView,
   uptimeSummary,
 } from "./status-log.mjs";
 import {
@@ -278,6 +279,7 @@ function sameEpisode(a, b) {
     a.kind === b.kind &&
     a.summary === b.summary &&
     a.description === b.description &&
+    a.scope === b.scope &&
     a.components.length === b.components.length &&
     a.components.every((component) => b.components.includes(component))
   );
@@ -412,6 +414,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
       kind: configured.kind,
       summary: configured.summary,
       ...(configured.description ? { description: configured.description } : {}),
+      ...(configured.scope === "partial" ? { scope: "partial" } : {}),
       components: configured.components.filter((component) =>
         matches.some((incident) => incident.component === component),
       ),
@@ -604,8 +607,22 @@ function StatusGroup({ entries, bars, uptime, emptyCells }) {
   );
 }
 
+// A data-product-reads outage carries the read canary's scope when the log
+// has a whole, unambiguous record of it; otherwise it renders as before.
+function withReadScope(incident, readScopes) {
+  if (incident.component !== "data-product-reads" || incident.kind !== "outage") {
+    return incident;
+  }
+  const iso = (time) => (time == null ? null : new Date(time).toISOString());
+  const readScope = readScopeView(
+    { started_at: iso(incident.start), ended_at: iso(incident.end) },
+    readScopes,
+  );
+  return readScope ? { ...incident, readScope } : incident;
+}
+
 export function buildHistory(eventsText, metaText) {
-  const { events, recordCount } = parseEventLog(eventsText);
+  const { events, recordCount, readScopes } = parseEventLog(eventsText);
   const meta = JSON.parse(metaText);
   if (
     "events_count" in meta &&
@@ -622,7 +639,9 @@ export function buildHistory(eventsText, metaText) {
     asOf,
     spans,
     cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
-    incidents: incidentLog(events),
+    incidents: incidentLog(events).map((incident) =>
+      withReadScope(incident, readScopes),
+    ),
     uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
   };
 }
@@ -677,7 +696,19 @@ function sentenceList(items) {
 }
 
 function incidentName(incident, names) {
-  return incident.summary ?? names.get(incident.component);
+  return (
+    incident.summary ??
+    incident.readScope?.name ??
+    names.get(incident.component)
+  );
+}
+
+// An outage the read canary or its incident group scoped as partial says so.
+function outageLabel(incident) {
+  return (
+    incident.readScope?.label ??
+    (incident.scope === "partial" ? "partial outage" : "outage")
+  );
 }
 
 export function groupedIncidentDescription(incident, names, end) {
@@ -733,7 +764,9 @@ function Incident({ incident, visible, names, asOf, local }) {
       ? "planned outage"
       : kind === "observation"
         ? "observation gap"
-        : kind;
+        : kind === "outage"
+          ? outageLabel(incident)
+          : kind;
   // A coalesced entry stands for several windows, so it says so twice over:
   // a plural state line, and a timing line that counts them.
   const label = incident.windows ? `${kindLabel}s` : kindLabel;
@@ -772,7 +805,9 @@ function Incident({ incident, visible, names, asOf, local }) {
             const otherKind =
               other.kind === "planned"
                 ? "planned outage"
-                : other.kind ?? "outage";
+                : (other.kind ?? "outage") === "outage"
+                  ? outageLabel(other)
+                  : other.kind;
             return html`<${Fragment} key=${other.id}
               >${index > 0 ? ", " : null}<a
                 href=${`#${other.id}`}
@@ -780,6 +815,9 @@ function Incident({ incident, visible, names, asOf, local }) {
           })}${"."}`
         : null}
     </p>
+    ${incident.readScope
+      ? html`<p>${incident.readScope.sentences.join(" ")}</p>`
+      : null}
     <p>${timing}</p>
   </li>`;
 }
