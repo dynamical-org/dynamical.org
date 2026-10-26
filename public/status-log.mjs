@@ -401,7 +401,10 @@ function utcInstant(value) {
   const offsetMinutes = sign
     ? (sign === "-" ? -1 : 1) * (Number(offH) * 60 + Number(offM))
     : 0;
-  return local - offsetMinutes * 60_000;
+  const instant = local - offsetMinutes * 60_000;
+  // The same supported range once the offset is applied, as the publisher.
+  const utcYear = new Date(instant).getUTCFullYear();
+  return utcYear >= 1970 && utcYear <= 9999 ? instant : null;
 }
 
 // An entry's own instants come from the page's Date, with milliseconds.

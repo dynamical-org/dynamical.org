@@ -957,6 +957,130 @@
           "Latest available detail (2026-10-26T11:44:12Z): 1 of 36 checked collections failed."
         ]
       }
+    },
+    {
+      "name": "an offset that carries a timestamp past year 9999 makes the record invalid",
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
+      "records": [
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:45:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "9999-12-31T23:59:59-00:01",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "an offset that carries a timestamp before 1970 makes the record invalid",
+      "entry": {
+        "started_at": "2026-10-26T11:44:15Z",
+        "ended_at": "2026-10-26T11:50:20Z"
+      },
+      "records": [
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:45:20Z",
+          "final": false,
+          "ended_at": null,
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "2026-10-26T11:44:12Z",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        },
+        {
+          "ts": "2026-10-26T11:44:15Z",
+          "kind": "read_scope",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-26T11:55:20Z",
+          "final": true,
+          "ended_at": "2026-10-26T11:50:20Z",
+          "since": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "through": "1970-01-01T00:00:00+00:01",
+          "scope": "partial",
+          "failed": [
+            {
+              "id": "ecmwf-aifs-single-forecast-virtual",
+              "name": "ECMWF AIFS Single forecast, virtual"
+            }
+          ],
+          "unverified": [],
+          "latest": {
+            "at": "2026-10-26T11:44:12Z",
+            "passed": 35,
+            "failed": 1,
+            "unverified": 0
+          },
+          "full_witness": null
+        }
+      ],
+      "expected": null
     }
   ]
 }
