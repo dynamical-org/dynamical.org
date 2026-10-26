@@ -382,6 +382,8 @@ function utcInstant(value) {
   if (!match) return null;
   const [, year, month, day, hour, minute, second, sign, offH, offM] = match;
   const fields = [year, month, day, hour, minute, second].map(Number);
+  // Date.UTC remaps years 0-99 into the 1900s; both readers accept 1970 on.
+  if (fields[0] < 1970) return null;
   const local = Date.UTC(fields[0], fields[1] - 1, fields[2], ...fields.slice(3));
   const check = new Date(local);
   if (
@@ -409,8 +411,9 @@ function entryInstant(value) {
   return Number.isFinite(at) ? at : null;
 }
 
+// Exact in a JavaScript Number, as the publisher's reader also requires.
 function isCount(value) {
-  return Number.isInteger(value) && value >= 0;
+  return Number.isSafeInteger(value) && value >= 0;
 }
 
 function isPlainObject(value) {
@@ -459,7 +462,8 @@ function isReadScopeRecord(record) {
       utcInstant(latest.at) !== null &&
       isCount(latest.passed) &&
       isCount(latest.failed) &&
-      isCount(latest.unverified)
+      isCount(latest.unverified) &&
+      Number.isSafeInteger(latest.passed + latest.failed)
     )
   ) {
     return false;
@@ -468,7 +472,7 @@ function isReadScopeRecord(record) {
     witness === null ||
     (isPlainObject(witness) &&
       utcInstant(witness.at) !== null &&
-      Number.isInteger(witness.selected) &&
+      isCount(witness.selected) &&
       witness.selected > 0)
   );
 }
