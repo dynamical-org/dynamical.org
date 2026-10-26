@@ -370,9 +370,14 @@ function inflate(percent) {
 // plain "outage" of data product reads. Scope may only ever narrow what the
 // page says when the record behind it is whole and unambiguous.
 
+// The same strict shape the publisher accepts, so both ends read a record's
+// timestamps identically.
+const RECORD_INSTANT =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
 function utcInstant(value) {
   if (typeof value !== "string") return null;
-  if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(value)) return null;
+  if (!RECORD_INSTANT.test(value)) return null;
   const at = Date.parse(value);
   return Number.isFinite(at) ? at : null;
 }

@@ -671,6 +671,9 @@ test("read scope refuses every malformed field rather than rendering it", () => 
     { scope: "minor" },
     { as_of: "2026-07-22T00:05:00" },
     { through: "not a time" },
+    // Strict like the publisher's reader: Date.parse would accept both.
+    { through: "2026-07-21 23:59:00Z" },
+    { as_of: "2026-07-22T00:05:00+0000" },
     { final: "false" },
     { ended_at: undefined },
     { since: "A".repeat(64) },
