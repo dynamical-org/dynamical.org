@@ -18,6 +18,13 @@ Draft, results only. Scope: virtual datasets and their upstream sources. 2 m tem
 
 **Method.** As of decision time T (hourly), use the newest run whose needed lead is recorded readable by T, and score it at horizon V − T. Cases are paired across policies. 90% CIs are pointwise, from a circular 5-day block bootstrap over valid days with all airports kept together within a day. They describe uncertainty over time for this fixed set of airports and period, not over other stations, seasons or years. Results are weighted by case, not by area or traffic. Every selection is checked against a brute-force oracle.
 
+## Takeaways
+
+- **Hourly HRRR runs help most in the first hours.** Adding the hourly 18 h runs to the 6-hourly 48 h runs changes RMSE by −0.144 °C [−0.153, −0.135] at 0–3 h ahead. 60 of 61 airports gain, the West most. The gain shrinks to −0.040 at 3–6 h and is marginal by 9–12 h.
+- **With recorded upstream timing, AIFS single leads beyond the shortest horizons in this sample.** Timed by when each upstream source published each lead, AIFS single is ahead of GFS at every horizon (GFS +0.37 to +0.51 °C on 64 airports) and of HRRR from 6 h (+0.21 at 6–12 h to +0.48 at 30–36 h). At 0–6 h HRRR has a small pooled edge on the hour (−0.034 [−0.066, −0.003]), unresolved with T at :30. That edge comes from the West (−0.38); AIFS is ahead in the other regions.
+- **The virtual copies' median recorded lag behind their upstream sources is minutes.** The per-product median per lead is 0.1–2.5 min. With decisions on the hour, in the overlaps checked, virtual timing served an older run in at most 2.4% of cases (HRRR), costing +0.011 °C [0.005, 0.020] at 0–6 h and about +0.005 °C or less elsewhere. At :30, HRRR's short-horizon effect is near zero; its largest is about +0.007 °C at 24–30 h.
+- **Scope.** 2 m temperature at these airports over 5.5–11.5 weeks. Read the numbers as this period and network, not as a general model ordering.
+
 ## HRRR hourly (18 h) vs 6-hourly (48 h) runs
 
 {% figure "/assets/notes/latency-hrrr-18-vs-48.png", "Six panels comparing HRRR 18-hour and 48-hour virtual datasets as of decision time: lead availability after init, coverage, run age, RMSE by horizon, paired RMSE difference, and how often a newer hourly run is used." %}HRRR 18 h vs 48 h virtual, 61 CONUS airports. T hourly 2026-08-02 to 10-21 00Z (~11.5 weeks), V hourly. (a) Lead recorded readable after init. (b) Coverage of (T, V, station) cases. (c) Median age of the selected run. (d) RMSE vs horizon. (e) Paired difference vs 48 h only. (f) How often "either" uses a newer run, and by how many hours.{% endfigure %}
@@ -149,7 +156,7 @@ Five stations (ORD, BOS, SEA, DEN, ATL); inits 2026-10-07 to 10-20, leads 0–14
 - HRRR is recorded readable ~52 min after init, so an on-the-hour T sits at the threshold. Results are phase-sensitive (checked at :15, :30, :45).
 - Today's store values are paired with historical timing. All errors come from the virtual stores.
 - Download, decode and point-read time are excluded.
-- AIFS's late-lead virtual lag from 10-20 falls outside the skill window.
+- AIFS timing changed after the skill window. ECMWF's own AIFS publication slowed from the 2026-10-20 06Z init. AIFS single slowed on both its AWS and GCS buckets: daily medians went from about 5.4 h after init at every lead to about 5.75 h at lead 0, 6.3 h at 120 h and 6.9 h at 234 h. AIFS ENS on AWS slowed from about 5.9 h to about 6.7–7.3 h. Over the same dates, our AIFS virtual copy added its own delay at leads 102–360 h, on top of that and measured against GCS (the virtual − source table above). Both fall after the multi-model skill window (T to 10-18), and the AIFS medians in the availability table mostly reflect the earlier schedule. ECMWF has indicated it intends to restore the earlier schedule.
 
 ## Airports
 
