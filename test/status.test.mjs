@@ -11,6 +11,7 @@ import {
   isHistoryCurrent,
   isStatusDataStale,
   overlappingEntries,
+  regionalDetail,
   statusLabel,
   STALE_MESSAGE,
   summarizeOverallStatus,
@@ -1355,4 +1356,320 @@ test("an incident group may mark its outage as partial", () => {
   assert.equal(partial.kind, "outage");
   assert.equal(partial.scope, "partial");
   assert.equal(unscoped.scope, undefined);
+});
+
+// --- regional partial outages of data product reads -------------------------
+
+const READS = "data-product-reads";
+const readsEvent = (ts, to) =>
+  to === undefined
+    ? { ts, kind: "coverage", component: READS, monitored: true, state: "operational" }
+    : { ts, kind: "transition", component: READS, to };
+const FLAGS = { failed: false, not_verified: false, catalog_failed: false, unobserved: false };
+const regionsRecord = (ts, overrides = {}) => ({
+  ts,
+  kind: "read_regions",
+  component: READS,
+  v: 1,
+  as_of: "2026-07-24T19:40:00Z",
+  final: false,
+  ended_at: null,
+  since: "a".repeat(64),
+  through: ts,
+  regions: {
+    "us-east": { ...FLAGS, failed: true },
+    "us-west": FLAGS,
+    "eu-west": FLAGS,
+  },
+  latest: {
+    at: ts,
+    verdict: "degraded",
+    status: { "us-east": "fail", "us-west": "pass", "eu-west": "pass" },
+  },
+  all_failed_at: null,
+  ...overrides,
+});
+const historyOf = (...lines) =>
+  buildHistory(
+    lines.map((line) => JSON.stringify(line)).join("\n"),
+    JSON.stringify({
+      v: 1,
+      reconciled_at: "2026-07-24T20:00:00Z",
+      events_count: lines.length,
+    }),
+  );
+const READS_ROW = {
+  id: READS,
+  name: "Data product reads",
+  group: "endpoint",
+  status: "degraded",
+};
+
+test("a degraded read row is a partial outage; other rows keep their labels", () => {
+  assert.equal(statusLabel(READS_ROW), "Partial outage");
+  assert.equal(statusLabel({ ...READS_ROW, status: "down" }), "Down");
+  assert.equal(statusLabel({ ...READS_ROW, status: "operational" }), "Operational");
+  assert.equal(
+    statusLabel({
+      ...READS_ROW,
+      observation: { kind: "observation", summary: "Sentry unavailable" },
+    }),
+    "Monitoring gap",
+  );
+  assert.equal(statusLabel({ ...READS_ROW, id: "stac-catalog" }), "Degraded");
+});
+
+test("the current read row names regions from the open entry's record", () => {
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    regionsRecord("2026-07-24T19:00:00Z"),
+  );
+  assert.equal(history.currentRegions, "in US East");
+  assert.equal(history.currentRegionsAt, "2026-07-24T19:00:00Z");
+  assert.equal(
+    regionalDetail(READS_ROW, history, false),
+    "As of the latest regional check at Jul 24, 2026, 7:00 PM UTC, reads were failing in US East.",
+  );
+});
+
+test("a newer snapshot does not make an older history's regions current", () => {
+  // The history saw US East fail at 19:50; a later run that passed US East
+  // and failed elsewhere keeps the snapshot degraded before history catches up.
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      latest: {
+        at: "2026-07-24T19:50:00Z",
+        verdict: "degraded",
+        status: { "us-east": "fail", "us-west": "pass", "eu-west": "pass" },
+      },
+    }),
+  );
+  const generatedAt = "2026-07-24T20:05:00Z";
+  assert.ok(isHistoryCurrent(history.asOf, generatedAt, new Date(generatedAt)));
+  assert.equal(
+    regionalDetail(READS_ROW, history, false),
+    "As of the latest regional check at Jul 24, 2026, 7:50 PM UTC, reads were failing in US East.",
+  );
+});
+
+test("the current read row falls back when no readable record names regions", () => {
+  const missing = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+  );
+  const invalid = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    regionsRecord("2026-07-24T19:00:00Z", { v: 7 }),
+  );
+  for (const history of [missing, invalid, null]) {
+    assert.equal(history?.currentRegions, undefined);
+    assert.equal(
+      regionalDetail(READS_ROW, history),
+      "Reads are failing in some monitored regions.",
+    );
+  }
+});
+
+test("only a degraded read row gets regional detail", () => {
+  const history = { currentRegions: "in US East" };
+  for (const entry of [
+    { ...READS_ROW, status: "down" },
+    { ...READS_ROW, status: "operational" },
+    { ...READS_ROW, observation: { kind: "observation", summary: "gap" } },
+    { ...READS_ROW, id: "stac-catalog" },
+  ]) {
+    assert.equal(regionalDetail(entry, history), null);
+  }
+});
+
+test("an annotated degraded read entry is a regional partial outage", () => {
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:30:00Z", "operational"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T19:30:00Z",
+    }),
+  );
+  const [entry] = history.incidents;
+  assert.equal(entry.kind, "delay");
+  assert.equal(entry.id, `delay-${READS}-${Date.parse("2026-07-24T19:00:00Z") / 1000}`);
+  assert.equal(entry.readRegions.label, "regional partial outage");
+  assert.equal(history.currentRegions, undefined);
+  assert.equal(
+    incidentDescription(entry, "Data product reads"),
+    "During this incident (30 minutes), reads of dynamical.org data failed their canary checks in US East.",
+  );
+});
+
+test("a gap after a regional failure does not say where reads are failing now", () => {
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      regions: {
+        "us-east": { ...FLAGS, failed: true },
+        "us-west": FLAGS,
+        "eu-west": { ...FLAGS, unobserved: true },
+      },
+      latest: {
+        at: "2026-07-24T19:10:00Z",
+        verdict: "gap",
+        status: { "us-east": "pass", "us-west": "pass", "eu-west": "unobserved" },
+      },
+    }),
+  );
+  assert.equal(history.currentRegions, undefined);
+  assert.equal(
+    regionalDetail(READS_ROW, history),
+    "Reads are failing in some monitored regions.",
+  );
+});
+
+test("a regional partial outage names every region that failed during it", () => {
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T20:00:00Z", "operational"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T20:00:00Z",
+      regions: {
+        "us-east": { ...FLAGS, failed: true },
+        "us-west": { ...FLAGS, failed: true },
+        "eu-west": FLAGS,
+      },
+      latest: {
+        at: "2026-07-24T19:50:00Z",
+        verdict: "degraded",
+        status: { "us-east": "pass", "us-west": "fail", "eu-west": "pass" },
+      },
+    }),
+  );
+  const description = incidentDescription(history.incidents[0], "Data product reads");
+  assert.equal(
+    description,
+    "During this incident (1h), reads of dynamical.org data failed their canary checks in US East and US West.",
+  );
+  assert.doesNotMatch(description, /in US West for/);
+});
+
+test("a legacy degraded read entry without a record still renders as a delay", () => {
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:30:00Z", "operational"),
+  );
+  const [entry] = history.incidents;
+  assert.equal(entry.kind, "delay");
+  assert.equal(entry.readRegions, undefined);
+  assert.equal(
+    incidentDescription(entry, "Data product reads"),
+    "Data product reads ran behind for 30 minutes.",
+  );
+});
+
+test("an outage that decays into a regional partial outage improved, not resolved", () => {
+  const annotated = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "down"),
+    readsEvent("2026-07-24T19:20:00Z", "degraded"),
+    regionsRecord("2026-07-24T19:20:00Z"),
+  );
+  const [outage, partial] = annotated.incidents;
+  assert.equal(outage.kind, "outage");
+  assert.equal(outage.ending, "resolved");
+  assert.equal(outage.improvedTo, "regional partial outage");
+  assert.equal(partial.readRegions.label, "regional partial outage");
+  assert.equal(annotated.currentRegions, "in US East");
+
+  const legacy = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "down"),
+    readsEvent("2026-07-24T19:20:00Z", "degraded"),
+  );
+  assert.equal(legacy.incidents[0].improvedTo, undefined);
+});
+
+test("a regional partial outage that spreads into an outage worsened, not resolved", () => {
+  const annotated = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:20:00Z", "down"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T19:20:00Z",
+    }),
+  );
+  const [partial, outage] = annotated.incidents;
+  assert.equal(partial.kind, "delay");
+  assert.equal(partial.ending, "resolved");
+  assert.equal(partial.readRegions.label, "regional partial outage");
+  assert.equal(partial.worsenedTo, "outage");
+  assert.equal(outage.kind, "outage");
+  assert.equal(outage.worsenedTo, undefined);
+  assert.equal(outage.improvedTo, undefined);
+
+  // A legacy delay without a record keeps "resolved", as does a regional
+  // partial outage that recovers.
+  const legacy = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:20:00Z", "down"),
+  );
+  assert.equal(legacy.incidents[0].worsenedTo, undefined);
+  const recovered = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:20:00Z", "operational"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T19:20:00Z",
+    }),
+  );
+  assert.equal(recovered.incidents[0].worsenedTo, undefined);
+});
+
+test("a regional partial outage is monitored and not downtime", () => {
+  const health = [
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:30:00Z", "operational"),
+  ];
+  const plain = historyOf(...health);
+  const regional = historyOf(
+    ...health,
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T19:30:00Z",
+    }),
+  );
+  const measured = regional.uptime.get(READS);
+  assert.equal(measured.uptime, 100);
+  assert.equal(measured.coverage, plain.uptime.get(READS).coverage);
+  assert.ok(measured.delayed > 0);
+  assert.deepEqual(regional.uptime, plain.uptime);
+  assert.deepEqual(regional.spans, plain.spans);
+  assert.deepEqual(regional.cells, plain.cells);
+});
+
+test("the read row's degraded figure includes regional partial outages", () => {
+  const measured = { uptime: 100, coverage: 50, delayed: 0.02 };
+  assert.equal(
+    uptimeDescription(measured, 90, READS),
+    "100% uptime over the last 90 days (0.02% degraded, including regional partial outages)",
+  );
+  assert.equal(
+    uptimeDescription(measured, 90, "scorecard"),
+    "100% uptime over the last 90 days (0.02% degraded)",
+  );
+  assert.equal(
+    uptimeDescription({ uptime: 100, coverage: 50, delayed: 0 }, 90, READS),
+    "100% uptime over the last 90 days",
+  );
 });

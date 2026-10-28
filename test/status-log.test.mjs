@@ -9,6 +9,7 @@ import {
   incidentLog,
   parseEventLog,
   parseEvents,
+  readRegionsView,
   readScopeView,
   uptimeSummary,
 } from "../public/status-log.mjs";
@@ -731,4 +732,159 @@ test("a partial scope with several failed datasets keeps the component name", ()
   ]);
   assert.equal(view.name, "Data product reads");
   assert.equal(view.label, "partial outage");
+});
+
+// --- read regions ---------------------------------------------------------
+
+const REGIONS_GOLDEN = JSON.parse(
+  readFileSync(new URL("./fixtures/read_regions_golden.json", import.meta.url), "utf8"),
+);
+
+for (const golden of REGIONS_GOLDEN.cases) {
+  test(`read regions golden: ${golden.name}`, () => {
+    assert.deepEqual(readRegionsView(golden.entry, golden.records), golden.expected);
+  });
+}
+
+const regionsRecord = (overrides = {}) => ({
+  ts: "2026-07-22T00:00:00Z",
+  kind: "read_regions",
+  component: READS,
+  v: 1,
+  as_of: "2026-07-22T00:05:00Z",
+  final: false,
+  ended_at: null,
+  since: "a".repeat(64),
+  through: "2026-07-21T23:59:00Z",
+  regions: {
+    "us-east": { failed: true, not_verified: false, catalog_failed: false, unobserved: false },
+    "us-west": { failed: false, not_verified: false, catalog_failed: false, unobserved: false },
+    "eu-west": { failed: false, not_verified: false, catalog_failed: false, unobserved: false },
+  },
+  latest: {
+    at: "2026-07-21T23:59:00Z",
+    verdict: "degraded",
+    status: { "us-east": "fail", "us-west": "pass", "eu-west": "pass" },
+  },
+  all_failed_at: null,
+  ...overrides,
+});
+const OPEN_DEGRADED = { ...OPEN_ENTRY, state: "degraded" };
+
+test("read regions records ride alongside the events without entering them", () => {
+  const health = [
+    coverage("2026-07-20T00:00:00Z", READS, true, "operational"),
+    transition("2026-07-22T00:00:00Z", READS, "degraded"),
+    transition("2026-07-23T00:00:00Z", READS, "operational"),
+  ];
+  const record = regionsRecord();
+  const plain = parseEventLog(jsonl(...health));
+  const withRecords = parseEventLog(jsonl(...health, record, { kind: "read_regions" }));
+
+  assert.deepEqual(plain.readRegions, []);
+  assert.deepEqual(withRecords.readRegions, [record, { kind: "read_regions" }]);
+  assert.deepEqual(withRecords.readScopes, []);
+  assert.deepEqual(withRecords.events, plain.events);
+  assert.equal(withRecords.recordCount, plain.recordCount + 2);
+  const spans = (parsed) => componentSpans(parsed.events, { asOf: AS_OF });
+  assert.deepEqual(spans(withRecords), spans(plain));
+  assert.deepEqual(
+    uptimeSummary(spans(withRecords), { asOf: AS_OF, days: 90 }),
+    uptimeSummary(spans(plain), { asOf: AS_OF, days: 90 }),
+  );
+  assert.deepEqual(incidentLog(withRecords.events), incidentLog(plain.events));
+});
+
+test("read regions name the failing regions from the page's own table", () => {
+  const view = readRegionsView(OPEN_DEGRADED, [regionsRecord()]);
+  assert.equal(view.label, "regional partial outage");
+  assert.equal(view.where, "in US East");
+  assert.equal(readRegionsView({ ...OPEN_ENTRY, state: "down" }, [regionsRecord()]).label, "outage");
+});
+
+test("read regions render only for down or degraded entries", () => {
+  for (const state of [undefined, "operational", "unknown"]) {
+    assert.equal(readRegionsView({ ...OPEN_ENTRY, state }, [regionsRecord()]), null);
+  }
+});
+
+test("read regions keep only the records for this entry's onset", () => {
+  const view = readRegionsView(OPEN_DEGRADED, [
+    regionsRecord({ ts: "2026-07-22T00:00:00+00:00" }),
+    regionsRecord({ ts: "2026-07-21T00:00:00Z", as_of: "2026-07-22T00:06:00Z" }),
+    regionsRecord({ component: "stac-catalog", as_of: "2026-07-22T00:07:00Z" }),
+    regionsRecord({ kind: "read_scope", as_of: "2026-07-22T00:08:00Z" }),
+  ]);
+  assert.equal(view.where, "in US East");
+});
+
+test("read regions refuse every malformed field rather than rendering it", () => {
+  const record = regionsRecord();
+  const flags = record.regions["us-east"];
+  const malformed = [
+    { v: 2 },
+    { as_of: "2026-07-22T00:05:00" },
+    { through: "2026-07-21T23:59:60Z" },
+    { final: "false" },
+    { ended_at: undefined },
+    { since: "A".repeat(64) },
+    { all_failed_at: "yesterday" },
+    { regions: null },
+    { regions: { ...record.regions, "ap-south": flags } },
+    { regions: { "us-east": flags, "us-west": flags } },
+    { regions: { ...record.regions, "us-east": { ...flags, failed: 1 } } },
+    { regions: { ...record.regions, "us-east": { ...flags, extra: false } } },
+    { regions: { ...record.regions, "us-east": { failed: true } } },
+    { latest: { ...record.latest, at: "never" } },
+    { latest: { ...record.latest, verdict: "ok" } },
+    { latest: { ...record.latest, status: { ...record.latest.status, "us-east": "late" } } },
+    { latest: { ...record.latest, status: { "us-east": "fail" } } },
+  ];
+  assert.notEqual(readRegionsView(OPEN_DEGRADED, [record]), null);
+  for (const overrides of malformed) {
+    assert.equal(
+      readRegionsView(OPEN_DEGRADED, [regionsRecord(overrides)]),
+      null,
+      JSON.stringify(overrides),
+    );
+  }
+});
+
+test("one invalid record for an onset withholds all of them", () => {
+  const view = readRegionsView(OPEN_DEGRADED, [
+    regionsRecord(),
+    regionsRecord({ as_of: "2026-07-22T00:01:00Z", v: 2 }),
+  ]);
+  assert.equal(view, null);
+});
+
+test("a closed entry reads only a final record for its own end", () => {
+  const closed = { ...OPEN_DEGRADED, ended_at: "2026-07-22T01:00:00Z" };
+  assert.equal(readRegionsView(closed, [regionsRecord()]), null);
+  assert.equal(
+    readRegionsView(closed, [
+      regionsRecord({ final: true, ended_at: "2026-07-22T00:30:00Z" }),
+    ]),
+    null,
+  );
+  assert.notEqual(
+    readRegionsView(closed, [
+      regionsRecord({ final: true, ended_at: "2026-07-22T01:00:00Z" }),
+    ]),
+    null,
+  );
+});
+
+test("records tied on as-of but differing in content render as today", () => {
+  const record = regionsRecord();
+  const view = readRegionsView(OPEN_DEGRADED, [
+    record,
+    regionsRecord({
+      regions: {
+        ...record.regions,
+        "us-west": { ...record.regions["us-west"], failed: true },
+      },
+    }),
+  ]);
+  assert.equal(view, null);
 });

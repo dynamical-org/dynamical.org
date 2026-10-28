@@ -678,3 +678,147 @@ test.describe("read-outage scope", () => {
     ).toHaveText("the ECMWF AIFS Single forecast, virtual reads partial outage");
   });
 });
+
+test.describe("regional partial read outage", () => {
+  const READS_DOWN_ID =
+    `incident-data-product-reads-${Date.parse("2026-07-24T14:55:00Z") / 1000}`;
+  const READS_PARTIAL_ID =
+    `delay-data-product-reads-${Date.parse("2026-07-24T15:10:00Z") / 1000}`;
+  const FLAGS = {
+    failed: false,
+    not_verified: false,
+    catalog_failed: false,
+    unobserved: false,
+  };
+  const DECAYED_EVENTS = withEvents(EVENTS, [
+    {
+      ts: "2026-07-24T15:10:00Z",
+      kind: "transition",
+      component: "data-product-reads",
+      to: "degraded",
+    },
+  ]);
+  const REGIONAL_EVENTS = withEvents(DECAYED_EVENTS, [
+    {
+      ts: "2026-07-24T15:10:00Z",
+      kind: "read_regions",
+      component: "data-product-reads",
+      v: 1,
+      as_of: "2026-07-24T15:20:00Z",
+      final: false,
+      ended_at: null,
+      since: "a".repeat(64),
+      through: "2026-07-24T15:09:00Z",
+      regions: {
+        "us-east": { ...FLAGS, failed: true },
+        "us-west": FLAGS,
+        "eu-west": { ...FLAGS, unobserved: true },
+      },
+      latest: {
+        at: "2026-07-24T15:09:00Z",
+        verdict: "degraded",
+        status: { "us-east": "fail", "us-west": "pass", "eu-west": "unobserved" },
+      },
+      all_failed_at: null,
+    },
+  ]);
+  const degradedReads = (payload) => ({
+    ...payload,
+    endpoints: payload.endpoints.map((entry) =>
+      entry.id === "data-product-reads" ? { ...entry, status: "degraded" } : entry,
+    ),
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install({
+      time: new Date(Date.parse(STATUS.generated_at) + 2 * 60 * 1000),
+    });
+  });
+
+  test("names the failing regions on the row and in history", async ({ page }) => {
+    await openStatus(page, degradedReads, () => REGIONAL_EVENTS);
+    const row = componentRow(page, "Data product reads");
+
+    await expect(row.locator(".status-label")).toHaveText("▲ Partial outage");
+    await page.selectOption("#status-time-toggle", "utc");
+    await expect(row.locator("p").first()).toHaveText(
+      "As of the latest regional check at Jul 24, 2026, 3:09 PM UTC, reads were failing in US East.",
+    );
+    await expect(row.locator("p").nth(1)).toContainText(
+      "degraded, including regional partial outages)",
+    );
+    await expect(page.locator(`#${READS_DOWN_ID} header strong`)).toHaveText(
+      "outage · improved to a regional partial outage",
+    );
+    const partial = page.locator(`#${READS_PARTIAL_ID}`);
+    await expect(partial.locator("header strong")).toHaveText(
+      "regional partial outage · ongoing",
+    );
+    await expect(partial.locator("p").first()).toContainText(
+      "During this ongoing incident, reads of dynamical.org data failed their canary checks in US East.",
+    );
+  });
+
+  test("a regional partial outage that spreads into an outage worsened", async ({
+    page,
+  }) => {
+    const worsened = withEvents(EVENTS, [
+      {
+        ts: "2026-07-24T13:00:00Z",
+        kind: "transition",
+        component: "data-product-reads",
+        to: "degraded",
+      },
+      {
+        ts: "2026-07-24T13:00:00Z",
+        kind: "read_regions",
+        component: "data-product-reads",
+        v: 1,
+        as_of: "2026-07-24T15:00:00Z",
+        final: true,
+        ended_at: "2026-07-24T14:55:00Z",
+        since: "a".repeat(64),
+        through: "2026-07-24T14:50:00Z",
+        regions: {
+          "us-east": { ...FLAGS, failed: true },
+          "us-west": FLAGS,
+          "eu-west": FLAGS,
+        },
+        latest: {
+          at: "2026-07-24T14:50:00Z",
+          verdict: "degraded",
+          status: { "us-east": "fail", "us-west": "pass", "eu-west": "pass" },
+        },
+        all_failed_at: null,
+      },
+    ]);
+    await openStatus(page, undefined, () => worsened);
+    const partialId =
+      `delay-data-product-reads-${Date.parse("2026-07-24T13:00:00Z") / 1000}`;
+
+    await expect(page.locator(`#${partialId} header strong`)).toHaveText(
+      "regional partial outage · worsened to an outage",
+    );
+    await expect(page.locator(`#${READS_DOWN_ID} header strong`)).toHaveText(
+      "outage · ongoing",
+    );
+  });
+
+  test("falls back without a record and keeps the legacy delay", async ({
+    page,
+  }) => {
+    await openStatus(page, degradedReads, () => DECAYED_EVENTS);
+    const row = componentRow(page, "Data product reads");
+
+    await expect(row.locator(".status-label")).toHaveText("▲ Partial outage");
+    await expect(row.locator("p").first()).toHaveText(
+      "Reads are failing in some monitored regions.",
+    );
+    await expect(page.locator(`#${READS_DOWN_ID} header strong`)).toHaveText(
+      "outage · resolved",
+    );
+    await expect(
+      page.locator(`#${READS_PARTIAL_ID} header strong`),
+    ).toHaveText("delay · ongoing");
+  });
+});

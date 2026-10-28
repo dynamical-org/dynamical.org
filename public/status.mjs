@@ -12,6 +12,9 @@ import {
   effectiveAsOf,
   incidentLog,
   parseEventLog,
+  READ_REGIONS_FALLBACK_WHERE,
+  readRegionsLatestAt,
+  readRegionsView,
   readScopeView,
   uptimeSummary,
 } from "./status-log.mjs";
@@ -220,20 +223,28 @@ function statusMark(entry) {
   return { operational: "●", degraded: "▲", down: "×", unknown: "?" }[entry.status];
 }
 
-export function uptimeDescription(measured, days) {
+export function uptimeDescription(measured, days, component) {
   const window = `${measured.uptime}% uptime over the last ${days} ${
     days === 1 ? "day" : "days"
   }`;
   // Delay is not downtime, but it must not hide behind a green 100% either.
-  return measured.delayed > 0 ? `${window} (${measured.delayed}% degraded)` : window;
+  // Nor is a regional partial outage of reads, which counts the same way.
+  const including =
+    component === "data-product-reads" ? ", including regional partial outages" : "";
+  return measured.delayed > 0
+    ? `${window} (${measured.delayed}% degraded${including})`
+    : window;
 }
 
 // Row labels that say what a state means for a particular component, keyed by
 // component id then status. The scorecard updater is a cron whose late or failed
 // run leaves dynamical.org/scorecard serving stale data: a delay, not a
 // degradation of the page. Colour and data-status stay with the state.
+// Data product reads is degraded only when reads failed in some monitored
+// regions and passed in others.
 const LABELS = {
   scorecard: { degraded: "Delayed" },
+  "data-product-reads": { degraded: "Partial outage" },
 };
 
 // What an entry means for a reader, keyed by component id. The impact language
@@ -499,6 +510,15 @@ export function overlappingEntries(entry, entries, asOf) {
 
 export function incidentDescription(entry, name) {
   const kind = entry.kind ?? "outage";
+  if (kind === "delay" && entry.readRegions) {
+    // The failing regions can change within one entry, so this names every
+    // region that failed at some point, never one for the whole duration.
+    const during = entry.readRegions.during ?? READ_REGIONS_FALLBACK_WHERE;
+    const incident = entry.end
+      ? `During this incident (${formatDuration(entry.start, entry.end)})`
+      : "During this ongoing incident";
+    return `${incident}, reads of dynamical.org data failed their canary checks ${during}.`;
+  }
   const impact =
     IMPACT[entry.component]?.[kind] ??
     (kind === "delay" ? `${name} ran behind` : `${name} was down`);
@@ -571,7 +591,24 @@ function BarStrip({ cells }) {
   </div>`;
 }
 
-function StatusRow({ entry, bars, uptime, emptyCells }) {
+// The current row names the regions from the open entry's record, dated by
+// the check that saw them, since the history can be older than the snapshot.
+// Without one it says as much as it knows.
+export function regionalDetail(entry, history, local) {
+  if (
+    entry.id !== "data-product-reads" ||
+    entry.status !== "degraded" ||
+    entry.observation
+  ) {
+    return null;
+  }
+  if (!history?.currentRegions) {
+    return `Reads are failing ${READ_REGIONS_FALLBACK_WHERE}.`;
+  }
+  return `As of the latest regional check at ${formatTimestamp(history.currentRegionsAt, local)}, reads were failing ${history.currentRegions}.`;
+}
+
+function StatusRow({ entry, bars, uptime, emptyCells, history, local }) {
   const cells = bars?.get(entry.id) ?? emptyCells;
   const measured = uptime?.get(entry.id);
   const strip = useMemo(
@@ -588,14 +625,17 @@ function StatusRow({ entry, bars, uptime, emptyCells }) {
         <span aria-hidden="true">${statusMark(entry)}</span>${` ${statusLabel(entry)}`}
       </span>
     </header>
+    ${regionalDetail(entry, history, local)
+      ? html`<p>${regionalDetail(entry, history, local)}</p>`
+      : null}
     ${cells?.length && measured
-      ? html`<p>${uptimeDescription(measured, cells.length)}</p>`
+      ? html`<p>${uptimeDescription(measured, cells.length, entry.id)}</p>`
       : null}
     ${strip}
   </li>`;
 }
 
-function StatusGroup({ entries, bars, uptime, emptyCells }) {
+function StatusGroup({ entries, bars, uptime, emptyCells, history, local }) {
   return entries.map(
     (entry) => html`<${StatusRow}
       key=${entry.id}
@@ -603,6 +643,8 @@ function StatusGroup({ entries, bars, uptime, emptyCells }) {
       bars=${bars}
       uptime=${uptime}
       emptyCells=${emptyCells}
+      history=${history}
+      local=${local}
     />`,
   );
 }
@@ -621,8 +663,56 @@ function withReadScope(incident, readScopes) {
   return readScope ? { ...incident, readScope } : incident;
 }
 
+// Any data-product-reads entry may carry the regions it failed in. A degraded
+// one that does is a regional partial outage; without one it stays a delay.
+function withReadRegions(incident, readRegions) {
+  if (incident.component !== "data-product-reads") return incident;
+  const iso = (time) => (time == null ? null : new Date(time).toISOString());
+  const entry = {
+    started_at: iso(incident.start),
+    ended_at: iso(incident.end),
+    state: { outage: "down", delay: "degraded" }[incident.kind],
+  };
+  const view = readRegionsView(entry, readRegions);
+  return view
+    ? {
+        ...incident,
+        readRegions: view,
+        readRegionsLatestAt: readRegionsLatestAt(entry, readRegions),
+      }
+    : incident;
+}
+
+// An outage that decays straight into a regional partial outage did not
+// resolve; it improved. A regional partial outage that spreads into an outage
+// did not resolve either; it worsened. Each entry says which.
+function withRegionalChanges(incidents) {
+  const followedBy = (incident, kind) =>
+    incident.ending === "resolved" &&
+    incidents.find(
+      (other) =>
+        other.component === incident.component &&
+        other.kind === kind &&
+        other.start === incident.end,
+    );
+  return incidents.map((incident) => {
+    if (incident.kind === "outage") {
+      const next = followedBy(incident, "delay");
+      return next?.readRegions
+        ? { ...incident, improvedTo: next.readRegions.label }
+        : incident;
+    }
+    if (incident.kind === "delay" && incident.readRegions) {
+      const next = followedBy(incident, "outage");
+      return next ? { ...incident, worsenedTo: "outage" } : incident;
+    }
+    return incident;
+  });
+}
+
 export function buildHistory(eventsText, metaText) {
-  const { events, recordCount, readScopes } = parseEventLog(eventsText);
+  const { events, recordCount, readScopes, readRegions } =
+    parseEventLog(eventsText);
   const meta = JSON.parse(metaText);
   if (
     "events_count" in meta &&
@@ -635,14 +725,29 @@ export function buildHistory(eventsText, metaText) {
   const asOf = effectiveAsOf(meta.reconciled_at, events);
   if (!asOf) throw new TypeError("Invalid status history metadata");
   const spans = componentSpans(events, { asOf });
+  const incidents = withRegionalChanges(
+    incidentLog(events).map((incident) =>
+      withReadRegions(withReadScope(incident, readScopes), readRegions),
+    ),
+  );
+  const current = incidents.find(
+    (incident) =>
+      incident.component === "data-product-reads" &&
+      incident.kind === "delay" &&
+      incident.end === null,
+  );
   return {
     asOf,
     spans,
     cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
-    incidents: incidentLog(events).map((incident) =>
-      withReadScope(incident, readScopes),
-    ),
+    incidents,
     uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
+    ...(current?.readRegions?.where
+      ? {
+          currentRegions: current.readRegions.where,
+          currentRegionsAt: current.readRegionsLatestAt,
+        }
+      : {}),
   };
 }
 
@@ -711,6 +816,11 @@ function outageLabel(incident) {
   );
 }
 
+// A delay the read canary placed in some regions is a regional partial outage.
+function delayLabel(incident) {
+  return incident.readRegions?.label ?? "delay";
+}
+
 export function groupedIncidentDescription(incident, names, end) {
   if (incident.description) return incident.description;
   const affected = sentenceList([
@@ -766,7 +876,9 @@ function Incident({ incident, visible, names, asOf, local }) {
         ? "observation gap"
         : kind === "outage"
           ? outageLabel(incident)
-          : kind;
+          : kind === "delay"
+            ? delayLabel(incident)
+            : kind;
   // A coalesced entry stands for several windows, so it says so twice over:
   // a plural state line, and a timing line that counts them.
   const label = incident.windows ? `${kindLabel}s` : kindLabel;
@@ -792,11 +904,15 @@ function Incident({ incident, visible, names, asOf, local }) {
     <header>
       <h3><mark>${incidentName(incident, names)}</mark></h3>
       <strong>${`${label} · ${
-        incident.ending === "resolved"
-          ? "resolved"
-          : incident.ending === "observation-ended"
-            ? "observation ended"
-            : "ongoing"
+        incident.improvedTo
+          ? `improved to a ${incident.improvedTo}`
+          : incident.worsenedTo
+            ? `worsened to an ${incident.worsenedTo}`
+            : incident.ending === "resolved"
+              ? "resolved"
+              : incident.ending === "observation-ended"
+                ? "observation ended"
+                : "ongoing"
       }`}</strong>
     </header>
     <p>
@@ -807,7 +923,9 @@ function Incident({ incident, visible, names, asOf, local }) {
                 ? "planned outage"
                 : (other.kind ?? "outage") === "outage"
                   ? outageLabel(other)
-                  : other.kind;
+                  : other.kind === "delay"
+                    ? delayLabel(other)
+                    : other.kind;
             return html`<${Fragment} key=${other.id}
               >${index > 0 ? ", " : null}<a
                 href=${`#${other.id}`}
@@ -817,6 +935,9 @@ function Incident({ incident, visible, names, asOf, local }) {
     </p>
     ${incident.readScope
       ? html`<p>${incident.readScope.sentences.join(" ")}</p>`
+      : null}
+    ${incident.readRegions
+      ? html`<p>${incident.readRegions.sentences.join(" ")}</p>`
       : null}
     <p>${timing}</p>
   </li>`;
@@ -1010,6 +1131,8 @@ function start(root) {
             bars=${history?.cells}
             uptime=${history?.uptime}
             emptyCells=${emptyCells}
+            history=${history}
+            local=${state.local}
           />`,
           slot,
         );
