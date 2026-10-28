@@ -38,7 +38,7 @@ test("keeps ordinary SLA target misses within the SLA remedies", () => {
 });
 
 test("lets the Order expressly override the default provisions", () => {
-  assert.match(TEXT, /Sections 2 through 5 apply unless the Order expressly provides otherwise/i);
+  assert.match(TEXT, /Sections 9 through 12 apply unless the Order expressly provides otherwise/i);
   assert.match(TEXT, /Order controls, followed by the applicable SLA, then these terms/i);
   assert.match(TEXT, /versions or dates of the Commercial SLA and these terms identified in the Order govern/i);
   assert.match(TEXT, /do not amend an existing agreement unless both parties agree in writing/i);
@@ -47,17 +47,20 @@ test("lets the Order expressly override the default provisions", () => {
 test("adds and removes covered products only on written confirmation", () => {
   assert.match(TEXT, /Order identifies the data products initially covered/i);
   assert.match(TEXT, /takes effect on the date Dynamical confirms in writing/i);
-  assert.match(TEXT, /not covered unless added through this process/i);
+  assert.match(TEXT, /future may be added through the same process and are not covered unless added/i);
+  assert.match(TEXT, /does not change any fees, licenses, or use terms/i);
 });
 
 test("measures timeliness per complete unit from source completion", () => {
   assert.match(TEXT, /"Timeliness Unit"/);
   assert.match(TEXT, /one complete model run for a single initialization time/i);
   assert.match(TEXT, /one complete analysis time step/i);
-  assert.match(TEXT, /first Icechunk snapshot commit on the main branch/i);
+  assert.match(TEXT, /last source data or index file required for that unit first becomes available to Dynamical at the source identified in the Order/i);
+  assert.match(TEXT, /first Icechunk snapshot commit on the main branch of the published repository that contains the complete unit/i);
+  assert.match(TEXT, /latency windows are measured from source completion/i);
   assert.match(TEXT, /including when it never completes/i);
   assert.match(TEXT, /retained, replayable event log/i);
-  assert.match(TEXT, /not a separate breach for each unit/i);
+  assert.match(TEXT, /at most once per covered data product per UTC day, not as a separate breach for each unit/i);
 });
 
 test("defines the support clock and business hours", () => {
@@ -69,4 +72,10 @@ test("defines the support clock and business hours", () => {
 
 test("applies service credits to the next invoice", () => {
   assert.match(TEXT, /Service credits will be applied to Customer's next invoice\./);
+});
+
+test("keeps the existing section numbers and adds defaults after them", () => {
+  const headings = [...TERMS.matchAll(/<h3>(\d+)\. /g)].map((m) => Number(m[1]));
+  assert.deepEqual(headings, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  assert.match(TERMS, /<h3>4\. Termination<\/h3>/);
 });
