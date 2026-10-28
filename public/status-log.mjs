@@ -11,6 +11,7 @@
 const COVERAGE = "coverage";
 const TRANSITION = "transition";
 const READ_SCOPE = "read_scope";
+const READ_REGIONS = "read_regions";
 const READ_SCOPE_COMPONENT = "data-product-reads";
 const SCOPE_SEVERITY = { partial: 0, unknown: 1, full: 2 };
 const COLLECTION_ID = /^[a-z0-9][a-z0-9-]{0,99}$/;
@@ -44,6 +45,7 @@ function publicState(state) {
 export function parseEventLog(text) {
   const events = [];
   const readScopes = [];
+  const readRegions = [];
   let recordCount = 0;
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
@@ -58,6 +60,12 @@ export function parseEventLog(text) {
     // stay out of the fold and are only read by readScopeView.
     if (event?.kind === READ_SCOPE) {
       readScopes.push(event);
+      continue;
+    }
+    // Regional detail annotates the same entries the same way, and is only
+    // read by readRegionsView.
+    if (event?.kind === READ_REGIONS) {
+      readRegions.push(event);
       continue;
     }
     // Skip unknown kinds so additive records remain safe for an old client.
@@ -78,7 +86,7 @@ export function parseEventLog(text) {
     (a, b) =>
       Date.parse(a.ts) - Date.parse(b.ts) || kindRank(a) - kindRank(b),
   );
-  return { events, recordCount, readScopes };
+  return { events, recordCount, readScopes, readRegions };
 }
 
 export function parseEvents(text) {
@@ -305,8 +313,10 @@ function dayState(spans, start, end) {
  * gap. That makes them visible in `coverage` instead of silently averaged away.
  *
  * `degraded` spans count as monitored time that was *not* down — the component
- * was serving, late — so they leave `uptime` untouched. They surface as the
- * separate `delayed` percentage instead, ceiled rather than floored so even a
+ * was serving, late, or for data product reads failing in only some monitored
+ * regions — so they leave `uptime` untouched. They surface as the separate
+ * `delayed` percentage instead, which therefore includes delays and regional
+ * partial outages, ceiled rather than floored so even a
  * sub-0.001% delay cannot round itself invisible: a chronically or briefly late
  * component must not hide behind a green 100%.
  *
@@ -575,4 +585,145 @@ export function readScopeView(entry, records) {
         sentences,
       }
     : { name: "Data product reads", label: "outage", sentences };
+}
+
+// --- read regions ----------------------------------------------------------
+//
+// Which monitored regions a data-product-reads entry failed in. The publisher
+// writes one record per entry onset beside the read-scope records, and the
+// feed renders them with the same rules (its `read_regions_view`); the golden
+// cases in test/fixtures/read_regions_golden.json hold both ends to one answer.
+//
+// Every doubt resolves to null, as for read scope. A degraded entry without a
+// readable record then renders as a delay, the way it always has.
+
+// Display names come from this table, never from the record.
+export const READ_REGIONS_TABLE = [
+  ["us-east", "US East"],
+  ["us-west", "US West"],
+  ["eu-west", "Europe West"],
+];
+const REGION_FLAGS = ["failed", "not_verified", "catalog_failed", "unobserved"];
+const REGION_STATUSES = new Set(["pass", "fail", "unobserved"]);
+const READ_VERDICTS = new Set(["degraded", "down", "gap"]);
+// What the current status row says when no readable record names the regions.
+export const READ_REGIONS_FALLBACK_WHERE = "in some monitored regions";
+
+function hasExactKeys(value, keys) {
+  return (
+    isPlainObject(value) &&
+    Object.keys(value).length === keys.length &&
+    keys.every((key) => Object.hasOwn(value, key))
+  );
+}
+
+const REGION_IDS = READ_REGIONS_TABLE.map(([id]) => id);
+
+function isReadRegionsRecord(record) {
+  if (
+    record.v !== 1 ||
+    utcInstant(record.as_of) === null ||
+    utcInstant(record.through) === null ||
+    utcInstant(record.ts) === null ||
+    typeof record.final !== "boolean" ||
+    (record.ended_at !== null && utcInstant(record.ended_at) === null) ||
+    typeof record.since !== "string" ||
+    !/^[0-9a-f]{64}$/.test(record.since) ||
+    !hasExactKeys(record.regions, REGION_IDS) ||
+    !REGION_IDS.every(
+      (id) =>
+        hasExactKeys(record.regions[id], REGION_FLAGS) &&
+        REGION_FLAGS.every((flag) => typeof record.regions[id][flag] === "boolean"),
+    ) ||
+    (record.all_failed_at !== null && utcInstant(record.all_failed_at) === null)
+  ) {
+    return false;
+  }
+  const { latest } = record;
+  return (
+    latest === null ||
+    (isPlainObject(latest) &&
+      utcInstant(latest.at) !== null &&
+      READ_VERDICTS.has(latest.verdict) &&
+      hasExactKeys(latest.status, REGION_IDS) &&
+      REGION_IDS.every((id) => REGION_STATUSES.has(latest.status[id])))
+  );
+}
+
+function regionNames(ids) {
+  const names = READ_REGIONS_TABLE.filter(([id]) => ids.includes(id)).map(
+    ([, name]) => name,
+  );
+  if (names.length < 3) return names.join(" and ");
+  return `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
+}
+
+/**
+ * The regional view for one data-product-reads entry, or null to render it as
+ * today. `entry` is `{started_at, ended_at, state}` with `state` "down" or
+ * "degraded"; `records` may hold any read-regions records from the log.
+ */
+export function readRegionsView(entry, records) {
+  if (entry.state !== "down" && entry.state !== "degraded") return null;
+  const start = entryInstant(entry.started_at);
+  if (start === null) return null;
+  const forOnset = records.filter(
+    (record) =>
+      isPlainObject(record) &&
+      record.kind === READ_REGIONS &&
+      record.component === READ_SCOPE_COMPONENT &&
+      utcInstant(record.ts) === start,
+  );
+  if (!forOnset.every(isReadRegionsRecord)) return null;
+
+  const end = entry.ended_at == null ? null : entryInstant(entry.ended_at);
+  if (entry.ended_at != null && end === null) return null;
+  const candidates =
+    end === null
+      ? forOnset
+      : forOnset.filter(
+          (record) => record.final && utcInstant(record.ended_at) === end,
+        );
+  if (!candidates.length) return null;
+  const newest = Math.max(...candidates.map((record) => utcInstant(record.as_of)));
+  const tied = candidates.filter((record) => utcInstant(record.as_of) === newest);
+  // At most one record per onset per poll, so a tie that disagrees is a fault.
+  if (new Set(tied.map(canonical)).size > 1) return null;
+  const [best] = tied;
+
+  const flagged = (flag) => REGION_IDS.filter((id) => best.regions[id][flag]);
+  const failed = flagged("failed");
+  const catalogFailed = flagged("catalog_failed");
+  const notVerified = flagged("not_verified");
+  const unobserved = flagged("unobserved");
+  const failing = REGION_IDS.filter(
+    (id) => failed.includes(id) || catalogFailed.includes(id) || notVerified.includes(id),
+  );
+  if (!failing.length) return null;
+
+  const sentences = [];
+  if (end === null) sentences.push(`Regions as of ${utcIso(best.as_of)}.`);
+  if (best.all_failed_at) {
+    sentences.push(
+      `Reads failed in every monitored region at ${utcIso(best.all_failed_at)}.`,
+    );
+  }
+  if (failed.length) sentences.push(`Reads failed in ${regionNames(failed)}.`);
+  if (catalogFailed.length) {
+    sentences.push(
+      `The STAC catalog could not be loaded in ${regionNames(catalogFailed)}.`,
+    );
+  }
+  if (notVerified.length) {
+    sentences.push(`Reads could not be verified in ${regionNames(notVerified)}.`);
+  }
+  if (unobserved.length) {
+    sentences.push(`${regionNames(unobserved)} could not be checked.`);
+  }
+  return {
+    name: "Data product reads",
+    label: entry.state === "degraded" ? "regional partial outage" : "outage",
+    where: `in ${regionNames(failing)}`,
+    sentences,
+  };
 }
