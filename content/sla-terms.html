@@ -9,7 +9,7 @@ eleventyExcludeFromCollections: true
 
 <div class="content">
   <h1 style="margin-top: 4rem; margin-bottom: 1rem;">Commercial SLA Terms</h1>
-  <p class="metadata-comment">Last updated: September 14, 2026</p>
+  <p class="metadata-comment">Last updated: October 28, 2026</p>
 
   <p>
     These terms govern commercial SLA services purchased from Dynamical
@@ -17,13 +17,21 @@ eleventyExcludeFromCollections: true
     version or date of the <a href="/sla/">Commercial SLA</a> identified on that
     Order, they are the entire agreement between Dynamical and the customer
     identified on the Order ("Customer"). If they conflict, the Order
-    controls, followed by the applicable SLA, then these terms.
+    controls, followed by the applicable SLA, then these terms. Sections 9
+    through 12 apply unless the Order expressly provides otherwise.
   </p>
 
   <p>
     "Order" means a statement of work, invoice, or purchase order accepted by
     both parties that identifies the purchased services and incorporates these
     terms.
+  </p>
+
+  <p>
+    The versions or dates of the Commercial SLA and these terms identified in
+    the Order govern that agreement. Later changes to either document on Dynamical's
+    website do not amend an existing agreement unless both parties agree in
+    writing.
   </p>
 
   <h3>1. Services &amp; Data Licenses</h3>
@@ -115,4 +123,64 @@ eleventyExcludeFromCollections: true
     the SLA Services. Amendments must be agreed in writing by both parties.
     Notices may be sent by email to the contacts identified on the Order.
   </p>
+
+  <h3>9. Covered Products</h3>
+  <p>
+    The Order identifies the data products initially covered by the SLA
+    Services. Customer may request in writing that covered data products be
+    added or removed, and each change takes effect on the effective date
+    specified in Dynamical's written confirmation. Data products Dynamical publishes in the future may be
+    added through the same process and are not covered unless added. This
+    process does not change any fees, licenses, or use terms set by the Order
+    or another written agreement, or the limits on preview access in Section 1.
+  </p>
+
+  <h3>10. Timeliness Measurement</h3>
+  <p>
+    This section measures the latency commitments that apply to a covered data
+    product under the Order and applicable SLA. A "Timeliness Unit" is one
+    complete model run for a single initialization time of a forecast data
+    product, or one complete analysis time step of an analysis data product. A
+    unit is complete when it includes every variable, ensemble member where
+    applicable, and forecast lead time in the covered data product's agreed
+    specification.
+  </p>
+  <p>
+    Source lag for a unit starts when the last source data or index file
+    required for that unit first becomes available to Dynamical at the source
+    identified in the Order ("source completion"). It ends at the first
+    Icechunk snapshot commit on the main branch of the published repository
+    that contains the complete unit. For the applicable SLA's latency
+    commitments, "source release" means source completion. The Order specifies
+    each covered data product's source and latency window.
+  </p>
+  <p>
+    A breach occurs when a unit remains incomplete beyond the applicable latency
+    window after source completion, including when it never completes.
+    Individual files, lead times, and other partial-unit milestones do not
+    independently trigger a breach. Breaches are counted and credited as the
+    applicable SLA provides, at most once per covered data product per UTC day,
+    not as a separate breach for each unit. Dynamical makes measurements and
+    breach determinations from its retained, replayable event log.
+  </p>
+
+  <h3>11. Support Requests &amp; Business Hours</h3>
+  <p>
+    Customer sends support requests to
+    <a href="mailto:team@dynamical.org">team@dynamical.org</a> unless the Order
+    specifies another address. Response time runs from Dynamical's receipt of
+    Customer's support email to Dynamical's first human reply; automated
+    acknowledgments do not end it.
+  </p>
+  <p>
+    For support response commitments, business hours are 09:00–17:00
+    America/New_York, Monday through Friday, excluding US federal holidays, and
+    one business day is eight business hours accrued within that schedule.
+    Business-hour counting applies only where the applicable SLA tier states a
+    response commitment in business hours or business days; commitments stated
+    as 24/7 run continuously.
+  </p>
+
+  <h3>12. Service Credits</h3>
+  <p>Service credits will be applied to Customer's next invoice.</p>
 </div>
