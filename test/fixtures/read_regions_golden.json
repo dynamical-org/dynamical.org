@@ -1,0 +1,3564 @@
+{
+  "description": "Golden cases for readRegionsView(entry, records): the regional detail the page and the feed both render for one data-product-reads entry. entry.state is 'down' (an outage entry) or 'degraded' (a delay entry). expected null means today's rendering: a degraded entry stays a delay, a down entry keeps its read_scope rendering or the plain outage. Otherwise name and label are the history row's (label 'regional partial outage' for degraded), where is the current status row's region phrase (fallback 'in some monitored regions' when the view is null), and sentences follow any read_scope sentences. A down entry's read_scope name and label, when its scope view is not null, take precedence over this view's. Improvement: when a down entry ends exactly where a degraded entry of the same component starts and that degraded entry's view is not null, the down entry's ending reads 'Improved to a regional partial outage at <ended_at> after <duration>.' (feed title state word 'improved') instead of 'Resolved at ...'. Shared by the status publisher's tests and the status page's tests; keep every copy byte-identical.",
+  "cases": [
+    {
+      "name": "no records",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [],
+      "expected": null
+    },
+    {
+      "name": "latest PPP (ok), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "ok",
+            "status": {
+              "us-east": "pass",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "latest PPF (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "pass",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in Europe West.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in Europe West; passed in US East and US West."
+        ]
+      }
+    },
+    {
+      "name": "latest PPU (gap), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "pass",
+              "us-west": "pass",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in some monitored regions",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): passed in US East and US West; could not be checked in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest PFP (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US West.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US West; passed in US East and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest PFF (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "fail",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US West and Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US West and Europe West.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US West and Europe West; passed in US East."
+        ]
+      }
+    },
+    {
+      "name": "latest PFU (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "fail",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US West.",
+          "Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US West; passed in US East; could not be checked in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest PUP (gap), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "pass",
+              "us-west": "unobserved",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in some monitored regions",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "US West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): passed in US East and Europe West; could not be checked in US West."
+        ]
+      }
+    },
+    {
+      "name": "latest PUF (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "unobserved",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in Europe West.",
+          "US West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in Europe West; passed in US East; could not be checked in US West."
+        ]
+      }
+    },
+    {
+      "name": "latest PUU (gap), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "pass",
+              "us-west": "unobserved",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in some monitored regions",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "US West and Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): passed in US East; could not be checked in US West and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest FPP (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East; passed in US West and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest FPF (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East and Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East and Europe West.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East and Europe West; passed in US West."
+        ]
+      }
+    },
+    {
+      "name": "latest FPU (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East.",
+          "Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East; passed in US West; could not be checked in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest FFP (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East and US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East and US West.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East and US West; passed in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest FFF (down), open down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": "2026-10-28T11:14:09Z"
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in every monitored region",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in every monitored region at 2026-10-28T11:14:09Z.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East, US West, and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest FFU (down), open down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in US East and US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East and US West.",
+          "Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East and US West; could not be checked in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest FUP (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "unobserved",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East.",
+          "US West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East; passed in Europe West; could not be checked in US West."
+        ]
+      }
+    },
+    {
+      "name": "latest FUF (down), open down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "unobserved",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in US East and Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East and Europe West.",
+          "US West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East and Europe West; could not be checked in US West."
+        ]
+      }
+    },
+    {
+      "name": "latest FUU (down), open down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "unobserved",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in US East",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East.",
+          "US West and Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East; could not be checked in US West and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest UPP (gap), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in some monitored regions",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "US East could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): passed in US West and Europe West; could not be checked in US East."
+        ]
+      }
+    },
+    {
+      "name": "latest UPF (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "pass",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in Europe West.",
+          "US East could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in Europe West; passed in US West; could not be checked in US East."
+        ]
+      }
+    },
+    {
+      "name": "latest UPU (gap), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "pass",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in some monitored regions",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "US East and Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): passed in US West; could not be checked in US East and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest UFP (degraded), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US West.",
+          "US East could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US West; passed in Europe West; could not be checked in US East."
+        ]
+      }
+    },
+    {
+      "name": "latest UFF (down), open down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "fail",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in US West and Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US West and Europe West.",
+          "US East could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US West and Europe West; could not be checked in US East."
+        ]
+      }
+    },
+    {
+      "name": "latest UFU (down), open down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "fail",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US West.",
+          "US East and Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US West; could not be checked in US East and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "latest UUP (gap), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "unobserved",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in some monitored regions",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "US East and US West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): passed in Europe West; could not be checked in US East and US West."
+        ]
+      }
+    },
+    {
+      "name": "latest UUF (down), open down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "unobserved",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in Europe West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in Europe West.",
+          "US East and US West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in Europe West; could not be checked in US East and US West."
+        ]
+      }
+    },
+    {
+      "name": "latest UUU (gap), open degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "unobserved",
+              "us-west": "unobserved",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in some monitored regions",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "US East, US West, and Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): could not be checked in US East, US West, and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "closed degraded, catalog failed in one region, final record",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": "2026-10-28T11:40:20Z",
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": true,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:45:12Z",
+          "final": true,
+          "ended_at": "2026-10-28T11:40:20Z",
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:34:10Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": true,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:34:10Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East",
+        "sentences": [
+          "The STAC catalog could not be loaded in US East.",
+          "Latest regional detail (2026-10-28T11:34:10Z): failed in US East; passed in US West and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "failed and not verified are shown distinctly",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": true,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East and US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East.",
+          "Some reads could not be verified in US West.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East and US West; passed in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "F/F/U names failed and unchecked regions, never every region",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": true,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in US East and US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East.",
+          "The STAC catalog could not be loaded in US West.",
+          "Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East and US West; could not be checked in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "every region failing across runs without a same-run witness",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in US East and US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East, US West, and Europe West.",
+          "Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East and US West; could not be checked in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "same-run F/F/F witness, closed down entry",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": "2026-10-28T11:40:20Z",
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:45:12Z",
+          "final": true,
+          "ended_at": "2026-10-28T11:40:20Z",
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": "2026-10-28T11:14:09Z"
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in every monitored region",
+        "sentences": [
+          "Reads failed in every monitored region at 2026-10-28T11:14:09Z.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East, US West, and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "flags without latest detail",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": null,
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:20:12Z.",
+          "Reads failed in US East."
+        ]
+      }
+    },
+    {
+      "name": "no flags and no latest renders as today",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": null,
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "closed entry with only a non-final record renders as today",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": "2026-10-28T11:40:20Z",
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "closed entry whose final record ends elsewhere renders as today",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": "2026-10-28T11:40:20Z",
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": true,
+          "ended_at": "2026-10-28T11:50:20Z",
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "records of another onset are not this entry's",
+      "entry": {
+        "started_at": "2026-10-28T11:40:20Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "the newest as_of wins",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:30:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:24:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:24:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US West",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:30:12Z.",
+          "Reads failed in US East and US West.",
+          "Latest regional detail (2026-10-28T11:24:09Z): failed in US West; passed in US East and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "two newest records that disagree render as today",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "down to degraded: the down entry, closed where the degraded one opens",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": "2026-10-28T11:40:20Z",
+        "state": "down"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:45:12Z",
+          "final": true,
+          "ended_at": "2026-10-28T11:40:20Z",
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "fail",
+              "eu-west": "fail"
+            }
+          },
+          "all_failed_at": "2026-10-28T11:14:09Z"
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "outage",
+        "where": "in every monitored region",
+        "sentences": [
+          "Reads failed in every monitored region at 2026-10-28T11:14:09Z.",
+          "Latest regional detail (2026-10-28T11:14:09Z): failed in US East, US West, and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "down to degraded: the degraded entry opened at the down entry's end",
+      "entry": {
+        "started_at": "2026-10-28T11:40:20Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:40:20Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:45:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:34:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:34:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US East",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:45:12Z.",
+          "Reads failed in US East.",
+          "Latest regional detail (2026-10-28T11:34:09Z): failed in US East; passed in US West and Europe West."
+        ]
+      }
+    },
+    {
+      "name": "invalid record withholds every one: v is a boolean",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": true,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: unknown version",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 2,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: missing field",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          }
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: a fourth region",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "ap-south": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: a missing region",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: a flag that is not a boolean",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: latest verdict disagrees with its regions",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "down",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: latest ok is never a report",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "ok",
+            "status": {
+              "us-east": "pass",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: latest failure missing from the flags",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: witness without every region failing",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": "2026-10-28T11:14:09Z"
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: as_of not a strict instant",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28 11:20:12",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "invalid record withholds every one: since not lowercase hex",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        },
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:20:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+          "through": "2026-10-28T11:14:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": 1,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:14:09Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "fail",
+              "us-west": "pass",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": null
+    }
+  ]
+}

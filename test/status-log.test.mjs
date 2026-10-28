@@ -736,6 +736,16 @@ test("a partial scope with several failed datasets keeps the component name", ()
 
 // --- read regions ---------------------------------------------------------
 
+const REGIONS_GOLDEN = JSON.parse(
+  readFileSync(new URL("./fixtures/read_regions_golden.json", import.meta.url), "utf8"),
+);
+
+for (const golden of REGIONS_GOLDEN.cases) {
+  test(`read regions golden: ${golden.name}`, () => {
+    assert.deepEqual(readRegionsView(golden.entry, golden.records), golden.expected);
+  });
+}
+
 const regionsRecord = (overrides = {}) => ({
   ts: "2026-07-22T00:00:00Z",
   kind: "read_regions",

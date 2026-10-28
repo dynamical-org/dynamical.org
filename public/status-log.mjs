@@ -589,8 +589,8 @@ export function readScopeView(entry, records) {
 
 // --- read regions ----------------------------------------------------------
 //
-// Which monitored regions a data-product-reads entry failed in. The publisher
-// writes one record per entry onset beside the read-scope records, and the
+// Which monitored regions a data-product-reads entry, down or degraded, failed
+// in. The publisher writes these records beside the read-scope records and the
 // feed renders them with the same rules (its `read_regions_view`); the golden
 // cases in test/fixtures/read_regions_golden.json hold both ends to one answer.
 //
@@ -598,14 +598,28 @@ export function readScopeView(entry, records) {
 // readable record then renders as a delay, the way it always has.
 
 // Display names come from this table, never from the record.
-export const READ_REGIONS_TABLE = [
+const READ_REGION_NAMES = new Map([
   ["us-east", "US East"],
   ["us-west", "US West"],
   ["eu-west", "Europe West"],
-];
+]);
+const REGION_IDS = [...READ_REGION_NAMES.keys()];
 const REGION_FLAGS = ["failed", "not_verified", "catalog_failed", "unobserved"];
 const REGION_STATUSES = new Set(["pass", "fail", "unobserved"]);
-const READ_VERDICTS = new Set(["degraded", "down", "gap"]);
+// "ok" is never reported, so it never appears in a record.
+const REPORTED_VERDICTS = new Set(["degraded", "down", "gap"]);
+const REGIONS_RECORD_FIELDS = [
+  "ts",
+  "v",
+  "as_of",
+  "final",
+  "ended_at",
+  "since",
+  "through",
+  "regions",
+  "latest",
+  "all_failed_at",
+];
 // What the current status row says when no readable record names the regions.
 export const READ_REGIONS_FALLBACK_WHERE = "in some monitored regions";
 
@@ -617,43 +631,65 @@ function hasExactKeys(value, keys) {
   );
 }
 
-const REGION_IDS = READ_REGIONS_TABLE.map(([id]) => id);
+// The publisher's regional_verdict, with only failures and gaps reading down.
+function regionalVerdict(statuses) {
+  const count = (value) => statuses.filter((status) => status === value).length;
+  if (count("fail") === 0) return count("unobserved") === 0 ? "ok" : "gap";
+  return count("pass") > 0 ? "degraded" : "down";
+}
+
+function regionFailing(flags) {
+  return flags.failed || flags.not_verified || flags.catalog_failed;
+}
 
 function isReadRegionsRecord(record) {
+  const { regions, latest, all_failed_at: witness } = record;
   if (
+    !REGIONS_RECORD_FIELDS.every((field) => Object.hasOwn(record, field)) ||
     record.v !== 1 ||
+    utcInstant(record.ts) === null ||
     utcInstant(record.as_of) === null ||
     utcInstant(record.through) === null ||
-    utcInstant(record.ts) === null ||
     typeof record.final !== "boolean" ||
     (record.ended_at !== null && utcInstant(record.ended_at) === null) ||
     typeof record.since !== "string" ||
     !/^[0-9a-f]{64}$/.test(record.since) ||
-    !hasExactKeys(record.regions, REGION_IDS) ||
+    !hasExactKeys(regions, REGION_IDS) ||
     !REGION_IDS.every(
       (id) =>
-        hasExactKeys(record.regions[id], REGION_FLAGS) &&
-        REGION_FLAGS.every((flag) => typeof record.regions[id][flag] === "boolean"),
-    ) ||
-    (record.all_failed_at !== null && utcInstant(record.all_failed_at) === null)
+        hasExactKeys(regions[id], REGION_FLAGS) &&
+        REGION_FLAGS.every((flag) => typeof regions[id][flag] === "boolean"),
+    )
   ) {
     return false;
   }
-  const { latest } = record;
+  if (latest !== null) {
+    const statuses = isPlainObject(latest) ? latest.status : null;
+    if (
+      !hasExactKeys(statuses, REGION_IDS) ||
+      utcInstant(latest.at) === null ||
+      !REGION_IDS.every((id) => REGION_STATUSES.has(statuses[id])) ||
+      !REPORTED_VERDICTS.has(latest.verdict) ||
+      latest.verdict !== regionalVerdict(REGION_IDS.map((id) => statuses[id]))
+    ) {
+      return false;
+    }
+    // The latest run is one of the entry's runs, so its results are in the
+    // accumulated flags.
+    for (const id of REGION_IDS) {
+      if (statuses[id] === "fail" && !regionFailing(regions[id])) return false;
+      if (statuses[id] === "unobserved" && !regions[id].unobserved) return false;
+    }
+  }
   return (
-    latest === null ||
-    (isPlainObject(latest) &&
-      utcInstant(latest.at) !== null &&
-      READ_VERDICTS.has(latest.verdict) &&
-      hasExactKeys(latest.status, REGION_IDS) &&
-      REGION_IDS.every((id) => REGION_STATUSES.has(latest.status[id])))
+    witness === null ||
+    (utcInstant(witness) !== null &&
+      REGION_IDS.every((id) => regionFailing(regions[id])))
   );
 }
 
-function regionNames(ids) {
-  const names = READ_REGIONS_TABLE.filter(([id]) => ids.includes(id)).map(
-    ([, name]) => name,
-  );
+function regionList(ids) {
+  const names = ids.map((id) => READ_REGION_NAMES.get(id));
   if (names.length < 3) return names.join(" and ");
   return `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
 }
@@ -689,41 +725,63 @@ export function readRegionsView(entry, records) {
   const tied = candidates.filter((record) => utcInstant(record.as_of) === newest);
   // At most one record per onset per poll, so a tie that disagrees is a fault.
   if (new Set(tied.map(canonical)).size > 1) return null;
-  const [best] = tied;
+  const { regions, latest, all_failed_at: witness, as_of: asOf } = tied[0];
 
-  const flagged = (flag) => REGION_IDS.filter((id) => best.regions[id][flag]);
-  const failed = flagged("failed");
-  const catalogFailed = flagged("catalog_failed");
-  const notVerified = flagged("not_verified");
-  const unobserved = flagged("unobserved");
-  const failing = REGION_IDS.filter(
-    (id) => failed.includes(id) || catalogFailed.includes(id) || notVerified.includes(id),
+  const flagged = Object.fromEntries(
+    REGION_FLAGS.map((flag) => [flag, REGION_IDS.filter((id) => regions[id][flag])]),
   );
-  if (!failing.length) return null;
+  if (latest === null && !REGION_FLAGS.some((flag) => flagged[flag].length)) {
+    return null;
+  }
+  const withStatus = (value) =>
+    REGION_IDS.filter((id) => latest.status[id] === value);
+  let failing = REGION_IDS.filter((id) => regionFailing(regions[id]));
+  // The latest run says where reads are failing now, when it saw any fail.
+  if (latest !== null && withStatus("fail").length) failing = withStatus("fail");
+  const where =
+    witness !== null
+      ? "in every monitored region"
+      : failing.length
+        ? `in ${regionList(failing)}`
+        : READ_REGIONS_FALLBACK_WHERE;
 
   const sentences = [];
-  if (end === null) sentences.push(`Regions as of ${utcIso(best.as_of)}.`);
-  if (best.all_failed_at) {
+  if (end === null) sentences.push(`Regional detail as of ${utcIso(asOf)}.`);
+  // Only a same-run witness supports "every monitored region".
+  if (witness !== null) {
+    sentences.push(`Reads failed in every monitored region at ${utcIso(witness)}.`);
+  } else if (flagged.failed.length) {
+    sentences.push(`Reads failed in ${regionList(flagged.failed)}.`);
+  }
+  if (flagged.catalog_failed.length) {
     sentences.push(
-      `Reads failed in every monitored region at ${utcIso(best.all_failed_at)}.`,
+      `The STAC catalog could not be loaded in ${regionList(flagged.catalog_failed)}.`,
     );
   }
-  if (failed.length) sentences.push(`Reads failed in ${regionNames(failed)}.`);
-  if (catalogFailed.length) {
+  if (flagged.not_verified.length) {
     sentences.push(
-      `The STAC catalog could not be loaded in ${regionNames(catalogFailed)}.`,
+      `Some reads could not be verified in ${regionList(flagged.not_verified)}.`,
     );
   }
-  if (notVerified.length) {
-    sentences.push(`Reads could not be verified in ${regionNames(notVerified)}.`);
+  if (flagged.unobserved.length) {
+    sentences.push(`${regionList(flagged.unobserved)} could not be checked.`);
   }
-  if (unobserved.length) {
-    sentences.push(`${regionNames(unobserved)} could not be checked.`);
+  if (latest !== null) {
+    const parts = [
+      ["failed in", "fail"],
+      ["passed in", "pass"],
+      ["could not be checked in", "unobserved"],
+    ]
+      .filter(([, value]) => withStatus(value).length)
+      .map(([phrase, value]) => `${phrase} ${regionList(withStatus(value))}`);
+    sentences.push(
+      `Latest regional detail (${utcIso(latest.at)}): ${parts.join("; ")}.`,
+    );
   }
   return {
     name: "Data product reads",
     label: entry.state === "degraded" ? "regional partial outage" : "outage",
-    where: `in ${regionNames(failing)}`,
+    where,
     sentences,
   };
 }
