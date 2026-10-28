@@ -1,5 +1,5 @@
 {
-  "description": "Golden cases for readRegionsView(entry, records): the regional detail the page and the feed both render for one data-product-reads entry. entry.state is 'down' (an outage entry) or 'degraded' (a delay entry). expected null means today's rendering: a degraded entry stays a delay, a down entry keeps its read_scope rendering or the plain outage. Otherwise name and label are the history row's (label 'regional partial outage' for degraded), where is the current status row's region phrase (fallback 'in some monitored regions' when the view is null), and sentences follow any read_scope sentences. A down entry's read_scope name and label, when its scope view is not null, take precedence over this view's. Improvement: when a down entry ends exactly where a degraded entry of the same component starts and that degraded entry's view is not null, the down entry's ending reads 'Improved to a regional partial outage at <ended_at> after <duration>.' (feed title state word 'improved') instead of 'Resolved at ...'. Shared by the status publisher's tests and the status page's tests; keep every copy byte-identical.",
+  "description": "Golden cases for readRegionsView(entry, records): the regional detail the page and the feed both render for one data-product-reads entry. entry.state is 'down' (an outage entry) or 'degraded' (a delay entry). expected null means today's rendering: a degraded entry stays a delay, a down entry keeps its read_scope rendering or the plain outage. Otherwise name and label are the history row's (label 'regional partial outage' for degraded), and sentences follow any read_scope sentences. where is the current status row's present-tense region phrase: only the regions that failed in latest (latest.status 'fail'), 'in every monitored region' when all three did and all_failed_at is set; null when latest is null or no region failed in it (e.g. a gap after a partial), and then the row uses its fallback 'in some monitored regions' exactly as when the view is null. during is the entry-wide phrase for a sentence about the whole entry: every region whose accumulated flags show failed, not_verified or catalog_failed, 'in every monitored region' only when all three do and all_failed_at is set, null when none do. A sentence using during must say reads failed in those regions at some point during the incident, never that they failed for its whole duration; where is never used for an entry-wide or duration sentence. A down entry's read_scope name and label, when its scope view is not null, take precedence over this view's. Improvement: when a down entry ends exactly where a degraded entry of the same component starts and that degraded entry's view is not null, the down entry's ending reads 'Improved to a regional partial outage at <ended_at> after <duration>.' (feed title state word 'improved') instead of 'Resolved at ...'. Shared by the status publisher's tests and the status page's tests; keep every copy byte-identical.",
   "cases": [
     {
       "name": "no records",
@@ -117,6 +117,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in Europe West",
+        "during": "in Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in Europe West.",
@@ -177,7 +178,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in some monitored regions",
+        "where": null,
+        "during": null,
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Europe West could not be checked.",
@@ -239,6 +241,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US West",
+        "during": "in US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US West.",
@@ -300,6 +303,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US West and Europe West",
+        "during": "in US West and Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US West and Europe West.",
@@ -361,6 +365,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US West",
+        "during": "in US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US West.",
@@ -422,7 +427,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in some monitored regions",
+        "where": null,
+        "during": null,
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "US West could not be checked.",
@@ -484,6 +490,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in Europe West",
+        "during": "in Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in Europe West.",
@@ -545,7 +552,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in some monitored regions",
+        "where": null,
+        "during": null,
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "US West and Europe West could not be checked.",
@@ -607,6 +615,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East",
+        "during": "in US East",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East.",
@@ -668,6 +677,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East and Europe West",
+        "during": "in US East and Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East and Europe West.",
@@ -729,6 +739,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East",
+        "during": "in US East",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East.",
@@ -791,6 +802,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East and US West",
+        "during": "in US East and US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East and US West.",
@@ -852,6 +864,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in every monitored region",
+        "during": "in every monitored region",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in every monitored region at 2026-10-28T11:14:09Z.",
@@ -913,6 +926,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in US East and US West",
+        "during": "in US East and US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East and US West.",
@@ -975,6 +989,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East",
+        "during": "in US East",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East.",
@@ -1037,6 +1052,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in US East and Europe West",
+        "during": "in US East and Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East and Europe West.",
@@ -1099,6 +1115,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in US East",
+        "during": "in US East",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East.",
@@ -1160,7 +1177,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in some monitored regions",
+        "where": null,
+        "during": null,
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "US East could not be checked.",
@@ -1222,6 +1240,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in Europe West",
+        "during": "in Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in Europe West.",
@@ -1283,7 +1302,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in some monitored regions",
+        "where": null,
+        "during": null,
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "US East and Europe West could not be checked.",
@@ -1345,6 +1365,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US West",
+        "during": "in US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US West.",
@@ -1407,6 +1428,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in US West and Europe West",
+        "during": "in US West and Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US West and Europe West.",
@@ -1469,6 +1491,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in US West",
+        "during": "in US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US West.",
@@ -1530,7 +1553,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in some monitored regions",
+        "where": null,
+        "during": null,
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "US East and US West could not be checked.",
@@ -1592,6 +1616,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in Europe West",
+        "during": "in Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in Europe West.",
@@ -1653,7 +1678,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in some monitored regions",
+        "where": null,
+        "during": null,
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "US East, US West, and Europe West could not be checked.",
@@ -1756,6 +1782,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East",
+        "during": "in US East",
         "sentences": [
           "The STAC catalog could not be loaded in US East.",
           "Latest regional detail (2026-10-28T11:34:10Z): failed in US East; passed in US West and Europe West."
@@ -1816,6 +1843,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East and US West",
+        "during": "in US East and US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East.",
@@ -1878,6 +1906,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in US East and US West",
+        "during": "in US East and US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East.",
@@ -1941,6 +1970,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in US East and US West",
+        "during": "in US East, US West, and Europe West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East, US West, and Europe West.",
@@ -2003,6 +2033,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in every monitored region",
+        "during": "in every monitored region",
         "sentences": [
           "Reads failed in every monitored region at 2026-10-28T11:14:09Z.",
           "Latest regional detail (2026-10-28T11:14:09Z): failed in US East, US West, and Europe West."
@@ -2054,7 +2085,8 @@
       "expected": {
         "name": "Data product reads",
         "label": "regional partial outage",
-        "where": "in US East",
+        "where": null,
+        "during": "in US East",
         "sentences": [
           "Regional detail as of 2026-10-28T11:20:12Z.",
           "Reads failed in US East."
@@ -2356,6 +2388,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US West",
+        "during": "in US East and US West",
         "sentences": [
           "Regional detail as of 2026-10-28T11:30:12Z.",
           "Reads failed in US East and US West.",
@@ -2510,6 +2543,7 @@
         "name": "Data product reads",
         "label": "outage",
         "where": "in every monitored region",
+        "during": "in every monitored region",
         "sentences": [
           "Reads failed in every monitored region at 2026-10-28T11:14:09Z.",
           "Latest regional detail (2026-10-28T11:14:09Z): failed in US East, US West, and Europe West."
@@ -2570,6 +2604,7 @@
         "name": "Data product reads",
         "label": "regional partial outage",
         "where": "in US East",
+        "during": "in US East",
         "sentences": [
           "Regional detail as of 2026-10-28T11:45:12Z.",
           "Reads failed in US East.",
@@ -3559,6 +3594,130 @@
         }
       ],
       "expected": null
+    },
+    {
+      "name": "gap after a partial: no present-tense region, the earlier failure stays in during",
+      "entry": {
+        "started_at": "2026-10-28T11:14:12Z",
+        "ended_at": null,
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:14:12Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T11:25:12Z",
+          "final": false,
+          "ended_at": null,
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:24:09Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": true
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:24:09Z",
+            "verdict": "gap",
+            "status": {
+              "us-east": "pass",
+              "us-west": "pass",
+              "eu-west": "unobserved"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": null,
+        "during": "in US East",
+        "sentences": [
+          "Regional detail as of 2026-10-28T11:25:12Z.",
+          "Reads failed in US East.",
+          "Europe West could not be checked.",
+          "Latest regional detail (2026-10-28T11:24:09Z): passed in US East and US West; could not be checked in Europe West."
+        ]
+      }
+    },
+    {
+      "name": "failing region changes inside one closed degraded entry",
+      "entry": {
+        "started_at": "2026-10-28T11:00:15Z",
+        "ended_at": "2026-10-28T12:00:15Z",
+        "state": "degraded"
+      },
+      "records": [
+        {
+          "ts": "2026-10-28T11:00:15Z",
+          "kind": "read_regions",
+          "component": "data-product-reads",
+          "v": 1,
+          "as_of": "2026-10-28T12:00:15Z",
+          "final": true,
+          "ended_at": "2026-10-28T12:00:15Z",
+          "since": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "through": "2026-10-28T11:54:10Z",
+          "regions": {
+            "us-east": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "us-west": {
+              "failed": true,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            },
+            "eu-west": {
+              "failed": false,
+              "not_verified": false,
+              "catalog_failed": false,
+              "unobserved": false
+            }
+          },
+          "latest": {
+            "at": "2026-10-28T11:50:10Z",
+            "verdict": "degraded",
+            "status": {
+              "us-east": "pass",
+              "us-west": "fail",
+              "eu-west": "pass"
+            }
+          },
+          "all_failed_at": null
+        }
+      ],
+      "expected": {
+        "name": "Data product reads",
+        "label": "regional partial outage",
+        "where": "in US West",
+        "during": "in US East and US West",
+        "sentences": [
+          "Reads failed in US East and US West.",
+          "Latest regional detail (2026-10-28T11:50:10Z): failed in US West; passed in US East and Europe West."
+        ]
+      }
     }
   ]
 }

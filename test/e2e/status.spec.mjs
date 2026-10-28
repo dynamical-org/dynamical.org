@@ -754,7 +754,7 @@ test.describe("regional partial read outage", () => {
       "regional partial outage · ongoing",
     );
     await expect(partial.locator("p").first()).toContainText(
-      "Reads of dynamical.org data failed their canary checks in US East — ongoing.",
+      "During this ongoing incident, reads of dynamical.org data failed their canary checks in US East.",
     );
   });
 

@@ -1477,8 +1477,60 @@ test("an annotated degraded read entry is a regional partial outage", () => {
   assert.equal(history.currentRegions, undefined);
   assert.equal(
     incidentDescription(entry, "Data product reads"),
-    "Reads of dynamical.org data failed their canary checks in US East for 30 minutes.",
+    "During this incident (30 minutes), reads of dynamical.org data failed their canary checks in US East.",
   );
+});
+
+test("a gap after a regional failure does not say where reads are failing now", () => {
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      regions: {
+        "us-east": { ...FLAGS, failed: true },
+        "us-west": FLAGS,
+        "eu-west": { ...FLAGS, unobserved: true },
+      },
+      latest: {
+        at: "2026-07-24T19:10:00Z",
+        verdict: "gap",
+        status: { "us-east": "pass", "us-west": "pass", "eu-west": "unobserved" },
+      },
+    }),
+  );
+  assert.equal(history.currentRegions, undefined);
+  assert.equal(
+    regionalDetail(READS_ROW, history),
+    "Reads are failing in some monitored regions.",
+  );
+});
+
+test("a regional partial outage names every region that failed during it", () => {
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T20:00:00Z", "operational"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T20:00:00Z",
+      regions: {
+        "us-east": { ...FLAGS, failed: true },
+        "us-west": { ...FLAGS, failed: true },
+        "eu-west": FLAGS,
+      },
+      latest: {
+        at: "2026-07-24T19:50:00Z",
+        verdict: "degraded",
+        status: { "us-east": "pass", "us-west": "fail", "eu-west": "pass" },
+      },
+    }),
+  );
+  const description = incidentDescription(history.incidents[0], "Data product reads");
+  assert.equal(
+    description,
+    "During this incident (1h), reads of dynamical.org data failed their canary checks in US East and US West.",
+  );
+  assert.doesNotMatch(description, /in US West for/);
 });
 
 test("a legacy degraded read entry without a record still renders as a delay", () => {

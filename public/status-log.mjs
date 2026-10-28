@@ -735,15 +735,18 @@ export function readRegionsView(entry, records) {
   }
   const withStatus = (value) =>
     REGION_IDS.filter((id) => latest.status[id] === value);
-  let failing = REGION_IDS.filter((id) => regionFailing(regions[id]));
-  // The latest run says where reads are failing now, when it saw any fail.
-  if (latest !== null && withStatus("fail").length) failing = withStatus("fail");
-  const where =
-    witness !== null
-      ? "in every monitored region"
-      : failing.length
-        ? `in ${regionList(failing)}`
-        : READ_REGIONS_FALLBACK_WHERE;
+  const regionsPhrase = (ids) => {
+    if (!ids.length) return null;
+    if (ids.length === REGION_IDS.length && witness !== null) {
+      return "in every monitored region";
+    }
+    return `in ${regionList(ids)}`;
+  };
+  // Where reads are failing now: only the latest run's failures, never the
+  // entry's earlier ones.
+  const where = regionsPhrase(latest === null ? [] : withStatus("fail"));
+  // Where reads failed at some point during the entry.
+  const during = regionsPhrase(REGION_IDS.filter((id) => regionFailing(regions[id])));
 
   const sentences = [];
   if (end === null) sentences.push(`Regional detail as of ${utcIso(asOf)}.`);
@@ -782,6 +785,7 @@ export function readRegionsView(entry, records) {
     name: "Data product reads",
     label: entry.state === "degraded" ? "regional partial outage" : "outage",
     where,
+    during,
     sentences,
   };
 }

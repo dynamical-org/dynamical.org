@@ -510,10 +510,13 @@ export function overlappingEntries(entry, entries, asOf) {
 export function incidentDescription(entry, name) {
   const kind = entry.kind ?? "outage";
   if (kind === "delay" && entry.readRegions) {
-    const impact = `${IMPACT[entry.component].outage} ${entry.readRegions.where}`;
-    return entry.end
-      ? `${impact} for ${formatDuration(entry.start, entry.end)}.`
-      : `${impact} — ongoing.`;
+    // The failing regions can change within one entry, so this names every
+    // region that failed at some point, never one for the whole duration.
+    const during = entry.readRegions.during ?? READ_REGIONS_FALLBACK_WHERE;
+    const incident = entry.end
+      ? `During this incident (${formatDuration(entry.start, entry.end)})`
+      : "During this ongoing incident";
+    return `${incident}, reads of dynamical.org data failed their canary checks ${during}.`;
   }
   const impact =
     IMPACT[entry.component]?.[kind] ??
@@ -729,7 +732,9 @@ export function buildHistory(eventsText, metaText) {
     cells: dailyBars(spans, { asOf, days: BAR_DAYS }),
     incidents,
     uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
-    ...(current?.readRegions ? { currentRegions: current.readRegions.where } : {}),
+    ...(current?.readRegions?.where
+      ? { currentRegions: current.readRegions.where }
+      : {}),
   };
 }
 
