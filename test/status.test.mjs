@@ -1426,7 +1426,33 @@ test("the current read row names regions from the open entry's record", () => {
     regionsRecord("2026-07-24T19:00:00Z"),
   );
   assert.equal(history.currentRegions, "in US East");
-  assert.equal(regionalDetail(READS_ROW, history), "Reads are failing in US East.");
+  assert.equal(history.currentRegionsAt, "2026-07-24T19:00:00Z");
+  assert.equal(
+    regionalDetail(READS_ROW, history, false),
+    "As of the latest regional check at Jul 24, 2026, 7:00 PM UTC, reads were failing in US East.",
+  );
+});
+
+test("a newer snapshot does not make an older history's regions current", () => {
+  // The history saw US East fail at 19:50; a later run that passed US East
+  // and failed elsewhere keeps the snapshot degraded before history catches up.
+  const history = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      latest: {
+        at: "2026-07-24T19:50:00Z",
+        verdict: "degraded",
+        status: { "us-east": "fail", "us-west": "pass", "eu-west": "pass" },
+      },
+    }),
+  );
+  const generatedAt = "2026-07-24T20:05:00Z";
+  assert.ok(isHistoryCurrent(history.asOf, generatedAt, new Date(generatedAt)));
+  assert.equal(
+    regionalDetail(READS_ROW, history, false),
+    "As of the latest regional check at Jul 24, 2026, 7:50 PM UTC, reads were failing in US East.",
+  );
 });
 
 test("the current read row falls back when no readable record names regions", () => {

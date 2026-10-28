@@ -694,12 +694,8 @@ function regionList(ids) {
   return `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
 }
 
-/**
- * The regional view for one data-product-reads entry, or null to render it as
- * today. `entry` is `{started_at, ended_at, state}` with `state` "down" or
- * "degraded"; `records` may hold any read-regions records from the log.
- */
-export function readRegionsView(entry, records) {
+// The one record that speaks for an entry, or null when none does.
+function readRegionsRecord(entry, records) {
   if (entry.state !== "down" && entry.state !== "degraded") return null;
   const start = entryInstant(entry.started_at);
   if (start === null) return null;
@@ -725,7 +721,27 @@ export function readRegionsView(entry, records) {
   const tied = candidates.filter((record) => utcInstant(record.as_of) === newest);
   // At most one record per onset per poll, so a tie that disagrees is a fault.
   if (new Set(tied.map(canonical)).size > 1) return null;
-  const { regions, latest, all_failed_at: witness, as_of: asOf } = tied[0];
+  return tied[0];
+}
+
+/**
+ * When the latest regional check behind readRegionsView(entry, records) ran,
+ * or null when it has none.
+ */
+export function readRegionsLatestAt(entry, records) {
+  return readRegionsRecord(entry, records)?.latest?.at ?? null;
+}
+
+/**
+ * The regional view for one data-product-reads entry, or null to render it as
+ * today. `entry` is `{started_at, ended_at, state}` with `state` "down" or
+ * "degraded"; `records` may hold any read-regions records from the log.
+ */
+export function readRegionsView(entry, records) {
+  const record = readRegionsRecord(entry, records);
+  if (record === null) return null;
+  const end = entry.ended_at == null ? null : entryInstant(entry.ended_at);
+  const { regions, latest, all_failed_at: witness, as_of: asOf } = record;
 
   const flagged = Object.fromEntries(
     REGION_FLAGS.map((flag) => [flag, REGION_IDS.filter((id) => regions[id][flag])]),

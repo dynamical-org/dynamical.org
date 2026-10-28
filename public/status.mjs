@@ -13,6 +13,7 @@ import {
   incidentLog,
   parseEventLog,
   READ_REGIONS_FALLBACK_WHERE,
+  readRegionsLatestAt,
   readRegionsView,
   readScopeView,
   uptimeSummary,
@@ -590,9 +591,10 @@ function BarStrip({ cells }) {
   </div>`;
 }
 
-// The current row names the regions from the open entry's record, or says
-// as much as it knows without one.
-export function regionalDetail(entry, history) {
+// The current row names the regions from the open entry's record, dated by
+// the check that saw them, since the history can be older than the snapshot.
+// Without one it says as much as it knows.
+export function regionalDetail(entry, history, local) {
   if (
     entry.id !== "data-product-reads" ||
     entry.status !== "degraded" ||
@@ -600,10 +602,13 @@ export function regionalDetail(entry, history) {
   ) {
     return null;
   }
-  return `Reads are failing ${history?.currentRegions ?? READ_REGIONS_FALLBACK_WHERE}.`;
+  if (!history?.currentRegions) {
+    return `Reads are failing ${READ_REGIONS_FALLBACK_WHERE}.`;
+  }
+  return `As of the latest regional check at ${formatTimestamp(history.currentRegionsAt, local)}, reads were failing ${history.currentRegions}.`;
 }
 
-function StatusRow({ entry, bars, uptime, emptyCells, history }) {
+function StatusRow({ entry, bars, uptime, emptyCells, history, local }) {
   const cells = bars?.get(entry.id) ?? emptyCells;
   const measured = uptime?.get(entry.id);
   const strip = useMemo(
@@ -620,8 +625,8 @@ function StatusRow({ entry, bars, uptime, emptyCells, history }) {
         <span aria-hidden="true">${statusMark(entry)}</span>${` ${statusLabel(entry)}`}
       </span>
     </header>
-    ${regionalDetail(entry, history)
-      ? html`<p>${regionalDetail(entry, history)}</p>`
+    ${regionalDetail(entry, history, local)
+      ? html`<p>${regionalDetail(entry, history, local)}</p>`
       : null}
     ${cells?.length && measured
       ? html`<p>${uptimeDescription(measured, cells.length, entry.id)}</p>`
@@ -630,7 +635,7 @@ function StatusRow({ entry, bars, uptime, emptyCells, history }) {
   </li>`;
 }
 
-function StatusGroup({ entries, bars, uptime, emptyCells, history }) {
+function StatusGroup({ entries, bars, uptime, emptyCells, history, local }) {
   return entries.map(
     (entry) => html`<${StatusRow}
       key=${entry.id}
@@ -639,6 +644,7 @@ function StatusGroup({ entries, bars, uptime, emptyCells, history }) {
       uptime=${uptime}
       emptyCells=${emptyCells}
       history=${history}
+      local=${local}
     />`,
   );
 }
@@ -662,15 +668,19 @@ function withReadScope(incident, readScopes) {
 function withReadRegions(incident, readRegions) {
   if (incident.component !== "data-product-reads") return incident;
   const iso = (time) => (time == null ? null : new Date(time).toISOString());
-  const view = readRegionsView(
-    {
-      started_at: iso(incident.start),
-      ended_at: iso(incident.end),
-      state: { outage: "down", delay: "degraded" }[incident.kind],
-    },
-    readRegions,
-  );
-  return view ? { ...incident, readRegions: view } : incident;
+  const entry = {
+    started_at: iso(incident.start),
+    ended_at: iso(incident.end),
+    state: { outage: "down", delay: "degraded" }[incident.kind],
+  };
+  const view = readRegionsView(entry, readRegions);
+  return view
+    ? {
+        ...incident,
+        readRegions: view,
+        readRegionsLatestAt: readRegionsLatestAt(entry, readRegions),
+      }
+    : incident;
 }
 
 // An outage that decays straight into a regional partial outage did not
@@ -733,7 +743,10 @@ export function buildHistory(eventsText, metaText) {
     incidents,
     uptime: uptimeSummary(spans, { asOf, days: BAR_DAYS }),
     ...(current?.readRegions?.where
-      ? { currentRegions: current.readRegions.where }
+      ? {
+          currentRegions: current.readRegions.where,
+          currentRegionsAt: current.readRegionsLatestAt,
+        }
       : {}),
   };
 }
@@ -1119,6 +1132,7 @@ function start(root) {
             uptime=${history?.uptime}
             emptyCells=${emptyCells}
             history=${history}
+            local=${state.local}
           />`,
           slot,
         );

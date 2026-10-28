@@ -740,8 +740,9 @@ test.describe("regional partial read outage", () => {
     const row = componentRow(page, "Data product reads");
 
     await expect(row.locator(".status-label")).toHaveText("▲ Partial outage");
+    await page.selectOption("#status-time-toggle", "utc");
     await expect(row.locator("p").first()).toHaveText(
-      "Reads are failing in US East.",
+      "As of the latest regional check at Jul 24, 2026, 3:09 PM UTC, reads were failing in US East.",
     );
     await expect(row.locator("p").nth(1)).toContainText(
       "degraded, including regional partial outages)",
