@@ -671,20 +671,29 @@ function withReadRegions(incident, readRegions) {
 }
 
 // An outage that decays straight into a regional partial outage did not
-// resolve; it improved, and its entry says so.
-function withImprovements(incidents) {
+// resolve; it improved. A regional partial outage that spreads into an outage
+// did not resolve either; it worsened. Each entry says which.
+function withRegionalChanges(incidents) {
+  const followedBy = (incident, kind) =>
+    incident.ending === "resolved" &&
+    incidents.find(
+      (other) =>
+        other.component === incident.component &&
+        other.kind === kind &&
+        other.start === incident.end,
+    );
   return incidents.map((incident) => {
-    const next =
-      incident.kind === "outage" &&
-      incident.ending === "resolved" &&
-      incidents.find(
-        (other) =>
-          other.component === incident.component &&
-          other.kind === "delay" &&
-          other.readRegions &&
-          other.start === incident.end,
-      );
-    return next ? { ...incident, improvedTo: next.readRegions.label } : incident;
+    if (incident.kind === "outage") {
+      const next = followedBy(incident, "delay");
+      return next?.readRegions
+        ? { ...incident, improvedTo: next.readRegions.label }
+        : incident;
+    }
+    if (incident.kind === "delay" && incident.readRegions) {
+      const next = followedBy(incident, "outage");
+      return next ? { ...incident, worsenedTo: "outage" } : incident;
+    }
+    return incident;
   });
 }
 
@@ -703,7 +712,7 @@ export function buildHistory(eventsText, metaText) {
   const asOf = effectiveAsOf(meta.reconciled_at, events);
   if (!asOf) throw new TypeError("Invalid status history metadata");
   const spans = componentSpans(events, { asOf });
-  const incidents = withImprovements(
+  const incidents = withRegionalChanges(
     incidentLog(events).map((incident) =>
       withReadRegions(withReadScope(incident, readScopes), readRegions),
     ),
@@ -879,11 +888,13 @@ function Incident({ incident, visible, names, asOf, local }) {
       <strong>${`${label} · ${
         incident.improvedTo
           ? `improved to a ${incident.improvedTo}`
-          : incident.ending === "resolved"
-            ? "resolved"
-            : incident.ending === "observation-ended"
-              ? "observation ended"
-              : "ongoing"
+          : incident.worsenedTo
+            ? `worsened to an ${incident.worsenedTo}`
+            : incident.ending === "resolved"
+              ? "resolved"
+              : incident.ending === "observation-ended"
+                ? "observation ended"
+                : "ongoing"
       }`}</strong>
     </header>
     <p>

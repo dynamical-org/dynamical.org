@@ -758,6 +758,51 @@ test.describe("regional partial read outage", () => {
     );
   });
 
+  test("a regional partial outage that spreads into an outage worsened", async ({
+    page,
+  }) => {
+    const worsened = withEvents(EVENTS, [
+      {
+        ts: "2026-07-24T13:00:00Z",
+        kind: "transition",
+        component: "data-product-reads",
+        to: "degraded",
+      },
+      {
+        ts: "2026-07-24T13:00:00Z",
+        kind: "read_regions",
+        component: "data-product-reads",
+        v: 1,
+        as_of: "2026-07-24T15:00:00Z",
+        final: true,
+        ended_at: "2026-07-24T14:55:00Z",
+        since: "a".repeat(64),
+        through: "2026-07-24T14:50:00Z",
+        regions: {
+          "us-east": { ...FLAGS, failed: true },
+          "us-west": FLAGS,
+          "eu-west": FLAGS,
+        },
+        latest: {
+          at: "2026-07-24T14:50:00Z",
+          verdict: "degraded",
+          status: { "us-east": "fail", "us-west": "pass", "eu-west": "pass" },
+        },
+        all_failed_at: null,
+      },
+    ]);
+    await openStatus(page, undefined, () => worsened);
+    const partialId =
+      `delay-data-product-reads-${Date.parse("2026-07-24T13:00:00Z") / 1000}`;
+
+    await expect(page.locator(`#${partialId} header strong`)).toHaveText(
+      "regional partial outage · worsened to an outage",
+    );
+    await expect(page.locator(`#${READS_DOWN_ID} header strong`)).toHaveText(
+      "outage · ongoing",
+    );
+  });
+
   test("falls back without a record and keeps the legacy delay", async ({
     page,
   }) => {

@@ -1518,6 +1518,45 @@ test("an outage that decays into a regional partial outage improved, not resolve
   assert.equal(legacy.incidents[0].improvedTo, undefined);
 });
 
+test("a regional partial outage that spreads into an outage worsened, not resolved", () => {
+  const annotated = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:20:00Z", "down"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T19:20:00Z",
+    }),
+  );
+  const [partial, outage] = annotated.incidents;
+  assert.equal(partial.kind, "delay");
+  assert.equal(partial.ending, "resolved");
+  assert.equal(partial.readRegions.label, "regional partial outage");
+  assert.equal(partial.worsenedTo, "outage");
+  assert.equal(outage.kind, "outage");
+  assert.equal(outage.worsenedTo, undefined);
+  assert.equal(outage.improvedTo, undefined);
+
+  // A legacy delay without a record keeps "resolved", as does a regional
+  // partial outage that recovers.
+  const legacy = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:20:00Z", "down"),
+  );
+  assert.equal(legacy.incidents[0].worsenedTo, undefined);
+  const recovered = historyOf(
+    readsEvent("2026-07-24T18:00:00Z"),
+    readsEvent("2026-07-24T19:00:00Z", "degraded"),
+    readsEvent("2026-07-24T19:20:00Z", "operational"),
+    regionsRecord("2026-07-24T19:00:00Z", {
+      final: true,
+      ended_at: "2026-07-24T19:20:00Z",
+    }),
+  );
+  assert.equal(recovered.incidents[0].worsenedTo, undefined);
+});
+
 test("a regional partial outage is monitored and not downtime", () => {
   const health = [
     readsEvent("2026-07-24T18:00:00Z"),
