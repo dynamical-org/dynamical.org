@@ -46,7 +46,7 @@ test("lets the Order expressly override the default provisions", () => {
 
 test("adds and removes covered products only on written confirmation", () => {
   assert.match(TEXT, /Order identifies the data products initially covered/i);
-  assert.match(TEXT, /takes effect on the date Dynamical confirms in writing/i);
+  assert.match(TEXT, /takes effect on the effective date specified in Dynamical's written confirmation/i);
   assert.match(TEXT, /future may be added through the same process and are not covered unless added/i);
   assert.match(TEXT, /does not change any fees, licenses, or use terms/i);
 });
@@ -55,9 +55,11 @@ test("measures timeliness per complete unit from source completion", () => {
   assert.match(TEXT, /"Timeliness Unit"/);
   assert.match(TEXT, /one complete model run for a single initialization time/i);
   assert.match(TEXT, /one complete analysis time step/i);
+  assert.match(TEXT, /includes every variable, ensemble member where applicable, and forecast lead time in the covered data product's agreed specification/i);
+  assert.match(TEXT, /Individual files, lead times, and other partial-unit milestones do not independently trigger a breach/i);
   assert.match(TEXT, /last source data or index file required for that unit first becomes available to Dynamical at the source identified in the Order/i);
   assert.match(TEXT, /first Icechunk snapshot commit on the main branch of the published repository that contains the complete unit/i);
-  assert.match(TEXT, /latency windows are measured from source completion/i);
+  assert.match(TEXT, /For the applicable SLA's latency commitments, "source release" means source completion/i);
   assert.match(TEXT, /including when it never completes/i);
   assert.match(TEXT, /retained, replayable event log/i);
   assert.match(TEXT, /at most once per covered data product per UTC day, not as a separate breach for each unit/i);
@@ -65,6 +67,7 @@ test("measures timeliness per complete unit from source completion", () => {
 
 test("defines the support clock and business hours", () => {
   assert.match(TEXT, /team@dynamical\.org/);
+  assert.match(TEXT, /runs from Dynamical's receipt of Customer's support email to Dynamical's first human reply/i);
   assert.match(TEXT, /09:00.17:00 America\/New_York, Monday through Friday, excluding US federal holidays/i);
   assert.match(TEXT, /eight business hours/i);
   assert.match(TEXT, /24\/7 run continuously/i);
