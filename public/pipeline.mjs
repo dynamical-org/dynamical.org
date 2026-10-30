@@ -1126,6 +1126,26 @@ function selectedSourceArrival(init, name) {
   return Object.hasOwn(groups, name) ? groups[name] : null;
 }
 
+/* A horizon's own lag as the feed measured it: the run's comparison (its
+   source, mirror and file families) through that horizon, so a source horizon
+   that also waits on a family this dataset does not read never makes us look
+   ahead. Signed seconds, or null for not known. */
+
+function publishedHorizonLag(init, name) {
+  const value = namedGroup(init, name)?.pipeline_lag_s;
+  return Number.isFinite(value) ? value : null;
+}
+
+/* Whether the feed publishes horizon lags for this product at all. Payloads
+   from before it did carry none anywhere, and only those keep the older
+   reading: the source's own horizon subtracted, or a selected-families map. */
+
+function publishesHorizonLag(product) {
+  return (product.recent_inits ?? []).some((init) =>
+    (init.lead_groups ?? []).some((group) => Object.hasOwn(group, "pipeline_lag_s")),
+  );
+}
+
 /* The sources the published lag is measured against, as rows of this group.
    All or nothing: a lag whose source has no row here cannot be compared
    against the sources that do — that would measure the wrong distance rather
@@ -1307,8 +1327,16 @@ export function detailRows(product, now, local, sources = []) {
   const selected = product.pipeline_lag?.basis === "selected_families";
   const selectedValid =
     selected && sources.length > 0 && validPipelineLag(product.pipeline_lag);
+  // a payload that publishes horizon lags is read only from them: a horizon
+  // without one is not known, never a subtraction across unlike families
+  const published = publishesHorizonLag(product);
+  const publishedValid = sources.length > 0 && validPipelineLag(product.pipeline_lag);
   // this run's horizon, less the source's own arrival for the same horizon
   const lagOf = (init, arrivals, stats) => {
+    if (published) {
+      if (!publishedValid || arrivedAt(init, stats.name) == null) return null;
+      return publishedHorizonLag(init, stats.name);
+    }
     if (selected) {
       if (!selectedValid) return null;
       const ours = arrivedAt(init, stats.name);

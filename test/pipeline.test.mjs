@@ -1552,6 +1552,58 @@ test("group aliases keep old section ids without colliding", () => {
   assert.equal(validateDashboard(current), current);
 });
 
+/* A source horizon that also waits on a family this dataset does not read (HRRR's
+   subh) lands later than the families we compare, so subtracting the two rows'
+   horizons reads us as ahead. The feed publishes each horizon's own lag on the
+   run's matched families, and a payload that carries it is read only from it. */
+
+function bandLagInit(init_time, latency_s, groupLag) {
+  const init = lagInit(init_time, undefined, "complete", latency_s);
+  if (groupLag !== undefined) init.lead_groups[0].pipeline_lag_s = groupLag;
+  return init;
+}
+
+test("a horizon's lag is the feed's own matched-family value when it publishes one", () => {
+  const shared = readyPipelineLag({ basis: "shared_nat_prs_sfc" });
+  // the source's horizon waited 255s on a family we don't read
+  const subhLate = [
+    lagSourceRow([lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300)]),
+  ];
+  const at = (inits, lag = shared) => lagAt(lagProduct(inits, lag), subhLate);
+
+  assert.equal(at([bandLagInit("2026-07-25T12:00:00Z", 4045, 2)]).rows[0].last.lag, "2s");
+  // a published negative keeps its sign
+  assert.equal(at([bandLagInit("2026-07-25T12:00:00Z", 4045, -30)]).rows[0].last.lag, "−30s");
+  // the same value on a selected-families lag, ahead of its source map
+  const selected = at(
+    [{ ...bandLagInit("2026-07-25T12:00:00Z", 4045, 2), source_lead_groups: { forecast: 4300 } }],
+    selectedFamiliesLag(),
+  );
+  assert.equal(selected.rows[0].last.lag, "2s");
+
+  // once a payload publishes horizon lags, one it doesn't have is not known:
+  // missing, null or malformed never falls back to subtracting the source row
+  for (const unknown of [undefined, null, "2", Number.NaN, true]) {
+    const inits = [
+      bandLagInit("2026-07-25T06:00:00Z", 4000, 3),
+      bandLagInit("2026-07-25T12:00:00Z", 4045, unknown),
+    ];
+    assert.equal(at(inits).rows[0].last.lag, "—", String(unknown));
+  }
+
+  // our own horizon still out has no lag, whatever the payload says
+  const running = {
+    ...bandLagInit("2026-07-25T12:00:00Z", 4045, 2),
+    status: "in_flight",
+    lead_groups: [{ name: "forecast", status: "in_flight", latency_s: null, pipeline_lag_s: 2 }],
+  };
+  assert.equal(at([bandLagInit("2026-07-25T06:00:00Z", 4000, 3), running]).rows[0].run.lag, "—");
+
+  // an older payload publishes no horizon lag anywhere: the page keeps its
+  // previous reading, the source row subtracted
+  assert.equal(at([bandLagInit("2026-07-25T12:00:00Z", 4000)]).rows[0].last.lag, "−5m");
+});
+
 test("a lag needs the same horizon, landed on both sides", () => {
   const product = lagProduct([
     lagInit("2026-07-25T12:00:00Z", undefined, "complete", 4300),
