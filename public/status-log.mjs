@@ -349,6 +349,7 @@ export function uptimeSummary(
 
     let monitored = 0;
     let down = 0;
+    let partialCredit = 0;
     let degraded = 0;
     for (const span of list) {
       if (span.state === "unknown") continue;
@@ -374,7 +375,9 @@ export function uptimeSummary(
             const right = cuts[index];
             const covers = (window) => window.start <= left && right <= window.end;
             if (apiPartialOutages.some(covers) && !apiFullOutages.some(covers)) {
-              down -= (right - left) * (1 - apiPartialOutageWeight);
+              const credit = (right - left) * (1 - apiPartialOutageWeight);
+              down -= credit;
+              partialCredit += credit;
             }
           }
         }
@@ -387,7 +390,7 @@ export function uptimeSummary(
       uptime: truncate((100 * (monitored - down)) / monitored),
       coverage: truncate((100 * monitored) / elapsed),
       delayed: inflate((100 * degraded) / monitored),
-      ...(component === "api" && apiPartialOutageWeight < 1
+      ...(component === "api" && partialCredit > 0
         ? { partialOutageWeight: apiPartialOutageWeight }
         : {}),
     });

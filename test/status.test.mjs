@@ -1764,3 +1764,24 @@ test("coalesced API partial windows do not discount the downtime between them", 
   assert.equal(group.windows.length, 2);
   assert.equal(group.end, null);
 });
+
+test("an API outage starting before a partial window stays fully counted", () => {
+  const history = partialUptimeHistory();
+  const after = applyIncidentGroups(history, [partialUptimeGroup({
+    started_at: "2026-08-01T00:15:00Z", ended_at: "2026-08-01T00:25:00Z",
+  })]);
+  assert.deepEqual(after.uptime.get("api"), history.uptime.get("api"));
+  assert.doesNotMatch(uptimeDescription(after.uptime.get("api"), 90, "api"), /Partial outages count/);
+});
+
+test("the API weighting explanation appears only when a discount affects the current window", () => {
+  const history = partialUptimeHistory();
+  for (const group of [partialUptimeGroup({ scope: undefined }), partialUptimeGroup({
+    started_at: "2026-01-01T00:00:00Z", ended_at: "2026-01-02T00:00:00Z",
+  })]) {
+    const after = applyIncidentGroups(history, [group]);
+    assert.deepEqual(after.uptime.get("api"), history.uptime.get("api"));
+    assert.doesNotMatch(uptimeDescription(after.uptime.get("api"), 90, "api"), /Partial outages count/);
+  }
+  assert.match(uptimeDescription({ uptime: 99, partialOutageWeight: 0.29 }, 90, "api"), /count as 29%/);
+});

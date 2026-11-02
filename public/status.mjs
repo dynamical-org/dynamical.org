@@ -236,7 +236,7 @@ export function uptimeDescription(measured, days, component) {
     ? `${window} (${measured.delayed}% degraded${including})`
     : window;
   return component === "api" && measured.partialOutageWeight != null
-    ? `${description}. Partial outages count as ${measured.partialOutageWeight * 100}% of their duration in API uptime.`
+    ? `${description}. Partial outages count as ${Math.round(measured.partialOutageWeight * 100)}% of their duration in API uptime.`
     : description;
 }
 
