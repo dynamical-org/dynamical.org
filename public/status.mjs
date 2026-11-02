@@ -7,6 +7,7 @@ import {
   useRef,
 } from "./vendor/preact-htm.mjs";
 import {
+  API_PARTIAL_OUTAGE_DOWNTIME_WEIGHT,
   componentSpans,
   dailyBars,
   effectiveAsOf,
@@ -231,9 +232,12 @@ export function uptimeDescription(measured, days, component) {
   // Nor is a regional partial outage of reads, which counts the same way.
   const including =
     component === "data-product-reads" ? ", including regional partial outages" : "";
-  return measured.delayed > 0
+  const description = measured.delayed > 0
     ? `${window} (${measured.delayed}% degraded${including})`
     : window;
+  return component === "api" && measured.partialOutageWeight != null
+    ? `${description}. Partial outages count as ${Math.round(measured.partialOutageWeight * 100)}% of their duration in API uptime.`
+    : description;
 }
 
 // Row labels that say what a state means for a particular component, keyed by
@@ -343,6 +347,44 @@ export function applyIncidentGroups(history, incidentGroups = []) {
   const aliases = new Map();
   const dayStates = new Map();
   const observationWindows = [];
+  const configuredGroups = coalesceIncidentGroups(incidentGroups);
+  let uptime = history.uptime;
+  if (history.spans && history.asOf) {
+    const partial = [];
+    const apiOutageGroups = configuredGroups.filter(
+      (group) => group.kind === "outage" && group.components.includes("api"),
+    );
+    const isPartial = (group) =>
+      group.scope === "partial" && group.components.length === 1;
+    const full = apiOutageGroups
+      .filter((group) => !isPartial(group))
+      .flatMap((group) => group.windows);
+    for (const incident of history.incidents) {
+      if (incident.component !== "api" || incident.kind !== "outage") continue;
+      const end = incident.end ?? history.asOf.getTime();
+      const matching = apiOutageGroups.filter(
+        (group) => isPartial(group) && group.windows.some(
+          (window) => window.start <= incident.start && incident.start < window.end,
+        ),
+      );
+      if (matching.length === 0) {
+        full.push({ start: incident.start, end });
+      } else {
+        for (const window of matching.flatMap((group) => group.windows)) {
+          const start = Math.max(incident.start, window.start);
+          const clippedEnd = Math.min(end, window.end);
+          if (start < clippedEnd) partial.push({ start, end: clippedEnd });
+        }
+      }
+    }
+    uptime = uptimeSummary(history.spans, {
+      asOf: history.asOf,
+      days: BAR_DAYS,
+      apiPartialOutages: partial,
+      apiFullOutages: full,
+      apiPartialOutageWeight: API_PARTIAL_OUTAGE_DOWNTIME_WEIGHT,
+    });
+  }
   const dayOverlaps = (cell, start, end) => {
     const dayStart = Date.parse(`${cell.date}T00:00:00Z`);
     return (
@@ -366,7 +408,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
     return observed < end - start;
   };
 
-  for (const configured of coalesceIncidentGroups(incidentGroups)) {
+  for (const configured of configuredGroups) {
     const windows = configured.windows;
     const windowStart = windows[0].start;
     const windowEnd = windows.at(-1).end;
@@ -489,6 +531,7 @@ export function applyIncidentGroups(history, incidentGroups = []) {
 
   return {
     ...history,
+    uptime,
     cells,
     incidents: [...ungrouped, ...grouped].sort((a, b) => a.start - b.start),
   };
