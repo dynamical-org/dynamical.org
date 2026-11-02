@@ -198,14 +198,14 @@ hideLatestPopup: true
     product supports; a listed product with no capabilities cannot be queried.
   </p>
   <p>
-    WeatherNext 2 and all four WeatherNext 3 products are temporarily unavailable through the
-    API, including point queries and forecast-run listing. Their metadata has empty
+    Both WeatherNext 2 products and all four WeatherNext 3 products are temporarily unavailable through the
+    API, including point queries and forecast-run listing. When listed, their metadata has empty
     <code>capabilities</code> and an <code>unavailableReason</code>. Requests for their forecasts
     return <code>422</code> with the detail <code>WeatherNext forecasts are temporarily unavailable
     in the API. Use the STAC catalog and direct Icechunk/Zarr access instead.</code>
     A batch containing one of these products is rejected in full. The
-    <a href="https://stac.dynamical.org/">STAC catalog</a>, direct Icechunk/Zarr access and
-    <a href="/catalog">Explore on dataset pages</a> remain available.
+    <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, direct Icechunk/Zarr access and
+    <a href="/catalog/">Explore on dataset pages</a> remain available.
   </p>
   {{ example(apiExamples.products, "Data products") }}
 
