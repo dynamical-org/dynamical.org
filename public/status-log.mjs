@@ -30,6 +30,9 @@ function kindRank(event) {
 }
 const DAY_MS = 86_400_000;
 
+// Fixed display policy, not a measured fraction of requests that failed.
+export const API_PARTIAL_OUTAGE_DOWNTIME_WEIGHT = 0.3;
+
 function utcDayWindowStart(asOf, days) {
   return (Math.floor(asOf.getTime() / DAY_MS) - days + 1) * DAY_MS;
 }
@@ -302,8 +305,8 @@ function dayState(spans, start, end) {
  *
  * Derived from the log rather than from Sentry's check counts, so the percentage
  * and the strip beneath it cannot disagree — a green number over a red cell would
- * discredit both. It also means one methodology across every component, whether a
- * 60-second HTTP probe or a daily cron backs it.
+ * discredit both. API-only partial-outage groups apply the named policy weight
+ * to their measured down time; all other components retain full downtime weight.
  *
  * Truncated rather than rounded, so a window containing confirmed downtime can
  * never present as a flat 100%.
@@ -324,7 +327,16 @@ function dayState(spans, start, end) {
  * as its monitor's cadence, so a daily cron's figure is inherently coarser than an
  * HTTP detector's. That is a property of the measurement, not the arithmetic.
  */
-export function uptimeSummary(spans, { asOf, days }) {
+export function uptimeSummary(
+  spans,
+  {
+    asOf,
+    days,
+    apiPartialOutages = [],
+    apiFullOutages = [],
+    apiPartialOutageWeight = 1,
+  },
+) {
   const ceiling = asOf.getTime();
   const windowStart = utcDayWindowStart(asOf, days);
   const summary = new Map();
@@ -343,7 +355,30 @@ export function uptimeSummary(spans, { asOf, days }) {
       const overlap = Math.min(span.end, ceiling) - Math.max(span.start, from);
       if (overlap <= 0) continue;
       monitored += overlap;
-      if (span.state === "down") down += overlap;
+      if (span.state === "down") {
+        down += overlap;
+        if (component === "api" && apiPartialOutageWeight < 1) {
+          const start = Math.max(span.start, from);
+          const end = Math.min(span.end, ceiling);
+          // Partition the measured down span once. Overlapping partial members
+          // cannot earn duplicate credits, and a full outage always wins.
+          const cuts = [...new Set([
+            start,
+            end,
+            ...[...apiPartialOutages, ...apiFullOutages]
+              .flatMap((window) => [window.start, window.end])
+              .filter((at) => start < at && at < end),
+          ])].sort((a, b) => a - b);
+          for (let index = 1; index < cuts.length; index += 1) {
+            const left = cuts[index - 1];
+            const right = cuts[index];
+            const covers = (window) => window.start <= left && right <= window.end;
+            if (apiPartialOutages.some(covers) && !apiFullOutages.some(covers)) {
+              down -= (right - left) * (1 - apiPartialOutageWeight);
+            }
+          }
+        }
+      }
       else if (span.state === "degraded") degraded += overlap;
     }
     if (monitored <= 0) continue;
@@ -352,6 +387,9 @@ export function uptimeSummary(spans, { asOf, days }) {
       uptime: truncate((100 * (monitored - down)) / monitored),
       coverage: truncate((100 * monitored) / elapsed),
       delayed: inflate((100 * degraded) / monitored),
+      ...(component === "api" && apiPartialOutageWeight < 1
+        ? { partialOutageWeight: apiPartialOutageWeight }
+        : {}),
     });
   }
   return summary;

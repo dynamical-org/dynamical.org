@@ -1673,3 +1673,94 @@ test("the read row's degraded figure includes regional partial outages", () => {
     "100% uptime over the last 90 days",
   );
 });
+
+function partialUptimeHistory() {
+  const events = [];
+  for (const component of ["api", "example-dataset", "example-cron"]) {
+    events.push(
+      { ts: "2026-08-01T00:00:00Z", component, kind: "coverage", monitored: true, state: "operational", v: 1 },
+      { ts: "2026-08-01T00:10:00Z", component, kind: "transition", to: "down", v: 1 },
+      { ts: "2026-08-01T00:20:00Z", component, kind: "transition", to: "operational", v: 1 },
+      { ts: "2026-08-01T00:30:00Z", component, kind: "transition", to: "down", v: 1 },
+    );
+  }
+  return buildHistory(events.map((event) => JSON.stringify(event)).join("\n"),
+    JSON.stringify({ reconciled_at: "2026-08-01T01:00:00Z" }));
+}
+
+function partialUptimeGroup(overrides = {}) {
+  return { id: "example-api-partial", kind: "outage", scope: "partial",
+    summary: "Intermittent availability", components: ["api"],
+    started_at: "2026-08-01T00:10:00Z", ended_at: "2026-08-01T02:00:00Z",
+    ...overrides };
+}
+
+test("API partial groups weight measured downtime, including open members, without changing intervals", () => {
+  const history = partialUptimeHistory();
+  const groups = [partialUptimeGroup(), partialUptimeGroup({ id: "example-dataset-partial", components: ["example-dataset"] })];
+  const before = history;
+  const after = applyIncidentGroups(history, groups);
+  assert.equal(before.uptime.get("api").uptime, 33.333); // 40 down / 60 monitored minutes
+  assert.equal(after.uptime.get("api").uptime, 80); // 40 × 0.3 / 60
+  assert.equal(after.uptime.get("api").coverage, before.uptime.get("api").coverage);
+  for (const component of ["example-dataset", "example-cron"]) {
+    assert.deepEqual(after.uptime.get(component), before.uptime.get(component));
+  }
+  assert.deepEqual(after.spans, before.spans);
+  const groupedBefore = applyIncidentGroups({ ...history, spans: undefined }, groups);
+  assert.deepEqual(after.cells, groupedBefore.cells);
+  assert.deepEqual(after.incidents, groupedBefore.incidents);
+  assert.equal(after.incidents.find((incident) => incident.components?.includes("api")).end, null);
+  assert.match(uptimeDescription(after.uptime.get("api"), 90, "api"),
+    /Partial outages count as 30% of their duration in API uptime\./);
+  assert.doesNotMatch(uptimeDescription(after.uptime.get("example-dataset"), 90, "example-dataset"), /Partial outages count/);
+});
+
+test("overlapping API members are counted once and full downtime wins", () => {
+  const history = partialUptimeHistory();
+  history.incidents.push(
+    { id: "duplicate-partial", component: "api", kind: "outage", start: Date.parse("2026-08-01T00:15:00Z"), end: Date.parse("2026-08-01T00:19:00Z"), ending: "resolved" },
+    { id: "separate-full", component: "api", kind: "outage", start: Date.parse("2026-08-01T00:35:00Z"), end: Date.parse("2026-08-01T00:45:00Z"), ending: "resolved" },
+  );
+  const after = applyIncidentGroups(history, [partialUptimeGroup(),
+    partialUptimeGroup({ id: "full-overlap", scope: "full", started_at: "2026-08-01T00:35:00Z", ended_at: "2026-08-01T00:45:00Z" }),
+  ]);
+  assert.equal(after.uptime.get("api").uptime, 68.333); // 30 × 0.3 + 10 full = 19 down minutes
+});
+
+test("a full API group overlapping partial membership retains full weight regardless of group order", () => {
+  const history = partialUptimeHistory();
+  const full = partialUptimeGroup({ id: "full", scope: "full", ended_at: "2026-08-01T00:21:00Z" });
+  for (const groups of [[partialUptimeGroup(), full], [full, partialUptimeGroup()]]) {
+    assert.equal(applyIncidentGroups(history, groups).uptime.get("api").uptime, 68.333);
+  }
+});
+
+test("non-outage, mixed-component, and unknown-scope groups cannot discount API downtime", () => {
+  const history = partialUptimeHistory();
+  for (const override of [{ kind: "planned" }, { kind: "observation" },
+    { components: ["api", "example-dataset"] }, { scope: "unknown" }, { scope: undefined }]) {
+    assert.equal(applyIncidentGroups(history, [partialUptimeGroup(override)]).uptime.get("api").uptime, 33.333);
+  }
+  assert.equal(applyIncidentGroups(history, []).uptime.get("api").uptime, 33.333);
+});
+
+test("partial credit stops at the configured window even when its member stays open", () => {
+  const history = partialUptimeHistory();
+  const group = partialUptimeGroup({ ended_at: "2026-08-01T00:40:00Z" });
+  const after = applyIncidentGroups(history, [group]);
+  assert.equal(after.uptime.get("api").uptime, 56.666); // 20 × .3 + 20 full = 26 down minutes
+  assert.equal(after.incidents.find((incident) => incident.components?.includes("api")).end, null);
+});
+
+test("coalesced API partial windows do not discount the downtime between them", () => {
+  const history = partialUptimeHistory();
+  const after = applyIncidentGroups(history, [
+    partialUptimeGroup({ ended_at: "2026-08-01T00:15:00Z" }),
+    partialUptimeGroup({ id: "second-window", started_at: "2026-08-01T00:30:00Z", ended_at: "2026-08-01T00:40:00Z" }),
+  ]);
+  assert.equal(after.uptime.get("api").uptime, 50.833); // 15 × .3 + 25 full = 29.5 down minutes
+  const group = after.incidents.find((incident) => incident.components?.includes("api"));
+  assert.equal(group.windows.length, 2);
+  assert.equal(group.end, null);
+});
