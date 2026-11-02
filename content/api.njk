@@ -198,14 +198,14 @@ hideLatestPopup: true
     product supports; a listed product with no capabilities cannot be queried.
   </p>
   <p>
-    Both WeatherNext 2 products and all four WeatherNext 3 products are temporarily unavailable through the
-    API, including point queries and forecast-run listing. When listed, their metadata has empty
-    <code>capabilities</code> and an <code>unavailableReason</code>. Requests for their forecasts
-    return <code>422</code> with the detail <code>WeatherNext forecasts are temporarily unavailable
-    in the API. Use the STAC catalog and direct Icechunk/Zarr access instead.</code>
-    A batch containing one of these products is rejected in full. The
-    <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>, direct Icechunk/Zarr access and
-    <a href="/catalog/">Explore on dataset pages</a> remain available.
+    WeatherNext 3 is not available through the API, including point queries and forecast-run
+    listing. WeatherNext 2 remains supported subject to its existing access checks and query
+    limits. A batch is all-or-nothing: do not mix an unsupported WN3 product into a supported
+    query. Catalog publication does not imply API query support; check <code>capabilities</code>.
+    Follow the <a href="/api/direct-access/">direct-access guide</a> to open a catalog dataset
+    and extract a point. The <a href="https://stac.dynamical.org/catalog.json">STAC catalog</a>,
+    direct Icechunk/Zarr access and <a href="/catalog/">Explore on dataset pages</a> are separate
+    from the point API.
   </p>
   {{ example(apiExamples.products, "Data products") }}
 
@@ -406,6 +406,9 @@ http POST api.dynamical.org/v1/analyses \
     <table class="data">
       <tr><th>Bound</th><th>Limit</th></tr>
       <tr><td>Requests per client IP at the edge</td><td>30 per 10 seconds, counted per Cloudflare location; exceeding this triggers a 10-second block</td></tr>
+      <tr><td>Public Worker forecast/analysis requests</td><td>300 per 60 seconds</td></tr>
+      <tr><td>Public Worker canonical point reads</td><td>400 per 60 seconds</td></tr>
+      <tr><td>Public Worker forecast-run listings</td><td>500 per 60 seconds</td></tr>
       <tr><td>Queries per batch</td><td>10</td></tr>
       <tr><td>Runs resolved per forecast query</td><td>10</td></tr>
       <tr><td>Variables per query</td><td>25</td></tr>
@@ -418,8 +421,12 @@ http POST api.dynamical.org/v1/analyses \
     The edge request limit is shared across <code>POST /v1/forecasts</code>,
     <code>GET /v1/forecasts/runs</code>, and <code>POST /v1/analyses</code>; browser
     <code>OPTIONS</code> preflights on those paths also count. Canonical point reads are outside
-    that edge rule. The API's per-container rate limits remain an overload backstop. Contact
-    <a href="mailto:feedback@dynamical.org">feedback@dynamical.org</a> if you need higher limits.
+    that edge rule but count against the Worker's point limit. Worker limits are approximate,
+    counted separately at each Cloudflare location, per IPv4 address or IPv6 /64; they are not
+    exact global budgets. Its three classes have separate counters. Product metadata and allowed
+    preflights are uncounted by the Worker. The edge can refuse a request before it reaches the
+    Worker. The API also retains compute and fair-share admission checks. For larger workloads,
+    use the <a href="/api/direct-access/">direct-access guide</a>.
   </p>
   <p>
     The response-size budget counts values across variables, times, runs, and
@@ -445,10 +452,16 @@ http POST api.dynamical.org/v1/analyses \
   <h2 id="errors">Errors</h2>
   <p>
     API errors are a JSON object with a <code>detail</code> string, or — for request-shape failures —
-    FastAPI's validation array under the same key. Nothing is silently coerced: an unknown field, a
+    FastAPI's validation array under the same key. Capability, budget and rate-limit refusals may
+    also include <code>documentationUrl</code>, with the same URL in <code>detail</code>, pointing
+    to the <a href="/api/direct-access/">direct-access guide</a>. Other errors keep their existing
+    format; an unhandled server error is plain text. Nothing is silently coerced: an unknown field, a
     naive timestamp, or a location off the grid is an error, not a guess. Edge rate-limit errors
     are Cloudflare's error 1015, not this <code>detail</code> shape: HTML by default, or JSON when
-    the request asks for it. Act on the status and <code>Retry-After</code>, not the body.
+    the request asks for it. The proxy Worker's own errors and Cloudflare edge errors do not yet
+    include <code>documentationUrl</code>. For their rate-limit refusals, see the
+    <a href="/api/direct-access/">direct-access guide</a>. Act on the status and
+    <code>Retry-After</code>, not the body.
   </p>
   <div class="scroll">
     <table class="data">
@@ -466,7 +479,7 @@ http POST api.dynamical.org/v1/analyses \
       <tr>
         <td>429</td>
         <td>Edge or API rate limit exceeded; honor <code>Retry-After</code> with either body</td>
-        <td>Edge: Cloudflare error 1015 (HTML, or JSON if requested)<br>API: <code>Request rate limit exceeded; contact feedback@dynamical.org if you need higher limits</code></td>
+        <td>Edge: Cloudflare error 1015 (HTML, or JSON if requested)<br>Worker: <code>Rate limit exceeded for api.dynamical.org…</code><br>API: <code>Request rate limit exceeded…</code> or a concurrent-request refusal</td>
       </tr>
       <tr>
         <td>503</td>

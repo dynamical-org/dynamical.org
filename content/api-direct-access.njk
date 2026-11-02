@@ -1,0 +1,106 @@
+---
+layout: base.njk
+title: Direct access to weather data
+socialTitle: Move from the API to direct Icechunk and Zarr access
+description: Open Dynamical catalog datasets with Python, select a point and time range, and read only the data you need.
+permalink: /api/direct-access/
+hideLatestPopup: true
+---
+
+<div class="content">
+  <h1>Direct access to weather data</h1>
+  <p>
+    The <a href="/api/">JSON API</a> is convenient for small point queries. Use direct access to
+    the catalog's Icechunk Zarr stores for larger time ranges, many locations, repeated analysis,
+    or dimensions and products the API does not support. Your code selects and processes the data
+    with xarray instead of asking the API to do it.
+  </p>
+  <p>
+    A budget refusal means you can reduce variables, times, runs or batch size, or use direct
+    access. For a <code>429</code>, reduce concurrency and honor <code>Retry-After</code> before
+    retrying. Direct access avoids the point API's compute and response limits; it does not bypass
+    data-source rate limits, geographic restrictions or terms. Start with a small selection.
+  </p>
+
+  <h2>Find a dataset</h2>
+  <p>
+    Open the <a href="/catalog/">Dynamical catalog</a>, choose a dataset, and copy its ID.
+    Its page lists variables, dimensions, units, coverage, examples, license and validation notes.
+    Use the ID with <code>dynamical_catalog.open</code>; the package resolves the current storage
+    location from <a href="https://stac.dynamical.org/catalog.json">STAC</a>. Do not copy a storage
+    bucket or versioned repository URL into long-lived code. Catalog availability and API query
+    support are different: check the API's <code>capabilities</code> when using the API.
+  </p>
+
+  <h2>Open a dataset and extract a point</h2>
+  <p>
+    Use Python 3.12 or newer and the current <code>dynamical-catalog</code> package with Icechunk 2.
+    Save the example below as <code>direct_access.py</code> and run it with uv:
+  </p>
+  {% frameHighlight "bash" %}uv run --with "dynamical-catalog>=1.1.0" --with "icechunk>=2,<3" --with xarray direct_access.py{% endframeHighlight %}
+  <p>
+    This reads one variable at the nearest grid point to Chicago, for the first three lead times
+    of the latest <a href="/catalog/noaa-gfs-forecast/">GFS forecast</a>. Opening the dataset reads
+    metadata; selecting before <code>load()</code> keeps the weather-data read bounded.
+  </p>
+  {% frameHighlight "py" %}import dynamical_catalog
+
+ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)
+point = (
+    ds["temperature_2m"]
+    .isel(init_time=-1, lead_time=slice(0, 3))
+    .sel(latitude=41.88, longitude=-87.63, method="nearest")
+)
+point.load()
+print(point)
+print(point.attrs.get("units")){% endframeHighlight %}
+  <p>
+    <code>init_time</code> chooses the forecast run; <code>lead_time</code> is time after that run.
+    For reproducible work, replace <code>isel(init_time=-1)</code> with an exact initialization time
+    from <code>ds.init_time</code>. Analysis datasets generally use <code>time</code> instead.
+    Check the selected coordinates: nearest means nearest grid cell, not interpolation. This
+    example uses GFS's latitude/longitude coordinates; other datasets can use projected or
+    two-dimensional coordinates and need their own spatial selection.
+  </p>
+
+  <h2>WeatherNext 3: choose a statistic</h2>
+  <p>
+    WeatherNext 3 forecasts are not supported by the point API. Once a WN3 dataset is listed in
+    the production catalog, open its ID directly. WN3 has a <code>statistic</code> axis rather than
+    interchangeable ensemble members. Inspect its labels and choose one, such as <code>mean</code>,
+    before loading weather values:
+  </p>
+  {% frameHighlight "py" %}wn3 = dynamical_catalog.open(
+    "google-weathernext3-forecast-48-hour-0-1-degree-virtual", chunks=None
+)
+print(wn3.statistic.values)
+mean = wn3["temperature_2m"].sel(statistic="mean")
+print(mean.dims)  # Select a run, lead times and spatial indices before load().{% endframeHighlight %}
+  <p>
+    This selects a statistic but does not load the full forecast. Follow the dataset's examples
+    for its <code>y</code>/<code>x</code> spatial grid; do not apply the GFS latitude/longitude
+    selector unchanged. Pressure-level variables also need a level selection. The API continues
+    to support WeatherNext 2 subject to its existing access checks and query limits.
+  </p>
+
+  <h2>Keep reads manageable</h2>
+  <p>
+    Choose variables and slice runs, times, statistics and spatial dimensions before calling
+    <code>load()</code>, <code>compute()</code> or exporting. Storage reads whole chunks: a single
+    requested point can still require a large chunk. Check chunk shapes and validation notes on
+    the dataset page, reuse opened datasets, and process large jobs in bounded pieces rather than
+    loading an entire archive into memory. <code>chunks=None</code> avoids requiring Dask; it does
+    not make an unbounded selection small. Preserve missing values and check coverage rather
+    than treating them as a successful complete forecast.
+  </p>
+
+  <h2>Terms and attribution</h2>
+  <p>
+    Read the dataset's License and Attribution sections and its STAC <code>license</code> links.
+    Terms vary by dataset and can differ between historical and real-time data. WeatherNext
+    includes <a href="https://storage.googleapis.com/weathernext-public/terms-of-use.pdf">Google
+    DeepMind's data terms</a>; use the current links on the dataset page for the applicable terms.
+    Direct access does not change those terms or geographic restrictions. Do not put service
+    tokens in shared code or persisted Icechunk repository configuration.
+  </p>
+</div>
