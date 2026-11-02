@@ -194,8 +194,18 @@ hideLatestPopup: true
 
   <h3 id="list-data-products"><span class="method">GET</span> <code>/v1/data-products</code></h3>
   <p>
-    Every data product the API can serve. The MVP catalog is the forecast and analysis products;
-    <code>capabilities</code> says which point queries a product supports.
+    Forecast and analysis product metadata. <code>capabilities</code> says which point queries a
+    product supports; a listed product with no capabilities cannot be queried.
+  </p>
+  <p>
+    WeatherNext 2 and all four WeatherNext 3 products are temporarily unavailable through the
+    API, including point queries and forecast-run listing. Their metadata has empty
+    <code>capabilities</code> and an <code>unavailableReason</code>. Requests for their forecasts
+    return <code>422</code> with the detail <code>WeatherNext forecasts are temporarily unavailable
+    in the API. Use the STAC catalog and direct Icechunk/Zarr access instead.</code>
+    A batch containing one of these products is rejected in full. The
+    <a href="https://stac.dynamical.org/">STAC catalog</a>, direct Icechunk/Zarr access and
+    <a href="/explore/">Explore</a> remain available.
   </p>
   {{ example(apiExamples.products, "Data products") }}
 
