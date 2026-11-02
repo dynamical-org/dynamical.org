@@ -68,19 +68,25 @@ print(point.attrs.get("units")){% endframeHighlight %}
     WeatherNext 3 forecasts are not supported by the point API. Once a WN3 dataset is listed in
     the production catalog, open its ID directly. WN3 has a <code>statistic</code> axis rather than
     interchangeable ensemble members. Inspect its labels and choose one, such as <code>mean</code>,
-    before loading weather values:
+    before loading weather values. If the ID is not yet listed in the catalog, wait for its release:
   </p>
   {% frameHighlight "py" %}wn3 = dynamical_catalog.open(
     "google-weathernext3-forecast-48-hour-0-1-degree-virtual", chunks=None
 )
 print(wn3.statistic.values)
-mean = wn3["temperature_2m"].sel(statistic="mean")
-print(mean.dims)  # Select a run, lead times and spatial indices before load().{% endframeHighlight %}
+point = (
+    wn3["temperature_2m"]
+    .sel(statistic="mean")
+    .isel(init_time=-1, lead_time=slice(0, 3))
+    .sel(y=41.88, x=(-87.63) % 360, method="nearest")
+)
+print(point.dims)  # Call point.load() to read this small selection after release.{% endframeHighlight %}
   <p>
-    This selects a statistic but does not load the full forecast. Follow the dataset's examples
-    for its <code>y</code>/<code>x</code> spatial grid; do not apply the GFS latitude/longitude
-    selector unchanged. Pressure-level variables also need a level selection. The API continues
-    to support WeatherNext 2 subject to its existing access checks and query limits.
+    WN3 uses <code>y</code> for latitude and <code>x</code> for longitude in 0–360 degrees east:
+    −87.63 becomes 272.37. Do not apply the GFS latitude/longitude selector unchanged. Percentiles
+    are quantiles at each forecast step, not ensemble members or physically consistent trajectories.
+    This example selects a statistic and a small point series without loading the full forecast.
+    The API continues to support WeatherNext 2 subject to its existing access checks and limits.
   </p>
 
   <h2>Keep reads manageable</h2>
@@ -98,9 +104,8 @@ print(mean.dims)  # Select a run, lead times and spatial indices before load().{
   <p>
     Read the dataset's License and Attribution sections and its STAC <code>license</code> links.
     Terms vary by dataset and can differ between historical and real-time data. WeatherNext
-    includes <a href="https://storage.googleapis.com/weathernext-public/terms-of-use.pdf">Google
-    DeepMind's data terms</a>; use the current links on the dataset page for the applicable terms.
-    Direct access does not change those terms or geographic restrictions. Do not put service
-    tokens in shared code or persisted Icechunk repository configuration.
+    includes a <a href="https://storage.googleapis.com/weathernext-public/terms-of-use.pdf">terms-of-use
+    PDF</a>; use the current links on the dataset page for the applicable terms. Direct access
+    does not change those terms or geographic restrictions.
   </p>
 </div>
