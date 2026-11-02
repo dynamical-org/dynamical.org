@@ -1,52 +1,59 @@
 ---
 layout: base.njk
-title: Direct access to weather data
-socialTitle: Move from the API to direct Icechunk and Zarr access
-description: Open Dynamical catalog datasets with Python, select a point and time range, and read only the data you need.
+title: Switching from point API to direct access
+socialTitle: Switching from point API to direct access
+description: Open weather datasets directly with a few lines of Python, or give your coding agent a prompt to get started.
 permalink: /api/direct-access/
 hideLatestPopup: true
 ---
 
+{% from "agent-prompt.njk" import agentPrompt %}
+
 <div class="content">
-  <h1>Direct access to weather data</h1>
+  <h1>Switching from point API to direct access</h1>
   <p>
-    The <a href="/api/">JSON API</a> is convenient for small point queries. Use direct access to
-    the catalog's Icechunk Zarr stores for larger time ranges, many locations, repeated analysis,
-    or dimensions and products the API does not support. Your code selects and processes the data
-    with xarray instead of asking the API to do it.
+    The <a href="/api/">JSON point API</a> provides convenient access when running Python is
+    difficult but a curl request or web fetch is easy. For most work, direct access to the
+    <a href="/catalog/">catalog's Icechunk Zarr stores</a> is the better option: it is more
+    flexible, can be much faster for larger reads, and is free to access without the point
+    API's request or query-size limits.
   </p>
   <p>
-    A budget refusal means you can reduce variables, times, runs or batch size, or use direct
-    access. For a <code>429</code>, reduce concurrency and honor <code>Retry-After</code> before
-    retrying. Direct access avoids the point API's compute and response limits; it does not bypass
-    data-source rate limits, geographic restrictions or terms. Start with a small selection.
+    If that sounds intimidating, don't worry! You can open a dataset and read the values you
+    need with just a few lines of Python. If you use a coding agent, give it this prompt:
   </p>
+  {% set directAccessPrompt %}Help me switch from the Dynamical point API to direct dataset access. Read https://dynamical.org/api/direct-access/ and https://dynamical.org/llms.txt, then follow https://dynamical.org/prompt.md to set up Python and dynamical-catalog in this project. Use my existing API request to identify the dataset, variables, location, run and time range; ask me for those details if they are missing. Resolve the dataset from the current Dynamical catalog, check its dimensions, units and terms, and select only the data I need before loading it. Run one small read, show the selected coordinates and values, and give me the working code. Preserve missing values rather than treating them as a complete forecast.{% endset %}
+  {{ agentPrompt(directAccessPrompt, "Direct-access prompt for a coding agent", "api-direct-access", 8) }}
 
-  <h2>Find a dataset</h2>
+  <h2>Opening a data product directly</h2>
   <p>
-    Open the <a href="/catalog/">Dynamical catalog</a>, choose a dataset, and copy its ID.
-    Its page lists variables, dimensions, units, coverage, examples, license and validation notes.
-    Use the ID with <code>dynamical_catalog.open</code>; the package resolves the current storage
-    location from <a href="https://stac.dynamical.org/catalog.json">STAC</a>. Do not copy a storage
-    bucket or versioned repository URL into long-lived code. Catalog availability and API query
-    support are different: check the API's <code>capabilities</code> when using the API.
-  </p>
-
-  <h2>Open a dataset and extract a point</h2>
-  <p>
-    Use Python 3.12 or newer and the current <code>dynamical-catalog</code> package with Icechunk 2.
-    Save the example below as <code>direct_access.py</code> and run it with uv:
-  </p>
-  {% frameHighlight "bash" %}uv run --with "dynamical-catalog>=1.1.0" --with "icechunk>=2,<3" --with xarray direct_access.py{% endframeHighlight %}
-  <p>
-    This reads one variable at the nearest grid point to Chicago, for the first three lead times
-    of the latest <a href="/catalog/noaa-gfs-forecast/">GFS forecast</a>. Opening the dataset reads
-    metadata; selecting before <code>load()</code> keeps the weather-data read bounded.
+    Opening a data product takes just an import and one function call. Choose a dataset from the
+    <a href="/catalog/">catalog</a> and copy its ID. For example, to open the
+    <a href="/catalog/noaa-gfs-forecast/">GFS forecast</a>:
   </p>
   {% frameHighlight "py" %}import dynamical_catalog
 
-ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None)
-point = (
+ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighlight %}
+  <p>
+    You need Python 3.12 or newer, <code>dynamical-catalog</code>, Icechunk 2 and xarray. Save the
+    code as <code>direct_access.py</code>; <a href="https://docs.astral.sh/uv/">uv</a> can install
+    those packages and run it in one command:
+  </p>
+  {% frameHighlight "bash" %}uv run --with "dynamical-catalog>=1.1.0" --with "icechunk>=2,<3" --with xarray direct_access.py{% endframeHighlight %}
+  <p>
+    Opening the dataset reads its metadata, not the whole archive. The package looks up the
+    current storage location in the <a href="https://stac.dynamical.org/catalog.json">STAC
+    catalog</a>, so you don't need to track buckets or versioned URLs. Catalog pages provide a
+    minimal opening snippet and example notebooks, along with variables, dimensions, units and
+    coverage. Use the examples for your chosen dataset.
+  </p>
+
+  <h2>Read a forecast at one point</h2>
+  <p>
+    Add this below the opening code to read temperature at the nearest grid point to Chicago,
+    for the first three lead times of the latest GFS forecast:
+  </p>
+  {% frameHighlight "py" %}point = (
     ds["temperature_2m"]
     .isel(init_time=-1, lead_time=slice(0, 3))
     .sel(latitude=41.88, longitude=-87.63, method="nearest")
@@ -56,56 +63,16 @@ print(point)
 print(point.attrs.get("units")){% endframeHighlight %}
   <p>
     <code>init_time</code> chooses the forecast run; <code>lead_time</code> is time after that run.
-    For reproducible work, replace <code>isel(init_time=-1)</code> with an exact initialization time
-    from <code>ds.init_time</code>. Analysis datasets generally use <code>time</code> instead.
-    Check the selected coordinates: nearest means nearest grid cell, not interpolation. This
-    example uses GFS's latitude/longitude coordinates; other datasets can use projected or
-    two-dimensional coordinates and need their own spatial selection.
+    For reproducible work, choose an exact initialization time from <code>ds.init_time</code>
+    instead of the last run. Nearest means nearest grid cell, not interpolation. Other datasets
+    can have different time or spatial coordinates; their catalog examples show how to select them.
   </p>
 
-  <h2>WeatherNext 3: choose a statistic</h2>
+  <h2>Read only what you need</h2>
   <p>
-    WeatherNext 3 forecasts are not supported by the point API. Once a WN3 dataset is listed in
-    the production catalog, open its ID directly. WN3 has a <code>statistic</code> axis rather than
-    interchangeable ensemble members. Inspect its labels and choose one, such as <code>mean</code>,
-    before loading weather values. If the ID is not yet listed in the catalog, wait for its release:
-  </p>
-  {% frameHighlight "py" %}wn3 = dynamical_catalog.open(
-    "google-weathernext3-forecast-48-hour-0-1-degree-virtual", chunks=None
-)
-print(wn3.statistic.values)
-point = (
-    wn3["temperature_2m"]
-    .sel(statistic="mean")
-    .isel(init_time=-1, lead_time=slice(0, 3))
-    .sel(y=41.88, x=(-87.63) % 360, method="nearest")
-)
-print(point.dims)  # Call point.load() to read this small selection after release.{% endframeHighlight %}
-  <p>
-    WN3 uses <code>y</code> for latitude and <code>x</code> for longitude in 0–360 degrees east:
-    −87.63 becomes 272.37. Do not apply the GFS latitude/longitude selector unchanged. Percentiles
-    are quantiles at each forecast step, not ensemble members or physically consistent trajectories.
-    This example selects a statistic and a small point series without loading the full forecast.
-    The API continues to support WeatherNext 2 subject to its existing access checks and limits.
-  </p>
-
-  <h2>Keep reads manageable</h2>
-  <p>
-    Choose variables and slice runs, times, statistics and spatial dimensions before calling
-    <code>load()</code>, <code>compute()</code> or exporting. Storage reads whole chunks: a single
-    requested point can still require a large chunk. Check chunk shapes and validation notes on
-    the dataset page, reuse opened datasets, and process large jobs in bounded pieces rather than
-    loading an entire archive into memory. <code>chunks=None</code> avoids requiring Dask; it does
-    not make an unbounded selection small. Preserve missing values and check coverage rather
-    than treating them as a successful complete forecast.
-  </p>
-
-  <h2>Terms and attribution</h2>
-  <p>
-    Read the dataset's License and Attribution sections and its STAC <code>license</code> links.
-    Terms vary by dataset and can differ between historical and real-time data. WeatherNext
-    includes a <a href="https://storage.googleapis.com/weathernext-public/terms-of-use.pdf">terms-of-use
-    PDF</a>; use the current links on the dataset page for the applicable terms. Direct access
-    does not change those terms or geographic restrictions.
+    Select variables, times and locations before calling <code>load()</code> or exporting.
+    Large selections can use a lot of memory, so process them in pieces. Read the dataset page's
+    License and Attribution sections for its terms and any geographic restrictions. Direct access
+    avoids the point API's limits; data-source rate limits and terms still apply.
   </p>
 </div>
