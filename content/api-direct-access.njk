@@ -1,0 +1,53 @@
+---
+layout: base.njk
+title: Switching from point API to direct access
+socialTitle: Switching from point API to direct access
+description: Open weather data directly with a few lines of Python, or give your coding agent a prompt to get started.
+permalink: /api/direct-access/
+hideLatestPopup: true
+---
+
+{% from "agent-prompt.njk" import agentPrompt %}
+
+<div class="content">
+  <h1>Switching from point API to direct access</h1>
+  <p>
+    The <a href="/api/">JSON point API</a> provides convenient access when running Python is
+    difficult but a curl request or web fetch is easy. For virtually all work, direct access to the
+    <a href="/catalog/">catalog's Icechunk Zarr stores</a> is the better option: it is more
+    flexible, can be much faster for larger reads, and is free to access without the point
+    API's request or query-size limits.
+  </p>
+  <p>
+    If that sounds intimidating, don't worry! You can open a data product and read the values you
+    need with just a few lines of Python. If you use a coding agent, give it this prompt:
+  </p>
+  {% set directAccessPrompt %}Help me switch from dynamical.org's point API to direct access. Read https://dynamical.org/api/direct-access/ and https://dynamical.org/llms.txt, then follow https://dynamical.org/prompt.md to set up Python and dynamical-catalog in this project. Use my existing API request to identify the data product, variables, location, run and time range; ask me for those details if they are missing. Resolve the data product from the current Dynamical catalog, check its dimensions, units and terms, and select only the data I need before loading it.{% endset %}
+  {{ agentPrompt(directAccessPrompt, "Direct-access prompt for a coding agent", "api-direct-access", 8) }}
+
+  <h2>Opening a data product directly</h2>
+  <p>
+    For example, to open the <a href="/catalog/noaa-gfs-forecast/">GFS forecast</a>:
+  </p>
+  {% frameHighlight "py" %}import dynamical_catalog
+
+ds = dynamical_catalog.open("noaa-gfs-forecast", chunks=None){% endframeHighlight %}
+
+  <h2>Read a forecast at one point</h2>
+  <p>
+    The following reads temperature at the nearest grid point to Chicago,
+    for the first three lead times of the latest GFS forecast:
+  </p>
+  {% frameHighlight "py" %}point = (
+    ds["temperature_2m"]
+    .isel(init_time=-1, lead_time=slice(0, 3))
+    .sel(latitude=41.88, longitude=-87.63, method="nearest")
+)
+point.load()
+print(point)
+print(point.attrs.get("units")){% endframeHighlight %}
+  <p>
+    Nearest means nearest grid cell, not interpolation. Other data products
+    can have different time or spatial coordinates; their catalog examples show how to select them.
+  </p>
+</div>
