@@ -772,8 +772,6 @@ figcaption {
 .block-label,
 .footer-col h2 {
   font-size: 1.2rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
   color: var(--muted-text);
   font-weight: 700;
 }
