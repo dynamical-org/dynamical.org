@@ -768,15 +768,20 @@ figcaption {
 
 .dim { color: var(--muted-text); }
 
-/* Section label shared by /research blocks, homepage sections, and footer columns. */
+/* Section label shared by /research blocks, homepage sections, and footer columns.
+   Sentence case, so size, weight and muted color carry it: the label sits at the
+   size of the titles below it and stays quieter than them. Footer heads match
+   the 14px footer links. */
 .block-label,
 .footer-col h2 {
-  font-size: 1.2rem;
+  font-size: 1.6rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--muted-text);
   font-weight: 700;
 }
 .block-label { margin: 0; }
-.footer-col h2 { margin: 0 0 1.2rem; }
+.footer-col h2 { margin: 0 0 1.2rem; font-size: 1.4rem; letter-spacing: 0; }
 
 .block { margin: 4rem 0; }
 .block .block-label { margin-bottom: 1.5rem; }
@@ -801,6 +806,9 @@ a.area-card:hover h3 { text-decoration: underline; }
   --index-row-padding: 2rem;
   --index-row-border: 1px solid var(--border-muted-color);
 }
+/* The section label above already spaces the list; without this the first
+   title sits twice as far from its label as the area cards do from theirs. */
+.work-list > li:first-child { padding-top: 0; }
 a.work-item { position: relative; }
 a.work-item:hover h3 { text-decoration: underline; }
 .work-main { min-width: 0; }
