@@ -565,10 +565,12 @@ nav ul li:first-child {
   width: auto;
 }
 
+/* The surface bleeds past the 78rem column by its own inline padding, so the
+   footer's text lines up with the nav and content above it. */
 footer {
-  max-width: 78rem;
-  margin: 6rem auto 2rem;
-  padding: 3rem 3rem 1rem;
+  --bleed: 3rem;
+  margin: 6rem max(-1 * var(--bleed), (100% - 78rem) / 2 - var(--bleed)) 2rem;
+  padding: 3rem var(--bleed) 1rem;
   background: var(--surface-muted);
   border-radius: var(--radius-md);
   color: var(--muted-text);
@@ -640,9 +642,6 @@ footer {
 }
 
 @media (max-width: 640px) {
-  footer {
-    padding: 3rem 1.5rem 1rem;
-  }
   .footer-grid {
     grid-template-columns: 1fr;
     gap: 2.5rem;
@@ -1119,6 +1118,11 @@ a.work-item:hover h3 { text-decoration: underline; }
 @media screen and (max-width: 1000px) {
   body {
     padding: 2rem 1rem;
+  }
+
+  /* Only 1rem of gutter to bleed into. */
+  footer {
+    --bleed: 1rem;
   }
 
   nav ul {
