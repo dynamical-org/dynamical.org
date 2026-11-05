@@ -146,6 +146,10 @@ function reshapeStacCollection(collection) {
     return {
       name,
       units: d.unit,
+      size: d.size,
+      // Datacube `values`: the labels of a categorical dimension such as
+      // `statistic`, whose extent is [null, null].
+      values: d.values ?? null,
       statistics_approximate: { min, max },
     };
   });
@@ -423,3 +427,5 @@ function parseNotebooks(links) {
     .map((slug) => bySlug[slug])
     .filter((nb) => nb.githubUrl && nb.colabUrl);
 }
+
+module.exports.reshapeStacCollection = reshapeStacCollection;
