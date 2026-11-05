@@ -648,18 +648,6 @@ footer {
   }
 }
 
-#footer-frame {
-  display: block;
-  width: 100%;
-  border: 0;
-  margin: 6rem auto 2rem;
-}
-
-#footer-frame[style*="height"] {
-  overflow: hidden;
-}
-
-
 
 article {
   border: 1px solid var(--border-color);
