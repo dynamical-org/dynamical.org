@@ -251,14 +251,14 @@ test("a whole-grid chunk's range is sampled from the whole grid, not the tile at
   const lon = Array.from({ length: 121 }, (_, i) => -60 + i);
   const dims = ["init_time", "lead_time", "latitude", "longitude"];
   const shape = [1, LEADS.length, lat.length, lon.length];
+  // Only the first lead's chunk (the one served) is written: the map opens on it.
   const values = [];
-  for (let t = 0; t < LEADS.length; t++)
-    for (let r = 0; r < lat.length; r++)
-      for (let c = 0; c < lon.length; c++) {
-        const centreTile = r >= 30 && r < 60 && c >= 60 && c < 90;
-        // the centre tile holds 10–20, the rest of the grid 0–100
-        values.push(centreTile ? 10 + ((r + c) % 11) : (r * 7 + c * 3) % 101);
-      }
+  for (let r = 0; r < lat.length; r++)
+    for (let c = 0; c < lon.length; c++) {
+      const centreTile = r >= 30 && r < 60 && c >= 60 && c < 90;
+      // the centre tile holds 10–20, the rest of the grid 0–100
+      values.push(centreTile ? 10 + ((r + c) % 11) : (r * 7 + c * 3) % 101);
+    }
   const units = "m s-1";
   const name = "wind_speed_10m";
   const v = { name, units, dims, array: array(shape, "float32", dims, { units, long_name: name }, values, [1, 1, lat.length, lon.length]) };

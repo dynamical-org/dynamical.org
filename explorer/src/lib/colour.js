@@ -154,8 +154,9 @@ export function legendParts(range, units) {
 
 /**
  * The colour range for a variable from its first sample. Celsius and shortwave fluxes get
- * their fixed ranges. A sample that is empty or one value (e.g. all-zero precipitation) gives a provisional
- * range: shown, but not frozen, so a later sample can replace it (see settleRange).
+ * their fixed ranges. A sample that is empty or one value (e.g. all-zero precipitation)
+ * gives a provisional range: shown, but not frozen, so a later sample can replace it (see
+ * settleRange).
  * @param {string} units
  * @param {ArrayLike<number>} data
  * @param {string} [path] the variable's array path (its name picks out shortwave fluxes)
