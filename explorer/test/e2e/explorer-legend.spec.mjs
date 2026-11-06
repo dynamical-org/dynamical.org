@@ -37,14 +37,14 @@ async function siteFont(page) {
 // ---- a plain zarr store, built here, so units and value ranges can be anything ----
 const LE = { name: "bytes", configuration: { endian: "little" } };
 const TYPED = { float32: Float32Array, float64: Float64Array, int32: Int32Array };
-function array(shape, dataType, dims, attributes, values) {
+function array(shape, dataType, dims, attributes, values, chunks = shape) {
   return {
     meta: {
       zarr_format: 3,
       node_type: "array",
       shape,
       data_type: dataType,
-      chunk_grid: { name: "regular", configuration: { chunk_shape: shape } },
+      chunk_grid: { name: "regular", configuration: { chunk_shape: chunks } },
       chunk_key_encoding: { name: "default", configuration: { separator: "/" } },
       fill_value: dataType === "int32" ? 0 : "NaN",
       codecs: [LE],
@@ -89,15 +89,15 @@ const COORDS = {
 };
 
 /** Serve `vars` (and the coordinates) at https://fixture.test/store.zarr/ and open the page. */
-async function openWith(page, vars, viewport) {
+async function openWith(page, vars, viewport, { coords = {}, initialView = { bounds: [-101, 32, -84, 41] } } = {}) {
   await page.setViewportSize(viewport);
-  const arrays = { ...COORDS, ...Object.fromEntries(vars.map((v) => [v.name, v.array])) };
+  const arrays = { ...COORDS, ...coords, ...Object.fromEntries(vars.map((v) => [v.name, v.array])) };
   await offline(page, {
     overrides: {
       href: "https://fixture.test/store.zarr",
       variables: vars.map((v) => ({ path: v.name, name: v.name, units: v.units, dims: v.dims })),
       defaultVariable: vars[0].name,
-      initialView: { bounds: [-101, 32, -84, 41] },
+      initialView,
       maxCacheBytes: 256e6,
     },
   });
@@ -178,7 +178,7 @@ const CASES = [
   { key: "ensemble precipitation", vars: [variable({ name: "precipitation_surface", units: "kg m-2 s-1", lo: 0.00001, hi: 0.0031, ensemble: true })] },
   {
     key: "ensemble, long name",
-    vars: [variable({ name: "downward_short_wave_radiation_flux_surface", units: "W m-2", lo: 0, hi: 1034.5, ensemble: true })],
+    vars: [variable({ name: "downward_long_wave_radiation_flux_surface", units: "W m-2", lo: 0, hi: 1034.5, ensemble: true })],
   },
 ];
 // A phone through desktop, closer together around where the legend joins the slider.
@@ -238,4 +238,39 @@ test("a variable with no time dim keeps its legend, and the slider comes back wi
   at = await legendLayout(page);
   expectWellPlaced(at, "timed again");
   expect(at.withSlider).toBe(true);
+});
+
+// User feedback (2026-11): on a global 0.1° virtual store the range locked to whatever the
+// one 121×121-cell tile at the view's centre held (12° of ocean at 0°, 0°), so the rest of
+// the globe saturated. A whole-grid chunk is decoded for that tile anyway; the range now
+// samples all of it.
+test("a whole-grid chunk's range is sampled from the whole grid, not the tile at the centre", async ({ page }) => {
+  // 61 × 121 cells at 1°: the tile facade cuts 30-cell tiles, and the view's centre (0°, 0°)
+  // is cell (30, 60), in the tile of rows 30–59 and columns 60–89.
+  const lat = Array.from({ length: 61 }, (_, i) => 30 - i);
+  const lon = Array.from({ length: 121 }, (_, i) => -60 + i);
+  const dims = ["init_time", "lead_time", "latitude", "longitude"];
+  const shape = [1, LEADS.length, lat.length, lon.length];
+  const values = [];
+  for (let t = 0; t < LEADS.length; t++)
+    for (let r = 0; r < lat.length; r++)
+      for (let c = 0; c < lon.length; c++) {
+        const centreTile = r >= 30 && r < 60 && c >= 60 && c < 90;
+        // the centre tile holds 10–20, the rest of the grid 0–100
+        values.push(centreTile ? 10 + ((r + c) % 11) : (r * 7 + c * 3) % 101);
+      }
+  const units = "m s-1";
+  const name = "wind_speed_10m";
+  const v = { name, units, dims, array: array(shape, "float32", dims, { units, long_name: name }, values, [1, 1, lat.length, lon.length]) };
+  await openWith(page, [v], { width: 1280, height: 900 }, {
+    coords: {
+      latitude: array([lat.length], "float64", ["latitude"], { units: "degree_north" }, lat),
+      longitude: array([lon.length], "float64", ["longitude"], { units: "degree_east" }, lon),
+    },
+    initialView: { bounds: [-60, -30, 60, 30] },
+  });
+  const range = await page.evaluate(() => window.__explorer.debug().range);
+  expect(range.kind).toBe("sample");
+  expect(range.min, `range ${range.min}–${range.max}`).toBeLessThan(5);
+  expect(range.max, `range ${range.min}–${range.max}`).toBeGreaterThan(95);
 });

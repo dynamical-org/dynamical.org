@@ -345,9 +345,13 @@ In a box of fixed height the map shrinks to fit, down to that floor.
   defaults), dark to light. NaN and missing sentinels (`_FillValue`,
   `missing_value`, or a finite zarr `fill_value`) are transparent.
   - Units that are recognisably Celsius use a fixed −40..50.
+  - Shortwave and solar fluxes in W m⁻² (not UV-B) use a fixed 0..1000: they run from
+    0 at night to ~1000 by day, so any one step's sample misdraws the others.
   - Everything else uses the 2nd–98th percentile of one fixed reference read: the
     block and chunk at the initial view's centre, sampled at a stride (≤100k
-    values). The range is frozen per dataset + variable + pinned indices, so it holds
+    values). For whole-grid chunks (the virtual stores) that is the whole grid at the
+    opening step, already decoded for the centre tile, not the one ~121-cell tile.
+    The range is frozen per dataset + variable + pinned indices, so it holds
     through Play.
   - When the percentiles coincide but the values don't (a few rainy cells among zeros),
     the sample's full range is used instead.

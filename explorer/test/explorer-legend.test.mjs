@@ -60,3 +60,42 @@ test("sparse values whose 2nd and 98th percentiles coincide are a range, not a c
   assert.equal(r.provisional, undefined, "a varying sample freezes the range");
   assert.deepEqual(legendParts(r, "kg m-2 s-1"), { kind: "range", low: "0", high: "3", units: "kg m⁻² s⁻¹" });
 });
+
+test("shortwave and solar fluxes get a fixed 0–1000 W m⁻² range, whatever the sampled step shows", () => {
+  // A step at night, and one where the sample only catches the terminator: a range sampled
+  // from either would saturate every later daytime step.
+  const night = new Float32Array(1000);
+  const dusk = Float32Array.from({ length: 1000 }, (_, i) => (i % 7) * 2);
+  for (const path of [
+    "/downward_short_wave_radiation_flux_surface",
+    "downward_direct_short_wave_radiation_flux_surface",
+    "/upward_short_wave_radiation_flux_top_of_atmosphere",
+    "net_short_wave_radiation_flux_surface",
+    "clear_sky_downward_solar_flux_surface",
+    "visible_beam_downward_solar_flux_surface",
+  ]) {
+    for (const data of [night, dusk]) {
+      assert.deepEqual(initialRange("W m-2", data, path), { min: 0, max: 1000, kind: "fixed" }, path);
+    }
+  }
+  assert.deepEqual(legendParts(initialRange("W m-2", night, "/downward_short_wave_radiation_flux_surface"), "W m-2"), {
+    kind: "range",
+    low: "0",
+    high: "1000",
+    units: "W m⁻²",
+  });
+});
+
+test("other fluxes in W m⁻², and UV-B's small one, are still sampled", () => {
+  const data = Float32Array.from({ length: 1000 }, (_, i) => 200 + (i % 100));
+  for (const path of [
+    "downward_long_wave_radiation_flux_surface",
+    "latent_heat_flux_surface",
+    "uv_b_downward_solar_flux_surface",
+    "clear_sky_uv_b_downward_solar_flux_surface",
+  ]) {
+    assert.equal(initialRange("W m-2", data, path).kind, "sample", path);
+  }
+  // a shortwave name in other units is not assumed to be in W m⁻²
+  assert.equal(initialRange("J m-2", data, "downward_short_wave_radiation_flux_surface").kind, "sample");
+});

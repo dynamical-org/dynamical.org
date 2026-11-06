@@ -8,6 +8,18 @@ export function isCelsius(units) {
 }
 
 /**
+ * Fixed range for shortwave (solar) fluxes in W m⁻². They swing from 0 at night to ~1000
+ * by day, so a range sampled from one step is night, a terminator or noon, and saturates
+ * or washes out the others. UV-B fluxes are a few W m⁻²: they stay sampled.
+ */
+export const SHORTWAVE_RANGE = [0, 1000];
+
+export function isShortwave(units, path) {
+  const name = String(path ?? "").split("/").pop();
+  return /^W m(\*\*|\^)?-2$/.test(String(units ?? "").trim()) && /short_wave|solar/.test(name) && !/uv/.test(name);
+}
+
+/**
  * Decode an xarray `_FillValue` attribute: a number, or base64 of a
  * little-endian float64 (how xarray writes NaN/inf fill values to zarr v3).
  * @returns {number | null}
@@ -141,15 +153,17 @@ export function legendParts(range, units) {
 }
 
 /**
- * The colour range for a variable from its first sample. Celsius gets the fixed range.
- * A sample that is empty or one value (e.g. all-zero precipitation) gives a provisional
+ * The colour range for a variable from its first sample. Celsius and shortwave fluxes get
+ * their fixed ranges. A sample that is empty or one value (e.g. all-zero precipitation) gives a provisional
  * range: shown, but not frozen, so a later sample can replace it (see settleRange).
  * @param {string} units
  * @param {ArrayLike<number>} data
+ * @param {string} [path] the variable's array path (its name picks out shortwave fluxes)
  * @returns {{ min: number, max: number, kind: "fixed" | "sample", status?: string, provisional?: boolean }}
  */
-export function initialRange(units, data) {
+export function initialRange(units, data, path) {
   if (isCelsius(units)) return { min: CELSIUS_RANGE[0], max: CELSIUS_RANGE[1], kind: "fixed" };
+  if (isShortwave(units, path)) return { min: SHORTWAVE_RANGE[0], max: SHORTWAVE_RANGE[1], kind: "fixed" };
   const r = sampleRange(data);
   return r.status === "ok" ? { ...r, kind: "sample" } : { ...r, kind: "sample", provisional: true };
 }
