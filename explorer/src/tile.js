@@ -94,6 +94,27 @@ export async function readTileBlock(info, selection, row, col, signal) {
   return { r0, c0, data: toFloat32(chunk.data, info) };
 }
 
+/**
+ * The colour range's sample for whole-grid chunks (the virtual stores): the whole grid at
+ * the selection, read at a stride to about `maxSamples` cells. A tile is ~121 cells across,
+ * a sliver of a global 0.1° grid, so the reference tile alone is no sample of the map. The
+ * grid is the one that tile was cut from, already decoded and cached by the facade, so
+ * this fetches nothing. Null for other stores: their range samples the reference chunk.
+ */
+export async function readGridSample(info, selection, signal, maxSamples = 100_000) {
+  if (!info.facade) return null;
+  const { y, x } = info.grid;
+  const step = Math.max(1, Math.ceil(Math.sqrt((y.n * x.n) / maxSamples)));
+  const dims = info.nodeDims;
+  const spec = dims.map((name, i) => {
+    if (i === dims.length - 2) return zarr.slice(0, y.n, step);
+    if (i === dims.length - 1) return zarr.slice(0, x.n, step);
+    return selection[name];
+  });
+  const grid = await info.read(info.node, spec, { signal });
+  return toFloat32(grid.data, info);
+}
+
 export function makeRenderTile({ layerIndex, colormapTexture, colormapIndex, min, max }) {
   return (data) => ({
     renderPipeline: [

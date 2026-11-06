@@ -21,7 +21,7 @@ import { changeSelection, stepAccepted } from "./lib/pending.js";
 import { formatLead, formatUtc } from "./lib/time.js";
 import { makeSource, unsupportedReason } from "./source.js";
 import { openStore } from "./store.js";
-import { StaleTileError, makeGetTileData, makeRenderTile, readTileBlock } from "./tile.js";
+import { StaleTileError, makeGetTileData, makeRenderTile, readGridSample, readTileBlock } from "./tile.js";
 
 const BORDERS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json";
 // One colormap for every variable: cubehelix (Green 2011, matplotlib's defaults), dark to
@@ -664,11 +664,13 @@ export function mount(el, options) {
    * Frozen per dataset + variable + pinned indices once the sample varies. A constant or
    * empty sample (e.g. no rain at the initial view) is provisional and not frozen:
    * settle() replaces it from the first varying tile after a pan, zoom or step.
+   * Sampled from the whole grid at this step for whole-grid chunks, else the reference block.
    */
-  function rangeFor(info, pinnedIdx, ref) {
+  async function rangeFor(info, pinnedIdx, stepIndex, ref, signal) {
     const key = rangeKey(info, pinnedIdx);
     if (s.ranges.has(key)) return s.ranges.get(key);
-    const r = initialRange(info.units, ref.data);
+    const data = (await readGridSample(info, selectionFor(info, pinnedIdx, stepIndex).sel, signal)) ?? ref.data;
+    const r = initialRange(info.units, data, info.path);
     if (!r.provisional) s.ranges.set(key, r);
     return r;
   }
@@ -779,7 +781,8 @@ export function mount(el, options) {
           if (g !== s.gen) return;
         }
       }
-      const range = rangeFor(info, idx, ref);
+      const range = await rangeFor(info, idx, stepIndex, ref, signal);
+      if (g !== s.gen) return;
       s.prefetch = { base: baseKey(info, idx, ref.block), r0: ref.r0, c0: ref.c0, data: ref.data };
       mark("rangeReady");
       Object.assign(s, { info, pinnedIdx: idx, stepIndex, range, requested: null, failed: null });
