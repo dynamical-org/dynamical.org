@@ -259,7 +259,7 @@ let _Plot = null;
 async function getPlot() {
   if (!_Plot)
     _Plot = await import(
-      "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm"
+      "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/+esm"
     );
   return _Plot;
 }
