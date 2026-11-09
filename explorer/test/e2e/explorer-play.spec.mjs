@@ -64,15 +64,13 @@ async function recordStates(page) {
 }
 const states = (page) => page.evaluate(() => window.__states);
 
-/** Drag the map west by `dx` CSS px (moving the view east). */
-async function dragWest(page, dx) {
-  const box = await page.locator(".explore-map canvas").first().boundingBox();
-  const y = box.y + box.height / 2;
-  const x = box.x + box.width / 2 + dx / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x - dx, y, { steps: 12 });
-  await page.mouse.up();
+/** Pan across the fixture's latitude chunk boundary at -6°, keeping both rows visible. */
+async function panSouth(page) {
+  await page.evaluate(() => {
+    const { deck } = window.__explorer;
+    const { longitude, zoom } = deck.getViewports()[0];
+    deck.setProps({ initialViewState: { longitude, latitude: -6, zoom, pitch: 0, bearing: 0, minZoom: 0, maxPitch: 0 } });
+  });
 }
 
 const onScreen = (page, p) =>
@@ -82,8 +80,8 @@ const onScreen = (page, p) =>
     return x > 20 && y > 20 && x < canvas.clientWidth - 20 && y < canvas.clientHeight - 20;
   }, [p.lon, p.lat]);
 
-// The CONUS view sits inside one inner chunk (lon -185.625…-5.625); this point is in the next.
-const FRESH = { lon: 22.5, lat: 42 };
+// 0.10 loads both northern longitude chunks initially; the southern row is uncached.
+const FRESH = { lon: -78.75, lat: -18 };
 
 /** The frames a play produced, one per step in order, each shown before the next asked for. */
 function expectSequence(list, steps) {
@@ -286,7 +284,7 @@ test.describe("explorer, offline: play", () => {
 
     // a pan into a chunk whose reads fail: an error at lead 0, whose next lead is in the same block
     failNew = true;
-    for (let i = 0; i < 8 && !(await onScreen(page, FRESH)); i += 1) await dragWest(page, 300);
+    await panSouth(page);
     await expectState(page, "error");
     await expect(playButton(page)).toBeDisabled();
     await playButton(page).click({ force: true });
@@ -326,12 +324,8 @@ test.describe("explorer, offline: play", () => {
     await playButton(page).click();
     await expect.poll(async () => (await states(page)).some((x) => x.step === 1 && x.state === "ready")).toBe(true);
     const drawn = (await states(page)).find((x) => x.step === 1 && x.state === "ready").at;
-    // Pan east right after lead 1 drew, centring a point in the next inner chunk: uncached tiles.
-    await page.evaluate((lon) => {
-      const { deck } = window.__explorer;
-      const { latitude, zoom } = deck.getViewports()[0];
-      deck.setProps({ initialViewState: { longitude: lon, latitude, zoom, pitch: 0, bearing: 0, minZoom: 0, maxPitch: 0 } });
-    }, FRESH.lon);
+    // Pan south right after lead 1 drew, into the uncached latitude row.
+    await panSouth(page);
     // the pan asked for the new chunk (a held read started) and the view went back to loading
     await expect.poll(() => log.some((r) => held(r))).toBe(true);
     await expect.poll(async () => (await states(page)).some((x) => x.step === 1 && x.state === "loading" && x.at > drawn)).toBe(true);
