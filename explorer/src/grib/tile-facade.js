@@ -9,7 +9,7 @@
 // So ZarrLayer gets a facade: an object with the real array's shape, dimension names and
 // attrs, but spatial chunks of at most `tileSize`. Tiles are read through `get`, which has
 // zarr.get's signature. It fetches and decodes each real chunk once, through a small shared
-// cache, and copies out each tile's window. Hook-up: pass `facade.view` as ZarrLayer's `node`,
+// cache, and copies out each tile's window. Hook-up: open a ZarrSource from `facade.view`,
 // and call `facade.get` where tile code calls `zarr.get`.
 //
 // The view also moves (y, x) to the end. Level variables in the virtual stores put their level
@@ -79,6 +79,9 @@ export function createTileFacade({ array, get, spatial, tileSize = 121, cacheSiz
   const order = [...array.shape.keys()].filter((i) => i !== iy && i !== ix).concat(iy, ix);
   const nonSpatial = order.slice(0, -2);
   const view = {
+    // ZarrSource distinguishes an opened array from a store using these fields.
+    kind: "array",
+    store: array.store,
     shape: order.map((i) => array.shape[i]),
     chunks: [...nonSpatial.map(() => 1), Math.min(tileSize, H), Math.min(tileSize, W)],
     dimensionNames: array.dimensionNames && order.map((i) => array.dimensionNames[i]),

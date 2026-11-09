@@ -96,15 +96,13 @@ async function expectHumidityDrawn(page) {
   }, { timeout: 20_000 }).toBe(true);
 }
 
-/** Drag the map west by `dx` CSS px (moving the view east). */
-async function dragWest(page, dx) {
-  const box = await page.locator(".explore-map canvas").first().boundingBox();
-  const y = box.y + box.height / 2;
-  const x = box.x + box.width / 2 + dx / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x - dx, y, { steps: 12 });
-  await page.mouse.up();
+/** Pan across the fixture's latitude chunk boundary at -6°, keeping both rows visible. */
+async function panSouth(page) {
+  await page.evaluate(() => {
+    const { deck } = window.__explorer;
+    const { longitude, zoom } = deck.getViewports()[0];
+    deck.setProps({ initialViewState: { longitude, latitude: -6, zoom, pitch: 0, bearing: 0, minZoom: 0, maxPitch: 0 } });
+  });
 }
 
 test.describe("explorer, offline", () => {
@@ -438,10 +436,10 @@ test.describe("explorer, offline recovery", () => {
     await loadMap(page);
     for (const r of log) if (r.entry !== null && !r.failed) served.add(`${r.key}#${r.entry}`);
 
-    // The CONUS view sits inside one inner chunk (lon -185.625…-5.625). Pan
-    // east until the next chunk along longitude is on screen.
-    const kept = { lon: -11.25, lat: 42 };
-    const fresh = { lon: 22.5, lat: 42 };
+    // 0.10 loads both northern longitude chunks initially. Pan across the
+    // latitude boundary so the new southern tiles still need a request.
+    const kept = { lon: -78.75, lat: 6 };
+    const fresh = { lon: -78.75, lat: -18 };
     failNew = true;
     const onScreen = (p) =>
       page.evaluate(([lon, lat]) => {
@@ -449,7 +447,7 @@ test.describe("explorer, offline recovery", () => {
         const [x, y] = window.__explorer.project([lon, lat]);
         return x > 20 && y > 20 && x < canvas.clientWidth - 20 && y < canvas.clientHeight - 20;
       }, [p.lon, p.lat]);
-    for (let i = 0; i < 8 && !(await onScreen(fresh)); i += 1) await dragWest(page, 300);
+    await panSouth(page);
     expect(await onScreen(fresh)).toBe(true);
     expect(await onScreen(kept)).toBe(true);
 

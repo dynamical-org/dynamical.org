@@ -228,8 +228,9 @@ test("isWholeGridChunked", () => {
 
 test("facade view keeps shape and names but advertises tile-sized spatial chunks", () => {
   const { array, get } = fakeArray();
+  array.store = { get: async () => undefined };
   const f = createTileFacade({ array, get, tileSize: 4 });
-  assert.deepEqual(f.view, { shape: [2, 3, 10, 12], chunks: [1, 1, 4, 4], dimensionNames: array.dimensionNames, attrs: { a: 1 }, dtype: "float64" });
+  assert.deepEqual(f.view, { kind: "array", store: array.store, shape: [2, 3, 10, 12], chunks: [1, 1, 4, 4], dimensionNames: array.dimensionNames, attrs: { a: 1 }, dtype: "float64" });
   assert.deepEqual(createTileFacade({ array, get, tileSize: 121 }).view.chunks, [1, 1, 10, 12], "never larger than the grid");
   assert.throws(() => createTileFacade({ array: { shape: [4, 4], chunks: [2, 4] }, get }), /whole-grid chunks/);
 });

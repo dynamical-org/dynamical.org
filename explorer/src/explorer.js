@@ -8,7 +8,7 @@ import {
   decodeColormapSprite,
 } from "@developmentseed/deck.gl-raster/gpu-modules";
 import colormapsPngUrl from "@developmentseed/deck.gl-raster/gpu-modules/colormaps.png";
-import { ZarrLayer } from "@developmentseed/deck.gl-zarr";
+import { ZarrLayer, ZarrSource } from "@developmentseed/deck.gl-zarr";
 import { mesh } from "topojson-client";
 import * as zarr from "zarrita";
 import { defineWebMercatorOver, lonLatToCell, makeResolver } from "./crs.js";
@@ -502,11 +502,8 @@ export function mount(el, options) {
             // One layer per (variable, run, pinned indices, block): leaving a
             // block drops its tiles, so an old field never sits under new labels.
             id,
-            // The tile facade's view for whole-grid chunks (virtual stores), else the array.
-            node: info.node,
-            metadata: shiftAttrs(info.grid.attrs, offset),
+            source: info.rasterSources.get(offset),
             selection: sel,
-            epsgResolver: resolverFor(info.grid),
             getTileData: cb.getTileData,
             renderTile: makeRenderTile({
               layerIndex,
@@ -719,6 +716,20 @@ export function mount(el, options) {
     try {
       let info = newVar ? await s.source.describe(req.path, { center }) : s.info;
       if (g !== s.gen) return;
+      if (newVar) {
+        // Reuse opened metadata across selections. Each world copy needs its
+        // own source because its GeoZarr transform has a different offset.
+        const rasterSources = new Map(await Promise.all(info.grid.wrapOffsets.map(async (offset) => [
+          offset,
+          await ZarrSource.open(info.node, {
+            geoZarrMetadata: shiftAttrs(info.grid.attrs, offset),
+            epsgResolver: resolverFor(info.grid),
+            signal: s.abort.signal,
+          }),
+        ])));
+        if (g !== s.gen) return;
+        info = { ...info, rasterSources };
+      }
       mark("described");
       const maxDim = s.device.limits.maxTextureDimension2D;
       if (info.tile.w > maxDim || info.tile.h > maxDim) {
