@@ -535,8 +535,14 @@ eleventyComputed:
           <td>
             <strong>{{ dim.name }}</strong>
           </td>
-          <td class='right'>{{ dim.statistics_approximate.min | roundIfNumber(3) }}</td>
-          <td class='right'>{{ dim.statistics_approximate.max | roundIfNumber(3) if dim.statistics_approximate.max != null else "Present" }}</td>
+          {% if dim.values %}
+            <td colspan="2" class='right'>{{ dim.values | join(", ") }}</td>
+          {% elif dim.statistics_approximate.min == null and dim.statistics_approximate.max == null %}
+            <td colspan="2" class='right'>{{ dim.size }} values</td>
+          {% else %}
+            <td class='right'>{{ dim.statistics_approximate.min | roundIfNumber(3) }}</td>
+            <td class='right'>{{ dim.statistics_approximate.max | roundIfNumber(3) if dim.statistics_approximate.max != null else "Present" }}</td>
+          {% endif %}
           <td class='right'>{{ dim.units }}</td>
         </tr>
         <tr class="metadata-comment">

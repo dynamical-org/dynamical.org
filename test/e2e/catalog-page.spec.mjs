@@ -432,3 +432,17 @@ test.describe("touch copy controls", () => {
     }
   });
 });
+
+// A categorical dimension (e.g. `statistic`) has no min/max: its STAC extent is
+// [null, null]. Its row lists the labels when STAC publishes them as datacube
+// `values`, and otherwise gives the count, never the open-ended "Present" that
+// belongs to a time axis.
+test("a categorical dimension lists its values, not a min/max", async ({ page }) => {
+  const entry = catalog.entries.find(e => e.dimensions.some(d => d.name === "statistic"));
+  test.skip(!entry, "no product in STAC has a statistic dimension");
+  const dim = entry.dimensions.find(d => d.name === "statistic");
+  await page.goto(`/catalog/${entry.id}/`);
+  const row = page.locator("h2:text-is('Dimensions') + .table-container tr", { has: page.locator("strong", { hasText: /^statistic$/ }) });
+  await expect(row.locator("td")).toHaveText(["statistic", dim.values ? dim.values.join(", ") : `${dim.size} values`, dim.units]);
+  await expect(row.locator("td").nth(1)).toHaveAttribute("colspan", "2");
+});
