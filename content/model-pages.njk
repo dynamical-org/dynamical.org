@@ -96,9 +96,9 @@ eleventyComputed:
   {% endif %}
 
   <p>
-    dynamical.org republishes {{ model.name }} as free, analysis-ready
-    <a href="/catalog">Icechunk Zarr archives</a> — open them directly with Xarray, no
-    GRIB wrangling or bulk downloads.
+    dynamical.org publishes {{ model.name }} as analysis-ready Icechunk Zarr.
+    Browse the full <a href="https://dynamical.org/catalog/">catalog</a> or the
+    machine-readable <a href="https://stac.dynamical.org/catalog.json">STAC</a>.
   </p>
 
   {% macro variantRow(ds) %}
@@ -129,11 +129,4 @@ eleventyComputed:
     <ul class="index-list">{% for ds in analyses %}{{ variantRow(ds) }}{% endfor %}</ul>
   {% endif %}
 
-  <h2 style="margin-top: 3rem;">Data access</h2>
-  <ul>
-    <li><a href="https://stac.dynamical.org/catalog.json">STAC catalog</a> (<a href="https://radiantearth.github.io/stac-browser/#/external/stac.dynamical.org/catalog.json">browse</a>) — the machine-readable source of truth.</li>
-    {%- if model.onS3 %}
-    <li><a href="/aws/dynamical-{{ model.id }}.yaml">AWS Open Data Registry entry</a> · <a href="https://dynamical-{{ model.id }}.s3.amazonaws.com/index.html">browse the S3 bucket</a></li>
-    {%- endif %}
-  </ul>
 </div>
