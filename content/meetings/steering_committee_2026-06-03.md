@@ -7,6 +7,7 @@ date: 2026-06-03
 **Date:** June 3, 2026
 
 **Members present:**
+- Jacob Zwart
 - Joe Hamman
 - Stephan Hoyer
 - Alden Keefe Sampson

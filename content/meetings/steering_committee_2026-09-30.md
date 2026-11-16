@@ -9,6 +9,7 @@ date: 2026-09-30
 **Members present:**
 - Joe Hamman
 - Jack Kelly
+- Marshall Moutenot
 - Alden Keefe Sampson
 
 ---

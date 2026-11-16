@@ -19,7 +19,7 @@ date: 2026-03-11
 
 The committee discussed reducing the time between weather model output becoming available and updates reaching our datasets. Work included fetching directly from upstream sources with fallbacks and identifying opportunities to parallelize updates.
 
-Members explored how users who need timely data and support could help sustain the shared infrastructure. One approach discussed was paid support and prioritization of faster updates, with the resulting data remaining openly available to everyone. The discussion emphasized keeping the open-data commitment clear as these options develop.
+Members explored how users who need timely data and support could help sustain the shared infrastructure. One approach discussed was paid support for niche low-latency data products, while continuing to adhere to a free and open policy. The discussion emphasized keeping the open-data commitment clear as these options develop.
 
 ## Compression
 
@@ -31,4 +31,4 @@ The committee discussed documenting which dataset changes users should expect, i
 
 ## Governance
 
-We discussed establishing a governance group to complement the technical steering committee, with a focus on long-term stewardship and sustainability. Members were invited to suggest perspectives that would strengthen both groups.
+We discussed new steering committee membership and evolving its focus from technical to governance, with an emphasis on long-term stewardship and sustainability. Members were invited to suggest perspectives that would strengthen the committee.
