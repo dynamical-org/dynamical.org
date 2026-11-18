@@ -31,9 +31,8 @@ dependency licenses are collected in `LICENSE.plot`. To upgrade, run
 `node scripts/vendor-plot.mjs <version>` from the repository root. The script
 installs the exact Plot version and pinned esbuild in a temporary directory,
 then refreshes the bundle and licenses without adding project dependencies.
-Change `getPlot` in `public/scorecard.js` and the fixture import in
-`test/e2e/scorecard.spec.mjs` together, update the bundle filename in
-`test/scorecard-plot.test.mjs` and the table above, and delete the old file.
+Point `getPlot` in `public/scorecard.js` at the new file (the e2e fixtures load
+Plot through it), update the table above, and delete the old file.
 Replace the old version's immutable cache entry in `public/_headers` with an
 entry for the new filename.
 Before upgrading to 0.6.18 or later, follow [#318's caution about null leads and

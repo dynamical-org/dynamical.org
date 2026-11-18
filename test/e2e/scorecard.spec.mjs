@@ -652,7 +652,7 @@ async function fixturePage(page) {
     page.evaluate(
       async ({ spec, metric, yLabel, rows }) => {
         const sc = await import(spec);
-        const Plot = await import("/vendor/plot-0.6.17.mjs");
+        const Plot = await sc.getPlot();
         const box = document.getElementById("temperature-chart");
         box.replaceChildren(
           sc.metricChart(Plot, rows, {
