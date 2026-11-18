@@ -65,6 +65,12 @@ async function expectPlot(page, id) {
 // would otherwise surface as an unexplained chart timeout on a 404 body rather
 // than as the missing page it is.
 async function gotoOk(page, path) {
+  // All pages, including the custom touch contexts, must use the site bundle.
+  // DuckDB's CDN requests remain allowed.
+  await page.route(
+    /^https:\/\/cdn\.jsdelivr\.net\/npm\/(?:@observablehq\/plot|d3)(?:[@/-]|$)/,
+    (route) => route.abort(),
+  );
   const response = await page.goto(path);
   expect(response?.status(), `${path} did not return 200`).toBe(200);
 }
@@ -646,7 +652,7 @@ async function fixturePage(page) {
     page.evaluate(
       async ({ spec, metric, yLabel, rows }) => {
         const sc = await import(spec);
-        const Plot = await import("https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/+esm");
+        const Plot = await sc.getPlot();
         const box = document.getElementById("temperature-chart");
         box.replaceChildren(
           sc.metricChart(Plot, rows, {

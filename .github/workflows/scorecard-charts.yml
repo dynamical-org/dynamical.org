@@ -18,6 +18,8 @@ on:
   pull_request:
     paths:
       - public/scorecard.js
+      - public/vendor/plot-*.mjs
+      - scripts/vendor-plot.mjs
       - content/scorecard*.njk
       # The station and state pages the specs navigate to are generated from
       # this data, so a change here can 404 the paths they hardcode.
