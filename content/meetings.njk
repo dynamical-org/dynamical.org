@@ -8,8 +8,6 @@ description: Public notes from the dynamical.org steering committee, where users
 <div class="content">
 {%- for meeting in collections.meetings | reverse -%}
   <article>
-    <h2>{{meeting.data.title}}</h2>
-    <em>{{meeting.page.date | readableDate}}</em>
     {{meeting.content | safe}}
   </article>
 {%- endfor -%}
