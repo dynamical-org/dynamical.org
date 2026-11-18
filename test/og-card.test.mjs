@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -229,5 +230,30 @@ test("renders plain, status, and artwork cards as 1200 by 630 PNGs", async () =>
     assert.equal(metadata.format, "png");
     assert.equal(metadata.width, 1200);
     assert.equal(metadata.height, 630);
+  }
+});
+
+test("rendered cards keep their border inside the image bounds", async () => {
+  const png = await renderCard({
+    title: "A complete preview",
+    subtitle: "The frame must fit the exported image.",
+    url: `https://example.com/border-check/${randomUUID()}/`,
+  });
+  const { data, info } = await sharp(png)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  assert.equal(info.width, 1200);
+  assert.equal(info.height, 630);
+  for (const x of [0, 9, info.width - 10, info.width - 1]) {
+    for (let y = 0; y < info.height; y++) {
+      const offset = (y * info.width + x) * info.channels;
+      assert.deepEqual(
+        [...data.subarray(offset, offset + 3)],
+        [17, 17, 17],
+        `border clipped at ${x},${y}`,
+      );
+    }
   }
 });
