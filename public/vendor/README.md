@@ -10,6 +10,7 @@ copy of `public/`.
 | `preact-10.29.8.mjs`       | `preact`         | 10.29.8 | `dist/preact.mjs`         |
 | `preact-hooks-10.29.8.mjs` | `preact` (hooks) | 10.29.8 | `hooks/dist/hooks.mjs`    |
 | `htm-3.1.1.mjs`            | `htm`            | 3.1.1   | `dist/htm.mjs`            |
+| `plot-0.6.17.mjs`          | `@observablehq/plot` | 0.6.17 | `src/index.js`, bundled with all dependencies |
 
 Two things are ours:
 
@@ -24,3 +25,16 @@ from the tarballs under filenames containing the new versions, re-apply the
 one-line import rewrite in the versioned hooks file, update the shim to import
 the new filenames, and delete the old versioned files. Old URLs may stay cached,
 but nothing will reference them.
+
+The scorecard's Plot module is a self-contained, minified ESM bundle; its
+dependency licenses are collected in `LICENSE.plot`. To upgrade, run
+`node scripts/vendor-plot.mjs <version>` from the repository root. The script
+installs the exact Plot version and pinned esbuild in a temporary directory,
+then refreshes the bundle and licenses without adding project dependencies.
+Change `getPlot` in `public/scorecard.js` and the fixture import in
+`test/e2e/scorecard.spec.mjs` together, update the bundle filename in
+`test/scorecard-plot.test.mjs` and the table above, and delete the old file.
+Replace the old version's immutable cache entry in `public/_headers` with an
+entry for the new filename.
+Before upgrading to 0.6.18 or later, follow [#318's caution about null leads and
+the hover fixtures](https://github.com/dynamical-org/dynamical.org/pull/318).

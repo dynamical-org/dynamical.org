@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 // End-to-end specs are deliberately kept out of `npm test`: they boot a browser,
-// pull DuckDB-WASM and Observable Plot from CDNs, and run real queries against
+// pull DuckDB-WASM from a CDN, and run real queries against
 // the published parquet files, so a run takes minutes and can fail for reasons
 // that have nothing to do with this repo. Run them with `npm run test:e2e`.
 export default defineConfig({

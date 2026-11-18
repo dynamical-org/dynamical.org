@@ -14,3 +14,6 @@
 
 /vendor/htm-3.1.1.mjs
   Cache-Control: public, max-age=31536000, immutable
+
+/vendor/plot-0.6.17.mjs
+  Cache-Control: public, max-age=31536000, immutable

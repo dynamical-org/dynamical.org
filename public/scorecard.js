@@ -257,10 +257,7 @@ async function query(sql) {
 
 let _Plot = null;
 async function getPlot() {
-  if (!_Plot)
-    _Plot = await import(
-      "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/+esm"
-    );
+  if (!_Plot) _Plot = await import("./vendor/plot-0.6.17.mjs");
   return _Plot;
 }
 
