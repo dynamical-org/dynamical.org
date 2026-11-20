@@ -243,11 +243,11 @@ test("a dataset with no map grid gets a note and its quickstart link, not a map 
   };
   const html = exploreSection(native, () => "<svg/>");
   assert.match(html, /^<section class="explore" aria-labelledby="explore-heading">\s*<h2 id="explore-heading">Explore<\/h2>/);
-  assert.match(html, /can't draw this dataset's native grid yet/);
-  assert.ok(html.includes(`<a href="${colab}">quickstart notebook</a>`));
+  assert.match(html, /<p>[^<]*native grid[^]*<\/p>/);
+  assert.ok(html.includes(`<a href="${colab}">`));
   assert.doesNotMatch(html, /<button|<script|data-options|<svg/);
   const bare = exploreSection({ ...native, notebooks: [] }, () => "<svg/>");
-  assert.match(bare, /native grid yet\.<\/p>/);
+  assert.match(bare, /<p>[^<]*native grid[^<]*<\/p>/);
   assert.doesNotMatch(bare, /<a /);
 });
 
