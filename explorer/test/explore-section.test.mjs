@@ -219,6 +219,31 @@ test("the explorer shortcode renders the preview, the button and options that ro
   assert.match(html, /<script type="module">[^]*import\("\/explorer\/explorer\.js"\)[^]*<\/script>$/);
 });
 
+const { noMapGrid } = require("../site/mount-options.cjs");
+
+test("a native grid (no map dims anywhere) is told apart from unknown or drawable dims", () => {
+  const v = (dims) => ({ dims });
+  assert.equal(noMapGrid([v(["init_time", "lead_time", "cell"]), v(["cell"])]), true);
+  assert.equal(noMapGrid([v(["init_time", "lead_time", "cell"]), v(["time", "latitude", "longitude"])]), false);
+  // Virtual level variables keep the grid before the level: still a map grid.
+  assert.equal(noMapGrid([v(["time", "latitude", "longitude", "pressure_level"])]), false);
+  // Without dims for every variable the browser decides, as before.
+  assert.equal(noMapGrid([v(["cell"]), v(undefined)]), false);
+  assert.equal(noMapGrid([]), false);
+});
+
+test("a dataset with no map grid gets no Explore section; a drawable one keeps it", () => {
+  const native = {
+    ...entry,
+    id: "dwd-icon-eu-forecast-5-day-icosahedral",
+    variables: [{ name: "temperature_2m", dimension_names: ["init_time", "lead_time", "cell"] }],
+    variableGroups: [],
+  };
+  assert.equal(exploreSection(native, () => "<svg/>"), "");
+  const mixed = { ...native, variables: [...native.variables, entry.variables[0]] };
+  assert.match(exploreSection(mixed, () => "<svg/>"), /<section class="explore"/);
+});
+
 const { chunkView } = require("../site/mount-options.cjs");
 
 // A STAC cube for one variable: chunk cells per spatial dim over a dim's extent and size.

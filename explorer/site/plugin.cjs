@@ -12,7 +12,7 @@ const path = require("path");
 const fetch = require("@11ty/eleventy-fetch");
 const { makeExplorerBuilder } = require("./build.cjs");
 const { datasets, optOuts } = require("./datasets.cjs");
-const { explorerMountOptions } = require("./mount-options.cjs");
+const { explorerMountOptions, noMapGrid } = require("./mount-options.cjs");
 const { previewSvg } = require("./preview.cjs");
 
 const ROOT = path.join(__dirname, "..");
@@ -26,11 +26,13 @@ const LOADER = fs.readFileSync(path.join(__dirname, "loader.js"), "utf8");
 const escapeAttribute = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-// The Explore section for one catalog entry, or "" when it has no explorer.
+// The Explore section for one catalog entry, or "" when it has no explorer: no HTTPS
+// Icechunk asset, an opt-out, or no variable with a map grid (a native grid such as
+// ICON's icosahedral cells, see noMapGrid), where the map could only fail.
 // `preview(bounds)` is the empty-map SVG of the view the map opens on.
 function exploreSection(entry, preview) {
   const options = explorerMountOptions(entry, datasets, optOuts);
-  if (!options) return "";
+  if (!options || noMapGrid(options.variables)) return "";
   return `<style>
 ${CSS}</style>
 <section class="explore" aria-labelledby="explore-heading" data-options="${escapeAttribute(JSON.stringify(options))}">

@@ -69,11 +69,24 @@ function initialView(entry, virtual) {
   return { bounds };
 }
 
-function defaultVariable(variables, virtual) {
-  const drawable = variables.filter(({ dims = [] }) => dims.some((d, i) =>
+// True when dims hold a map grid the explorer can draw: (latitude, longitude) or (y, x)
+// next to each other, and last unless the store is virtual (whose tile facade moves them).
+function hasMapGrid(dims = [], virtual = true) {
+  return dims.some((d, i) =>
     /^(latitude|lat|y)$/i.test(d) && /^(longitude|lon|x)$/i.test(dims[i + 1]) &&
     (virtual || i === dims.length - 2),
-  ));
+  );
+}
+
+// True when STAC lists every variable's dims and none holds a map grid: a native grid
+// such as ICON's icosahedral cells (one `cell` dim), which the explorer cannot draw.
+function noMapGrid(variables) {
+  return variables.length > 0 && variables.every((v) => Array.isArray(v.dims)) &&
+    !variables.some((v) => hasMapGrid(v.dims));
+}
+
+function defaultVariable(variables, virtual) {
+  const drawable = variables.filter(({ dims }) => hasMapGrid(dims, virtual));
   return (drawable.find((v) => v.name === "temperature_2m") ||
     drawable.find((v) => v.name === "precipitation_surface") || drawable[0])?.path;
 }
@@ -160,4 +173,4 @@ function explorerMountOptions(entry, datasets = [], optOuts = []) {
   };
 }
 
-module.exports = { explorerMountOptions, chunkView };
+module.exports = { explorerMountOptions, chunkView, noMapGrid };
