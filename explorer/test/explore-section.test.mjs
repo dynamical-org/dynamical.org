@@ -232,23 +232,16 @@ test("a native grid (no map dims anywhere) is told apart from unknown or drawabl
   assert.equal(noMapGrid([]), false);
 });
 
-test("a dataset with no map grid gets a note and its quickstart link, not a map that fails", () => {
-  const colab = "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/x.ipynb";
+test("a dataset with no map grid gets no Explore section; a drawable one keeps it", () => {
   const native = {
     ...entry,
     id: "dwd-icon-eu-forecast-5-day-icosahedral",
     variables: [{ name: "temperature_2m", dimension_names: ["init_time", "lead_time", "cell"] }],
     variableGroups: [],
-    notebooks: [{ title: "Quickstart", colabUrl: colab }],
   };
-  const html = exploreSection(native, () => "<svg/>");
-  assert.match(html, /^<section class="explore" aria-labelledby="explore-heading">\s*<h2 id="explore-heading">Explore<\/h2>/);
-  assert.match(html, /<p>[^<]*native grid[^]*<\/p>/);
-  assert.ok(html.includes(`<a href="${colab}">`));
-  assert.doesNotMatch(html, /<button|<script|data-options|<svg/);
-  const bare = exploreSection({ ...native, notebooks: [] }, () => "<svg/>");
-  assert.match(bare, /<p>[^<]*native grid[^<]*<\/p>/);
-  assert.doesNotMatch(bare, /<a /);
+  assert.equal(exploreSection(native, () => "<svg/>"), "");
+  const mixed = { ...native, variables: [...native.variables, entry.variables[0]] };
+  assert.match(exploreSection(mixed, () => "<svg/>"), /<section class="explore"/);
 });
 
 const { chunkView } = require("../site/mount-options.cjs");

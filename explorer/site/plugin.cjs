@@ -26,23 +26,13 @@ const LOADER = fs.readFileSync(path.join(__dirname, "loader.js"), "utf8");
 const escapeAttribute = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-// The Explore section for one catalog entry, or "" when it has no explorer.
+// The Explore section for one catalog entry, or "" when it has no explorer: no HTTPS
+// Icechunk asset, an opt-out, or no variable with a map grid (a native grid such as
+// ICON's icosahedral cells, see noMapGrid), where the map could only fail.
 // `preview(bounds)` is the empty-map SVG of the view the map opens on.
-// A dataset with no map grid (a native grid, see noMapGrid) gets a note instead of a
-// map that could only fail, pointing to its quickstart notebook when it has one.
 function exploreSection(entry, preview) {
   const options = explorerMountOptions(entry, datasets, optOuts);
-  if (!options) return "";
-  if (noMapGrid(options.variables)) {
-    const notebook = entry.notebooks?.[0]?.colabUrl;
-    const next = notebook
-      ? ` The <a href="${escapeAttribute(notebook)}">quickstart notebook</a> shows how to load and plot it.`
-      : "";
-    return `<section class="explore" aria-labelledby="explore-heading">
-  <h2 id="explore-heading">Explore</h2>
-  <p>The interactive map can't draw this dataset's native grid yet.${next}</p>
-</section>`;
-  }
+  if (!options || noMapGrid(options.variables)) return "";
   return `<style>
 ${CSS}</style>
 <section class="explore" aria-labelledby="explore-heading" data-options="${escapeAttribute(JSON.stringify(options))}">
