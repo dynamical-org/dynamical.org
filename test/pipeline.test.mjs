@@ -54,6 +54,7 @@ const {
   variantBlocks,
   variantCaption,
   etaLineText,
+  etaTarget,
   facetRows,
   initColumnPx,
   initParts,
@@ -722,6 +723,93 @@ test("lag pairing resolves source ids that belong to shorter merged rows", () =>
   const rows = mergeVariantRows([long, virtual, mirror, short, shortMirror]);
   assert.deepEqual(lagSources(virtual, rows).map(({ id }) => id), [long.id, mirror.id]);
   assert.equal(rows[1], virtual);
+});
+
+function gefsVariantPair() {
+  const [long, short] = ["35 day", "16 day"].map((label, index) => {
+    const p95_s = index ? 25903.4 : 101183.8307;
+    return {
+      id: label,
+      row_label: "AWS",
+      variant: { id: label, label },
+      init_hours: index ? ["00", "06", "12", "18"] : ["00"],
+      latency_stats: { p95_s, delayed_threshold_s: index ? null : 103615.6614 },
+      timing_baseline: { status: index ? "insufficient_history" : "established" },
+      lead_groups: index
+        ? [{ name: "forecast", label: "16d" }]
+        : [{ name: "f384", label: "16d" }, { name: "forecast", label: "35d" }],
+      lead_group_stats: index
+        ? [{ name: "forecast", label: "16d", p95_s }]
+        : [
+            { name: "f384", label: "16d", p95_s: 89009, delayed_threshold_s: 154099 },
+            { name: "forecast", label: "35d", p95_s, delayed_threshold_s: 103615.6614 },
+          ],
+      recent_inits: [{
+        init_time: `2026-11-20T${index ? "18" : "00"}:00:00Z`,
+        status: index ? "in_flight" : "complete",
+        latency_s: index ? undefined : 100000,
+        lead_groups: [{ name: index ? "forecast" : "f384", status: index ? "in_flight" : "complete", latency_s: index ? undefined : 90000 }],
+      }],
+    };
+  });
+  return { long, short };
+}
+
+test("a GEFS 16-day 18z run uses its own ETA and never inherits the 35-day cutoff", () => {
+  const { long, short } = gefsVariantPair();
+  const [row] = mergeVariantRows([long, short]);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  const [group] = detailRows(row, now, false).rows;
+  assert.equal(group.run.time, "ETA 01:11");
+  assert.equal(etaLineText(etaTarget(row).target, now, false), "ETA 01:11 (in 2h 11m)");
+  const lanes = leadLaneSeries(row, now);
+  const band = lanes.find((lane) => lane.label === "16d");
+  assert.equal(band.threshold, null);
+  assert.deepEqual(band.slots.map(({ threshold }) => threshold), [154099, null]);
+  const series = runChartSeries(row, now);
+  assert.equal(series.threshold, null);
+  assert.deepEqual(series.timingMarks.map(({ threshold }) => threshold), [103615.6614, null]);
+});
+
+test("a scheduled shorter run uses its published completion estimate and its own cutoff", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].status = "complete";
+  long.next_expected_init = "2026-11-22T00:00:00Z";
+  short.next_expected_init = "2026-11-21T06:00:00Z";
+  short.next_expected_completion_at = "2026-11-21T13:12:00Z";
+  short.timing_baseline.status = "established";
+  short.lead_group_stats[0].delayed_threshold_s = 28000;
+  const [row] = mergeVariantRows([long, short]);
+  const [group] = detailRows(row, Date.parse("2026-11-21T00:00:00Z"), false).rows;
+  assert.equal(group.run.time, "ETA 13:12");
+  assert.equal(group.run.timingReference, "delayed past 13:46");
+  assert.equal(etaTarget(row).target, short.next_expected_completion_at);
+});
+
+test("a source-budget lead never borrows the run deadline when its own deadline is absent", () => {
+  const { long, short } = gefsVariantPair();
+  short.timing_baseline = { method: "source_budget" };
+  short.recent_inits[0].deadline_s = 27000;
+  const [row] = mergeVariantRows([long, short]);
+  const lanes = leadLaneSeries(row, Date.parse("2026-11-20T23:00:00Z"));
+  const band = lanes.find((lane) => lane.label === "16d");
+  assert.equal(band.slots.at(-1).deadline, null);
+  assert.equal(lanes.at(-1).slots.at(-1).deadline, 27000);
+  short.recent_inits[0].lead_groups[0].deadline_s = 26000;
+  const [withDeadline] = mergeVariantRows([long, short]);
+  const [group] = detailRows(withDeadline, Date.parse("2026-11-20T23:00:00Z"), false).rows;
+  assert.equal(group.run.timingReference, "deadline 01:13");
+});
+
+test("merged cadence accounts for interleaved init hours and the gap across midnight", () => {
+  const { long, short } = variantPair();
+  long.init_hours = ["00", "12"];
+  short.init_hours = ["06", "18"];
+  long.cadence_hours = short.cadence_hours = 12;
+  assert.equal(mergeVariantRows([long, short])[0].cadence_hours, 6);
+  short.init_hours = ["23"];
+  short.cadence_hours = 24;
+  assert.equal(mergeVariantRows([long, short])[0].cadence_hours, 1);
 });
 
 test("moves facets out of their own bands once the joint is published", () => {

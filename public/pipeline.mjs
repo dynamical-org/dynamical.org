@@ -346,6 +346,14 @@ export function mergeVariantRows(products) {
         runs: new Map(product.recent_inits.map((init) => [init.init_time, init])),
         names,
         variant: product.variant,
+        variantTiming: {
+          timing_baseline: product.timing_baseline,
+          latency_stats: product.latency_stats,
+          leadStats: new Map((product.lead_group_stats ?? []).flatMap((stats) => {
+            const key = canonical.get(stats.label) ?? names.get(stats.name);
+            return key == null ? [] : [[key, stats]];
+          })),
+        },
         coverage: {
           bands: new Set(names.values()),
           lastLabel: axis.at(-1)?.label,
@@ -354,7 +362,11 @@ export function mergeVariantRows(products) {
     });
     const initTimes = [...new Set(members.flatMap(({ runs }) => [...runs.keys()]))]
       .sort((a, b) => Date.parse(a) - Date.parse(b));
-    const cadence = Math.min(...rowProducts.map((product) => product.cadence_hours ?? Infinity));
+    const initHours = [...new Set(rowProducts.flatMap((product) => product.init_hours ?? []))].sort();
+    // Include the gap from the last init of one UTC day to the first of the next.
+    const gaps = initHours.map((hour, index) =>
+      Number(initHours[index + 1] ?? initHours[0]) - Number(hour) + (index === initHours.length - 1 ? 24 : 0),
+    );
     const next = members.reduce((soonest, member) => {
       const time = Date.parse(member.product.next_expected_init);
       return time < (soonest ? Date.parse(soonest.product.next_expected_init) : Infinity)
@@ -364,11 +376,15 @@ export function mergeVariantRows(products) {
     return {
       ...longest,
       memberIds: rowProducts.map((product) => product.id),
-      init_hours: [...new Set(rowProducts.flatMap((product) => product.init_hours ?? []))].sort(),
-      cadence_hours: Number.isFinite(cadence) ? cadence : longest.cadence_hours,
+      init_hours: initHours,
+      cadence_hours: gaps.length ? Math.min(...gaps) : longest.cadence_hours,
+      memberSources: [...new Set(rowProducts.map((product) => product.source).filter(Boolean).map(displaySource))],
       next_expected_init: next?.product.next_expected_init,
       next_expected_completion_at: next?.product.next_expected_completion_at,
-      nextExpectedRun: next && { variant: next.variant, coverage: next.coverage },
+      nextExpectedRun: next && {
+        variant: next.variant, coverage: next.coverage, variantTiming: next.variantTiming,
+        completionAt: next.product.next_expected_completion_at,
+      },
       sizingLeadGroups: longest.recent_inits.at(-1)?.lead_groups ?? [],
       recent_inits: initTimes.map((initTime) => {
         const hour = initParts(initTime).time.slice(0, 2);
@@ -378,10 +394,11 @@ export function mergeVariantRows(products) {
         if (!init) return {
           init_time: initTime,
           variant: backing?.variant,
+          variantTiming: backing?.variantTiming,
           status: backing ? "unobserved" : "not_scheduled",
           unreported: true,
         };
-        const { names, variant, coverage } = backing;
+        const { names, variant, coverage, variantTiming } = backing;
         const lead_groups = init.lead_groups?.flatMap((group) => {
           const name = names.get(group.name);
           return name == null ? [] : [{ ...group, name }];
@@ -397,7 +414,7 @@ export function mergeVariantRows(products) {
           const run = member.runs.get(initTime);
           return run?.status ? [{ variant: member.variant, status: run.status, timing: run.timing }] : [];
         });
-        return { ...init, variant, coverage, lead_groups, source_lead_groups, shorterRuns };
+        return { ...init, variant, coverage, variantTiming, lead_groups, source_lead_groups, shorterRuns };
       }),
     };
   });
@@ -1226,12 +1243,12 @@ function LeadField({ product, local, runCount, sharedAxis }) {
   </div>`;
 }
 
-function etaTarget(product) {
+export function etaTarget(product) {
   const running = product.recent_inits.findLast(
     (init) => init.status === "pending" || init.status === "in_flight",
   );
   if (running) {
-    const p95 = product.latency_stats?.p95_s;
+    const p95 = (running.variantTiming ?? product).latency_stats?.p95_s;
     return {
       init: running,
       initTime: running.init_time,
@@ -1409,8 +1426,22 @@ const NO_RUN = Object.freeze({
   lag: "—",
 });
 
+function beyondHorizonDetail(init) {
+  return { ...NO_RUN, status: `past ${init.coverage.lastLabel}`, state: "beyond_horizon", time: "", duration: "", lag: "" };
+}
+
+function runTimingReference(initMs, local, threshold, deadline = null) {
+  const seconds = deadline ?? threshold;
+  if (seconds == null) return null;
+  return `${deadline == null ? "delayed past" : "deadline"} ${clockTime(initMs + seconds * 1000, selectedTimeZone(local))}`;
+}
+
 function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
-  if (!init || beyondHorizon(init, stats.name)) return NO_RUN;
+  if (!init) return NO_RUN;
+  if (beyondHorizon(init, stats.name)) return beyondHorizonDetail(init);
+  const baseline = init.variantTiming;
+  if (baseline && !live) return NO_RUN;
+  const bandStats = baseline ? baseline.leadStats.get(stats.name) : stats;
   const initMs = Date.parse(init.init_time);
   let time = "—";
   let duration = "—";
@@ -1422,14 +1453,17 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
     duration = formatLatency(live.latency_s);
   } else if (live?.status === "complete") {
     time = "done";
-  } else if (active && stats.p95_s != null) {
-    const target = initMs + stats.p95_s * 1000;
+  } else if (active && bandStats?.p95_s != null) {
+    const target = initMs + bandStats.p95_s * 1000;
     if (target > now) {
       time = `ETA ${clockTime(target, selectedTimeZone(local))}`;
     }
     const elapsed = Math.floor((now - initMs) / 1000);
     if (elapsed > 0) duration = formatDuration(elapsed);
   }
+  const timingReference = active && baseline && runTimingReference(
+    initMs, local, delayedThreshold(baseline, bandStats), leadDeadline(baseline, init, live),
+  );
   return {
     status: statusLabel(live?.status ?? "pending"),
     state: live?.status ?? "pending",
@@ -1438,13 +1472,21 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
     duration,
     // a horizon has a lag once both sides have landed it, and not before
     lag: formatSignedLatency(lagSeconds),
+    ...(timingReference ? { timingReference } : {}),
   };
 }
 
-function upcomingRunDetail(initTime, stats, local) {
+function upcomingRunDetail(initTime, stats, local, next) {
   if (!initTime) return NO_RUN;
-  const target =
-    stats.p95_s == null ? null : Date.parse(initTime) + stats.p95_s * 1000;
+  if (beyondHorizon(next, stats.name)) return beyondHorizonDetail(next);
+  const baseline = next?.variantTiming;
+  const bandStats = baseline ? baseline.leadStats.get(stats.name) : stats;
+  const initMs = Date.parse(initTime);
+  // The published completion time estimates the whole run, so only its final
+  // band takes it. Earlier bands still have their own historical estimates.
+  const completion = next?.coverage.lastLabel === stats.label ? next?.completionAt : null;
+  const target = completion ?? (bandStats?.p95_s == null ? null : initMs + bandStats.p95_s * 1000);
+  const timingReference = baseline && runTimingReference(initMs, local, delayedThreshold(baseline, bandStats));
   return {
     status: "upcoming",
     state: "upcoming",
@@ -1455,6 +1497,7 @@ function upcomingRunDetail(initTime, stats, local) {
         : `ETA ${clockTime(target, selectedTimeZone(local))}`,
     duration: "—",
     lag: "—",
+    ...(timingReference ? { timingReference } : {}),
   };
 }
 
@@ -1477,6 +1520,7 @@ export function detailRows(product, now, local, sources = []) {
   const afterLast = sourceArrivals(sources, last?.init_time);
   const afterActive = sourceArrivals(sources, active?.init_time);
   const horizons = horizonIndex(product);
+  const history = statsHeader(product.latency_stats?.sample_init_count, timingBaselineNote(product));
   // a selected-families lag reads only its own map, and only when the lag
   // block that names it is whole; it never falls back to the source row
   const selected = product.pipeline_lag?.basis === "selected_families";
@@ -1504,10 +1548,7 @@ export function detailRows(product, now, local, sources = []) {
     runHeader: active
       ? labelledRun("current run", active.init_time, local, active.variant)
       : labelledRun("upcoming run", upcoming, local, product.nextExpectedRun?.variant),
-    statsHeader: statsHeader(
-      product.latency_stats?.sample_init_count,
-      timingBaselineNote(product),
-    ),
+    statsHeader: product.memberIds ? `${history} · ${variantHorizon(product.variant)}` : history,
     rows: (product.lead_group_stats ?? []).map((stats, index) => ({
       name: stats.name,
       label: stats.label,
@@ -1530,9 +1571,7 @@ export function detailRows(product, now, local, sources = []) {
             true,
             lagOf(active, afterActive, stats),
           )
-        : beyondHorizon(product.nextExpectedRun, stats.name)
-          ? NO_RUN
-          : upcomingRunDetail(upcoming, stats, local),
+        : upcomingRunDetail(upcoming, stats, local, product.nextExpectedRun),
       p50: formatLatency(stats.p50_s),
       p95: formatLatency(stats.p95_s),
       p99: formatLatency(stats.p99_s),
@@ -1595,11 +1634,10 @@ export function timingBaselineNote(product) {
   return shortfall && `insufficient history (${shortfall.days}/${shortfall.required} days)`;
 }
 
-/* The chart points mark completion time after init, or the
-   time elapsed so far for a run still arriving, against the product's current
-   delayed threshold. The timings are the summarizer's verdicts, each made
-   against the threshold of its day; the line is today's, so the chart draws
-   both and judges neither.
+/* The chart points mark completion time after init, or the time elapsed so
+   far for a run still arriving, against the current threshold for its variant.
+   The timing verdicts come from the summarizer and use the threshold of the
+   day the run was observed.
 
    The lead-group view draws a lane per group plus the whole run under the
    field's columns. An arrival-group view keeps the proportional run chart. */
@@ -1621,18 +1659,29 @@ const CHART_TICK_STEPS_S = [
 // time written beside it rather than flattening every landed run
 const CHART_ELAPSED_REACH = 3;
 
-/* The line is drawn only when the product has a verdict to make: one still
-   short of history publishes no threshold, and a feed that omits the field
-   draws the points alone. */
+function positiveSeconds(value) {
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function delayedThreshold(product, stats) {
+  if (product.timing_baseline?.status === "insufficient_history") return null;
+  return positiveSeconds(stats?.delayed_threshold_s);
+}
+
+function leadDeadline(product, init, entry) {
+  // Source-budget deadlines belong to this grain. Older payloads can have
+  // a run deadline without a lead-level deadline.
+  if (product.timing_baseline?.method === "source_budget") return positiveSeconds(entry?.deadline_s);
+  return positiveSeconds(entry && Object.hasOwn(entry, "deadline_s") ? entry.deadline_s : init.deadline_s);
+}
 
 export function runChartThreshold(product) {
-  if (product.timing_baseline?.status === "insufficient_history") return null;
-  const threshold = product.latency_stats?.delayed_threshold_s;
-  return Number.isFinite(threshold) && threshold > 0 ? threshold : null;
+  return delayedThreshold(product, product.latency_stats);
 }
 
 export function runChartSeries(product, now, inits = product.recent_inits ?? []) {
   const runs = [];
+  const timingMarks = [];
   const seen = new Set();
   for (const init of inits) {
     const ms = Date.parse(init.init_time);
@@ -1640,6 +1689,9 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
     // one point per init: a repeated timestamp would share a key and a place
     if (seen.has(ms)) continue;
     seen.add(ms);
+    if (init.variantTiming) {
+      timingMarks.push({ init, ms, threshold: runChartThreshold(init.variantTiming), deadline: positiveSeconds(init.deadline_s) });
+    }
     const run = {
       init,
       ms,
@@ -1661,7 +1713,7 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
     }
     runs.push(run);
   }
-  return { runs, threshold: runChartThreshold(product) };
+  return product.memberIds ? { runs, threshold: null, timingMarks } : { runs, threshold: runChartThreshold(product) };
 }
 
 /* The expanded lead view keeps the field's columns. Within each variant's
@@ -1671,33 +1723,30 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
   const reported = inits.filter((init) => !init.unreported);
   const stats = new Map((product.lead_group_stats ?? []).map((entry) => [entry.name, entry]));
   const leads = bandsOf(product).map((band) => {
-    const threshold = product.timing_baseline?.status === "insufficient_history"
-      ? null
-      : stats.get(band.key)?.delayed_threshold_s;
+    const threshold = product.memberIds ? null : delayedThreshold(product, stats.get(band.key));
     const slots = reported.filter((init) => !beyondHorizon(init, band.key)).map((init) => {
       const entry = init.lead_groups?.find((group) => group.name === band.key);
-      // Source-budget deadlines belong to this grain; retain the run fallback for older payloads.
-      const value = product.timing_baseline?.method === "source_budget"
-        ? entry?.deadline_s
-        : entry && Object.hasOwn(entry, "deadline_s") ? entry.deadline_s : init.deadline_s;
-      const deadline = Number.isFinite(value) && value > 0 ? value : null;
-      if (!entry) return { init, state: "missing", deadline };
-      if (entry.status === "unobserved") return { init, state: "unobserved", deadline };
+      const baseline = init.variantTiming;
+      const timing = {
+        deadline: leadDeadline(baseline ?? product, init, entry),
+        threshold: baseline ? delayedThreshold(baseline, baseline.leadStats.get(band.key)) : null,
+      };
+      if (!entry) return { init, state: "missing", ...timing };
+      if (entry.status === "unobserved") return { init, state: "unobserved", ...timing };
       const ms = Date.parse(init.init_time);
-      if (!Number.isFinite(ms)) return { init, state: "missing", deadline };
+      if (!Number.isFinite(ms)) return { init, state: "missing", ...timing };
       const elapsed = entry.status === "pending" || entry.status === "in_flight";
       const seconds = elapsed ? Math.max(0, (now - ms) / 1000)
         : Number.isFinite(entry.latency_s) ? entry.latency_s
         : entry.status === "failed" ? 0 : null;
-      if (seconds == null) return { init, state: "missing", deadline };
-      return { init, state: "point", deadline, run: {
+      if (seconds == null) return { init, state: "missing", ...timing };
+      return { init, state: "point", ...timing, run: {
         init, ms, status: entry.status, timing: entry.timing ?? null, seconds, elapsed,
         noTime: entry.status === "failed" && !Number.isFinite(entry.latency_s),
       } };
     });
-    return { name: band.key, label: band.label, slots,
-      runs: slots.filter((slot) => slot.run).map((slot) => slot.run),
-      threshold: Number.isFinite(threshold) && threshold > 0 ? threshold : null };
+    return { name: band.key, label: band.label, slots, threshold,
+      runs: slots.filter((slot) => slot.run).map((slot) => slot.run) };
   });
   const runSeries = runChartSeries(product, now, reported);
   const runByInit = new Map(runSeries.runs.map((run) => [run.init.init_time, run]));
@@ -1716,14 +1765,15 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
     slots: reported.map((init) => ({ init,
       state: runByInit.has(init.init_time) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
       run: runByInit.get(init.init_time),
-      deadline: Number.isFinite(init.deadline_s) && init.deadline_s > 0 ? init.deadline_s : null,
+      deadline: positiveSeconds(init.deadline_s),
+      threshold: init.variantTiming ? runChartThreshold(init.variantTiming) : null,
     })),
   };
   const lanes = [...leads, runLane];
   lanes.domain = latencyDomain({
     runs: lanes.flatMap((lane) => lane.runs),
     thresholds: lanes.map((lane) => lane.threshold).filter((value) => value != null),
-    deadlines: lanes.flatMap((lane) => lane.slots.map((slot) => slot.deadline).filter((value) => value != null)),
+    timingMarks: lanes.flatMap((lane) => lane.slots),
   });
   return lanes;
 }
@@ -1775,6 +1825,10 @@ export function latencyDomain(series) {
     .map((run) => run.seconds);
   if (series.threshold != null) landed.push(series.threshold);
   landed.push(...(series.thresholds ?? []), ...(series.deadlines ?? []));
+  for (const { threshold, deadline } of series.timingMarks ?? []) {
+    if (threshold != null) landed.push(threshold);
+    if (deadline != null) landed.push(deadline);
+  }
   // with nothing landed there is nothing to flatten, so the elapsed times
   // take the axis themselves
   const reach = landed.length ? Math.max(...landed) * CHART_ELAPSED_REACH : Infinity;
@@ -1806,7 +1860,7 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
   const plotHeight = CHART_HEIGHT_PX - CHART_MARGIN.top - CHART_MARGIN.bottom;
   const { yMin, yMax } = latencyDomain(series);
 
-  const times = series.runs.map((run) => run.ms);
+  const times = [...new Set([...series.runs.map((run) => run.ms), ...(series.timingMarks ?? []).map((mark) => mark.ms)])];
   const first = times.length ? Math.min(...times) : 0;
   const last = times.length ? Math.max(...times) : 0;
   const gaps = [...times]
@@ -1900,12 +1954,16 @@ export function runChartKey(product, runs) {
   if (drawn("delayed", true)) {
     key.push({ mark: "delayed-elapsed", text: "judged delayed, not yet complete" });
   }
-  const shortfall = timingBaselineShortfall(product);
-  if (shortfall) {
+  const baselines = product.memberIds
+    ? new Map(runs.filter(({ init }) => init?.variantTiming).map(({ init }) => [init.variant.label, init.variantTiming]))
+    : new Map([["", product]]);
+  for (const [label, baseline] of baselines) {
+    const shortfall = timingBaselineShortfall(baseline);
+    if (!shortfall) continue;
     key.push({
       mark: null,
       // the gate counts distinct UTC days with a completed run, not calendar age
-      text: `no delayed threshold yet: ${shortfall.days} of ${shortfall.required} days with a completed run`,
+      text: `${label ? `${label} · ` : ""}no delayed threshold yet: ${shortfall.days} of ${shortfall.required} days with a completed run`,
     });
   }
   return key;
@@ -1916,6 +1974,39 @@ function RunKey({ items }) {
   return html`<ul>
     ${items.map((item) => html`<li key=${item.text} data-mark=${item.mark}>${item.text}</li>`)}
   </ul>`;
+}
+
+function timingMarksKey(marks) {
+  const items = [];
+  if (marks.some(({ threshold }) => threshold != null)) {
+    items.push({ mark: "threshold", text: "delayed threshold for this init" });
+  }
+  if (marks.some(({ deadline }) => deadline != null)) {
+    items.push({ mark: "deadline", text: "deadline for this init" });
+  }
+  return items;
+}
+
+function timingMarkText({ deadline, threshold }) {
+  return [
+    deadline == null ? null : `deadline ${formatLatency(deadline)} after init`,
+    threshold == null ? null : `delayed past ${formatLatency(threshold)} after init`,
+  ].filter(Boolean);
+}
+
+function TimingMarks({ mark, x, scale, label }) {
+  const { deadline, threshold } = mark;
+  return html`
+    ${threshold == null ? null : html`<g data-threshold="run">
+      <line x1=${x - 6} x2=${x + 8} y1=${scale.y(threshold)} y2=${scale.y(threshold)}>
+        <title>${label} · delayed past ${formatLatency(threshold)} after init</title>
+      </line>
+    </g>`}
+    ${deadline == null ? null : html`<line data-deadline="" x1=${x - 12} x2=${x - 7}
+      y1=${scale.y(deadline)} y2=${scale.y(deadline)}>
+      <title>${label} · deadline ${formatLatency(deadline)} after init</title>
+    </line>`}
+  `;
 }
 
 /* The chart across the row. Its width is measured, as the field's is: the
@@ -1942,11 +2033,13 @@ function RunChart({ product, now, local }) {
 
   if (!mounted) return null;
   const series = runChartSeries(product, now);
+  const timingMarks = series.timingMarks ?? [];
+  const timingKey = timingMarksKey(timingMarks);
   const zone = selectedTimeZone(local);
 
   let chart = null;
   let key = [];
-  if (series.runs.length > 0 && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
+  if ((series.runs.length > 0 || timingKey.length > 0) && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
     const scale = runChartScales(
       series,
       width,
@@ -1964,7 +2057,7 @@ function RunChart({ product, now, local }) {
         top: scale.top,
       },
     );
-    key = [...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)];
+    key = [...runChartKey(product, series.runs), ...timingKey, ...pinnedKeyItems(parked.overflow, local)];
     // the threshold label hangs at its line's right end; a parked ring there
     // would sit on it, so the label moves to the line's left end, under the
     // line where above it would reach the title row
@@ -2013,7 +2106,7 @@ function RunChart({ product, now, local }) {
         </g>`,
       )}
       <line data-axis="x" x1=${scale.left} x2=${scale.right} y1=${scale.bottom} y2=${scale.bottom} />
-      ${series.runs.map((run, index) => {
+      ${(series.timingMarks ?? series.runs).map((run, index) => {
         const { date, time } = initParts(run.init.init_time, zone);
         const x = scale.x(run.ms);
         const labelled = index % scale.labelEvery === 0;
@@ -2035,6 +2128,8 @@ function RunChart({ product, now, local }) {
             <line x1=${scale.left} x2=${scale.right} y1=${scale.y(series.threshold)} y2=${scale.y(series.threshold)} />
             <text ...${thresholdAttrs}>${thresholdText}</text>
           </g>`}
+      ${timingMarks.map((mark) => html`<${TimingMarks} key=${mark.init.init_time}
+        mark=${mark} x=${scale.x(mark.ms)} scale=${scale} label=${initShort(mark.init.init_time, local)} />`)}
       ${series.runs.map((run) => {
         return html`<circle
           key=${run.init.init_time}
@@ -2210,9 +2305,9 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
   const thresholdText = lineY == null ? null : `delayed past ${formatLatency(series.threshold)}`;
   // a parked ring at the right end of the line would sit on its label, so
   // the label moves to the line's left end
-  const parkedColumn = new Map(shown.map(({ init, index }) => [init.init_time, index]));
+  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
   const rings = parked.runs.map((run) => {
-    const cx = columns.x(parkedColumn.get(run.init.init_time));
+    const cx = columns.x(columnOf.get(run.init.init_time));
     const r = markRadius(run) + 1;
     return { left: cx - r, right: cx + r, top: parkedY(scale) - r, bottom: parkedY(scale) + r };
   });
@@ -2288,6 +2383,9 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
               <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
               <text ...${thresholdLabel}>${thresholdText}</text>
             </g>`}
+        ${series.timingMarks?.map((mark) => html`<${TimingMarks} key=${mark.init.init_time}
+          mark=${mark} x=${columns.x(columnOf.get(mark.init.init_time))}
+          scale=${scale} label=${initShort(mark.init.init_time, local)} />`)}
         ${shown.map(({ init, index, run }) => {
           return html`<circle
             key=${init.init_time}
@@ -2357,7 +2455,11 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth, sharedAxis
       local=${local}
       parked=${parked}
     />
-    <${RunKey} items=${[...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)]} />
+    <${RunKey} items=${[
+      ...runChartKey(product, series.runs),
+      ...timingMarksKey(series.timingMarks ?? []),
+      ...pinnedKeyItems(parked.overflow, local),
+    ]} />
   </figure>`;
 }
 
@@ -2396,9 +2498,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   if (lanes.some((lane) => lane.slots.some((slot) => slot.state === "missing" || slot.state === "unobserved"))) {
     key.push({ mark: "missing", text: "no measurement" });
   }
-  if (lanes.some((lane) => lane.slots.some((slot) => slot.deadline != null))) {
-    key.push({ mark: "deadline", text: "deadline for this init" });
-  }
+  key.push(...timingMarksKey(lanes.flatMap((lane) => lane.slots)));
   if (allPoints.some((run) => run.status === "failed")) {
     key.push({ mark: "failed", text: "failed" });
   }
@@ -2495,7 +2595,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
                 : slot.state === "unobserved"
                   ? cellTitle({ kind: "lead", label: lane.label }, slot.init, { state: "unobserved" }, local)
                   : `${lane.label} · ${runTitle(slot.run, local)}${slot.run.timing == null ? " · not judged" : ""}`;
-              const title = `${detail}${slot.deadline == null ? "" : ` · deadline ${formatLatency(slot.deadline)} after init`}`;
+              const title = [detail, ...timingMarkText(slot)].join(" · ");
               return html`<g key=${slot.init.init_time} data-slot-init=${slot.init.init_time}
                 tabindex="0" role="button" aria-label=${title}
                 onClick=${() => setSelected(title)}
@@ -2505,8 +2605,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
                     setSelected(title);
                   }
                 }}>
-                ${slot.deadline == null ? null : html`<line data-deadline="" x1=${x - 12} x2=${x - 7}
-                  y1=${scale.y(slot.deadline)} y2=${scale.y(slot.deadline)}><title>${lane.label} · ${initShort(slot.init.init_time, local)} · deadline ${formatLatency(slot.deadline)} after init</title></line>`}
+                <${TimingMarks} mark=${slot} x=${x} scale=${scale} label=${`${lane.label} · ${initShort(slot.init.init_time, local)}`} />
                 ${slot.state === "point" ? html`<circle data-init-time=${slot.init.init_time}
                   data-status=${slot.run.status} data-timing=${slot.run.timing}
                   data-elapsed=${slot.run.elapsed ? "" : null}
@@ -2530,7 +2629,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
       const when = initShort(slot.init.init_time, local);
       const detail = slot.run ? `${when}, ${slot.run.noTime ? "no completion time recorded" : `${slot.run.elapsed ? "elapsed " : ""}${formatLatency(slot.run.seconds)}`}, ${slot.run.status}, ${slot.run.timing?.replaceAll("_", " ") ?? "not judged"}`
         : `${when}, ${slot.state === "unobserved" ? "unobserved" : "no measurement"}`;
-      return `${detail}${slot.deadline == null ? "" : `, deadline ${formatLatency(slot.deadline)} after init`}`;
+      return [detail, ...timingMarkText(slot)].join(", ");
     }).join("; ")}</li>`)}</ul>
   </figure>`;
 }
@@ -2604,7 +2703,7 @@ function Details({
             <td>${row.last.duration}</td>
             ${afterSource && html`<td>${row.last.lag}</td>`}
             <${StatusCell} detail=${row.run} />
-            <td>${row.run.time}</td>
+            <td>${row.run.time}${row.run.timingReference && html`<small>${row.run.timingReference}</small>`}</td>
             <td>${row.run.duration}</td>
             ${afterSource && html`<td>${row.run.lag}</td>`}
             <td>${row.p50}</td>
@@ -2678,7 +2777,7 @@ function Eta({ product, now, local }) {
       state += ` · ${target.init.timing.replace("_", " ")}`;
       timing = target.init.timing;
     } else {
-      const note = timingBaselineNote(product);
+      const note = timingBaselineNote(target.init.variantTiming ?? product);
       if (note) state += ` · ${note}`;
     }
   } else {
@@ -2756,7 +2855,7 @@ function Row({
       )}
       <strong>${displayRowLabel(product.row_label)}</strong>
       <div class="pipeline-source-meta">
-        <div>${displaySource(product.source)}</div>
+        <div>${product.memberSources?.join(", ") || displaySource(product.source)}</div>
         <div>${`${product.cadence_hours ?? "—"}h init cadence`}</div>
         <div>${`${product.init_hours?.join("/") || "—"}z`}</div>
         <div

@@ -271,7 +271,15 @@ test("family captions preserve resolution, variant order and former section link
 
 test("HRRR source rows end at the horizon of each init and honor former product links", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 500 });
-  await stubPipeline(page, undefined, FIXTURE);
+  await stubPipeline(page, (payload) => {
+    const hrrr = payload.groups.find(({ id }) => id === "noaa-hrrr");
+    const [long, mirror, short, shortMirror] = hrrr.products;
+    long.source = "s3://hrrr-long-example";
+    short.source = "s3://hrrr-short-example";
+    mirror.source = shortMirror.source = "s3://hrrr-shared-example";
+    short.recent_inits.at(-1).lead_groups = short.recent_inits.at(-1).lead_groups.slice(0, -1);
+    return payload;
+  }, FIXTURE);
   const former = "#pipeline-product-external-noaa-hrrr-18h-aws";
   await page.goto(`${PATH}${former}`);
   const family = page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-noaa-hrrr") });
@@ -291,15 +299,52 @@ test("HRRR source rows end at the horizon of each init and honor former product 
   await expect(beyond).toHaveAttribute("title", "18 hour run: no leads past 18h");
   await expect(beyond).toHaveCSS("border-top-width", "0px");
   await expect(beyond.locator(".pipeline-cell-fill")).toBeHidden();
-  await expect(bands.locator(`${short}.g-complete`)).toHaveCount(3);
+  await expect(bands.locator(`${short}.g-complete`)).toHaveCount(2);
+  await expect(bands.locator(`${short}.g-unobserved`)).toHaveCount(1);
   await expect(bands.locator(`${long}.g-complete`)).toHaveCount(4);
   await expect(top.locator(long)).toHaveAttribute("title", /18 hour run: complete, on time$/);
 
   await aws.locator('[data-slot="details-button"]').click();
   await expect(aws.getByRole("columnheader", { name: /last run.*18 hour · hourly/ })).toBeVisible();
+  const beyondDetail = aws.getByRole("row").filter({ has: page.getByRole("cell", { name: "2d", exact: true }) }).getByRole("cell");
+  await expect(beyondDetail.nth(1)).toHaveText("past 18h");
+  await expect(beyondDetail.nth(2)).toBeEmpty();
+  await expect(beyondDetail.nth(3)).toBeEmpty();
+  await expect(aws.getByRole("row").filter({ has: page.getByRole("cell", { name: "18h", exact: true }) }).getByRole("cell").nth(1)).toHaveText("—");
   const longestLane = aws.locator('.pipeline-lead-lanes [data-lane="f048"]');
   await expect(longestLane.locator(`circle${long}`)).toHaveCount(1);
   await expect(longestLane.locator('[data-slot-init="2026-07-25T01:00:00Z"]')).toHaveCount(0);
+  await expect(aws.locator(".pipeline-source-meta > div").first()).toHaveText("s3://hrrr-long-example, s3://hrrr-short-example");
+  await expect(rows.filter({ hasText: "NOMADS" }).locator(".pipeline-source-meta > div").first()).toHaveText("s3://hrrr-shared-example");
+});
+
+test("GEFS ETA and aligned timing marks follow the variant backing each init", async ({ page }) => {
+  await page.clock.setSystemTime(Date.parse("2026-07-25T07:00:00Z"));
+  await openPipeline(page, (payload) => {
+    const [long, short] = payload.groups.find(({ id }) => id === "noaa-gefs-0-5").products;
+    long.latency_stats = { p95_s: 101183.8307, delayed_threshold_s: 103615.6614 };
+    short.latency_stats = { p95_s: 25903.4, delayed_threshold_s: null };
+    long.lead_group_stats = [{ name: "f384", label: "16d", p95_s: 89009, delayed_threshold_s: 154099 }];
+    short.lead_group_stats = [{ name: "f384", label: "16d", p95_s: 25903.4 }];
+    short.timing_baseline = { status: "insufficient_history", method: "source_budget" };
+    const running = short.recent_inits.at(-1);
+    running.status = "in_flight";
+    running.deadline_s = 27000;
+    running.lead_groups[0].status = "in_flight";
+    return payload;
+  }, FIXTURE);
+  await page.selectOption("#status-time-toggle", "utc");
+  const row = page.locator('[data-product-id="fixture-gefs-35-day"]');
+  await expect(row.locator('[data-slot="eta-line"]')).toContainText("ETA 13:11");
+  await row.locator('[data-slot="details-button"]').click();
+  await expect(row.getByRole("cell", { name: "ETA 13:11", exact: true })).toBeVisible();
+  const long = '[data-slot-init="2026-07-25T00:00:00Z"]';
+  const short = '[data-slot-init="2026-07-25T06:00:00Z"]';
+  const band = row.locator('[data-lane="f384"]');
+  const run = row.locator('[data-lane="run"]');
+  await expect(band.locator(`${long} [data-threshold]`)).toHaveCount(1);
+  await expect(band.locator(`${short} [data-threshold], ${short} [data-deadline]`)).toHaveCount(0);
+  await expect(run.locator(`${short} [data-deadline]`)).toHaveCount(1);
 });
 
 test("switching off merging restores per-variant headings, rows and disabled hours", async ({ page }) => {

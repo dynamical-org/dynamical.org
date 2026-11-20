@@ -464,7 +464,7 @@
   stroke-width: 2;
 }
 
-.pipeline-lead-lanes [data-deadline] {
+.pipeline-runs [data-deadline] {
   stroke: var(--muted-text);
   stroke-width: 3;
 }
@@ -495,15 +495,6 @@
 .pipeline-runs.pipeline-lead-lanes li[data-mark="missing"]::before {
   border: 0;
   border-left: 2px dotted var(--pipeline-unobserved);
-  border-radius: 0;
-  background: none;
-}
-
-.pipeline-runs.pipeline-lead-lanes li[data-mark="deadline"]::before {
-  width: 0.8rem;
-  height: 0;
-  border: 0;
-  border-top: 2px solid var(--muted-text);
   border-radius: 0;
   background: none;
 }
@@ -544,6 +535,18 @@
   border-radius: 50%;
   background: var(--text-color);
   vertical-align: -0.05rem;
+}
+
+.pipeline-runs li:is([data-mark="deadline"], [data-mark="threshold"])::before {
+  height: 0;
+  border: 0;
+  border-top: 2px solid var(--muted-text);
+  border-radius: 0;
+  background: none;
+}
+
+.pipeline-runs li[data-mark="threshold"]::before {
+  border-top-style: dashed;
 }
 
 .pipeline-runs li[data-mark^="delayed"]::before {
@@ -590,6 +593,11 @@
 .pipeline-row-details th:first-child,
 .pipeline-row-details td:first-child {
   text-align: left;
+}
+
+.pipeline-row-details td small {
+  display: block;
+  color: var(--muted-text);
 }
 
 /* "horizon" spans both header rows, so the sub-header row starts in column 2 —
