@@ -219,6 +219,38 @@ test("the explorer shortcode renders the preview, the button and options that ro
   assert.match(html, /<script type="module">[^]*import\("\/explorer\/explorer\.js"\)[^]*<\/script>$/);
 });
 
+const { noMapGrid } = require("../site/mount-options.cjs");
+
+test("a native grid (no map dims anywhere) is told apart from unknown or drawable dims", () => {
+  const v = (dims) => ({ dims });
+  assert.equal(noMapGrid([v(["init_time", "lead_time", "cell"]), v(["cell"])]), true);
+  assert.equal(noMapGrid([v(["init_time", "lead_time", "cell"]), v(["time", "latitude", "longitude"])]), false);
+  // Virtual level variables keep the grid before the level: still a map grid.
+  assert.equal(noMapGrid([v(["time", "latitude", "longitude", "pressure_level"])]), false);
+  // Without dims for every variable the browser decides, as before.
+  assert.equal(noMapGrid([v(["cell"]), v(undefined)]), false);
+  assert.equal(noMapGrid([]), false);
+});
+
+test("a dataset with no map grid gets a note and its quickstart link, not a map that fails", () => {
+  const colab = "https://colab.research.google.com/github/dynamical-org/notebooks/blob/main/x.ipynb";
+  const native = {
+    ...entry,
+    id: "dwd-icon-eu-forecast-5-day-icosahedral",
+    variables: [{ name: "temperature_2m", dimension_names: ["init_time", "lead_time", "cell"] }],
+    variableGroups: [],
+    notebooks: [{ title: "Quickstart", colabUrl: colab }],
+  };
+  const html = exploreSection(native, () => "<svg/>");
+  assert.match(html, /^<section class="explore" aria-labelledby="explore-heading">\s*<h2 id="explore-heading">Explore<\/h2>/);
+  assert.match(html, /can't draw this dataset's native grid yet/);
+  assert.ok(html.includes(`<a href="${colab}">quickstart notebook</a>`));
+  assert.doesNotMatch(html, /<button|<script|data-options|<svg/);
+  const bare = exploreSection({ ...native, notebooks: [] }, () => "<svg/>");
+  assert.match(bare, /native grid yet\.<\/p>/);
+  assert.doesNotMatch(bare, /<a /);
+});
+
 const { chunkView } = require("../site/mount-options.cjs");
 
 // A STAC cube for one variable: chunk cells per spatial dim over a dim's extent and size.

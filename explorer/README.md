@@ -29,7 +29,11 @@ The plugin
   built from the same borders the map draws) under a "Load interactive map" button,
   the section's styles (`site/section.css`) and the click handler that imports
   `/explorer/explorer.js` (`site/loader.js`). No explorer JS or weather data loads
-  before the click.
+  before the click;
+- renders a one-line note there instead, linking to the quickstart notebook, when STAC
+  lists every variable's dims and none has a (latitude, longitude) or (y, x) pair: a
+  native grid such as ICON's icosahedral `cell` dim, which the map cannot draw yet
+  (`noMapGrid` in `site/mount-options.cjs`).
 
 `site/datasets.cjs` exports an `optOuts` list of `{ id, reason }` objects, currently
 empty. Add an opt-out only when a dataset cannot work, with a one-line reason;
@@ -420,7 +424,7 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 - the byte cache: ranges, eviction, failed and missing reads, copies;
 - the site plugin: automatic HTTPS Icechunk eligibility, reasoned opt-outs, optional
   overrides, preserved existing defaults, derived views and variables, the
-  chunk-derived first view, the Explore section's
+  chunk-derived first view, the native-grid note, the Explore section's
   markup and escaping, the preview's projection and clipping, and when the build hook
   installs and builds.
 

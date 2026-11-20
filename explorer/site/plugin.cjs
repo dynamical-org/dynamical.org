@@ -12,7 +12,7 @@ const path = require("path");
 const fetch = require("@11ty/eleventy-fetch");
 const { makeExplorerBuilder } = require("./build.cjs");
 const { datasets, optOuts } = require("./datasets.cjs");
-const { explorerMountOptions } = require("./mount-options.cjs");
+const { explorerMountOptions, noMapGrid } = require("./mount-options.cjs");
 const { previewSvg } = require("./preview.cjs");
 
 const ROOT = path.join(__dirname, "..");
@@ -28,9 +28,21 @@ const escapeAttribute = (s) =>
 
 // The Explore section for one catalog entry, or "" when it has no explorer.
 // `preview(bounds)` is the empty-map SVG of the view the map opens on.
+// A dataset with no map grid (a native grid, see noMapGrid) gets a note instead of a
+// map that could only fail, pointing to its quickstart notebook when it has one.
 function exploreSection(entry, preview) {
   const options = explorerMountOptions(entry, datasets, optOuts);
   if (!options) return "";
+  if (noMapGrid(options.variables)) {
+    const notebook = entry.notebooks?.[0]?.colabUrl;
+    const next = notebook
+      ? ` The <a href="${escapeAttribute(notebook)}">quickstart notebook</a> shows how to load and plot it.`
+      : "";
+    return `<section class="explore" aria-labelledby="explore-heading">
+  <h2 id="explore-heading">Explore</h2>
+  <p>The interactive map can't draw this dataset's native grid yet.${next}</p>
+</section>`;
+  }
   return `<style>
 ${CSS}</style>
 <section class="explore" aria-labelledby="explore-heading" data-options="${escapeAttribute(JSON.stringify(options))}">
