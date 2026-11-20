@@ -50,7 +50,9 @@ const {
   groupAliases,
   resolveLeadRun,
   sharedInitAxes,
+  mergeVariantRows,
   variantBlocks,
+  variantCaption,
   etaLineText,
   facetRows,
   initColumnPx,
@@ -595,6 +597,131 @@ test("single-variant and legacy families have no redundant heading", () => {
     assert.equal(blocks.some(({ variant }) => variant), false);
     assert.deepEqual(blocks.flatMap(({ products }) => products), products);
   }
+});
+
+function variantPair() {
+  const time = (hour) => `2026-07-25T${hour}:00:00Z`;
+  const bands = [{ name: "f018", label: "18h" }, { name: "forecast", label: "2d" }];
+  const group = (name, count, status) => ({
+    name, status, timing: "on_time", leads_expected: count, leads_available: count,
+  });
+  const long = {
+    id: "long",
+    row_label: "Source",
+    variant: { id: "48h", label: "48 hour · every 6 h" },
+    init_hours: ["00", "06"],
+    cadence_hours: 6,
+    next_expected_init: time("12"),
+    next_expected_completion_at: time("15"),
+    lead_groups: bands,
+    recent_inits: [{
+      init_time: time("00"), status: "complete", timing: "on_time",
+      lead_groups: [group("f018", 19, "complete"), group("forecast", 49, "complete")],
+    }],
+  };
+  const short = {
+    id: "short",
+    row_label: "Source",
+    variant: { id: "18h", label: "18 hour · hourly" },
+    init_hours: ["00", "01", "06"],
+    cadence_hours: 1,
+    next_expected_init: time("07"),
+    next_expected_completion_at: time("08"),
+    lead_groups: [{ name: "forecast", label: "18h" }],
+    recent_inits: ["00", "01", "06"].map((hour) => ({
+      init_time: time(hour), status: hour === "00" ? "failed" : "complete", timing: hour === "00" ? null : "on_time",
+      lead_groups: [group("forecast", 19, hour === "00" ? "failed" : "complete")],
+    })),
+  };
+  return { time, long, short };
+}
+
+test("overlapping variant runs keep the longest measurement and disclose the shorter result", () => {
+  const { time, long, short } = variantPair();
+  const [merged] = mergeVariantRows([long, short]);
+  const top = bandsOf(merged)[0];
+  const run = resolveLeadRun(merged, time("00"));
+  const cell = cellOf(top, run);
+  assert.equal(cell.state, "complete");
+  assert.match(cellTitle(top, run, cell, false), /18 hour run: failed/);
+  assert.equal(merged.next_expected_init, short.next_expected_init);
+  assert.equal(merged.next_expected_completion_at, short.next_expected_completion_at);
+  assert.equal(merged.cadence_hours, 1);
+});
+
+test("a shorter report cannot fill a scheduled but unreported longer run", () => {
+  const { time, long, short } = variantPair();
+  const [merged] = mergeVariantRows([long, short]);
+  const axis = sharedInitAxes([merged], new Map(), false, "family").get(merged.id);
+  assert.ok(axis.runs.some((run) => run.init_time === time("06")));
+  const missing = resolveLeadRun(merged, time("06"));
+  for (const band of bandsOf(merged)) assert.equal(cellOf(band, missing).state, "unobserved");
+  assert.ok(leadLaneSeries(merged, Date.parse(time("12"))).every((lane) =>
+    lane.slots.every((slot) => slot.init.init_time !== time("06")),
+  ));
+  assert.equal(resolveLeadRun(merged, time("03")).status, "not_scheduled");
+});
+
+test("disjoint schedules retain both runs and re-key a virtual forecast band by its label", () => {
+  const { time, long, short } = variantPair();
+  short.init_hours = ["01"];
+  short.recent_inits = [short.recent_inits[1]];
+  long.recent_inits[0].init_time = time("06");
+  const [merged] = mergeVariantRows([long, short]);
+  const [top, bottom] = bandsOf(merged);
+  const early = resolveLeadRun(merged, time("01"));
+  const late = resolveLeadRun(merged, time("06"));
+  assert.equal(cellOf(bottom, early).state, "complete");
+  assert.equal(cellOf(top, early).state, "beyond_horizon");
+  assert.equal(cellTitle(top, early, cellOf(top, early), false), "18 hour run: no leads past 18h");
+  assert.equal(cellOf(top, late).state, "complete");
+  assert.deepEqual(displayedRuns(merged, 2).map(({ init_time }) => init_time), [time("01"), time("06")]);
+
+  short.recent_inits[0].lead_groups = [];
+  const [partlyReported] = mergeVariantRows([long, short]);
+  assert.equal(cellOf(bottom, resolveLeadRun(partlyReported, time("01"))).state, "unobserved");
+});
+
+test("shorter or missing runs at the end of the axis cannot shrink the longest bands", () => {
+  const { long, short } = variantPair();
+  const [merged] = mergeVariantRows([long, short]);
+  for (const extents of [leadExtents, compactLeadExtents]) {
+    assert.deepEqual(extents(merged), extents(long));
+  }
+});
+
+test("a single variant or legacy row keeps its own history even with the same source label", () => {
+  const { long, short } = variantPair();
+  const legacy = { ...short, variant: undefined };
+  const standalone = { ...short, row_label: "Mirror" };
+  const products = [long, legacy, standalone];
+  const rows = mergeVariantRows(products);
+  assert.equal(rows.length, 3);
+  products.forEach((product, index) => assert.equal(rows[index], product));
+});
+
+test("family captions show each distinct variant once in payload order and omit lone labels", () => {
+  const { long, short } = variantPair();
+  const mirror = { ...long, row_label: "Mirror" };
+  assert.equal(variantCaption([long, mirror, short, {}]), `${long.variant.label}, ${short.variant.label}`);
+  assert.equal(variantCaption([long, mirror]), "");
+  assert.equal(variantCaption([{}]), "");
+  short.variant.label = long.variant.label;
+  assert.equal(variantCaption([long, short]), long.variant.label);
+});
+
+test("lag pairing resolves source ids that belong to shorter merged rows", () => {
+  const { long, short } = variantPair();
+  const mirror = { ...long, id: "long-mirror", row_label: "Mirror" };
+  const shortMirror = { ...short, id: "short-mirror", row_label: "Mirror" };
+  const virtual = {
+    ...lagProduct([], readyPipelineLag({ source_ids: [short.id, shortMirror.id] })),
+    id: "virtual",
+  };
+  assert.deepEqual(lagSources(virtual, [long, mirror]), []);
+  const rows = mergeVariantRows([long, virtual, mirror, short, shortMirror]);
+  assert.deepEqual(lagSources(virtual, rows).map(({ id }) => id), [long.id, mirror.id]);
+  assert.equal(rows[1], virtual);
 });
 
 test("moves facets out of their own bands once the joint is published", () => {

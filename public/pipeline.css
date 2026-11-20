@@ -38,6 +38,11 @@
   scroll-margin-top: 2rem;
 }
 
+.pipeline-group > h3 + p {
+  margin: 0;
+  color: var(--muted-text);
+}
+
 .pipeline-variant {
   margin: 1.2rem 0 0;
   color: var(--muted-text);
@@ -225,9 +230,14 @@
   background: var(--pill-muted-bg);
 }
 
+.pipeline-cell.g-beyond_horizon {
+  border: 0;
+}
+
 .pipeline-cell.g-pending .pipeline-cell-fill,
 .pipeline-cell.g-unobserved .pipeline-cell-fill,
-.pipeline-cell.g-not_scheduled .pipeline-cell-fill {
+.pipeline-cell.g-not_scheduled .pipeline-cell-fill,
+.pipeline-cell.g-beyond_horizon .pipeline-cell-fill {
   display: none;
 }
 

@@ -41,6 +41,7 @@ const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
 export const INIT_AXIS_SCOPE = "family"; // or "variant"
+export const MERGE_VARIANTS = true;
 const QUANTILE_ORDER_TOLERANCE_S = 1e-9;
 
 function hasTimestamp(value) {
@@ -299,6 +300,109 @@ export function variantBlocks(products) {
   return blocks;
 }
 
+export function variantCaption(products) {
+  const ids = new Set();
+  const labels = new Set();
+  for (const { variant } of products) {
+    if (!variant) continue;
+    ids.add(variant.id);
+    if (variant.label) labels.add(variant.label);
+  }
+  return ids.size > 1 ? [...labels].join(", ") : "";
+}
+
+function variantHorizon(variant) {
+  return variant.label.split(" · ", 1)[0];
+}
+
+function productIds(product) {
+  return product.memberIds ?? [product.id];
+}
+
+/* Products arrive longest variant first. At an hour they share, only the
+   longest scheduled member can supply the measurement. */
+export function mergeVariantRows(products) {
+  const rows = [];
+  const byLabel = new Map();
+  for (const product of products) {
+    let members = product.variant ? byLabel.get(product.row_label) : null;
+    if (!members) {
+      members = [];
+      rows.push(members);
+      if (product.variant) byLabel.set(product.row_label, members);
+    }
+    members.push(product);
+  }
+
+  return rows.map((rowProducts) => {
+    const [longest] = rowProducts;
+    if (rowProducts.length === 1) return longest;
+    const canonical = new Map(leadAxis(longest).map(({ key, label }) => [label, key]));
+    const members = rowProducts.map((product) => {
+      const axis = leadAxis(product);
+      const names = new Map(axis.map(({ key, label }) => [key, canonical.get(label)]));
+      return {
+        product,
+        runs: new Map(product.recent_inits.map((init) => [init.init_time, init])),
+        names,
+        variant: product.variant,
+        coverage: {
+          bands: new Set(names.values()),
+          lastLabel: axis.at(-1)?.label,
+        },
+      };
+    });
+    const initTimes = [...new Set(members.flatMap(({ runs }) => [...runs.keys()]))]
+      .sort((a, b) => Date.parse(a) - Date.parse(b));
+    const cadence = Math.min(...rowProducts.map((product) => product.cadence_hours ?? Infinity));
+    const next = members.reduce((soonest, member) => {
+      const time = Date.parse(member.product.next_expected_init);
+      return time < (soonest ? Date.parse(soonest.product.next_expected_init) : Infinity)
+        ? member : soonest;
+    }, null);
+
+    return {
+      ...longest,
+      memberIds: rowProducts.map((product) => product.id),
+      init_hours: [...new Set(rowProducts.flatMap((product) => product.init_hours ?? []))].sort(),
+      cadence_hours: Number.isFinite(cadence) ? cadence : longest.cadence_hours,
+      next_expected_init: next?.product.next_expected_init,
+      next_expected_completion_at: next?.product.next_expected_completion_at,
+      nextExpectedRun: next && { variant: next.variant, coverage: next.coverage },
+      sizingLeadGroups: longest.recent_inits.at(-1)?.lead_groups ?? [],
+      recent_inits: initTimes.map((initTime) => {
+        const hour = initParts(initTime).time.slice(0, 2);
+        const index = members.findIndex(({ product }) => product.init_hours?.includes(hour));
+        const backing = members[index];
+        const init = backing?.runs.get(initTime);
+        if (!init) return {
+          init_time: initTime,
+          variant: backing?.variant,
+          status: backing ? "unobserved" : "not_scheduled",
+          unreported: true,
+        };
+        const { names, variant, coverage } = backing;
+        const lead_groups = init.lead_groups?.flatMap((group) => {
+          const name = names.get(group.name);
+          return name == null ? [] : [{ ...group, name }];
+        });
+        const sourceGroups = init.source_lead_groups;
+        const source_lead_groups = validSourceLeadGroups(sourceGroups) ? Object.fromEntries(
+          Object.entries(sourceGroups).flatMap(([name, value]) => {
+            const key = names.get(name);
+            return key == null ? [] : [[key, value]];
+          }),
+        ) : sourceGroups;
+        const shorterRuns = members.slice(index + 1).flatMap((member) => {
+          const run = member.runs.get(initTime);
+          return run?.status ? [{ variant: member.variant, status: run.status, timing: run.timing }] : [];
+        });
+        return { ...init, variant, coverage, lead_groups, source_lead_groups, shorterRuns };
+      }),
+    };
+  });
+}
+
 function productsOf(dashboard) {
   return dashboard.groups.flatMap((group) => group.products);
 }
@@ -490,8 +594,7 @@ export function leadAxis(product) {
 
 export function leadExtents(product) {
   const leads = leadAxis(product);
-  const newest = product.recent_inits?.at(-1);
-  const slices = leadSlices(newest?.lead_groups ?? []);
+  const slices = leadSlices(product.sizingLeadGroups ?? product.recent_inits?.at(-1)?.lead_groups ?? []);
   const expected = leads.map(
     (lead) => slices.find((slice) => slice.name === lead.key)?.expected ?? 0,
   );
@@ -514,8 +617,7 @@ export function leadExtents(product) {
 
 export function compactLeadExtents(product) {
   const leads = leadAxis(product);
-  const newest = product.recent_inits?.at(-1);
-  const slices = leadSlices(newest?.lead_groups ?? []);
+  const slices = leadSlices(product.sizingLeadGroups ?? product.recent_inits?.at(-1)?.lead_groups ?? []);
   const expected = leads.map(
     (lead) => slices.find((slice) => slice.name === lead.key)?.expected ?? 0,
   );
@@ -624,7 +726,8 @@ export function runsThatFit(product, availablePx, local, {
 }
 
 /* A scope's shared gutter and column width put every init at the same x
-   position, even when the rows have different lead labels or recent runs. */
+   position, even when the rows have different lead labels or recent runs.
+   In variant scope, a merged row belongs to its longest member's variant. */
 export function sharedInitAxes(products, widths, local, scope = INIT_AXIS_SCOPE) {
   const scopes = new Map();
   for (const product of products) {
@@ -702,11 +805,16 @@ function Band({
   </div>`;
 }
 
-/* What one run measured for one band. A band the run never reported reads as
-   unobserved rather than as a failure. */
+function beyondHorizon(init, bandKey) {
+  return init?.coverage?.lastLabel != null && !init.coverage.bands.has(bandKey);
+}
+
+/* A band outside the backing variant's horizon is empty. An unreported
+   measurement within the horizon reads as unobserved. */
 
 export function cellOf(band, init) {
   if (!init) return { state: "unobserved" };
+  if (band.kind === "lead" && beyondHorizon(init, band.key)) return { state: "beyond_horizon" };
   if (init.status === "unobserved") return { state: "unobserved" };
   if (init.status === "not_scheduled") return { state: "not_scheduled" };
 
@@ -745,9 +853,15 @@ export function cellTitle(band, init, cell, local) {
   if (cell.state === "not_scheduled") {
     return `${band.label} · not scheduled at ${initParts(init.init_time).time}`;
   }
+  const shorter = (init.shorterRuns ?? []).map(({ variant, status, timing }) =>
+    `${variantHorizon(variant)} run: ${statusLabel(status)}${timing ? `, ${timing.replaceAll("_", " ")}` : ""}`,
+  );
+  if (cell.state === "beyond_horizon") {
+    return [`${variantHorizon(init.variant)} run: no leads past ${init.coverage.lastLabel}`, ...shorter].join(" · ");
+  }
   const when = initShort(init.init_time, local);
   if (cell.state === "unobserved") {
-    return `${band.label} · ${when} · no probe visibility; not a publication failure`;
+    return [`${band.label} · ${when} · no probe visibility; not a publication failure`, ...shorter].join(" · ");
   }
   // the unit agrees with the total, so a band of one lead reads "1 / 1 arrival"
   const arrivals = cell.expected === 1 ? "arrival" : "arrivals";
@@ -763,6 +877,7 @@ export function cellTitle(band, init, cell, local) {
     volume,
     statusLabel(cell.state),
     cell.timing ? cell.timing.replaceAll("_", " ") : null,
+    ...shorter,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -1029,7 +1144,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
                 local=${local}
                 measured=${facetAt
                   ? facetCell(facetAt, init, measured.timing)
-                  : { state: "unobserved" }}
+                  : { state: beyondHorizon(init, lead.key) ? "beyond_horizon" : "unobserved" }}
                 style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
               />`;
             })}
@@ -1174,15 +1289,14 @@ export function lagBasisNote(lag) {
    null for not known. A missing or malformed map is not known either, and
    nothing falls back to the source's whole run. */
 
+function validSourceLeadGroups(groups) {
+  return groups != null && typeof groups === "object" && !Array.isArray(groups) &&
+    Object.values(groups).every((value) => value === null || Number.isFinite(value));
+}
+
 function selectedSourceArrival(init, name) {
   const groups = init?.source_lead_groups;
-  if (groups == null || typeof groups !== "object" || Array.isArray(groups)) {
-    return null;
-  }
-  if (!Object.values(groups).every((value) => value === null || Number.isFinite(value))) {
-    return null;
-  }
-  return Object.hasOwn(groups, name) ? groups[name] : null;
+  return validSourceLeadGroups(groups) && Object.hasOwn(groups, name) ? groups[name] : null;
 }
 
 /* The sources the published lag is measured against, as rows of this group.
@@ -1194,7 +1308,9 @@ export function lagSources(product, groupProducts = []) {
   if (!isDynamicalRow(product) || !validPipelineLag(product.pipeline_lag)) {
     return [];
   }
-  const byId = new Map(groupProducts.map((sibling) => [sibling.id, sibling]));
+  const byId = new Map(groupProducts.flatMap((sibling) =>
+    productIds(sibling).map((id) => [id, sibling]),
+  ));
   const sources = product.pipeline_lag.source_ids.map((id) => byId.get(id));
   return sources.every(Boolean) ? sources : [];
 }
@@ -1294,7 +1410,7 @@ const NO_RUN = Object.freeze({
 });
 
 function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
-  if (!init) return NO_RUN;
+  if (!init || beyondHorizon(init, stats.name)) return NO_RUN;
   const initMs = Date.parse(init.init_time);
   let time = "—";
   let duration = "—";
@@ -1342,8 +1458,8 @@ function upcomingRunDetail(initTime, stats, local) {
   };
 }
 
-function labelledRun(label, initTime, local) {
-  return initTime ? `${label} · ${initShort(initTime, local)}` : label;
+function labelledRun(label, initTime, local, variant) {
+  return initTime ? [label, initShort(initTime, local), variant?.label].filter(Boolean).join(" · ") : label;
 }
 
 export function isDynamicalRow(product) {
@@ -1384,10 +1500,10 @@ export function detailRows(product, now, local, sources = []) {
     // a row measures its lag against the source the feed pairs it with; every
     // other row has no source to be late after
     lagged: sources.length > 0,
-    lastHeader: labelledRun("last run", last?.init_time, local),
+    lastHeader: labelledRun("last run", last?.init_time, local, last?.variant),
     runHeader: active
-      ? labelledRun("current run", active.init_time, local)
-      : labelledRun("upcoming run", upcoming, local),
+      ? labelledRun("current run", active.init_time, local, active.variant)
+      : labelledRun("upcoming run", upcoming, local, product.nextExpectedRun?.variant),
     statsHeader: statsHeader(
       product.latency_stats?.sample_init_count,
       timingBaselineNote(product),
@@ -1414,7 +1530,9 @@ export function detailRows(product, now, local, sources = []) {
             true,
             lagOf(active, afterActive, stats),
           )
-        : upcomingRunDetail(upcoming, stats, local),
+        : beyondHorizon(product.nextExpectedRun, stats.name)
+          ? NO_RUN
+          : upcomingRunDetail(upcoming, stats, local),
       p50: formatLatency(stats.p50_s),
       p95: formatLatency(stats.p95_s),
       p99: formatLatency(stats.p99_s),
@@ -1546,15 +1664,17 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
   return { runs, threshold: runChartThreshold(product) };
 }
 
-/* The expanded lead view keeps the field's columns, including absent groups.
-   A missing entry and an explicit unobserved entry have different titles. */
+/* The expanded lead view keeps the field's columns. Within each variant's
+   horizon, a missing measurement and an explicit unobserved entry have
+   different titles. */
 export function leadLaneSeries(product, now, inits = product.recent_inits ?? []) {
+  const reported = inits.filter((init) => !init.unreported);
   const stats = new Map((product.lead_group_stats ?? []).map((entry) => [entry.name, entry]));
   const leads = bandsOf(product).map((band) => {
     const threshold = product.timing_baseline?.status === "insufficient_history"
       ? null
       : stats.get(band.key)?.delayed_threshold_s;
-    const slots = inits.map((init) => {
+    const slots = reported.filter((init) => !beyondHorizon(init, band.key)).map((init) => {
       const entry = init.lead_groups?.find((group) => group.name === band.key);
       // Source-budget deadlines belong to this grain; retain the run fallback for older payloads.
       const value = product.timing_baseline?.method === "source_budget"
@@ -1579,9 +1699,9 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
       runs: slots.filter((slot) => slot.run).map((slot) => slot.run),
       threshold: Number.isFinite(threshold) && threshold > 0 ? threshold : null };
   });
-  const runSeries = runChartSeries(product, now, inits);
+  const runSeries = runChartSeries(product, now, reported);
   const runByInit = new Map(runSeries.runs.map((run) => [run.init.init_time, run]));
-  for (const init of inits) {
+  for (const init of reported) {
     const ms = Date.parse(init.init_time);
     if (init.status !== "failed" || !Number.isFinite(ms) || runByInit.has(init.init_time)) continue;
     const run = {
@@ -1593,7 +1713,7 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
   }
   const runLane = {
     name: "run", label: "run", ...runSeries,
-    slots: inits.map((init) => ({ init,
+    slots: reported.map((init) => ({ init,
       state: runByInit.has(init.init_time) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
       run: runByInit.get(init.init_time),
       deadline: Number.isFinite(init.deadline_s) && init.deadline_s > 0 ? init.deadline_s : null,
@@ -2190,17 +2310,18 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
     <${InitTiers} runs=${runs} local=${local} />`;
 }
 
-function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
+function AlignedRunChart({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   // the figure follows the field: nothing until the row is measured, and
   // nothing for a product with no runs
   if (runCount == null || !product.recent_inits.length) return null;
-  const zone = selectedTimeZone(local);
-  const runs = displayedRuns(product, runCount);
-  const series = runChartSeries(product, now, runs);
+  const runs = sharedAxis?.runs ?? displayedRuns(product, runCount);
+  const series = runChartSeries(product, now, sharedAxis
+    ? runs.map((init) => resolveLeadRun(product, init.init_time))
+    : runs);
   const scale = alignedChartScales(series);
   const plotted = new Map(series.runs.map((run) => [run.init.init_time, run]));
-  const runWidth = initColumnPx(product, zone);
-  const gutter = gutterPx(bandsOf(product));
+  const runWidth = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
+  const gutter = sharedAxis?.gutter ?? gutterPx(bandsOf(product));
   const columns = runColumns(runs.length, runWidth, RUN_GAP_PX);
   // the labels hang off the right edge while the field's column has room
   // for the widest of them beside the plot; the gutter and its gap are the
@@ -2625,10 +2746,14 @@ function Row({
 
   return html`<section
     class="pipeline-row"
+    id=${product.memberIds && `pipeline-product-${product.id}`}
     data-product-id=${product.id}
     data-view=${String(index)}
   >
     <div>
+      ${product.memberIds?.slice(1).map(
+        (id) => html`<span key=${id} id=${`pipeline-product-${id}`}></span>`,
+      )}
       <strong>${displayRowLabel(product.row_label)}</strong>
       <div class="pipeline-source-meta">
         <div>${displaySource(product.source)}</div>
@@ -2746,12 +2871,16 @@ function Group({ group, aliases, advisories, state, actions }) {
   }, [products]);
 
   const axes = useMemo(() => sharedInitAxes(products, widths, state.local), [products, widths, state.local]);
-  const blocks = useMemo(() => variantBlocks(products), [products]);
+  const blocks = useMemo(
+    () => MERGE_VARIANTS ? [{ variant: null, products }] : variantBlocks(products),
+    [products],
+  );
   return html`<section class="pipeline-group" ref=${section}>
     ${aliases.map(
       (alias) => html`<span key=${alias} id=${`pipeline-group-${alias}`}></span>`,
     )}
     <h3 key="heading" id=${`pipeline-group-${group.id}`}>${group.label}</h3>
+    ${group.variantCaption && html`<p key="variants">${group.variantCaption}</p>`}
     ${blocks.flatMap((block) => [
       block.variant && html`<h4 key=${`variant-${block.products[0].id}`} class="pipeline-variant">
         ${block.variant.label}
@@ -2761,7 +2890,7 @@ function Group({ group, aliases, advisories, state, actions }) {
           key=${product.id}
           product=${product}
           advisory=${advisories.findLast((advisory) =>
-            advisory.product_ids?.includes(product.id),
+            productIds(product).some((id) => advisory.product_ids?.includes(id)),
           )}
           local=${state.local}
           now=${state.now}
@@ -2793,11 +2922,13 @@ function Groups({ state, actions, agencies }) {
   useEffect(() => {
     if (signature === null) return;
     // On a direct visit the browser can see the fragment before the fetched
-    // dashboard has rendered the heading and its aliases.
+    // dashboard has rendered the headings, rows and their aliases.
     const hash = initialHash.current;
     initialHash.current = "";
     if (hash && hash === location.hash) {
-      document.getElementById(hash.slice(1))?.closest(".pipeline-group")?.querySelector("h3").scrollIntoView();
+      const anchor = document.getElementById(hash.slice(1));
+      const target = anchor?.closest(".pipeline-row") ?? anchor?.closest(".pipeline-group")?.querySelector("h3");
+      target?.scrollIntoView();
     }
     document.dispatchEvent(new Event("md-toc:refresh"));
   }, [signature]);
@@ -2968,9 +3099,17 @@ function start(app) {
 
   async function tick() {
     try {
-      const dashboard = validateDashboard(
+      const payload = validateDashboard(
         await fetchJson(dashboardUrl, "no-cache"),
       );
+      const dashboard = MERGE_VARIANTS ? {
+        ...payload,
+        groups: payload.groups.map((group) => ({
+          ...group,
+          variantCaption: variantCaption(group.products),
+          products: mergeVariantRows(group.products),
+        })),
+      } : payload;
       store.update((state) => ({
         dashboard,
         views: wrappedViews(state.views, dashboard),

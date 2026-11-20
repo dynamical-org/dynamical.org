@@ -246,7 +246,7 @@ test("the table of contents follows the rendered pipeline groups", async ({
   await expect(links.nth(1)).toHaveClass(/active/);
 });
 
-test("family headings preserve resolution, variant labels and former section links", async ({ page }) => {
+test("family captions preserve resolution, variant order and former section links", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 700 });
   await stubPipeline(page, undefined, FIXTURE);
   const former = "#pipeline-group-ecmwf-ifs-ens-short";
@@ -256,10 +256,11 @@ test("family headings preserve resolution, variant labels and former section lin
   await expect(page).toHaveURL(`${PATH}${former}`);
   await expect(family.locator("h3")).toHaveText("ECMWF IFS ENS forecast, 0.25 degree");
   await expect(family.locator("h3")).toBeInViewport();
-  await expect(family.locator("h4.pipeline-variant")).toHaveText(["15 day · every 12 h", "6 day · 06/18z"]);
-  await expect(page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-noaa-gefs-0-25") }).locator("h4")).toHaveCount(0);
+  await expect(family.locator("h3 + p")).toHaveText("15 day · every 12 h, 6 day · 06/18z");
+  await expect(family.locator("h4")).toHaveCount(0);
+  await expect(page.locator("#pipeline-group-noaa-gefs-0-25 + p")).toHaveCount(0);
   await expect(page.locator('[data-slot="pipeline-toc"] a')).toHaveText([
-    "GFS", "GEFS, 0.25 degree", "GEFS, 0.5 degree", "IFS ENS, 0.25 degree", "HRDPS",
+    "GFS", "GEFS, 0.25 degree", "GEFS, 0.5 degree", "HRRR", "IFS ENS, 0.25 degree", "HRDPS",
   ]);
 
   const canonical = "#pipeline-group-ecmwf-ifs-ens-0-25";
@@ -268,32 +269,83 @@ test("family headings preserve resolution, variant labels and former section lin
   await expect(page.locator(canonical)).toBeInViewport();
 });
 
+test("HRRR source rows end at the horizon of each init and honor former product links", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 500 });
+  await stubPipeline(page, undefined, FIXTURE);
+  const former = "#pipeline-product-external-noaa-hrrr-18h-aws";
+  await page.goto(`${PATH}${former}`);
+  const family = page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-noaa-hrrr") });
+  const rows = family.locator(".pipeline-row");
+  const aws = rows.filter({ hasText: "AWS" });
+  const long = '[data-init-time="2026-07-25T00:00:00Z"]';
+  const short = '[data-init-time="2026-07-25T01:00:00Z"]';
+  const bands = aws.locator('.pipeline-field [data-kind="lead"]');
+  const top = bands.filter({ has: page.getByText("2d", { exact: true }) });
+
+  await expect(rows).toHaveCount(2);
+  await expect(family.locator("h3 + p")).toHaveText("48 hour · every 6 h, 18 hour · hourly");
+  await expect(aws.locator(former)).toHaveCount(1);
+  await expect(aws).toBeInViewport();
+  const beyond = top.locator(short);
+  await expect(beyond).toHaveClass(/\bg-beyond_horizon\b/);
+  await expect(beyond).toHaveAttribute("title", "18 hour run: no leads past 18h");
+  await expect(beyond).toHaveCSS("border-top-width", "0px");
+  await expect(beyond.locator(".pipeline-cell-fill")).toBeHidden();
+  await expect(bands.locator(`${short}.g-complete`)).toHaveCount(3);
+  await expect(bands.locator(`${long}.g-complete`)).toHaveCount(4);
+  await expect(top.locator(long)).toHaveAttribute("title", /18 hour run: complete, on time$/);
+
+  await aws.locator('[data-slot="details-button"]').click();
+  await expect(aws.getByRole("columnheader", { name: /last run.*18 hour · hourly/ })).toBeVisible();
+  const longestLane = aws.locator('.pipeline-lead-lanes [data-lane="f048"]');
+  await expect(longestLane.locator(`circle${long}`)).toHaveCount(1);
+  await expect(longestLane.locator('[data-slot-init="2026-07-25T01:00:00Z"]')).toHaveCount(0);
+});
+
+test("switching off merging restores per-variant headings, rows and disabled hours", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route(/\/pipeline\.mjs\?/, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace("export const MERGE_VARIANTS = true", "export const MERGE_VARIANTS = false");
+    await route.fulfill({ response, body });
+  });
+  await openPipeline(page, undefined, FIXTURE);
+  const family = page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-noaa-hrrr") });
+  await expect(family.locator("h4")).toHaveText(["48 hour · every 6 h", "18 hour · hourly"]);
+  await expect(family.locator("h3 + p")).toHaveCount(0);
+  await expect(family.locator(".pipeline-row")).toHaveCount(4);
+  const offSchedule = family.locator('[data-product-id="external-noaa-hrrr-aws"] [data-init-time="2026-07-25T01:00:00Z"]');
+  await expect(offSchedule.first()).toHaveClass(/\bg-not_scheduled\b/);
+});
+
 test.describe("model families with staggered schedules", () => {
   test.use({ timezoneId: "Asia/Kolkata", locale: "en-US" });
 
-  test("init columns align across variants and mark off-schedule hours after refitting", async ({ page }) => {
+  test("merged family rows align their init columns and mark off-schedule hours after refitting", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openPipeline(page, undefined, FIXTURE);
     await page.selectOption("#status-time-toggle", "utc");
     const family = page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-ecmwf-ifs-ens-0-25") });
     const rows = family.locator(".pipeline-row");
-    const long = rows.locator('[data-init-time="2026-07-25T06:00:00Z"]').first();
+    const source = rows.filter({ hasText: "ECMWF" });
+    const mirror = rows.filter({ hasText: "Mirror" });
+    await expect(rows).toHaveCount(2);
+    const long = mirror.locator('[data-init-time="2026-07-25T06:00:00Z"]').first();
     await expect(long).toHaveClass(/\bg-not_scheduled\b/);
     await expect(long).toHaveAttribute("title", /not scheduled at 06z$/);
     await expect(long).toHaveCSS("background-image", "none");
     await expect(long.locator(".pipeline-cell-fill")).toBeHidden();
-    await expect(rows.nth(1).locator('[data-init-time="2026-07-24T12:00:00Z"]')).toHaveClass(/\bg-unobserved\b/);
-    await expect(rows.nth(2).locator('[data-init-time="2026-07-25T06:00:00Z"]')).toHaveClass(/\bg-complete\b/);
+    await expect(mirror.locator('[data-init-time="2026-07-24T12:00:00Z"]').first()).toHaveClass(/\bg-unobserved\b/);
+    await expect(source.locator('[data-init-time="2026-07-25T06:00:00Z"]').last()).toHaveClass(/\bg-complete\b/);
 
     const positions = () => rows.evaluateAll((nodes) => nodes.map((row) =>
-      [...row.querySelectorAll(".pipeline-band[data-kind] .pipeline-cell")].map((cell) => [
+      [...row.querySelectorAll(".pipeline-band[data-kind]:first-child .pipeline-cell")].map((cell) => [
         cell.dataset.initTime, cell.getBoundingClientRect().x,
       ]),
     ));
     const expectAligned = async () => {
-      const [source, mirror, short] = await positions();
-      expect(mirror).toEqual(source);
-      expect(short).toEqual(source);
+      const [sourcePositions, mirrorPositions] = await positions();
+      expect(mirrorPositions).toEqual(sourcePositions);
     };
     await expect(rows.first().locator(".pipeline-run-label")).toHaveCount(5);
     await expectAligned();
