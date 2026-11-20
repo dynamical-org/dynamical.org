@@ -665,18 +665,24 @@ test("a shorter report cannot fill a scheduled but unreported longer run", () =>
 
 test("an unreported shorter backer leaves its out-of-horizon band empty", () => {
   const { time, long, short } = variantPair();
+  const firstBand = { name: "f006", label: "6h" };
+  const firstGroup = { name: "f006", status: "complete", leads_expected: 7, leads_available: 7 };
+  long.lead_groups.unshift(firstBand);
+  long.recent_inits[0].lead_groups.unshift(firstGroup);
+  short.lead_groups.unshift(firstBand);
   const shortest = {
     ...short,
     id: "shortest",
     variant: { id: "6h", label: "6 hour · hourly" },
-    lead_groups: [{ name: "forecast", label: "6h" }],
-    recent_inits: [short.recent_inits[1]],
+    lead_groups: [firstBand],
+    recent_inits: [{ init_time: time("01"), status: "complete", lead_groups: [firstGroup] }],
   };
   short.recent_inits = [];
   const [merged] = mergeVariantRows([long, short, shortest]);
-  const [top, bottom] = bandsOf(merged);
+  const [top, middle, bottom] = bandsOf(merged);
   const init = resolveLeadRun(merged, time("01"));
   assert.equal(cellOf(top, init).state, "beyond_horizon");
+  assert.equal(cellOf(middle, init).state, "unobserved");
   assert.equal(cellOf(bottom, init).state, "unobserved");
   const lanes = leadLaneSeries(merged, Date.parse(time("12")));
   assert.equal(lanes.find((lane) => lane.label === "2d").slots.some(
