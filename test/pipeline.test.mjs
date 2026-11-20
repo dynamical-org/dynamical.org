@@ -595,7 +595,6 @@ test("single-variant and legacy families have no redundant heading", () => {
     assert.equal(blocks.some(({ variant }) => variant), false);
     assert.deepEqual(blocks.flatMap(({ products }) => products), products);
   }
-  assert.equal(sharedInitAxes(legacy, new Map(), false, "family").size, 0);
 });
 
 test("moves facets out of their own bands once the joint is published", () => {

@@ -594,8 +594,8 @@ export function gutterPx(labelled) {
   return Math.min(GUTTER_MAX_CH, widest) * CH_PX;
 }
 
-/* What the field shows: the newest runs that fit, oldest first. The chart
-   under the field draws exactly this slice, so both take it from here. */
+/* The newest runs that fit, oldest first, for a lead field and chart with
+   no shared init axis. */
 
 export function displayedRuns(product, runCount) {
   return product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
@@ -2240,13 +2240,17 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
   </figure>`;
 }
 
-function LeadLanes({ product, now, local, runCount, fieldWidth }) {
+function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   const [selected, setSelected] = useState(null);
   if (runCount == null || !product.recent_inits.length) return null;
-  const runs = displayedRuns(product, runCount);
-  const lanes = leadLaneSeries(product, now, runs);
-  const gutter = gutterPx(bandsOf(product));
-  const runWidth = initColumnPx(product, selectedTimeZone(local));
+  const runs = sharedAxis?.runs ?? displayedRuns(product, runCount);
+  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
+  const laneRuns = sharedAxis
+    ? product.recent_inits.filter((init) => columnOf.has(init.init_time))
+    : runs;
+  const lanes = leadLaneSeries(product, now, laneRuns);
+  const gutter = sharedAxis?.gutter ?? gutterPx(bandsOf(product));
+  const runWidth = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
   const columns = runColumns(runs.length, runWidth, RUN_GAP_PX);
   const em = chartEm();
   const height = Math.max(44, CHART_HEIGHT_PX / 2);
@@ -2259,7 +2263,6 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
     fieldWidth - gutter - RUN_GAP_PX;
   const clipWidth = Math.max(columns.width, fieldWidth - gutter - RUN_GAP_PX);
   const allPoints = lanes.flatMap((lane) => lane.runs);
-  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
   const parked = lanes.map((lane) => ({ lane, layout: pinnedLayout(
     lane.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
     (run) => columns.x(columnOf.get(run.init.init_time)),
@@ -2364,8 +2367,8 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
               <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
               <text ...${label}>${thresholdText}</text>
             </g>`}
-            ${lane.slots.map((slot, index) => {
-              const x = columns.x(index);
+            ${lane.slots.map((slot) => {
+              const x = columns.x(columnOf.get(slot.init.init_time));
               const detail = slot.state === "missing"
                 ? `no measurement for ${lane.label} at ${initShort(slot.init.init_time, local)}`
                 : slot.state === "unobserved"
@@ -2424,10 +2427,11 @@ function Details({
   runCount,
   dimension,
   fieldWidth,
+  sharedAxis,
 }) {
   const details = detailRows(product, now, local, sources);
-  // the chart lines up with the lead-group field; an arrival-group field
-  // keeps the chart across the row
+  // Lead lanes use the field's axis. The chart in the facet view spans the
+  // row and uses the product's own history.
   const chart = dimension
     ? html`<${RunChart} key="chart" product=${product} now=${now} local=${local} />`
     : html`<${LeadLanes}
@@ -2437,6 +2441,7 @@ function Details({
         local=${local}
         runCount=${runCount}
         fieldWidth=${fieldWidth}
+        sharedAxis=${sharedAxis}
       />`;
   // A row paired with a source measures each horizon against that source's own
   // arrival for the same horizon, so the lag reads beside the time it is a lag
@@ -2585,7 +2590,7 @@ function Row({
   const views = viewsOf(product);
   const index = wrapIndex(viewIndex, views.length);
   const view = views[index];
-  // the facet fields and details charts use the row's own run history and fit
+  // the row's own fit is used for facet fields and lead fields without a shared axis
   const runCount =
     width == null
       ? null
@@ -2678,6 +2683,7 @@ function Row({
             runCount=${runCount}
             dimension=${view.dimension}
             fieldWidth=${width}
+            sharedAxis=${sharedAxis}
           />`
         : null}
     </div>
@@ -2787,14 +2793,11 @@ function Groups({ state, actions, agencies }) {
   useEffect(() => {
     if (signature === null) return;
     // On a direct visit the browser can see the fragment before the fetched
-    // dashboard has rendered its alias.
+    // dashboard has rendered the heading and its aliases.
     const hash = initialHash.current;
     initialHash.current = "";
     if (hash && hash === location.hash) {
-      const alias = document.getElementById(hash.slice(1));
-      if (alias?.matches(".pipeline-group > span")) {
-        alias.parentElement.querySelector("h3").scrollIntoView();
-      }
+      document.getElementById(hash.slice(1))?.closest(".pipeline-group")?.querySelector("h3").scrollIntoView();
     }
     document.dispatchEvent(new Event("md-toc:refresh"));
   }, [signature]);

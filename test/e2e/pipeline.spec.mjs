@@ -107,25 +107,26 @@ async function stubPipeline(page, mutate = (payload) => payload, fixture = LEGAC
   );
 }
 
-/** Every timestamp in the payload shifted so the running init began `agoMs`
- * ago. The committed fixture pins its times so tests can assert on them, which
- * leaves its running init hours old and its elapsed duration reading in whole
- * minutes; a run twenty minutes old reads "19m 40s" and ticks every second. */
-function withRecentRun(payload, agoMs) {
-  const product = payload.groups[0].products[0];
+/** Open with timestamps shifted by whole UTC days to preserve init hours.
+ * Set the browser clock so the running init began `agoMs` ago and keeps ticking. */
+async function withRecentRun(page, agoMs, mutate = (payload) => payload, fixture = LEGACY_FIXTURE) {
+  const product = fixture.groups[0].products[0];
   const running = product.recent_inits.findLast(
     (init) => init.status === "in_flight",
   );
-  const shift = Date.now() - agoMs - Date.parse(running.init_time);
-  return JSON.parse(
-    JSON.stringify(payload, (_key, value) =>
+  const initMs = Date.parse(running.init_time);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const shift = Math.round((Date.now() - agoMs - initMs) / dayMs) * dayMs;
+  await page.clock.setSystemTime(initMs + shift + agoMs);
+  return openPipeline(page, (payload, served) => JSON.parse(
+    JSON.stringify(mutate(payload, served), (_key, value) =>
       typeof value === "string" &&
       /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) &&
       Number.isFinite(Date.parse(value))
         ? new Date(Date.parse(value) + shift).toISOString()
         : value,
     ),
-  );
+  ), fixture);
 }
 
 async function openPipeline(page, mutate, fixture) {
@@ -260,6 +261,11 @@ test("family headings preserve resolution, variant labels and former section lin
   await expect(page.locator('[data-slot="pipeline-toc"] a')).toHaveText([
     "GFS", "GEFS, 0.25 degree", "GEFS, 0.5 degree", "IFS ENS, 0.25 degree", "HRDPS",
   ]);
+
+  const canonical = "#pipeline-group-ecmwf-ifs-ens-0-25";
+  await page.goto("about:blank");
+  await page.goto(`${PATH}${canonical}`);
+  await expect(page.locator(canonical)).toBeInViewport();
 });
 
 test.describe("model families with staggered schedules", () => {
@@ -295,7 +301,7 @@ test.describe("model families with staggered schedules", () => {
     const virtual = page.locator('[data-product-id="noaa-gfs-forecast-virtual"]');
     await expect(virtual.locator(".pipeline-field .pipeline-run-label")).toHaveCount(10);
     await virtual.locator('[data-slot="details-button"]').click();
-    await expect(virtual.locator(".pipeline-lead-lanes .pipeline-run-label")).toHaveCount(8);
+    await expect(virtual.locator(".pipeline-lead-lanes .pipeline-run-label")).toHaveCount(10);
 
     await page.selectOption("#status-time-toggle", "local");
     await expect(rows.first().locator(".pipeline-run-label").first()).toContainText("GMT");
@@ -882,9 +888,7 @@ test("the same status reads the same color in both details tables", async ({
 test("details keep their horizontal scroll across the live refresh", async ({
   page,
 }) => {
-  const row = await openPipeline(page, (payload) =>
-    withRecentRun(payload, 20 * 60 * 1000),
-  );
+  const row = await withRecentRun(page, 20 * 60 * 1000);
   await row.locator('[data-slot="details-button"]').click();
   const table = row.locator(".pipeline-row-details .table-container").first();
   const container = await table.elementHandle();
@@ -964,9 +968,7 @@ test.describe("what the reader has done survives a refresh", () => {
   }
 
   test("a countdown tick", async ({ page }) => {
-    const row = await openPipeline(page, (payload) =>
-      withRecentRun(payload, 20 * 60 * 1000),
-    );
+    const row = await withRecentRun(page, 20 * 60 * 1000);
     const settled = await settleIn(page, row);
     // the 3d horizon is the one the current run is still working on
     const duration = row
@@ -1269,10 +1271,50 @@ test.describe("in a timezone rendered as a GMT offset", () => {
   });
 });
 
+test("family lead lanes align by init and leave gaps for runs the row lacks", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await withRecentRun(page, 60 * 60 * 1000, undefined, FIXTURE);
+  await page.selectOption("#status-time-toggle", "utc");
+  const row = page.locator('[data-product-id="noaa-gfs-forecast-virtual"]');
+  await row.locator('[data-slot="details-button"]').click();
+  const figure = row.locator(".pipeline-lead-lanes");
+  await expect(figure).toBeVisible();
+
+  const geometry = await row.evaluate((node) => {
+    const field = node.querySelector(".pipeline-field");
+    const chart = node.querySelector(".pipeline-lead-lanes");
+    const center = (el) => { const rect = el.getBoundingClientRect(); return rect.left + rect.width / 2; };
+    const labels = (container) => [...container.querySelectorAll(".pipeline-run-label")].map(
+      (label) => [label.title, center(label)],
+    );
+    const offsets = [...chart.querySelectorAll("circle")].map((circle) => {
+      const cell = field.querySelector(`.pipeline-cell[data-init-time="${circle.dataset.initTime}"]`);
+      return cell ? Math.abs(center(circle) - center(cell)) : Infinity;
+    });
+    const slots = new Set([...chart.querySelectorAll("[data-slot-init]")].map(
+      (slot) => slot.dataset.slotInit,
+    ));
+    const gaps = [...field.querySelectorAll(".g-unobserved")].filter(
+      (cell) => !slots.has(cell.dataset.initTime),
+    );
+    return {
+      field: labels(field),
+      chart: labels(chart),
+      offsets,
+      gaps: new Set(gaps.map((cell) => cell.dataset.initTime)).size,
+    };
+  });
+  expect(geometry.chart.map(([init]) => init)).toEqual(geometry.field.map(([init]) => init));
+  geometry.chart.forEach(([, x], index) => expect(Math.abs(x - geometry.field[index][1])).toBeLessThanOrEqual(1));
+  expect(geometry.offsets.length).toBeGreaterThan(0);
+  for (const offset of geometry.offsets) expect(offset).toBeLessThanOrEqual(1);
+  expect(geometry.gaps).toBe(2);
+});
+
 // Lead lanes use the field's init columns and lead order, followed by a
 // distinct whole-run verdict. Every historical slot remains available.
 test("lead lanes share the field's columns and expose each group's history", async ({ page }) => {
-  const row = await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+  const row = await withRecentRun(page, 60 * 60 * 1000);
   await row.locator('[data-slot="details-button"]').click();
   const figure = row.locator(".pipeline-lead-lanes");
   await expect(figure.locator("svg")).toHaveCount(1);
@@ -1301,7 +1343,7 @@ test("lead lanes share the field's columns and expose each group's history", asy
 });
 
 test("mixed lead history keeps delayed, missing, unjudged, and run verdicts distinct", async ({ page }) => {
-  await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+  await withRecentRun(page, 60 * 60 * 1000);
   const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
   await row.locator('[data-slot="details-button"]').click();
   const figure = row.locator(".pipeline-lead-lanes");
@@ -1337,11 +1379,11 @@ test("mixed lead history keeps delayed, missing, unjudged, and run verdicts dist
 });
 
 test("per-init deadlines remain ticks and null thresholds have no line", async ({ page }) => {
-  await openPipeline(page, (payload) => {
+  await withRecentRun(page, 60 * 60 * 1000, (payload) => {
     const product = payload.groups[0].products.find((entry) => entry.id === "fixture-mixed-lead-lanes");
     product.lead_group_stats.find((entry) => entry.name === "f024").delayed_threshold_s = null;
     product.latency_stats.delayed_threshold_s = null;
-    return withRecentRun(payload, 60 * 60 * 1000);
+    return payload;
   });
   const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
   await row.locator('[data-slot="details-button"]').click();
@@ -1354,12 +1396,12 @@ test("per-init deadlines remain ticks and null thresholds have no line", async (
 });
 
 test("a deadline equal to its measurement stays visible and readable from the slot", async ({ page }) => {
-  await openPipeline(page, (payload) => {
+  await withRecentRun(page, 60 * 60 * 1000, (payload) => {
     const product = payload.groups[0].products.find((entry) => entry.id === "fixture-mixed-lead-lanes");
     const init = product.recent_inits.find((entry) => entry.lead_groups?.some((group) => group.name === "f024" && group.deadline_s != null));
     const group = init.lead_groups.find((entry) => entry.name === "f024");
     group.deadline_s = group.latency_s;
-    return withRecentRun(payload, 60 * 60 * 1000);
+    return payload;
   });
   const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
   await row.locator('[data-slot="details-button"]').click();
@@ -1379,7 +1421,7 @@ test("a deadline equal to its measurement stays visible and readable from the sl
 
 test("shared seconds ticks are labelled without covering marks", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  const row = await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+  const row = await withRecentRun(page, 60 * 60 * 1000);
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-lead-lanes");
   const result = await chart.evaluate((node) => {
@@ -1418,7 +1460,7 @@ test("stale in-flight groups park without compressing completed points", async (
 
 test("lead lanes fit a phone and keep threshold labels inside", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  const row = await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+  const row = await withRecentRun(page, 60 * 60 * 1000);
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-lead-lanes");
   await expect(chart.locator('[data-lane]')).toHaveCount(4);
@@ -1431,7 +1473,7 @@ test("lead lanes fit a phone and keep threshold labels inside", async ({ page })
 });
 
 test("arrival-group view keeps the original run chart", async ({ page }) => {
-  const row = await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+  const row = await withRecentRun(page, 60 * 60 * 1000);
   await row.locator(".pipeline-viz").click();
   await row.locator('[data-slot="details-button"]').click();
   const chart = row.locator(".pipeline-row-details .pipeline-runs");
@@ -1446,10 +1488,9 @@ test("arrival-group view keeps the original run chart", async ({ page }) => {
 
 test("a row gaining its first run while open gains its lanes", async ({ page }) => {
   await page.clock.install();
-  await openPipeline(page, (payload, served) => {
-    const shifted = withRecentRun(payload, 20 * 60 * 1000);
-    if (served === 1) shifted.groups[0].products[0].recent_inits = [];
-    return shifted;
+  await withRecentRun(page, 20 * 60 * 1000, (payload, served) => {
+    if (served === 1) payload.groups[0].products[0].recent_inits = [];
+    return payload;
   });
   const row = page.locator(".pipeline-row").first();
   await row.locator('[data-slot="details-button"]').click();
@@ -1463,7 +1504,7 @@ test.describe("in a zone with wider init labels", () => {
   test.use({ timezoneId: "America/Chicago", locale: "en-US" });
 
   test("changing column width refits the lanes with the field", async ({ page }) => {
-    const row = await openPipeline(page, (payload) => withRecentRun(payload, 60 * 60 * 1000));
+    const row = await withRecentRun(page, 60 * 60 * 1000);
     await row.locator('[data-slot="details-button"]').click();
     const counts = () => row.evaluate((node) => ({
       field: new Set([...node.querySelectorAll('.pipeline-field [data-init-time]')]
@@ -1480,11 +1521,11 @@ test.describe("in a zone with wider init labels", () => {
 });
 
 test("an omitted threshold leaves measured points and no constant lines", async ({ page }) => {
-  const row = await openPipeline(page, (payload) => {
+  const row = await withRecentRun(page, 60 * 60 * 1000, (payload) => {
     const product = payload.groups[0].products[0];
     delete product.latency_stats.delayed_threshold_s;
     for (const stats of product.lead_group_stats) delete stats.delayed_threshold_s;
-    return withRecentRun(payload, 60 * 60 * 1000);
+    return payload;
   });
   await row.locator('[data-slot="details-button"]').click();
   const lanes = row.locator('.pipeline-lead-lanes');
@@ -1494,9 +1535,9 @@ test("an omitted threshold leaves measured points and no constant lines", async 
 });
 
 test("a manual threshold is labelled on its group and run lanes", async ({ page }) => {
-  const row = await openPipeline(page, (payload) => {
+  const row = await withRecentRun(page, 60 * 60 * 1000, (payload) => {
     payload.groups[0].products[0].timing_baseline.method = 'manual';
-    return withRecentRun(payload, 60 * 60 * 1000);
+    return payload;
   });
   await row.locator('[data-slot="details-button"]').click();
   const lanes = row.locator('.pipeline-lead-lanes');
@@ -1541,9 +1582,9 @@ test("no recorded completion times leave an empty plot and named slots", async (
 });
 
 test("a sparse chart places its threshold label beside its columns", async ({ page }) => {
-  const row = await openPipeline(page, (payload) => {
+  const row = await withRecentRun(page, 60 * 60 * 1000, (payload) => {
     payload.groups[0].products[0].recent_inits = payload.groups[0].products[0].recent_inits.slice(-1);
-    return withRecentRun(payload, 60 * 60 * 1000);
+    return payload;
   });
   await row.locator('[data-slot="details-button"]').click();
   const result = await row.locator('.pipeline-lead-lanes').evaluate((node) => {
@@ -1571,10 +1612,10 @@ test("two parked runs are named below the lanes by init", async ({ page }) => {
 });
 
 test("an explicit unobserved group has different evidence wording from an absent group", async ({ page }) => {
-  await openPipeline(page, (payload) => {
+  await withRecentRun(page, 60 * 60 * 1000, (payload) => {
     const product = payload.groups[0].products.find((entry) => entry.id === 'fixture-mixed-lead-lanes');
     product.recent_inits[2].lead_groups.find((group) => group.name === 'f000').status = 'unobserved';
-    return withRecentRun(payload, 60 * 60 * 1000);
+    return payload;
   });
   const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
   await row.locator('[data-slot="details-button"]').click();
@@ -1587,12 +1628,12 @@ test("an explicit unobserved group has different evidence wording from an absent
 
 test("a pending group is a hollow ring and keyboard activation shows its value", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  await openPipeline(page, (payload) => {
+  await withRecentRun(page, 60 * 60 * 1000, (payload) => {
     const product = payload.groups[0].products.find((entry) => entry.id === 'fixture-mixed-lead-lanes');
     const pending = product.recent_inits.at(-1).lead_groups.find((group) => group.name === 'f072');
     pending.status = 'pending';
     delete pending.timing;
-    return withRecentRun(payload, 60 * 60 * 1000);
+    return payload;
   });
   const row = page.locator('[data-product-id="fixture-mixed-lead-lanes"]');
   await row.locator('[data-slot="details-button"]').click();
@@ -1607,9 +1648,9 @@ test("a pending group is a hollow ring and keyboard activation shows its value",
 
 for (const hours of [18, 48]) {
   test(`HRRR ${hours}h source budgets show grain deadlines and unjudged inits`, async ({ page }) => {
-    await openPipeline(page, (payload) => {
+    await withRecentRun(page, 60 * 60 * 1000, (payload) => {
       payload.groups[0].products.push(sourceBudgetProduct(payload.groups[0].products[0], hours));
-      return withRecentRun(payload, 60 * 60 * 1000);
+      return payload;
     });
     const row = page.locator(`[data-product-id="noaa-hrrr-forecast-${hours}-hour-virtual"]`);
     await row.locator('[data-slot="details-button"]').click();
