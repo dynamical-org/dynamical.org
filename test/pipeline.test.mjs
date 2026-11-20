@@ -658,9 +658,50 @@ test("a shorter report cannot fill a scheduled but unreported longer run", () =>
   const missing = resolveLeadRun(merged, time("06"));
   for (const band of bandsOf(merged)) assert.equal(cellOf(band, missing).state, "unobserved");
   assert.ok(leadLaneSeries(merged, Date.parse(time("12"))).every((lane) =>
-    lane.slots.every((slot) => slot.init.init_time !== time("06")),
+    lane.slots.find((slot) => slot.init.init_time === time("06"))?.state === "unobserved",
   ));
   assert.equal(resolveLeadRun(merged, time("03")).status, "not_scheduled");
+});
+
+test("an unreported shorter backer leaves its out-of-horizon band empty", () => {
+  const { time, long, short } = variantPair();
+  const shortest = {
+    ...short,
+    id: "shortest",
+    variant: { id: "6h", label: "6 hour · hourly" },
+    lead_groups: [{ name: "forecast", label: "6h" }],
+    recent_inits: [short.recent_inits[1]],
+  };
+  short.recent_inits = [];
+  const [merged] = mergeVariantRows([long, short, shortest]);
+  const [top, bottom] = bandsOf(merged);
+  const init = resolveLeadRun(merged, time("01"));
+  assert.equal(cellOf(top, init).state, "beyond_horizon");
+  assert.equal(cellOf(bottom, init).state, "unobserved");
+  const lanes = leadLaneSeries(merged, Date.parse(time("12")));
+  assert.equal(lanes.find((lane) => lane.label === "2d").slots.some(
+    (slot) => slot.init.init_time === time("01"),
+  ), false);
+});
+
+test("a member without configured init hours can back a run at any hour", () => {
+  const { time, long, short } = variantPair();
+  delete long.init_hours;
+  long.recent_inits[0].init_time = time("05");
+  const [merged] = mergeVariantRows([long, short]);
+  const [top] = bandsOf(merged);
+  assert.equal(cellOf(top, resolveLeadRun(merged, time("05"))).state, "complete");
+  assert.equal(cellOf(top, resolveLeadRun(merged, time("03"))).state, "unobserved");
+});
+
+test("an off-schedule report keeps its measurement when no member is scheduled", () => {
+  const { time, long, short } = variantPair();
+  short.recent_inits[1].init_time = time("03");
+  const [merged] = mergeVariantRows([long, short]);
+  const [top, bottom] = bandsOf(merged);
+  const init = resolveLeadRun(merged, time("03"));
+  assert.equal(cellOf(bottom, init).state, "complete");
+  assert.equal(cellOf(top, init).state, "beyond_horizon");
 });
 
 test("disjoint schedules retain both runs and re-key a virtual forecast band by its label", () => {
@@ -692,13 +733,14 @@ test("shorter or missing runs at the end of the axis cannot shrink the longest b
 });
 
 test("a single variant or legacy row keeps its own history even with the same source label", () => {
-  const { long, short } = variantPair();
+  const { time, long, short } = variantPair();
   const legacy = { ...short, variant: undefined };
   const standalone = { ...short, row_label: "Mirror" };
-  const products = [long, legacy, standalone];
-  const rows = mergeVariantRows(products);
-  assert.equal(rows.length, 3);
-  products.forEach((product, index) => assert.equal(rows[index], product));
+  const [longRow, legacyRow, mirrorRow] = mergeVariantRows([long, legacy, standalone]);
+  assert.equal(cellOf(bandsOf(longRow)[0], resolveLeadRun(longRow, time("00"))).state, "complete");
+  for (const row of [legacyRow, mirrorRow]) {
+    assert.equal(cellOf(bandsOf(row)[0], resolveLeadRun(row, time("00"))).state, "failed");
+  }
 });
 
 test("family captions show each distinct variant once in payload order and omit lone labels", () => {
@@ -716,13 +758,18 @@ test("lag pairing resolves source ids that belong to shorter merged rows", () =>
   const mirror = { ...long, id: "long-mirror", row_label: "Mirror" };
   const shortMirror = { ...short, id: "short-mirror", row_label: "Mirror" };
   const virtual = {
-    ...lagProduct([], readyPipelineLag({ source_ids: [short.id, shortMirror.id] })),
+    ...lagProduct([], selectedFamiliesLag({ source_ids: [short.id, shortMirror.id] })),
     id: "virtual",
   };
-  assert.deepEqual(lagSources(virtual, [long, mirror]), []);
+  const init = short.recent_inits[1];
+  virtual.recent_inits = [{
+    ...lagInit(init.init_time, undefined, "complete", 4300),
+    source_lead_groups: { forecast: 4000 },
+  }];
+  assert.equal(lagAt(virtual, lagSources(virtual, [long, mirror])).rows[0].last.lag, "—");
   const rows = mergeVariantRows([long, virtual, mirror, short, shortMirror]);
-  assert.deepEqual(lagSources(virtual, rows).map(({ id }) => id), [long.id, mirror.id]);
-  assert.equal(rows[1], virtual);
+  const row = rows.find((product) => product.id === virtual.id);
+  assert.equal(lagAt(row, lagSources(row, rows)).rows[0].last.lag, "5m");
 });
 
 function gefsVariantPair() {
@@ -761,14 +808,55 @@ test("a GEFS 16-day 18z run uses its own ETA and never inherits the 35-day cutof
   const now = Date.parse("2026-11-20T23:00:00Z");
   const [group] = detailRows(row, now, false).rows;
   assert.equal(group.run.time, "ETA 01:11");
+  assert.equal(group.run.timingReference, undefined);
   assert.equal(etaLineText(etaTarget(row).target, now, false), "ETA 01:11 (in 2h 11m)");
-  const lanes = leadLaneSeries(row, now);
-  const band = lanes.find((lane) => lane.label === "16d");
-  assert.equal(band.threshold, null);
-  assert.deepEqual(band.slots.map(({ threshold }) => threshold), [154099, null]);
-  const series = runChartSeries(row, now);
-  assert.equal(series.threshold, null);
-  assert.deepEqual(series.timingMarks.map(({ threshold }) => threshold), [103615.6614, null]);
+});
+
+test("GEFS preserves both lag measurements and explains only visible selected-family lags", () => {
+  const { long, short } = gefsVariantPair();
+  const [longSource, shortSource] = [long, short].map((product, index) => {
+    const stats = product.lead_group_stats[0];
+    stats.leads_in_group = 105;
+    return {
+      ...product,
+      id: `aws-${product.id}`,
+      recent_inits: [{
+        init_time: product.recent_inits[0].init_time,
+        status: "complete",
+        lead_groups: [{ name: stats.name, status: "complete", latency_s: index ? 4200 : 4000 }],
+      }],
+    };
+  });
+  for (const [product, source] of [[long, longSource], [short, shortSource]]) {
+    product.source_label = null;
+    product.row_label = "dynamical.org · virtual";
+    Object.assign(product.recent_inits[0].lead_groups[0], { status: "complete", latency_s: 4217 });
+    product.pipeline_lag = product === long
+      ? selectedFamiliesLag({ source_ids: [source.id] })
+      : readyPipelineLag({ source_ids: [source.id] });
+  }
+  long.recent_inits[0].source_lead_groups = { f384: 4205 };
+  const rows = mergeVariantRows([long, longSource, short, shortSource]);
+  const row = rows.find(isDynamicalRow);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  const details = detailRows(row, now, false, lagSources(row, rows));
+  const [group] = details.rows;
+  assert.equal(group.last.lag, "12s");
+  assert.equal(group.run.lag, "17s");
+  assert.ok(details.lagNote);
+
+  long.recent_inits = [];
+  const [wholeRun, source] = mergeVariantRows([long, longSource, short, shortSource]);
+  assert.equal(detailRows(wholeRun, now, false, [source]).lagNote, undefined);
+});
+
+test("a missing in-horizon lead in the current merged run still has a pending ETA", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].lead_groups = [];
+  const [row] = mergeVariantRows([long, short]);
+  const [group] = detailRows(row, Date.parse("2026-11-20T23:00:00Z"), false).rows;
+  assert.equal(group.run.state, "pending");
+  assert.equal(group.run.time, "ETA 01:11");
 });
 
 test("a scheduled shorter run uses its published completion estimate and its own cutoff", () => {
@@ -786,18 +874,49 @@ test("a scheduled shorter run uses its published completion estimate and its own
   assert.equal(etaTarget(row).target, short.next_expected_completion_at);
 });
 
+test("tied upcoming announcements use the longest variant scheduled at that hour", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].status = "complete";
+  long.next_expected_init = short.next_expected_init = "2026-11-21T00:00:00Z";
+  long.next_expected_completion_at = "2026-11-22T04:06:00Z";
+  short.next_expected_completion_at = "2026-11-21T07:12:00Z";
+  const [row] = mergeVariantRows([long, short]);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  const [, fullHorizon] = detailRows(row, now, false).rows;
+  assert.equal(fullHorizon.run.time, "ETA 04:06");
+  assert.equal(etaTarget(row).target, long.next_expected_completion_at);
+
+  long.next_expected_init = short.next_expected_init = "2026-11-21T06:00:00Z";
+  short.next_expected_completion_at = "2026-11-21T13:12:00Z";
+  const [shortRun] = mergeVariantRows([long, short]);
+  assert.equal(detailRows(shortRun, now, false).rows[1].run.state, "beyond_horizon");
+  assert.equal(etaTarget(shortRun).target, short.next_expected_completion_at);
+});
+
+test("a shorter member's early announcement uses the scheduled longer run's horizon and ETA", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].status = "complete";
+  short.next_expected_init = "2026-11-21T00:00:00Z";
+  short.next_expected_completion_at = "2026-11-21T07:12:00Z";
+  long.next_expected_init = "2026-11-22T00:00:00Z";
+  long.next_expected_completion_at = "2026-11-23T04:06:00Z";
+  const [row] = mergeVariantRows([long, short]);
+  const [, fullHorizon] = detailRows(row, Date.parse("2026-11-20T23:00:00Z"), false).rows;
+  assert.equal(fullHorizon.run.state, "upcoming");
+  assert.equal(fullHorizon.run.time, "ETA 04:06");
+  assert.equal(etaTarget(row).target, "2026-11-22T04:06:23.830Z");
+});
+
 test("a source-budget lead never borrows the run deadline when its own deadline is absent", () => {
   const { long, short } = gefsVariantPair();
   short.timing_baseline = { method: "source_budget" };
   short.recent_inits[0].deadline_s = 27000;
   const [row] = mergeVariantRows([long, short]);
-  const lanes = leadLaneSeries(row, Date.parse("2026-11-20T23:00:00Z"));
-  const band = lanes.find((lane) => lane.label === "16d");
-  assert.equal(band.slots.at(-1).deadline, null);
-  assert.equal(lanes.at(-1).slots.at(-1).deadline, 27000);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  assert.equal(detailRows(row, now, false).rows[0].run.timingReference, undefined);
   short.recent_inits[0].lead_groups[0].deadline_s = 26000;
   const [withDeadline] = mergeVariantRows([long, short]);
-  const [group] = detailRows(withDeadline, Date.parse("2026-11-20T23:00:00Z"), false).rows;
+  const [group] = detailRows(withDeadline, now, false).rows;
   assert.equal(group.run.timingReference, "deadline 01:13");
 });
 

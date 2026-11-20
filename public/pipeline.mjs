@@ -362,16 +362,30 @@ export function mergeVariantRows(products) {
     });
     const initTimes = [...new Set(members.flatMap(({ runs }) => [...runs.keys()]))]
       .sort((a, b) => Date.parse(a) - Date.parse(b));
-    const initHours = [...new Set(rowProducts.flatMap((product) => product.init_hours ?? []))].sort();
+    const initHours = rowProducts.every((product) => product.init_hours)
+      ? [...new Set(rowProducts.flatMap((product) => product.init_hours))].sort()
+      : Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"));
+    const scheduledMemberIndex = (initTime) => {
+      const hour = initParts(initTime).time.slice(0, 2);
+      return members.findIndex(({ product }) => !product.init_hours || product.init_hours.includes(hour));
+    };
     // Include the gap from the last init of one UTC day to the first of the next.
     const gaps = initHours.map((hour, index) =>
       Number(initHours[index + 1] ?? initHours[0]) - Number(hour) + (index === initHours.length - 1 ? 24 : 0),
     );
-    const next = members.reduce((soonest, member) => {
+    const announced = members.reduce((soonest, member) => {
       const time = Date.parse(member.product.next_expected_init);
       return time < (soonest ? Date.parse(soonest.product.next_expected_init) : Infinity)
         ? member : soonest;
     }, null);
+    const nextInit = announced?.product.next_expected_init;
+    const next = announced && (members[scheduledMemberIndex(nextInit)] ?? announced);
+    let nextCompletion = next?.product.next_expected_completion_at;
+    // A completion published for a different init cannot be reused as a date.
+    if (next && Date.parse(next.product.next_expected_init) !== Date.parse(nextInit)) {
+      const p95 = next.product.latency_stats?.p95_s;
+      nextCompletion = Number.isFinite(p95) ? new Date(Date.parse(nextInit) + p95 * 1000).toISOString() : null;
+    }
 
     return {
       ...longest,
@@ -379,26 +393,26 @@ export function mergeVariantRows(products) {
       init_hours: initHours,
       cadence_hours: gaps.length ? Math.min(...gaps) : longest.cadence_hours,
       memberSources: [...new Set(rowProducts.map((product) => product.source).filter(Boolean).map(displaySource))],
-      next_expected_init: next?.product.next_expected_init,
-      next_expected_completion_at: next?.product.next_expected_completion_at,
+      next_expected_init: nextInit,
+      next_expected_completion_at: nextCompletion,
       nextExpectedRun: next && {
         variant: next.variant, coverage: next.coverage, variantTiming: next.variantTiming,
-        completionAt: next.product.next_expected_completion_at,
+        completionAt: nextCompletion,
       },
       sizingLeadGroups: longest.recent_inits.at(-1)?.lead_groups ?? [],
       recent_inits: initTimes.map((initTime) => {
-        const hour = initParts(initTime).time.slice(0, 2);
-        const index = members.findIndex(({ product }) => product.init_hours?.includes(hour));
+        const scheduled = scheduledMemberIndex(initTime);
+        const index = scheduled < 0 ? members.findIndex(({ runs }) => runs.has(initTime)) : scheduled;
         const backing = members[index];
-        const init = backing?.runs.get(initTime);
+        const { product, names, variant, coverage, variantTiming } = backing;
+        const pipelineLag = product.pipeline_lag;
+        const init = backing.runs.get(initTime);
         if (!init) return {
           init_time: initTime,
-          variant: backing?.variant,
-          variantTiming: backing?.variantTiming,
-          status: backing ? "unobserved" : "not_scheduled",
+          variant, coverage, variantTiming, pipelineLag,
+          status: "unobserved",
           unreported: true,
         };
-        const { names, variant, coverage, variantTiming } = backing;
         const lead_groups = init.lead_groups?.flatMap((group) => {
           const name = names.get(group.name);
           return name == null ? [] : [{ ...group, name }];
@@ -414,7 +428,7 @@ export function mergeVariantRows(products) {
           const run = member.runs.get(initTime);
           return run?.status ? [{ variant: member.variant, status: run.status, timing: run.timing }] : [];
         });
-        return { ...init, variant, coverage, variantTiming, lead_groups, source_lead_groups, shorterRuns };
+        return { ...init, variant, coverage, variantTiming, pipelineLag, lead_groups, source_lead_groups, shorterRuns };
       }),
     };
   });
@@ -1284,10 +1298,10 @@ export function etaLineText(target, now, local) {
 
 // The percentile columns summarise every init in the historical baseline, not
 // just the runs the grid draws, so the header names the sample they came from.
-function statsHeader(sampleInitCount, note = null) {
-  if (!sampleInitCount) return "time after init";
+function statsHeader(sampleInitCount, note, title) {
+  if (!sampleInitCount) return title;
   const samples = sampleInitCount === 1 ? "sample" : "samples";
-  const header = `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
+  const header = `${title} · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
   // the sample is thin, so the columns beside it come with no timing verdict
   return note ? `${header} · ${note}` : header;
 }
@@ -1296,8 +1310,9 @@ function statsHeader(sampleInitCount, note = null) {
    The feed's family names are its own, so the note names none of them. The
    other bases say nothing beyond the column header. */
 
-export function lagBasisNote(lag) {
+export function lagBasisNote(lag, runLabel) {
   if (!validPipelineLag(lag) || lag.basis !== "selected_families") return null;
+  if (runLabel) return `The ${runLabel} run's lag uses the source file families required by this dataset.`;
   return "Lag uses the source file families required by this dataset, not the source's whole run.";
 }
 
@@ -1440,7 +1455,6 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
   if (!init) return NO_RUN;
   if (beyondHorizon(init, stats.name)) return beyondHorizonDetail(init);
   const baseline = init.variantTiming;
-  if (baseline && !live) return NO_RUN;
   const bandStats = baseline ? baseline.leadStats.get(stats.name) : stats;
   const initMs = Date.parse(init.init_time);
   let time = "—";
@@ -1520,20 +1534,24 @@ export function detailRows(product, now, local, sources = []) {
   const afterLast = sourceArrivals(sources, last?.init_time);
   const afterActive = sourceArrivals(sources, active?.init_time);
   const horizons = horizonIndex(product);
-  const history = statsHeader(product.latency_stats?.sample_init_count, timingBaselineNote(product));
-  // a selected-families lag reads only its own map, and only when the lag
-  // block that names it is whole; it never falls back to the source row
-  const selected = product.pipeline_lag?.basis === "selected_families";
-  const selectedValid =
-    selected && sources.length > 0 && validPipelineLag(product.pipeline_lag);
+  const historyTitle = product.memberIds ? `${variantHorizon(product.variant)} history` : "time after init";
+  const lastLag = product.memberIds ? last?.pipelineLag : product.pipeline_lag;
+  const activeLag = product.memberIds ? active?.pipelineLag : product.pipeline_lag;
+  const lastLagNote = lagBasisNote(lastLag);
+  const activeLagNote = lagBasisNote(activeLag);
+  const lagNote = lastLagNote === activeLagNote
+    ? lastLagNote
+    : lastLagNote ? lagBasisNote(lastLag, "last") : lagBasisNote(activeLag, "current");
   // this run's horizon, less the source's own arrival for the same horizon
-  const lagOf = (init, arrivals, stats) => {
-    if (selected) {
-      if (!selectedValid) return null;
+  const lagOf = (init, lag, arrivals, stats) => {
+    if (lag?.basis === "selected_families") {
+      // A selected-families lag never falls back to the source's whole run.
+      if (!sources.length || !validPipelineLag(lag)) return null;
       const ours = arrivedAt(init, stats.name);
       const theirs = selectedSourceArrival(init, stats.name);
       return ours == null || theirs == null ? null : ours - theirs;
     }
+    if (product.memberIds && !validPipelineLag(lag)) return null;
     const key = horizons.keyByName.get(stats.name);
     if (key == null || horizons.ambiguous.has(key)) return null;
     const ours = arrivedAt(init, stats.name);
@@ -1544,11 +1562,12 @@ export function detailRows(product, now, local, sources = []) {
     // a row measures its lag against the source the feed pairs it with; every
     // other row has no source to be late after
     lagged: sources.length > 0,
+    ...(sources.length && lagNote ? { lagNote } : {}),
     lastHeader: labelledRun("last run", last?.init_time, local, last?.variant),
     runHeader: active
       ? labelledRun("current run", active.init_time, local, active.variant)
       : labelledRun("upcoming run", upcoming, local, product.nextExpectedRun?.variant),
-    statsHeader: product.memberIds ? `${history} · ${variantHorizon(product.variant)}` : history,
+    statsHeader: statsHeader(product.latency_stats?.sample_init_count, timingBaselineNote(product), historyTitle),
     rows: (product.lead_group_stats ?? []).map((stats, index) => ({
       name: stats.name,
       label: stats.label,
@@ -1559,7 +1578,7 @@ export function detailRows(product, now, local, sources = []) {
         now,
         local,
         false,
-        lagOf(last, afterLast, stats),
+        lagOf(last, lastLag, afterLast, stats),
       ),
       run: active
         ? observedRunDetail(
@@ -1569,7 +1588,7 @@ export function detailRows(product, now, local, sources = []) {
             now,
             local,
             true,
-            lagOf(active, afterActive, stats),
+            lagOf(active, activeLag, afterActive, stats),
           )
         : upcomingRunDetail(upcoming, stats, local, product.nextExpectedRun),
       p50: formatLatency(stats.p50_s),
@@ -1720,19 +1739,18 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
    horizon, a missing measurement and an explicit unobserved entry have
    different titles. */
 export function leadLaneSeries(product, now, inits = product.recent_inits ?? []) {
-  const reported = inits.filter((init) => !init.unreported);
   const stats = new Map((product.lead_group_stats ?? []).map((entry) => [entry.name, entry]));
   const leads = bandsOf(product).map((band) => {
     const threshold = product.memberIds ? null : delayedThreshold(product, stats.get(band.key));
-    const slots = reported.filter((init) => !beyondHorizon(init, band.key)).map((init) => {
+    const slots = inits.filter((init) => !beyondHorizon(init, band.key)).map((init) => {
       const entry = init.lead_groups?.find((group) => group.name === band.key);
       const baseline = init.variantTiming;
       const timing = {
         deadline: leadDeadline(baseline ?? product, init, entry),
         threshold: baseline ? delayedThreshold(baseline, baseline.leadStats.get(band.key)) : null,
       };
+      if (init.unreported || entry?.status === "unobserved") return { init, state: "unobserved", ...timing };
       if (!entry) return { init, state: "missing", ...timing };
-      if (entry.status === "unobserved") return { init, state: "unobserved", ...timing };
       const ms = Date.parse(init.init_time);
       if (!Number.isFinite(ms)) return { init, state: "missing", ...timing };
       const elapsed = entry.status === "pending" || entry.status === "in_flight";
@@ -1748,9 +1766,9 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
     return { name: band.key, label: band.label, slots, threshold,
       runs: slots.filter((slot) => slot.run).map((slot) => slot.run) };
   });
-  const runSeries = runChartSeries(product, now, reported);
+  const runSeries = runChartSeries(product, now, inits);
   const runByInit = new Map(runSeries.runs.map((run) => [run.init.init_time, run]));
-  for (const init of reported) {
+  for (const init of inits) {
     const ms = Date.parse(init.init_time);
     if (init.status !== "failed" || !Number.isFinite(ms) || runByInit.has(init.init_time)) continue;
     const run = {
@@ -1762,7 +1780,7 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
   }
   const runLane = {
     name: "run", label: "run", ...runSeries,
-    slots: reported.map((init) => ({ init,
+    slots: inits.map((init) => ({ init,
       state: runByInit.has(init.init_time) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
       run: runByInit.get(init.init_time),
       deadline: positiveSeconds(init.deadline_s),
@@ -2716,8 +2734,7 @@ function Details({
     </table>
   </div>`;
   // a lag over the source's selected families says what it was measured against
-  const lagNote = afterSource && lagBasisNote(product.pipeline_lag);
-  const note = lagNote && html`<p key="lag-note">${lagNote}</p>`;
+  const note = afterSource && details.lagNote && html`<p key="lag-note">${details.lagNote}</p>`;
   const facets = facetRows(product);
   if (facets.length === 0) return html`${chart}${note}${leadTable}`;
 
