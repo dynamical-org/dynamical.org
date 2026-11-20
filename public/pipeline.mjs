@@ -40,6 +40,7 @@ const LABEL_PX = 12; // one axis-label row
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
+export const INIT_AXIS_SCOPE = "family"; // or "variant"
 const QUANTILE_ORDER_TOLERANCE_S = 1e-9;
 
 function hasTimestamp(value) {
@@ -271,18 +272,31 @@ export function agencyGroups(groups) {
   return Array.from(agencies, ([agency, groups]) => ({ agency, groups }));
 }
 
-/* The TOC's short name for a model: the agency is its heading, every entry is a
-   forecast, and the domain and grid resolution ("continental 2.5 km",
-   "0.25 degree") are the dataset's business, not the model's, so all of them
-   come off. The section heading keeps the full label. */
+/* The TOC's short name omits the agency, "forecast" and regional grid
+   descriptions. Degree resolutions distinguish separate model families. */
 export function tocModelLabel(label, agency) {
   const name = label.startsWith(`${agency} `) ? label.slice(agency.length + 1) : label;
   return name
     .replace(/\s+forecast\b/gi, "")
-    .replace(/,\s*[\d.]+\s*degrees?\b/gi, "")
     .replace(/\s+continental\b/gi, "")
     .replace(/\s+[\d.]+\s*km\b/gi, "")
     .trim();
+}
+
+export function variantBlocks(products) {
+  const variants = new Set(products.filter((product) => product.variant).map((product) => product.variant.id));
+  if (variants.size <= 1) return [{ variant: null, products }];
+
+  const blocks = [];
+  for (const product of products) {
+    const last = blocks.at(-1);
+    if (last && last.variant?.id === product.variant?.id) {
+      last.products.push(product);
+    } else {
+      blocks.push({ variant: product.variant, products: [product] });
+    }
+  }
+  return blocks;
 }
 
 function productsOf(dashboard) {
@@ -602,13 +616,50 @@ function runsFitting(availablePx, gutter, runWidth, gap) {
   );
 }
 
-export function runsThatFit(product, availablePx, local) {
-  return runsFitting(
-    availablePx,
-    gutterPx(bandsOf(product)),
-    initColumnPx(product, selectedTimeZone(local)),
-    RUN_GAP_PX,
-  );
+export function runsThatFit(product, availablePx, local, {
+  gutter = gutterPx(bandsOf(product)),
+  column = initColumnPx(product, selectedTimeZone(local)),
+} = {}) {
+  return runsFitting(availablePx, gutter, column, RUN_GAP_PX);
+}
+
+/* A scope's shared gutter and column width put every init at the same x
+   position, even when the rows have different lead labels or recent runs. */
+export function sharedInitAxes(products, widths, local, scope = INIT_AXIS_SCOPE) {
+  const scopes = new Map();
+  for (const product of products) {
+    if (!product.variant) continue;
+    const key = scope === "variant" ? product.variant.id : null;
+    if (!scopes.has(key)) scopes.set(key, []);
+    scopes.get(key).push(product);
+  }
+
+  const axes = new Map();
+  for (const rows of scopes.values()) {
+    const inits = new Map();
+    for (const row of rows) {
+      for (const init of row.recent_inits) inits.set(init.init_time, init);
+    }
+    const runs = [...inits.values()].sort((a, b) => Date.parse(a.init_time) - Date.parse(b.init_time));
+    const geometry = {
+      gutter: Math.max(...rows.map((row) => gutterPx(bandsOf(row)))),
+      column: initColumnPx({ recent_inits: runs }, selectedTimeZone(local)),
+    };
+    const count = Math.min(...rows.map((row) => runsThatFit(row, widths.get(row.id), local, geometry)));
+    const axis = { ...geometry, runs: runs.slice(-count) };
+    for (const row of rows) axes.set(row.id, axis);
+  }
+  return axes;
+}
+
+export function resolveLeadRun(product, initTime) {
+  const own = product.recent_inits.find((init) => init.init_time === initTime);
+  if (own) return own;
+  const hour = initParts(initTime).time.slice(0, 2);
+  return {
+    init_time: initTime,
+    status: product.init_hours && !product.init_hours.includes(hour) ? "not_scheduled" : "unobserved",
+  };
 }
 
 /* A facet grid spends its width on lead columns inside every run, and those
@@ -657,6 +708,7 @@ function Band({
 export function cellOf(band, init) {
   if (!init) return { state: "unobserved" };
   if (init.status === "unobserved") return { state: "unobserved" };
+  if (init.status === "not_scheduled") return { state: "not_scheduled" };
 
   if (band.kind === "lead") {
     const slice = leadSlices(init.lead_groups ?? []).find(
@@ -690,6 +742,9 @@ function facetCell(facet, init, timing = init.timing) {
 
 export function cellTitle(band, init, cell, local) {
   if (!init) return `${band.label} · not reported`;
+  if (cell.state === "not_scheduled") {
+    return `${band.label} · not scheduled at ${initParts(init.init_time).time}`;
+  }
   const when = initShort(init.init_time, local);
   if (cell.state === "unobserved") {
     return `${band.label} · ${when} · no probe visibility; not a publication failure`;
@@ -1020,15 +1075,19 @@ function FacetRowsField({ product, local, runCount, dimension }) {
   </div>`;
 }
 
-function LeadField({ product, local, runCount }) {
-  const runs = displayedRuns(product, runCount);
+function LeadField({ product, local, runCount, sharedAxis }) {
+  const runs = sharedAxis
+    ? sharedAxis.runs.map((init) => resolveLeadRun(product, init.init_time))
+    : displayedRuns(product, runCount);
   const extents = leadExtents(product);
-  const column = initColumnPx(product, selectedTimeZone(local));
+  const bands = bandsOf(product);
+  const column = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
+  const gutter = sharedAxis?.gutter ?? gutterPx(bands);
   return html`<div
     class="pipeline-field"
-    style=${`--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
+    style=${`--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutter}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
   >
-    ${bandsOf(product).map(
+    ${bands.map(
       (band) =>
         html`<${Band}
           key=${band.key}
@@ -2514,33 +2573,19 @@ function Row({
   advisory,
   local,
   now,
+  width,
+  sharedAxis,
   sources,
   viewIndex,
   expanded,
   onCycle,
   onToggle,
 }) {
-  // the run count comes from the measured row body: a 1fr grid column, so its
-  // width does not depend on the field it holds. Measured once the row is in
-  // the DOM and again whenever the body changes size — a window resize, a
-  // font landing, the toc rail appearing — and the field waits for it.
-  const body = useRef(null);
-  const [width, setWidth] = useState(null);
-  useLayoutEffect(() => {
-    const node = body.current;
-    if (!node) return undefined;
-    const measure = () => setWidth(node.getBoundingClientRect().width);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
   // the lead grid is the view a row opens on; the facet grids are a click away
   const views = viewsOf(product);
   const index = wrapIndex(viewIndex, views.length);
   const view = views[index];
-  // how many runs the field shows; the chart in the details shows the same
+  // the facet fields and details charts use the row's own run history and fit
   const runCount =
     width == null
       ? null
@@ -2560,8 +2605,9 @@ function Row({
           product=${product}
           local=${local}
           runCount=${runCount}
+          sharedAxis=${sharedAxis}
         />`;
-  }, [product, local, runCount, index]);
+  }, [product, local, runCount, index, sharedAxis]);
 
   // the cycle is only reachable, and only worth announcing, when a product has
   // more than the one view
@@ -2590,7 +2636,7 @@ function Row({
         >${advisory ? `⚠ ${advisory.agency.toUpperCase()} advisory` : ""}</div>
       </div>
     </div>
-    <div class="pipeline-row-body" ref=${body}>
+    <div class="pipeline-row-body">
       <div
         class="pipeline-viz"
         data-slot="field"
@@ -2669,8 +2715,66 @@ function TocTree({ agencies }) {
 /* The groups and their rows, keyed by id so a poll that reorders or adds a
    product moves nodes rather than rebuilding them. */
 
+function Group({ group, aliases, advisories, state, actions }) {
+  const section = useRef(null);
+  const [widths, setWidths] = useState(() => new Map());
+  const { products } = group;
+  useLayoutEffect(() => {
+    // The row bodies have a grid track independent of their fields. Measure
+    // them together so one resize produces a fit for the whole scope.
+    const bodies = Array.from(section.current.querySelectorAll(":scope > .pipeline-row > .pipeline-row-body"));
+    const measure = () => {
+      const measured = new Map(bodies.map((body) => [
+        body.parentElement.dataset.productId, body.getBoundingClientRect().width,
+      ]));
+      setWidths((previous) =>
+        previous.size === measured.size && [...measured].every(([id, width]) => previous.get(id) === width)
+          ? previous
+          : measured,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const body of bodies) observer.observe(body);
+    return () => observer.disconnect();
+  }, [products]);
+
+  const axes = useMemo(() => sharedInitAxes(products, widths, state.local), [products, widths, state.local]);
+  const blocks = useMemo(() => variantBlocks(products), [products]);
+  return html`<section class="pipeline-group" ref=${section}>
+    ${aliases.map(
+      (alias) => html`<span key=${alias} id=${`pipeline-group-${alias}`}></span>`,
+    )}
+    <h3 key="heading" id=${`pipeline-group-${group.id}`}>${group.label}</h3>
+    ${blocks.flatMap((block) => [
+      block.variant && html`<h4 key=${`variant-${block.products[0].id}`} class="pipeline-variant">
+        ${block.variant.label}
+      </h4>`,
+      ...block.products.map(
+        (product) => html`<${Row}
+          key=${product.id}
+          product=${product}
+          advisory=${advisories.findLast((advisory) =>
+            advisory.product_ids?.includes(product.id),
+          )}
+          local=${state.local}
+          now=${state.now}
+          width=${widths.get(product.id)}
+          sharedAxis=${axes.get(product.id)}
+          sources=${lagSources(product, products)}
+          viewIndex=${state.views[product.id] ?? 0}
+          expanded=${state.expanded[product.id] ?? false}
+          onCycle=${() => actions.cycleView(product)}
+          onToggle=${() => actions.toggleDetails(product.id)}
+        />`,
+      ),
+    ])}
+  </section>`;
+}
+
 function Groups({ state, actions, agencies }) {
   const { dashboard } = state;
+  const initialHash = useRef(location.hash);
   // the toc script caches the group headings and their links, so it is told
   // when they first exist and whenever the set of groups changes — nothing
   // below a group is its business
@@ -2682,6 +2786,16 @@ function Groups({ state, actions, agencies }) {
     : null;
   useEffect(() => {
     if (signature === null) return;
+    // On a direct visit the browser can see the fragment before the fetched
+    // dashboard has rendered its alias.
+    const hash = initialHash.current;
+    initialHash.current = "";
+    if (hash && hash === location.hash) {
+      const alias = document.getElementById(hash.slice(1));
+      if (alias?.matches(".pipeline-group > span")) {
+        alias.parentElement.querySelector("h3").scrollIntoView();
+      }
+    }
     document.dispatchEvent(new Event("md-toc:refresh"));
   }, [signature]);
 
@@ -2691,28 +2805,13 @@ function Groups({ state, actions, agencies }) {
   const advisories = dashboard.advisories ?? [];
   const aliases = groupAliases(dashboard.groups);
   return agencies.flatMap(({ groups }) => groups).map(
-    (group) => html`<section key=${group.id} class="pipeline-group">
-      ${aliases.get(group.id).map(
-        (alias) => html`<span key=${alias} id=${`pipeline-group-${alias}`}></span>`,
-      )}
-      <h3 key="heading" id=${`pipeline-group-${group.id}`}>${group.label}</h3>
-      ${group.products.map(
-        (product) => html`<${Row}
-          key=${product.id}
-          product=${product}
-          advisory=${advisories.findLast((advisory) =>
-            advisory.product_ids?.includes(product.id),
-          )}
-          local=${state.local}
-          now=${state.now}
-          sources=${lagSources(product, group.products)}
-          viewIndex=${state.views[product.id] ?? 0}
-          expanded=${state.expanded[product.id] ?? false}
-          onCycle=${() => actions.cycleView(product)}
-          onToggle=${() => actions.toggleDetails(product.id)}
-        />`,
-      )}
-    </section>`,
+    (group) => html`<${Group} key=${group.id}
+      group=${group}
+      aliases=${aliases.get(group.id)}
+      advisories=${advisories}
+      state=${state}
+      actions=${actions}
+    />`,
   );
 }
 

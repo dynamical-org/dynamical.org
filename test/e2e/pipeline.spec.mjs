@@ -19,9 +19,18 @@ const PATH = "/status/pipeline/";
 const FIXTURE = JSON.parse(
   readFileSync(new URL("../fixtures/pipeline-dashboard.json", import.meta.url)),
 );
+// Keep exercising the payload deployed during the rollout, including rows
+// whose individual run histories differ.
+const LEGACY_FIXTURE = {
+  ...FIXTURE,
+  groups: FIXTURE.groups.filter(({ id }) => ["noaa-gfs", "eccc-hrdps"].includes(id)).map((group) => ({
+    ...group,
+    products: group.products.map(({ variant, ...product }) => product),
+  })),
+};
 
 // [group id, full heading, TOC entry]: the TOC drops the agency (its heading),
-// "forecast", domain and grid resolution; the section heading keeps the full label.
+// "forecast", domain and km resolution; the section heading keeps the full label.
 const TOC_MODELS = [
   ["noaa-gfs", "NOAA GFS forecast", "GFS"],
   ["noaa-gefs-long", "NOAA GEFS forecast, 35 day", "GEFS, 35 day"],
@@ -30,7 +39,7 @@ const TOC_MODELS = [
   ["noaa-hrrr-18h", "NOAA HRRR forecast, 18 hour", "HRRR, 18 hour"],
   ["ecmwf-aifs", "ECMWF AIFS Single forecast", "AIFS Single"],
   ["ecmwf-aifs-ens", "ECMWF AIFS ENS forecast", "AIFS ENS"],
-  ["ecmwf-ifs-ens-long", "ECMWF IFS ENS forecast, 15 day, 0.25 degree", "IFS ENS, 15 day"],
+  ["ecmwf-ifs-ens-long", "ECMWF IFS ENS forecast, 15 day, 0.25 degree", "IFS ENS, 15 day, 0.25 degree"],
   ["ecmwf-ifs-ens-short", "ECMWF IFS ENS 6-day", "IFS ENS 6-day"],
   ["dwd-icon-eu", "DWD ICON-EU forecast, 5 day", "ICON-EU, 5 day"],
   ["eccc-hrdps", "ECCC HRDPS continental 2.5 km", "HRDPS"],
@@ -67,7 +76,7 @@ const REPEATED_LEAD_LABELS = Array.from(
 /** Serve the pipeline page its data, optionally reshaped for one test. The
  * reshaping sees which request this is, counted from one, so a spec can hand
  * the poll something different from what the page loaded with. */
-async function stubPipeline(page, mutate = (payload) => payload) {
+async function stubPipeline(page, mutate = (payload) => payload, fixture = LEGACY_FIXTURE) {
   let served = 0;
   // what the first row was served, for the chart alignment check to read
   await page.addInitScript(() => {
@@ -75,7 +84,7 @@ async function stubPipeline(page, mutate = (payload) => payload) {
   });
   await page.route("**/dashboard.json", async (route) => {
     served += 1;
-    const payload = mutate(structuredClone(FIXTURE), served);
+    const payload = mutate(structuredClone(fixture), served);
     await page.evaluate((inits) => {
       window.__pipelineInits = Object.fromEntries(inits.map((init) => [init.init_time, init]));
     }, payload.groups[0].products[0].recent_inits ?? []).catch(() => {});
@@ -119,8 +128,8 @@ function withRecentRun(payload, agoMs) {
   );
 }
 
-async function openPipeline(page, mutate) {
-  await stubPipeline(page, mutate);
+async function openPipeline(page, mutate, fixture) {
+  await stubPipeline(page, mutate, fixture);
   const response = await page.goto(PATH);
   expect(response?.status(), `${PATH} did not return 200`).toBe(200);
   // the field is rendered from the fetched payload, not the build
@@ -224,6 +233,7 @@ test("the table of contents follows the rendered pipeline groups", async ({
     "GFS",
     "HRDPS",
   ]);
+  await expect(page.locator(".pipeline-group > h4")).toHaveCount(0);
   expect(
     await links.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("href")),
@@ -233,6 +243,67 @@ test("the table of contents follows the rendered pipeline groups", async ({
   await links.nth(1).click();
   await expect(page).toHaveURL(/#pipeline-group-eccc-hrdps$/);
   await expect(links.nth(1)).toHaveClass(/active/);
+});
+
+test("family headings preserve resolution, variant labels and former section links", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await stubPipeline(page, undefined, FIXTURE);
+  const former = "#pipeline-group-ecmwf-ifs-ens-short";
+  await page.goto(`${PATH}${former}`);
+  const family = page.locator(".pipeline-group").filter({ has: page.locator(former) });
+  await expect(page.locator(former)).toHaveCount(1);
+  await expect(page).toHaveURL(`${PATH}${former}`);
+  await expect(family.locator("h3")).toHaveText("ECMWF IFS ENS forecast, 0.25 degree");
+  await expect(family.locator("h3")).toBeInViewport();
+  await expect(family.locator("h4.pipeline-variant")).toHaveText(["15 day · every 12 h", "6 day · 06/18z"]);
+  await expect(page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-noaa-gefs-0-25") }).locator("h4")).toHaveCount(0);
+  await expect(page.locator('[data-slot="pipeline-toc"] a')).toHaveText([
+    "GFS", "GEFS, 0.25 degree", "GEFS, 0.5 degree", "IFS ENS, 0.25 degree", "HRDPS",
+  ]);
+});
+
+test.describe("model families with staggered schedules", () => {
+  test.use({ timezoneId: "Asia/Kolkata", locale: "en-US" });
+
+  test("init columns align across variants and mark off-schedule hours after refitting", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openPipeline(page, undefined, FIXTURE);
+    await page.selectOption("#status-time-toggle", "utc");
+    const family = page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-ecmwf-ifs-ens-0-25") });
+    const rows = family.locator(".pipeline-row");
+    const long = rows.locator('[data-init-time="2026-07-25T06:00:00Z"]').first();
+    await expect(long).toHaveClass(/\bg-not_scheduled\b/);
+    await expect(long).toHaveAttribute("title", /not scheduled at 06z$/);
+    await expect(long).toHaveCSS("background-image", "none");
+    await expect(long.locator(".pipeline-cell-fill")).toBeHidden();
+    await expect(rows.nth(1).locator('[data-init-time="2026-07-24T12:00:00Z"]')).toHaveClass(/\bg-unobserved\b/);
+    await expect(rows.nth(2).locator('[data-init-time="2026-07-25T06:00:00Z"]')).toHaveClass(/\bg-complete\b/);
+
+    const positions = () => rows.evaluateAll((nodes) => nodes.map((row) =>
+      [...row.querySelectorAll(".pipeline-band[data-kind] .pipeline-cell")].map((cell) => [
+        cell.dataset.initTime, cell.getBoundingClientRect().x,
+      ]),
+    ));
+    const expectAligned = async () => {
+      const [source, mirror, short] = await positions();
+      expect(mirror).toEqual(source);
+      expect(short).toEqual(source);
+    };
+    await expect(rows.first().locator(".pipeline-run-label")).toHaveCount(5);
+    await expectAligned();
+
+    const virtual = page.locator('[data-product-id="noaa-gfs-forecast-virtual"]');
+    await expect(virtual.locator(".pipeline-field .pipeline-run-label")).toHaveCount(10);
+    await virtual.locator('[data-slot="details-button"]').click();
+    await expect(virtual.locator(".pipeline-lead-lanes .pipeline-run-label")).toHaveCount(8);
+
+    await page.selectOption("#status-time-toggle", "local");
+    await expect(rows.first().locator(".pipeline-run-label").first()).toContainText("GMT");
+    await page.setViewportSize({ width: 320, height: 900 });
+    await expect.poll(() => rows.first().locator(".pipeline-run-label").count()).toBeLessThan(5);
+    await expect(long).toHaveAttribute("title", /not scheduled at 06z$/);
+    await expectAligned();
+  });
 });
 
 for (const width of [1440, 390]) {

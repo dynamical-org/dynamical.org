@@ -27,6 +27,10 @@
           "source_label": "AWS",
           "row_label": "AWS",
           "cadence_hours": 6,
+          "variant": {
+            "id": "noaa-gfs",
+            "label": "every 6 h"
+          },
           "init_hours": [
             "00",
             "06",
@@ -1945,6 +1949,10 @@
           "source_label": null,
           "row_label": "dynamical.org \u00b7 virtual",
           "cadence_hours": 6,
+          "variant": {
+            "id": "noaa-gfs",
+            "label": "every 6 h"
+          },
           "init_hours": [
             "00",
             "06",
@@ -2143,6 +2151,10 @@
           "source_label": "AWS",
           "row_label": "Mixed lead lanes",
           "cadence_hours": 6,
+          "variant": {
+            "id": "noaa-gfs",
+            "label": "every 6 h"
+          },
           "init_hours": [
             "00",
             "06",
@@ -2376,6 +2388,157 @@
       ]
     },
     {
+      "id": "noaa-gefs-0-25",
+      "agency": "NOAA",
+      "label": "NOAA GEFS forecast, 0.25 degree",
+      "aliases": ["noaa-gefs-10-day"],
+      "products": [
+        {
+          "id": "fixture-gefs-10-day",
+          "row_label": "AWS",
+          "variant": {
+            "id": "noaa-gefs-10-day",
+            "label": "10 day · every 6 h"
+          },
+          "init_hours": ["00", "06", "12", "18"],
+          "lead_groups": [{"name": "f240", "label": "10d"}],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f240", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "noaa-gefs-0-5",
+      "agency": "NOAA",
+      "label": "NOAA GEFS forecast, 0.5 degree",
+      "aliases": ["noaa-gefs-long", "noaa-gefs-35-day", "noaa-gefs-16-day", "noaa-gefs-short"],
+      "products": [
+        {
+          "id": "fixture-gefs-35-day",
+          "row_label": "AWS",
+          "variant": {
+            "id": "noaa-gefs-long",
+            "label": "35 day · daily"
+          },
+          "init_hours": ["00"],
+          "lead_groups": [{"name": "f840", "label": "35d"}],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f840", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            }
+          ]
+        },
+        {
+          "id": "fixture-gefs-16-day",
+          "row_label": "AWS",
+          "variant": {
+            "id": "noaa-gefs-16-day",
+            "label": "16 day · every 6 h"
+          },
+          "init_hours": ["00", "06", "12", "18"],
+          "lead_groups": [{"name": "f384", "label": "16d"}],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f384", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            },
+            {
+              "init_time": "2026-07-25T06:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f384", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ecmwf-ifs-ens-0-25",
+      "agency": "ECMWF",
+      "label": "ECMWF IFS ENS forecast, 0.25 degree",
+      "aliases": ["ecmwf-ifs-ens-long", "ecmwf-ifs-ens-short"],
+      "products": [
+        {
+          "id": "fixture-ifs-15-day-source",
+          "row_label": "ECMWF",
+          "variant": {
+            "id": "ecmwf-ifs-ens-long",
+            "label": "15 day · every 12 h"
+          },
+          "init_hours": ["00", "12"],
+          "lead_groups": [{"name": "f360", "label": "15d"}],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-24T12:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f360", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            },
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f360", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            },
+            {
+              "init_time": "2026-07-25T12:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f360", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            }
+          ]
+        },
+        {
+          "id": "fixture-ifs-15-day-mirror",
+          "row_label": "Mirror",
+          "variant": {
+            "id": "ecmwf-ifs-ens-long",
+            "label": "15 day · every 12 h"
+          },
+          "init_hours": ["00", "12"],
+          "lead_groups": [{"name": "f360", "label": "15d"}],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f360", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            },
+            {
+              "init_time": "2026-07-25T12:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f360", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            }
+          ]
+        },
+        {
+          "id": "fixture-ifs-6-day",
+          "row_label": "ECMWF",
+          "variant": {
+            "id": "ecmwf-ifs-ens-short",
+            "label": "6 day · 06/18z"
+          },
+          "init_hours": ["06", "18"],
+          "lead_groups": [{"name": "f144", "label": "6d"}],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-24T18:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f144", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            },
+            {
+              "init_time": "2026-07-25T06:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f144", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "eccc-hrdps",
       "agency": "ECCC",
       "label": "ECCC HRDPS continental 2.5 km",
@@ -2387,6 +2550,10 @@
           "source_label": "MSC Datamart",
           "row_label": "MSC Datamart",
           "cadence_hours": 6,
+          "variant": {
+            "id": "eccc-hrdps",
+            "label": "every 6 h"
+          },
           "init_hours": [
             "00",
             "06",

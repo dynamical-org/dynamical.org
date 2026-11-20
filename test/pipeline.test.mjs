@@ -3,7 +3,15 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { sourceBudgetProduct } from "./fixtures/pipeline-source-budget.mjs";
+import * as pipeline from "../public/pipeline.mjs";
+import { onRequestGet } from "../functions/pipeline-staging/[[path]].js";
 import {
+  agencyHealth,
+  systemHealth,
+} from "../public/status-health.mjs";
+import { localZoneLabel } from "../public/status-time.mjs";
+
+const {
   agencySummary,
   agencyGroups,
   tocModelLabel,
@@ -40,6 +48,9 @@ import {
   lagSources,
   lagBasisNote,
   groupAliases,
+  resolveLeadRun,
+  sharedInitAxes,
+  variantBlocks,
   etaLineText,
   facetRows,
   initColumnPx,
@@ -47,13 +58,7 @@ import {
   selectedTimeZone,
   timingBaselineNote,
   validateDashboard,
-} from "../public/pipeline.mjs";
-import { onRequestGet } from "../functions/pipeline-staging/[[path]].js";
-import {
-  agencyHealth,
-  systemHealth,
-} from "../public/status-health.mjs";
-import { localZoneLabel } from "../public/status-time.mjs";
+} = pipeline;
 
 function dashboard() {
   return {
@@ -111,8 +116,9 @@ test("old and mixed payloads infer the agency from the first whitespace-delimite
   assert.equal(validateDashboard(dashboard()).groups[0].agency, undefined);
 });
 
-test("TOC model labels drop the agency prefix, 'forecast', domain and grid resolution", () => {
-  assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS, 15 day");
+test("TOC model labels distinguish degree resolutions and still shorten forecasts and km domains", () => {
+  assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS, 15 day, 0.25 degree");
+  assert.equal(tocModelLabel("NOAA GEFS forecast, 0.5 degree", "NOAA"), "GEFS, 0.5 degree");
   assert.equal(tocModelLabel("NOAA GFS forecast", "NOAA"), "GFS");
   assert.equal(tocModelLabel("NOAA GEFS forecast, 35 day", "NOAA"), "GEFS, 35 day");
   assert.equal(tocModelLabel("ECMWF AIFS Single forecast", "ECMWF"), "AIFS Single");
@@ -500,6 +506,96 @@ test("fits the run count to the width the row actually has", () => {
   assert.equal(runsThatFit(flat, 4000, false), 10);
   // an unmeasurable row shows everything rather than nothing
   assert.equal(runsThatFit(flat, 0, false), 10);
+});
+
+test("family columns use the narrowest row and keep the newest distinct inits", () => {
+  const { rows, widths, recent } = unevenFamily();
+  const axes = sharedInitAxes(rows, widths, false, "family");
+  for (const row of rows) {
+    assert.deepEqual(axes.get(row.id).runs.map((run) => run.init_time), recent);
+  }
+});
+
+test("variant columns exclude other variants and use only their own rows' fit", () => {
+  const { rows, widths, recent } = unevenFamily();
+  const [first, mirror, second] = rows;
+  const axes = sharedInitAxes(rows, widths, false, "variant");
+  for (const row of [first, mirror]) {
+    assert.deepEqual(axes.get(row.id).runs.map((run) => run.init_time), [
+      "2026-07-25T03:00:00Z", recent[1],
+    ]);
+  }
+  assert.deepEqual(axes.get(second.id).runs.map((run) => run.init_time), [recent[0]]);
+});
+
+function unevenFamily() {
+  const time = (hour) => `2026-07-25T${hour}:00:00Z`;
+  const product = (id, variant, hours) => ({
+    id,
+    variant: { id: variant },
+    recent_inits: hours.map((hour) => ({ init_time: time(hour) })),
+  });
+  return {
+    rows: [
+      product("a", "long", ["00", "03", "12"]),
+      product("b", "long", ["00", "12"]),
+      product("c", "short", ["06"]),
+    ],
+    widths: new Map([["a", 210], ["b", 90], ["c", 210]]),
+    recent: [time("06"), time("12")],
+  };
+}
+
+test("schedule classification uses UTC even when the local label shows another hour", () => {
+  const band = { kind: "lead", key: "f000" };
+  const unreported = "2026-07-25T01:00:00-05:00";
+  const offSchedule = "2026-07-25T06:00:00-05:00";
+  const own = "2026-07-25T12:00:00Z";
+  const row = {
+    init_hours: ["06"],
+    recent_inits: [{
+      init_time: own,
+      lead_groups: [{
+        name: band.key, leads_available: 1, leads_expected: 1, status: "complete", timing: "on_time",
+      }],
+    }],
+  };
+
+  assert.equal(initParts(unreported, "America/Chicago").time, "01 CDT");
+  assert.equal(cellOf(band, resolveLeadRun(row, unreported)).state, "unobserved");
+  assert.equal(initParts(offSchedule, "America/Chicago").time, "06 CDT");
+  assert.equal(cellOf(band, resolveLeadRun(row, offSchedule)).state, "not_scheduled");
+  const measurement = cellOf(band, resolveLeadRun(row, own));
+  assert.equal(measurement.state, "complete");
+  assert.equal(measurement.timing, "on_time");
+});
+
+test("variant headings follow consecutive blocks without claiming intervening rows", () => {
+  const long = { id: "long", label: "15 day · every 12 h" };
+  const short = { id: "short", label: "6 day · 06/18z" };
+  const products = [
+    { id: "a", variant: long },
+    { id: "b", variant: long },
+    { id: "c", variant: short },
+    { id: "d", variant: long },
+  ];
+  assert.deepEqual(variantBlocks(products).map(({ variant, products }) => [
+    variant.id, products.map(({ id }) => id),
+  ]), [["long", ["a", "b"]], ["short", ["c"]], ["long", ["d"]]]);
+});
+
+test("single-variant and legacy families have no redundant heading", () => {
+  const single = [
+    { id: "a", variant: { id: "long" } },
+    { id: "b", variant: { id: "long" } },
+  ];
+  const legacy = [{ id: "a" }, { id: "b" }];
+  for (const products of [single, legacy]) {
+    const blocks = variantBlocks(products);
+    assert.equal(blocks.some(({ variant }) => variant), false);
+    assert.deepEqual(blocks.flatMap(({ products }) => products), products);
+  }
+  assert.equal(sharedInitAxes(legacy, new Map(), false, "family").size, 0);
 });
 
 test("moves facets out of their own bands once the joint is published", () => {
@@ -2827,7 +2923,7 @@ test("local preview fixture carries a coherent delayed threshold and a run past 
   // the products short of history publish no threshold, and draw no line
   for (const group of fixture.groups) {
     for (const other of group.products) {
-      if (other.timing_baseline.status !== "insufficient_history") continue;
+      if (other.timing_baseline?.status !== "insufficient_history") continue;
       assert.equal(other.latency_stats.delayed_threshold_s, null, other.id);
       assert.equal(runChartThreshold(other), null, other.id);
     }

@@ -38,6 +38,11 @@
   scroll-margin-top: 2rem;
 }
 
+.pipeline-variant {
+  margin: 1.2rem 0 0;
+  color: var(--muted-text);
+}
+
 .pipeline-row {
   display: grid;
   grid-template-columns: 19rem minmax(0, 1fr) 16rem;
@@ -215,8 +220,14 @@
   );
 }
 
+.pipeline-cell.g-not_scheduled {
+  border-color: var(--pill-muted-border);
+  background: var(--pill-muted-bg);
+}
+
 .pipeline-cell.g-pending .pipeline-cell-fill,
-.pipeline-cell.g-unobserved .pipeline-cell-fill {
+.pipeline-cell.g-unobserved .pipeline-cell-fill,
+.pipeline-cell.g-not_scheduled .pipeline-cell-fill {
   display: none;
 }
 
