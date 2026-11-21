@@ -2553,13 +2553,11 @@
           "recent_inits": [
             {
               "init_time": "2026-07-25T00:00:00Z",
-              "status": "complete",
-              "timing": "on_time",
-              "latency_s": 3600,
+              "status": "failed",
               "lead_groups": [
                 {"name": "f000", "status": "complete", "timing": "on_time", "latency_s": 3600, "leads_expected": 1, "leads_available": 1},
                 {"name": "f006", "status": "complete", "timing": "on_time", "latency_s": 3600, "leads_expected": 7, "leads_available": 7},
-                {"name": "f018", "status": "complete", "timing": "on_time", "latency_s": 3600, "leads_expected": 19, "leads_available": 19}
+                {"name": "f018", "status": "failed", "leads_expected": 19, "leads_available": 10}
               ]
             },
             {
@@ -2627,7 +2625,7 @@
       "products": [
         {
           "id": "fixture-ifs-15-day-source",
-          "row_label": "ECMWF",
+          "row_label": "AWS",
           "variant": {
             "id": "ecmwf-ifs-ens-long",
             "label": "15 day · every 12 h"
@@ -2654,7 +2652,7 @@
         },
         {
           "id": "fixture-ifs-15-day-mirror",
-          "row_label": "Mirror",
+          "row_label": "GCS",
           "variant": {
             "id": "ecmwf-ifs-ens-long",
             "label": "15 day · every 12 h"
@@ -2676,10 +2674,10 @@
         },
         {
           "id": "fixture-ifs-6-day",
-          "row_label": "ECMWF",
+          "row_label": "AWS",
           "variant": {
             "id": "ecmwf-ifs-ens-short",
-            "label": "6 day · 06/18z"
+            "label": "6 day · every 6 h"
           },
           "init_hours": ["06", "18"],
           "lead_groups": [{"name": "f144", "label": "6d"}],
@@ -2691,6 +2689,33 @@
             },
             {
               "init_time": "2026-07-25T06:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f144", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            }
+          ]
+        },
+        {
+          "id": "fixture-ifs-6-day-gcs",
+          "row_label": "GCS",
+          "variant": {
+            "id": "ecmwf-ifs-ens-short",
+            "label": "6 day · every 6 h"
+          },
+          "init_hours": ["00", "06", "12", "18"],
+          "lead_groups": [{"name": "f144", "label": "6d"}],
+          "recent_inits": [
+            {
+              "init_time": "2026-07-25T00:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f144", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            },
+            {
+              "init_time": "2026-07-25T06:00:00Z",
+              "status": "complete",
+              "lead_groups": [{"name": "f144", "status": "complete", "leads_expected": 1, "leads_available": 1}]
+            },
+            {
+              "init_time": "2026-07-25T12:00:00Z",
               "status": "complete",
               "lead_groups": [{"name": "f144", "status": "complete", "leads_expected": 1, "leads_available": 1}]
             }

@@ -256,7 +256,7 @@ test("family captions preserve resolution, variant order and former section link
   await expect(page).toHaveURL(`${PATH}${former}`);
   await expect(family.locator("h3")).toHaveText("ECMWF IFS ENS forecast, 0.25 degree");
   await expect(family.locator("h3")).toBeInViewport();
-  await expect(family.locator("h3 + p")).toHaveText("15 day · every 12 h, 6 day · 06/18z");
+  await expect(family.locator("h3 + p")).toHaveText("15 day · every 12 h, 6 day · every 6 h");
   await expect(family.locator("h4")).toHaveCount(0);
   await expect(page.locator("#pipeline-group-noaa-gefs-0-25 + p")).toHaveCount(0);
   await expect(page.locator('[data-slot="pipeline-toc"] a')).toHaveText([
@@ -285,7 +285,7 @@ test("a merged HRRR member link scrolls to its row below the family heading", as
   await expect(heading).not.toBeInViewport();
 });
 
-test("HRRR source rows end at the horizon of each init", async ({ page }) => {
+test("HRRR shows a failed 18h run beside the healthy 48h run without widening columns", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 500 });
   await openPipeline(page, (payload) => {
     const hrrr = payload.groups.find(({ id }) => id === "noaa-hrrr");
@@ -303,6 +303,37 @@ test("HRRR source rows end at the horizon of each init", async ({ page }) => {
   const short = '[data-init-time="2026-07-25T01:00:00Z"]';
   const bands = aws.locator('.pipeline-field [data-kind="lead"]');
   const top = bands.filter({ has: page.getByText("2d", { exact: true }) });
+  const pair = aws.locator(".pipeline-field .pipeline-run-label").filter({ hasText: "00z" });
+  await page.selectOption("#status-time-toggle", "utc");
+
+  await expect(pair).toHaveCount(1);
+  const horizons = aws.locator(".pipeline-field .pipeline-run-horizon > span");
+  await expect(horizons).toHaveText(["48h", "18h"]);
+  expect(await horizons.evaluateAll((labels) => labels.every((label) => {
+    const text = label.getBoundingClientRect();
+    const column = label.parentElement.getBoundingClientRect();
+    return text.left >= column.left && text.right <= column.right &&
+      text.width <= 18 && Math.abs(text.width - label.offsetWidth) <= 1;
+  }))).toBe(true);
+  await expect(top.locator(long)).toHaveCount(2);
+  await expect(top.locator(short)).toHaveCount(1);
+  await expect(top.locator(long).nth(1)).toHaveClass(/\bg-beyond_horizon\b/);
+  const shared = bands.filter({ has: page.getByText("18h", { exact: true }) }).locator(long);
+  await expect(shared.nth(0)).toHaveClass(/\bg-complete\b/);
+  await expect(shared.nth(1)).toHaveClass(/\bg-failed\b/);
+  await expect(shared.nth(1)).toHaveAttribute("title", /18 hour/);
+
+  const geometry = await top.locator(".pipeline-cell").evaluateAll((cells, label) => {
+    const [first, second, third] = cells.map((cell) => cell.getBoundingClientRect());
+    return {
+      widths: [first.width, second.width, third.width],
+      paired: second.left - first.right < third.left - second.right,
+      centered: Math.abs(label.left + label.width / 2 - (first.left + second.right) / 2) <= 1,
+    };
+  }, await pair.boundingBox().then(({ x, width }) => ({ left: x, width })));
+  const single = page.locator('[data-product-id="noaa-gfs-forecast-virtual"] .pipeline-field .pipeline-cell').first();
+  const { width } = await single.boundingBox();
+  expect(geometry).toEqual({ widths: [width, width, width], paired: true, centered: true });
 
   await expect(rows).toHaveCount(2);
   await expect(family.locator("h3 + p")).toHaveText("48 hour · every 6 h, 18 hour · hourly");
@@ -312,8 +343,6 @@ test("HRRR source rows end at the horizon of each init", async ({ page }) => {
   await expect(beyond.locator(".pipeline-cell-fill")).toBeHidden();
   await expect(bands.locator(`${short}.g-complete`)).toHaveCount(2);
   await expect(bands.locator(`${short}.g-unobserved`)).toHaveCount(1);
-  await expect(bands.locator(`${long}.g-complete`)).toHaveCount(4);
-  await expect(top.locator(long)).toHaveAttribute("title", /18 hour run: complete, on time$/);
 
   await aws.locator('[data-slot="details-button"]').click();
   await expect(aws.getByRole("columnheader", { name: /last run.*18 hour · hourly/ })).toBeVisible();
@@ -324,15 +353,27 @@ test("HRRR source rows end at the horizon of each init", async ({ page }) => {
   await expect(aws.getByRole("row").filter({ has: page.getByRole("cell", { name: "18h", exact: true }) }).getByRole("cell").nth(1)).toHaveText("pending");
   const longestLane = aws.locator('.pipeline-lead-lanes [data-lane="f048"]');
   await expect(longestLane.locator(`circle${long}`)).toHaveCount(1);
+  const runLane = aws.locator('.pipeline-lead-lanes [data-lane="run"]');
+  await expect(runLane.locator(`circle${long}`)).toHaveCount(2);
+  const cellXs = await top.locator(long).evaluateAll((nodes) => nodes.map((node) => {
+    const { left, width } = node.getBoundingClientRect();
+    return left + width / 2;
+  }));
+  const markXs = await runLane.locator(`circle${long}`).evaluateAll((nodes) => nodes.map((node) => {
+    const { left, width } = node.getBoundingClientRect();
+    return left + width / 2;
+  }));
+  markXs.forEach((x, index) => expect(Math.abs(x - cellXs[index])).toBeLessThanOrEqual(1));
   await expect(longestLane.locator('[data-slot-init="2026-07-25T01:00:00Z"]')).toHaveCount(0);
   await expect(aws.locator(".pipeline-source-meta > div").first()).toHaveText("s3://hrrr-long-example, s3://hrrr-short-example");
   await expect(rows.filter({ hasText: "NOMADS" }).locator(".pipeline-source-meta > div").first()).toHaveText("s3://hrrr-shared-example");
 });
 
-test("the HRRR facet grid leaves the shorter run's 2d band empty", async ({ page }) => {
+test("the HRRR facet grid preserves a 12z pair and its reported and missing cells", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await openPipeline(page, (payload) => {
-    const [long, , short] = payload.groups.find(({ id }) => id === "noaa-hrrr").products;
-    for (const product of [long, short]) {
+    const [long, nomadsLong, short, nomadsShort] = payload.groups.find(({ id }) => id === "noaa-hrrr").products;
+    for (const product of [long, nomadsLong, short]) {
       for (const lead of product.recent_inits.at(-1).lead_groups) {
         lead.facets = [{
           name: "component:surface", label: "surface", dimension: "component",
@@ -340,15 +381,49 @@ test("the HRRR facet grid leaves the shorter run's 2d band empty", async ({ page
         }];
       }
     }
+    const pairedInit = "2026-07-25T12:00:00Z";
+    for (const product of [long, short]) {
+      product.recent_inits.push({ ...product.recent_inits.at(-1), init_time: pairedInit });
+    }
+    short.recent_inits.push({ ...short.recent_inits.at(-1), init_time: "2026-07-25T13:00:00Z" });
+    nomadsShort.init_hours = nomadsShort.init_hours.filter((hour) => hour !== "12");
     return payload;
   }, FIXTURE);
+  await page.selectOption("#status-time-toggle", "utc");
   const row = page.locator('[data-product-id="external-noaa-hrrr-aws"]');
   await row.getByRole("group", { name: /activate for component/ }).click();
-  const at = (time) => row.locator(`[data-facet="component:surface"][data-init-time="2026-07-25T${time}:00:00Z"] .pipeline-cell`);
-  await expect(at("00").last()).toHaveClass(/\bg-complete\b/);
-  await expect(at("01").nth(2)).toHaveClass(/\bg-complete\b/);
-  await expect(at("01").last()).toHaveAttribute("title", "18 hour run: no leads past 18h");
-  await expect(at("01").last()).toHaveClass(/\bg-beyond_horizon\b/);
+  const hour = (time) => `[data-init-time="2026-07-25T${time}:00:00Z"]`;
+  const at = (source, time) => source.locator(`[data-facet="component:surface"]${hour(time)}`);
+  const label = row.locator(`.pipeline-run-label${hour("12")}`);
+  await expect(row.locator(`.pipeline-run-horizon${hour("12")} > span`)).toHaveText(["48h", "18h"]);
+  await expect(label).toHaveText(["12z"]);
+  const pair = at(row, "12");
+  await expect(pair).toHaveCount(2);
+  const geometry = () => pair.evaluateAll(([first, second]) => {
+    const left = first.getBoundingClientRect();
+    const right = second.getBoundingClientRect();
+    return { lanes: [first.dataset.lane, second.dataset.lane], gap: right.left - left.right };
+  });
+  const desktop = await geometry();
+  expect(desktop.lanes[0]).toBe(desktop.lanes[1]);
+  expect(desktop.gap).toBeCloseTo(2, 1);
+  await expect(pair.first().locator(".pipeline-cell").last()).toHaveClass(/\bg-complete\b/);
+  await expect(pair.last().locator(".pipeline-cell").last()).toHaveClass(/\bg-beyond_horizon\b/);
+  await expect(at(row, "01").locator(".pipeline-cell").nth(2)).toHaveClass(/\bg-complete\b/);
+
+  const nomads = page.locator('[data-product-id="external-noaa-hrrr-nomads"]');
+  await nomads.getByRole("group", { name: /activate for component/ }).click();
+  await expect(at(nomads, "12").first().locator(".pipeline-cell.g-unobserved")).toHaveCount(4);
+  await expect(at(nomads, "12").last().locator(".pipeline-cell.g-not_scheduled")).toHaveCount(4);
+
+  // Two blocks fit per lane here. Splitting the most recent four in half
+  // would put one 12z block next to 01z and the other next to 13z.
+  await page.setViewportSize({ width: 256, height: 900 });
+  await expect(at(row, "00")).toHaveCount(0);
+  await expect(at(row, "13")).toHaveCount(1);
+  await expect(pair).toHaveCount(2);
+  const narrow = await geometry();
+  expect(narrow.lanes[0]).toBe(narrow.lanes[1]);
 });
 
 test("an advisory naming only a shorter HRRR member appears on its merged source row", async ({ page }) => {
@@ -361,7 +436,7 @@ test("an advisory naming only a shorter HRRR member appears on its merged source
   await expect(family.locator('[data-product-id="external-noaa-hrrr-nomads"]').getByText("NOAA advisory")).toBeHidden();
 });
 
-test("GEFS ETA and aligned timing marks follow the variant backing each init", async ({ page }) => {
+test("GEFS ETA and aligned timing marks use each run's variant", async ({ page }) => {
   await page.clock.setSystemTime(Date.parse("2026-07-25T07:00:00Z"));
   await openPipeline(page, (payload) => {
     const [long, short] = payload.groups.find(({ id }) => id === "noaa-gefs-0-5").products;
@@ -391,45 +466,35 @@ test("GEFS ETA and aligned timing marks follow the variant backing each init", a
   await expect(run.locator(`${short} [data-deadline]`)).toHaveCount(1);
 });
 
-test("switching off merging restores per-variant headings, rows and disabled hours", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.route(/\/pipeline\.mjs\?/, async (route) => {
-    const response = await route.fetch();
-    const body = (await response.text()).replace("export const MERGE_VARIANTS = true", "export const MERGE_VARIANTS = false");
-    await route.fulfill({ response, body });
-  });
-  await openPipeline(page, undefined, FIXTURE);
-  const family = page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-noaa-hrrr") });
-  await expect(family.locator("h4")).toHaveText(["48 hour · every 6 h", "18 hour · hourly"]);
-  await expect(family.locator("h3 + p")).toHaveCount(0);
-  await expect(family.locator(".pipeline-row")).toHaveCount(4);
-  const offSchedule = family.locator('[data-product-id="external-noaa-hrrr-aws"] [data-init-time="2026-07-25T01:00:00Z"]');
-  await expect(offSchedule.first()).toHaveClass(/\bg-not_scheduled\b/);
-});
-
 test.describe("model families with staggered schedules", () => {
   test.use({ timezoneId: "Asia/Kolkata", locale: "en-US" });
 
-  test("merged family rows align their init columns and mark off-schedule hours after refitting", async ({ page }) => {
+  test("IFS ENS shares both variants across AWS and GCS and refits without phone overflow", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openPipeline(page, undefined, FIXTURE);
     await page.selectOption("#status-time-toggle", "utc");
     const family = page.locator(".pipeline-group").filter({ has: page.locator("#pipeline-group-ecmwf-ifs-ens-0-25") });
     const rows = family.locator(".pipeline-row");
-    const source = rows.filter({ hasText: "ECMWF" });
-    const mirror = rows.filter({ hasText: "Mirror" });
+    const aws = rows.filter({ hasText: "AWS" });
+    const gcs = rows.filter({ hasText: "GCS" });
     await expect(rows).toHaveCount(2);
-    const long = mirror.locator('[data-init-time="2026-07-25T06:00:00Z"]').first();
-    await expect(long).toHaveClass(/\bg-not_scheduled\b/);
-    await expect(long).toHaveAttribute("title", /not scheduled at 06z$/);
-    await expect(long).toHaveCSS("background-image", "none");
-    await expect(long.locator(".pipeline-cell-fill")).toBeHidden();
-    await expect(mirror.locator('[data-init-time="2026-07-24T12:00:00Z"]').first()).toHaveClass(/\bg-unobserved\b/);
-    await expect(source.locator('[data-init-time="2026-07-25T06:00:00Z"]').last()).toHaveClass(/\bg-complete\b/);
+    const band = (row, hour, variant) => row.locator('.pipeline-field [data-kind="lead"]').last().locator(
+      `[data-init-time="2026-07-25T${hour}:00:00Z"][data-variant="ecmwf-ifs-ens-${variant}"]`,
+    );
+    await expect(rows.first().locator(".pipeline-run-horizon > span")).toHaveText(["15d", "6d", "15d", "6d"]);
+    await expect(band(aws, "00", "long")).toHaveClass(/\bg-complete\b/);
+    const offSchedule = band(aws, "00", "short");
+    await expect(offSchedule).toHaveClass(/\bg-not_scheduled\b/);
+    await expect(offSchedule).toHaveCSS("background-image", "none");
+    await expect(offSchedule.locator(".pipeline-cell-fill")).toBeHidden();
+    await expect(band(gcs, "00", "short")).toHaveClass(/\bg-complete\b/);
+    await expect(band(gcs, "06", "short")).toHaveClass(/\bg-complete\b/);
+    await expect(band(gcs, "06", "long")).toHaveCount(0);
+    await expect(gcs.locator('.pipeline-field [data-init-time="2026-07-24T12:00:00Z"]').first()).toHaveClass(/\bg-unobserved\b/);
 
     const positions = () => rows.evaluateAll((nodes) => nodes.map((row) =>
       [...row.querySelectorAll(".pipeline-band[data-kind]:first-child .pipeline-cell")].map((cell) => [
-        cell.dataset.initTime, cell.getBoundingClientRect().x,
+        cell.dataset.initTime, cell.dataset.variant, cell.getBoundingClientRect().x,
       ]),
     ));
     const expectAligned = async () => {
@@ -446,9 +511,10 @@ test.describe("model families with staggered schedules", () => {
 
     await page.selectOption("#status-time-toggle", "local");
     await expect(rows.first().locator(".pipeline-run-label").first()).toContainText("GMT");
-    await page.setViewportSize({ width: 320, height: 900 });
+    await page.setViewportSize({ width: 390, height: 900 });
     await expect.poll(() => rows.first().locator(".pipeline-run-label").count()).toBeLessThan(5);
-    await expect(long).toHaveAttribute("title", /not scheduled at 06z$/);
+    await expect(band(aws, "12", "short")).toHaveClass(/\bg-not_scheduled\b/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
     await expectAligned();
   });
 });
