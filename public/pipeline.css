@@ -274,9 +274,8 @@
 }
 
 .pipeline-run-horizon > span {
+  /* At the inherited label size, three monospace glyphs fit in 18px. */
   display: inline-block;
-  /* Three monospace glyphs fit inside a 12px cell at this width. */
-  transform: scaleX(0.7);
 }
 
 .pipeline-stats {

@@ -37,6 +37,8 @@ const MIN_LEAD_PX = 12;
 const FACET_MIN_LEAD_PX = 12; // every lead group keeps room for its text label
 const FACET_LEAD_ALLOWANCE_PX = 5;
 const BAND_GAP_PX = 2; // between bands, inside a field
+const BAND_GUTTER_GAP_PX = 6;
+const FIT_SLACK_PX = 4; // room for font fallback
 const LABEL_PX = 12; // one axis-label row
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
@@ -388,8 +390,7 @@ export function mergeVariantRows(products) {
       nextCompletion = Number.isFinite(p95) ? new Date(Date.parse(nextInit) + p95 * 1000).toISOString() : null;
     }
 
-    // At the same init, the row's latest/current-run selection still prefers
-    // the longest run when both have the status it is looking for.
+    // Consumers reading the latest entry see the longest report at that init.
     const recent = members.flatMap(({ product, runs, names, variant, coverage, variantTiming }) =>
       runs.map((init) => {
         const lead_groups = init.lead_groups?.flatMap((group) => {
@@ -738,8 +739,7 @@ export function displayedRuns(product, runCount) {
 function runsFitting(availablePx, gutter, runWidth, gap) {
   // an unmeasured row shows everything rather than nothing
   if (!Number.isFinite(availablePx) || availablePx <= 0) return RUNS_MAX;
-  // 6px band gap, and 4px of slack so a font fallback cannot overflow the row
-  const usable = availablePx - gutter - 6 - 4;
+  const usable = availablePx - gutter - BAND_GUTTER_GAP_PX - FIT_SLACK_PX;
   if (usable <= 0) return 1;
   return Math.max(
     1,
@@ -754,27 +754,29 @@ export function runsThatFit(product, availablePx, local, {
   return runsFitting(availablePx, gutter, column, RUN_GAP_PX);
 }
 
-/* The family supplies the timestamps. A variant can appear at a reported init
-   only if it runs at that UTC hour and at least one of its members reports
-   history that far back. */
+/* A report always supplies a column for its variant. At other reported inits
+   in the family, a variant appears if its schedule and history include them. */
 export function familyInitColumns(rows) {
   const times = new Map();
   const variants = new Map();
   for (const product of rows.flatMap(rowMembers)) {
     const id = product.variant?.id;
-    if (!variants.has(id)) variants.set(id, { variant: product.variant, oldest: Infinity, products: [] });
+    if (!variants.has(id)) {
+      variants.set(id, { variant: product.variant, oldest: Infinity, products: [], reported: new Set() });
+    }
     const entry = variants.get(id);
     entry.products.push(product);
     for (const { init_time } of product.recent_inits) {
       const ms = Date.parse(init_time);
       entry.oldest = Math.min(entry.oldest, ms);
+      entry.reported.add(ms);
       if (!times.has(ms)) times.set(ms, init_time);
     }
   }
   const ordered = [...variants.values()].sort((a, b) => horizonHours(b.variant) - horizonHours(a.variant));
   return [...times].sort(([a], [b]) => a - b).flatMap(([ms, init_time]) =>
-    ordered.flatMap(({ variant, oldest, products }) =>
-      ordered.length === 1 || (ms >= oldest && products.some((product) => scheduledAt(product, init_time)))
+    ordered.flatMap(({ variant, oldest, products, reported }) =>
+      reported.has(ms) || (ms >= oldest && products.some((product) => scheduledAt(product, init_time)))
         ? [{ init_time, variant }]
         : [],
     ),
@@ -784,14 +786,13 @@ export function familyInitColumns(rows) {
 export function resolveColumnRun(row, column) {
   const { init_time, variant } = column;
   const member = rowMembers(row).find((product) => product.variant?.id === variant?.id);
-  const scheduled = member && scheduledAt(member, init_time);
   const own = row.reportedRuns
     ? row.reportedRuns.get(columnKey(column))
     : member?.recent_inits.find((init) => Date.parse(init.init_time) === Date.parse(init_time));
-  if (own && (scheduled || !variant)) {
+  if (own) {
     return own.init_time === init_time ? own : { ...own, init_time };
   }
-  return scheduled
+  return member && scheduledAt(member, init_time)
     ? { ...column, status: "unobserved", unreported: true, coverage: row.variantCoverage?.get(variant?.id) }
     : { ...column, status: "not_scheduled" };
 }
@@ -806,7 +807,7 @@ function pairedColumnStyle(columns, index) {
 }
 
 function fittedColumns(columns, available, gutter, width) {
-  const usable = available - gutter - 6 - 4;
+  const usable = available - gutter - BAND_GUTTER_GAP_PX - FIT_SLACK_PX;
   let start = columns.length;
   let used = 0;
   while (start > 0) {
@@ -847,21 +848,22 @@ function axisRuns(product, columns, sharedAxis) {
 /* A facet grid spends its width on lead columns inside every run, and those
    columns are proportional, so the block width comes from the extents. */
 
-export function runsThatFitFacetRows(product, availablePx, dimension) {
+function facetGridGeometry(product, dimension) {
   const leads = leadAxis(product);
   const extents = compactLeadExtents(product);
+  const facets = facetRowsOf(product, dimension);
   const runWidth =
     leads.reduce(
       (sum, lead) => sum + (extents.get(lead.key) ?? FACET_CELL_PX),
       0,
     ) +
     Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
-  const perLane = runsFitting(
-    availablePx,
-    facetGutterPx(facetRowsOf(product, dimension)),
-    runWidth,
-    FACET_RUN_GAP_PX,
-  );
+  return { leads, extents, facets, runWidth, gutter: facetGutterPx(facets) };
+}
+
+export function runsThatFitFacetRows(product, availablePx, dimension) {
+  const { gutter, runWidth } = facetGridGeometry(product, dimension);
+  const perLane = runsFitting(availablePx, gutter, runWidth, FACET_RUN_GAP_PX);
   return Math.min(RUNS_MAX, perLane * FACET_LANES);
 }
 
@@ -1054,16 +1056,21 @@ export function viewAt(product, index) {
   return views[wrapIndex(index, views.length)];
 }
 
-/* One time tick across an init, with a compact horizon under each bar when
-   there is a choice of variants. Dates are shown only when they turn over. */
-function InitTiers({ columns, runWidth, local }) {
-  const zone = selectedTimeZone(local);
+function initColumnGroups(columns) {
   const groups = [];
   for (const column of columns) {
     const last = groups.at(-1);
     if (last?.[0].init_time === column.init_time) last.push(column);
     else groups.push([column]);
   }
+  return groups;
+}
+
+/* One time tick across an init, with a compact horizon under each bar when
+   there is a choice of variants. Dates are shown only when they turn over. */
+function InitTiers({ columns, runWidth, local }) {
+  const zone = selectedTimeZone(local);
+  const groups = initColumnGroups(columns);
   const paired = groups.some((group) => group.length > 1);
   let previousDate = null;
   const ticks = groups.map((group) => {
@@ -1117,49 +1124,78 @@ function jointIndex(product, runs, leads) {
   return index;
 }
 
+function splitFacetLanes(columns, at = Math.ceil(columns.length / FACET_LANES)) {
+  return at > 0 && at < columns.length ? [columns.slice(0, at), columns.slice(at)] : [columns];
+}
+
+function fitFacetLanes(columns, perLane) {
+  // Keep as much recent history as possible, then balance the two lanes
+  // while placing the break between inits.
+  const cuts = [0];
+  for (const group of initColumnGroups(columns)) cuts.push(cuts.at(-1) + group.length);
+  for (const start of cuts.slice(0, -1)) {
+    const count = columns.length - start;
+    if (count > perLane * FACET_LANES) continue;
+    const middle = start + Math.ceil(count / FACET_LANES);
+    const split = cuts.filter((cut) => cut >= start && cut - start <= perLane && columns.length - cut <= perLane)
+      .reduce((best, cut) => best == null || Math.abs(middle - cut) <= Math.abs(middle - best) ? cut : best, null);
+    if (split != null) return splitFacetLanes(columns.slice(start), split - start);
+  }
+  // A very narrow lane may hold just one variant of the newest init.
+  return splitFacetLanes(columns.slice(-perLane * FACET_LANES));
+}
+
 /* The facet-row field: one row per facet, one block per run, one column per
    lead group inside a block. Same squares and same hover labels as the banded
    field — only which dimension owns which axis changes.
 
    One grid per field, and every node a direct child of it, emitted in the
    order the eye reads: a lane's lead labels, then each facet's gutter label
-   followed by that facet's squares run by run, then the times, then the
+   followed by that facet's squares run by run, then the horizons, times and
    dates. So a screen reader or a text selection follows the picture. Each
    node is keyed by what it belongs to — the run's init and the facet — so
    when the window rolls forward and a run moves from the newer lane up into
    the older, its squares keep their nodes and only their grid areas change. */
 
-function FacetRowsField({ product, local, runCount, dimension }) {
-  const runs = product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
-  const leads = leadAxis(product); // shortest horizon first
-  const facets = facetRowsOf(product, dimension);
-  const extents = compactLeadExtents(product);
+function FacetRowsField({ product, local, runCount, dimension, sharedAxis, fieldWidth }) {
+  const { leads, extents, facets, runWidth, gutter } = facetGridGeometry(product, dimension);
   const leadWidth = (lead) => extents.get(lead.key) ?? FACET_CELL_PX;
-  const runWidth =
-    leads.reduce((sum, lead) => sum + leadWidth(lead), 0) +
-    Math.max(0, leads.length - 1) * FACET_CLUMP_GAP_PX;
-  const joint = jointIndex(product, runs, leads);
+  const lanes = sharedAxis
+    ? fitFacetLanes(sharedAxis.columns, runsFitting(fieldWidth, gutter, runWidth, FACET_RUN_GAP_PX))
+    : splitFacetLanes(displayedRuns(product, runCount));
+  const runs = lanes.map((columns) => axisRuns(product, columns, sharedAxis));
+  const joint = jointIndex(product, runs.flat(), leads);
   const zone = selectedTimeZone(local);
-  // older runs occupy the first lane; newer runs continue in the second
-  const laneCount = Math.min(FACET_LANES, Math.max(1, runs.length));
-  const runsPerLane = Math.ceil(runs.length / laneCount);
-  // a lane is a head row, a row per facet, a time row and a date row, with
-  // a spacer row before every lane but the first
-  const rowsPerLane = facets.length + 3;
+  const runsPerLane = Math.max(...lanes.map((lane) => lane.length));
+  const pairedTimes = new Set(initColumnGroups(lanes.flat())
+    .filter((group) => group.length > 1).map(([column]) => column.init_time));
+  const timeRow = facets.length + (pairedTimes.size ? 2 : 1);
+  const rowsPerLane = timeRow + 2;
   const rowOf = (lane, row) => lane * (rowsPerLane + 1) + row + 1;
-  const laneRows = `calc(var(--label-h) + 0.2rem) repeat(${facets.length}, var(--sq)) calc(var(--label-h) + 0.3rem) var(--label-h)`;
-  const templateRows = Array.from({ length: laneCount }, () => laneRows).join(
+  const axisRows = pairedTimes.size ? "repeat(3, var(--label-h))" : "calc(var(--label-h) + 0.3rem) var(--label-h)";
+  const laneRows = `calc(var(--label-h) + 0.2rem) repeat(${facets.length}, var(--sq)) ${axisRows}`;
+  const templateRows = lanes.map(() => laneRows).join(
     " calc(var(--lane-gap) - 2 * var(--band-gap)) ",
   );
 
   const children = [];
-  for (let lane = 0; lane < laneCount; lane += 1) {
-    const laneRuns = runs.slice(lane * runsPerLane, (lane + 1) * runsPerLane);
-    const at = (row, column) =>
-      `grid-area:${rowOf(lane, row)} / ${column + 2}`;
+  for (const [lane, laneRuns] of runs.entries()) {
+    const groups = initColumnGroups(laneRuns);
+    // Bring siblings towards the middle of their grid tracks, leaving the
+    // shared tick centred while each lane can use a different grouping.
+    const insets = groups.flatMap((group) => group.map((_, index) =>
+      ((group.length - 1) / 2 - index) * (FACET_RUN_GAP_PX - VARIANT_GAP_PX),
+    ));
+    const at = (row, column, span = 1) => {
+      const area = `grid-area:${rowOf(lane, row)} / ${column + 2}`;
+      if (span > 1) return `${area} / auto / span ${span};width:auto`;
+      const inset = insets[column];
+      return inset ? `${area};position:relative;inset-inline-start:${inset}px` : area;
+    };
     const owned = (init) => ({
       "data-lane": String(lane),
       "data-init-time": init.init_time,
+      "data-variant": init.variant?.id,
     });
     laneRuns.forEach((init, column) => {
       children.push(
@@ -1217,7 +1253,8 @@ function FacetRowsField({ product, local, runCount, dimension }) {
                 local=${local}
                 measured=${facetAt
                   ? facetCell(facetAt, init, measured.timing)
-                  : { state: beyondHorizon(init, lead.key) ? "beyond_horizon" : "unobserved" }}
+                  : { state: init.status === "not_scheduled" ? "not_scheduled"
+                    : beyondHorizon(init, lead.key) ? "beyond_horizon" : "unobserved" }}
                 style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
               />`;
             })}
@@ -1226,20 +1263,36 @@ function FacetRowsField({ product, local, runCount, dimension }) {
       });
     });
     laneRuns.forEach((init, column) => {
+      if (!pairedTimes.has(init.init_time)) return;
+      children.push(
+        html`<span
+          key=${`horizon/${columnKey(init)}`}
+          class="pipeline-run-horizon"
+          ...${owned(init)}
+          style=${at(facets.length + 1, column)}
+        ><span title=${init.variant?.label}>${horizonLabel(init.variant)}</span></span>`,
+      );
+    });
+    let first = 0;
+    const ticks = groups.map((group) => {
+      const entry = { init: group[0], first, span: group.length };
+      first += group.length;
+      return entry;
+    });
+    for (const { init, first, span } of ticks) {
       children.push(
         html`<span
           key=${`time/${columnKey(init)}`}
           class="pipeline-run-label"
           ...${owned(init)}
-          style=${at(facets.length + 1, column)}
+          style=${at(timeRow, first, span)}
           title=${initShort(init.init_time, local)}
         >${initParts(init.init_time, zone).time}</span>`,
       );
-    });
-    // the date shows where it turns over, counted afresh in each lane so a
-    // lane always opens with one
+    }
+    // Each lane starts with a date to set its first time in context.
     let previousDate = null;
-    laneRuns.forEach((init, column) => {
+    for (const { init, first, span } of ticks) {
       const { date } = initParts(init.init_time, zone);
       const turned = date !== previousDate;
       previousDate = date;
@@ -1248,16 +1301,16 @@ function FacetRowsField({ product, local, runCount, dimension }) {
           key=${`date/${columnKey(init)}`}
           class="pipeline-run-date"
           ...${owned(init)}
-          style=${at(facets.length + 2, column)}
+          style=${at(timeRow + 1, first, span)}
         >${turned ? date : ""}</span>`,
       );
-    });
+    }
   }
 
   return html`<div
     class="pipeline-field pipeline-field--runs"
     data-fill="side"
-    style=${`--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${facetGutterPx(facets)}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px;grid-template-columns:var(--band-gutter) repeat(${runsPerLane}, var(--run-width));grid-template-rows:${templateRows}`}
+    style=${`--sq:${FACET_CELL_PX}px;--clump-gap:${FACET_CLUMP_GAP_PX}px;--clumped-run-gap:${FACET_RUN_GAP_PX}px;--lane-gap:${FACET_LANE_GAP_PX}px;--band-gutter:${gutter}px;--run-width:${runWidth}px;--band-gap:${FACET_BAND_GAP_PX}px;--label-h:${LABEL_PX}px;grid-template-columns:var(--band-gutter) repeat(${runsPerLane}, var(--run-width));grid-template-rows:${templateRows}`}
   >
     ${children}
   </div>`;
@@ -1300,10 +1353,29 @@ function LeadField({ product, local, runCount, sharedAxis }) {
   </div>`;
 }
 
+const isActiveRun = (init) => init.status === "pending" || init.status === "in_flight";
+
+function runSeverity(init) {
+  if (init.status === "failed") return 3;
+  if (init.timing === "delayed" || init.timing === "late") return 2;
+  return init.status === "pending" || init.status === "unobserved" ? 0 : 1;
+}
+
+function summaryRun(product, includes) {
+  const recent = product.recent_inits ?? [];
+  const latest = recent.findLast(includes);
+  if (!latest || !product.memberIds) return latest;
+  const time = Date.parse(latest.init_time);
+  return recent.reduce((worst, init) => {
+    if (!includes(init) || Date.parse(init.init_time) !== time) return worst;
+    const severity = runSeverity(init) - runSeverity(worst);
+    return severity > 0 || (severity === 0 && horizonHours(init.variant) > horizonHours(worst.variant))
+      ? init : worst;
+  }, latest);
+}
+
 export function etaTarget(product) {
-  const running = product.recent_inits.findLast(
-    (init) => init.status === "pending" || init.status === "in_flight",
-  );
+  const running = summaryRun(product, isActiveRun);
   if (running) {
     const p95 = (running.variantTiming ?? product).latency_stats?.p95_s;
     return {
@@ -1569,14 +1641,11 @@ export function isDynamicalRow(product) {
 
 export function detailRows(product, now, local, sources = []) {
   const recent = product.recent_inits ?? [];
-  const activeIndex = recent.findLastIndex(
-    (init) => init.status === "pending" || init.status === "in_flight",
-  );
-  const active = activeIndex >= 0 ? recent[activeIndex] : null;
-  const last = active && product.memberIds
-    ? recent.findLast((init) => Date.parse(init.init_time) <= Date.parse(active.init_time) &&
-        init.status !== "pending" && init.status !== "in_flight")
-    : active ? recent[activeIndex - 1] : recent.at(-1);
+  const active = summaryRun(product, isActiveRun);
+  const last = active && !product.memberIds
+    ? recent[recent.indexOf(active) - 1]
+    : summaryRun(product, (init) => !active ||
+        (!isActiveRun(init) && Date.parse(init.init_time) <= Date.parse(active.init_time)));
   const upcoming = active ? null : product.next_expected_init;
   const afterLast = sourceArrivals(sources, last);
   const afterActive = sourceArrivals(sources, active);
@@ -2906,6 +2975,8 @@ function Row({
           local=${local}
           runCount=${runCount}
           dimension=${view.dimension}
+          sharedAxis=${sharedAxis}
+          fieldWidth=${width}
         />`
       : html`<${LeadField}
           product=${product}
@@ -2913,7 +2984,7 @@ function Row({
           runCount=${runCount}
           sharedAxis=${sharedAxis}
         />`;
-  }, [product, local, runCount, index, sharedAxis]);
+  }, [product, local, runCount, index, sharedAxis, width]);
 
   // the cycle is only reachable, and only worth announcing, when a product has
   // more than the one view

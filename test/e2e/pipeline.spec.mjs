@@ -309,7 +309,12 @@ test("HRRR shows a failed 18h run beside the healthy 48h run without widening co
   await expect(pair).toHaveCount(1);
   const horizons = aws.locator(".pipeline-field .pipeline-run-horizon > span");
   await expect(horizons).toHaveText(["48h", "18h"]);
-  expect(await horizons.evaluateAll((labels) => labels.every((label) => label.getBoundingClientRect().width <= 12))).toBe(true);
+  expect(await horizons.evaluateAll((labels) => labels.every((label) => {
+    const text = label.getBoundingClientRect();
+    const column = label.parentElement.getBoundingClientRect();
+    return text.left >= column.left && text.right <= column.right &&
+      text.width <= 18 && Math.abs(text.width - label.offsetWidth) <= 1;
+  }))).toBe(true);
   await expect(top.locator(long)).toHaveCount(2);
   await expect(top.locator(short)).toHaveCount(1);
   await expect(top.locator(long).nth(1)).toHaveClass(/\bg-beyond_horizon\b/);
@@ -326,7 +331,9 @@ test("HRRR shows a failed 18h run beside the healthy 48h run without widening co
       centered: Math.abs(label.left + label.width / 2 - (first.left + second.right) / 2) <= 1,
     };
   }, await pair.boundingBox().then(({ x, width }) => ({ left: x, width })));
-  expect(geometry).toEqual({ widths: [30, 30, 30], paired: true, centered: true });
+  const single = page.locator('[data-product-id="noaa-gfs-forecast-virtual"] .pipeline-field .pipeline-cell').first();
+  const { width } = await single.boundingBox();
+  expect(geometry).toEqual({ widths: [width, width, width], paired: true, centered: true });
 
   await expect(rows).toHaveCount(2);
   await expect(family.locator("h3 + p")).toHaveText("48 hour · every 6 h, 18 hour · hourly");
@@ -362,10 +369,11 @@ test("HRRR shows a failed 18h run beside the healthy 48h run without widening co
   await expect(rows.filter({ hasText: "NOMADS" }).locator(".pipeline-source-meta > div").first()).toHaveText("s3://hrrr-shared-example");
 });
 
-test("the HRRR facet grid leaves the shorter run's 2d band empty", async ({ page }) => {
+test("the HRRR facet grid preserves a 12z pair and its reported and missing cells", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await openPipeline(page, (payload) => {
-    const [long, , short] = payload.groups.find(({ id }) => id === "noaa-hrrr").products;
-    for (const product of [long, short]) {
+    const [long, nomadsLong, short, nomadsShort] = payload.groups.find(({ id }) => id === "noaa-hrrr").products;
+    for (const product of [long, nomadsLong, short]) {
       for (const lead of product.recent_inits.at(-1).lead_groups) {
         lead.facets = [{
           name: "component:surface", label: "surface", dimension: "component",
@@ -373,15 +381,29 @@ test("the HRRR facet grid leaves the shorter run's 2d band empty", async ({ page
         }];
       }
     }
+    const pairedInit = "2026-07-25T12:00:00Z";
+    for (const product of [long, short]) {
+      product.recent_inits.push({ ...product.recent_inits.at(-1), init_time: pairedInit });
+    }
+    nomadsShort.init_hours = nomadsShort.init_hours.filter((hour) => hour !== "12");
     return payload;
   }, FIXTURE);
+  await page.selectOption("#status-time-toggle", "utc");
   const row = page.locator('[data-product-id="external-noaa-hrrr-aws"]');
   await row.getByRole("group", { name: /activate for component/ }).click();
-  const at = (time) => row.locator(`[data-facet="component:surface"][data-init-time="2026-07-25T${time}:00:00Z"] .pipeline-cell`);
-  await expect(at("00").last()).toHaveClass(/\bg-complete\b/);
-  await expect(at("01").nth(2)).toHaveClass(/\bg-complete\b/);
-  await expect(at("01").last()).toHaveAttribute("title", "18 hour run: no leads past 18h");
-  await expect(at("01").last()).toHaveClass(/\bg-beyond_horizon\b/);
+  const hour = (time) => `[data-init-time="2026-07-25T${time}:00:00Z"]`;
+  const at = (source, time) => source.locator(`[data-facet="component:surface"]${hour(time)}`);
+  const label = row.locator(`.pipeline-run-label${hour("12")}`);
+  await expect(row.locator(`.pipeline-run-horizon${hour("12")} > span`)).toHaveText(["48h", "18h"]);
+  await expect(label).toHaveText(["12z"]);
+  await expect(at(row, "12").first().locator(".pipeline-cell").last()).toHaveClass(/\bg-complete\b/);
+  await expect(at(row, "12").last().locator(".pipeline-cell").last()).toHaveClass(/\bg-beyond_horizon\b/);
+  await expect(at(row, "01").locator(".pipeline-cell").nth(2)).toHaveClass(/\bg-complete\b/);
+
+  const nomads = page.locator('[data-product-id="external-noaa-hrrr-nomads"]');
+  await nomads.getByRole("group", { name: /activate for component/ }).click();
+  await expect(at(nomads, "12").first().locator(".pipeline-cell.g-unobserved")).toHaveCount(4);
+  await expect(at(nomads, "12").last().locator(".pipeline-cell.g-not_scheduled")).toHaveCount(4);
 });
 
 test("an advisory naming only a shorter HRRR member appears on its merged source row", async ({ page }) => {

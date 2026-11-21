@@ -651,6 +651,26 @@ test("a single-variant family keeps one column for each reported init", () => {
   assert.equal(pipeline.resolveColumnRun(rows[0], columns[1]).status, "unobserved");
 });
 
+test("a single-variant row still paints its off-schedule report", () => {
+  const { time, long } = variantPair();
+  long.recent_inits.push({ ...long.recent_inits[0], init_time: time("02") });
+  const column = pipeline.familyInitColumns([long]).find(({ init_time }) => init_time === time("02"));
+  assert.ok(column);
+  assert.equal(cellOf(bandsOf(long)[0], resolveColumnRun(long, column)).state, "complete");
+});
+
+test("the oldest pair drops whole when the family has room for only two and a half pairs", () => {
+  const { time, long, short } = variantPair();
+  for (const member of [long, short]) {
+    member.init_hours = ["00", "06", "12"];
+    member.recent_inits = member.init_hours.map((hour) => ({ ...member.recent_inits[0], init_time: time(hour) }));
+  }
+  const [row] = mergeVariantRows([long, short]);
+  const widths = new Map([[row.id, 204]]);
+  const { columns } = sharedInitAxes([row], widths, false).get(row.id);
+  assert.deepEqual(columns.map(({ init_time }) => init_time), [time("06"), time("06"), time("12"), time("12")]);
+});
+
 test("an unreported short column still leaves its out-of-horizon band empty", () => {
   const { time, long, short } = variantPair();
   const firstBand = { name: "f006", label: "6h" };
@@ -688,11 +708,14 @@ test("a member without configured init hours can supply a column at any hour", (
   assert.equal(cellOf(top, resolveColumnRun(merged, { init_time: time("03"), variant: long.variant })).state, "unobserved");
 });
 
-test("an off-schedule report does not create a column in a multi-variant family", () => {
+test("a failed off-schedule 02z report keeps its own column and measurement", () => {
   const { time, long, short } = variantPair();
-  short.recent_inits[1].init_time = time("03");
-  const rows = mergeVariantRows([long, short]);
-  assert.equal(pipeline.familyInitColumns(rows).some(({ init_time }) => init_time === time("03")), false);
+  short.recent_inits.push({ ...short.recent_inits[0], init_time: time("02") });
+  const [row] = mergeVariantRows([long, short]);
+  const [column, extra] = pipeline.familyInitColumns([row]).filter(({ init_time }) => init_time === time("02"));
+  assert.ok(column);
+  assert.equal(extra, undefined);
+  assert.equal(cellOf(bandsOf(row).at(-1), resolveColumnRun(row, column)).state, "failed");
 });
 
 test("disjoint schedules retain both runs and re-key a virtual forecast band by its label", () => {
@@ -724,6 +747,41 @@ test("an active short run keeps its own ETA beside a completed long run", () => 
   assert.equal(etaTarget(row).target, "2026-07-25T01:00:00.000Z");
   assert.match(details.runHeader, /18 hour/);
   assert.match(details.lastHeader, /48 hour/);
+});
+
+test("the latest delayed short run wins the ETA and current header over a pending long run", () => {
+  const { time, long, short } = variantPair();
+  long.recent_inits[0].status = "pending";
+  long.latency_stats = { p95_s: 7200 };
+  short.recent_inits = [{ ...short.recent_inits[0], status: "in_flight", timing: "delayed" }];
+  short.latency_stats = { p95_s: 3600 };
+  const [row] = mergeVariantRows([long, short]);
+  assert.equal(etaTarget(row).target, "2026-07-25T01:00:00.000Z");
+  assert.match(detailRows(row, Date.parse(time("00")), false).runHeader, /18 hour/);
+});
+
+test("equal on-time runs at one init keep the longest horizon in the row summary", () => {
+  const { time, long, short } = variantPair();
+  const now = Date.parse(time("00"));
+  long.latency_stats = { p95_s: 7200 };
+  short.latency_stats = { p95_s: 3600 };
+  for (const member of [long, short]) {
+    member.recent_inits = [{ ...member.recent_inits[0], status: "in_flight", timing: "on_time" }];
+  }
+  const [active] = mergeVariantRows([long, short]);
+  assert.equal(etaTarget(active).target, "2026-07-25T02:00:00.000Z");
+  assert.match(detailRows(active, now, false).runHeader, /48 hour/);
+
+  for (const member of [long, short]) member.recent_inits[0].status = "complete";
+  const [complete] = mergeVariantRows([long, short]);
+  assert.match(detailRows(complete, now, false).lastHeader, /48 hour/);
+});
+
+test("the last-run header reveals a failed short run beside an on-time long run", () => {
+  const { time, long, short } = variantPair();
+  short.recent_inits = [short.recent_inits[0]];
+  const [row] = mergeVariantRows([long, short]);
+  assert.match(detailRows(row, Date.parse(time("06")), false).lastHeader, /18 hour/);
 });
 
 test("compact horizon labels keep two-digit hour and day variants within three glyphs", () => {
