@@ -3,7 +3,15 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { sourceBudgetProduct } from "./fixtures/pipeline-source-budget.mjs";
+import * as pipeline from "../public/pipeline.mjs";
+import { onRequestGet } from "../functions/pipeline-staging/[[path]].js";
 import {
+  agencyHealth,
+  systemHealth,
+} from "../public/status-health.mjs";
+import { localZoneLabel } from "../public/status-time.mjs";
+
+const {
   agencySummary,
   agencyGroups,
   tocModelLabel,
@@ -40,20 +48,20 @@ import {
   lagSources,
   lagBasisNote,
   groupAliases,
+  resolveLeadRun,
+  sharedInitAxes,
+  mergeVariantRows,
+  variantBlocks,
+  variantCaption,
   etaLineText,
+  etaTarget,
   facetRows,
   initColumnPx,
   initParts,
   selectedTimeZone,
   timingBaselineNote,
   validateDashboard,
-} from "../public/pipeline.mjs";
-import { onRequestGet } from "../functions/pipeline-staging/[[path]].js";
-import {
-  agencyHealth,
-  systemHealth,
-} from "../public/status-health.mjs";
-import { localZoneLabel } from "../public/status-time.mjs";
+} = pipeline;
 
 function dashboard() {
   return {
@@ -111,8 +119,9 @@ test("old and mixed payloads infer the agency from the first whitespace-delimite
   assert.equal(validateDashboard(dashboard()).groups[0].agency, undefined);
 });
 
-test("TOC model labels drop the agency prefix, 'forecast', domain and grid resolution", () => {
-  assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS, 15 day");
+test("TOC model labels distinguish degree resolutions and still shorten forecasts and km domains", () => {
+  assert.equal(tocModelLabel("ECMWF IFS ENS forecast, 15 day, 0.25 degree", "ECMWF"), "IFS ENS, 15 day, 0.25 degree");
+  assert.equal(tocModelLabel("NOAA GEFS forecast, 0.5 degree", "NOAA"), "GEFS, 0.5 degree");
   assert.equal(tocModelLabel("NOAA GFS forecast", "NOAA"), "GFS");
   assert.equal(tocModelLabel("NOAA GEFS forecast, 35 day", "NOAA"), "GEFS, 35 day");
   assert.equal(tocModelLabel("ECMWF AIFS Single forecast", "ECMWF"), "AIFS Single");
@@ -500,6 +509,432 @@ test("fits the run count to the width the row actually has", () => {
   assert.equal(runsThatFit(flat, 4000, false), 10);
   // an unmeasurable row shows everything rather than nothing
   assert.equal(runsThatFit(flat, 0, false), 10);
+});
+
+test("family columns use the narrowest row and keep the newest distinct inits", () => {
+  const { rows, widths, recent } = unevenFamily();
+  const axes = sharedInitAxes(rows, widths, false, "family");
+  for (const row of rows) {
+    assert.deepEqual(axes.get(row.id).runs.map((run) => run.init_time), recent);
+  }
+});
+
+test("variant columns exclude other variants and use only their own rows' fit", () => {
+  const { rows, widths, recent } = unevenFamily();
+  const [first, mirror, second] = rows;
+  const axes = sharedInitAxes(rows, widths, false, "variant");
+  for (const row of [first, mirror]) {
+    assert.deepEqual(axes.get(row.id).runs.map((run) => run.init_time), [
+      "2026-07-25T03:00:00Z", recent[1],
+    ]);
+  }
+  assert.deepEqual(axes.get(second.id).runs.map((run) => run.init_time), [recent[0]]);
+});
+
+function unevenFamily() {
+  const time = (hour) => `2026-07-25T${hour}:00:00Z`;
+  const product = (id, variant, hours) => ({
+    id,
+    variant: { id: variant },
+    recent_inits: hours.map((hour) => ({ init_time: time(hour) })),
+  });
+  return {
+    rows: [
+      product("a", "long", ["00", "03", "12"]),
+      product("b", "long", ["00", "12"]),
+      product("c", "short", ["06"]),
+    ],
+    widths: new Map([["a", 210], ["b", 90], ["c", 210]]),
+    recent: [time("06"), time("12")],
+  };
+}
+
+test("schedule classification uses UTC even when the local label shows another hour", () => {
+  const band = { kind: "lead", key: "f000" };
+  const unreported = "2026-07-25T01:00:00-05:00";
+  const offSchedule = "2026-07-25T06:00:00-05:00";
+  const own = "2026-07-25T12:00:00Z";
+  const row = {
+    init_hours: ["06"],
+    recent_inits: [{
+      init_time: own,
+      lead_groups: [{
+        name: band.key, leads_available: 1, leads_expected: 1, status: "complete", timing: "on_time",
+      }],
+    }],
+  };
+
+  assert.equal(initParts(unreported, "America/Chicago").time, "01 CDT");
+  assert.equal(cellOf(band, resolveLeadRun(row, unreported)).state, "unobserved");
+  assert.equal(initParts(offSchedule, "America/Chicago").time, "06 CDT");
+  assert.equal(cellOf(band, resolveLeadRun(row, offSchedule)).state, "not_scheduled");
+  const measurement = cellOf(band, resolveLeadRun(row, own));
+  assert.equal(measurement.state, "complete");
+  assert.equal(measurement.timing, "on_time");
+});
+
+test("variant headings follow consecutive blocks without claiming intervening rows", () => {
+  const long = { id: "long", label: "15 day · every 12 h" };
+  const short = { id: "short", label: "6 day · 06/18z" };
+  const products = [
+    { id: "a", variant: long },
+    { id: "b", variant: long },
+    { id: "c", variant: short },
+    { id: "d", variant: long },
+  ];
+  assert.deepEqual(variantBlocks(products).map(({ variant, products }) => [
+    variant.id, products.map(({ id }) => id),
+  ]), [["long", ["a", "b"]], ["short", ["c"]], ["long", ["d"]]]);
+});
+
+test("single-variant and legacy families have no redundant heading", () => {
+  const single = [
+    { id: "a", variant: { id: "long" } },
+    { id: "b", variant: { id: "long" } },
+  ];
+  const legacy = [{ id: "a" }, { id: "b" }];
+  for (const products of [single, legacy]) {
+    const blocks = variantBlocks(products);
+    assert.equal(blocks.some(({ variant }) => variant), false);
+    assert.deepEqual(blocks.flatMap(({ products }) => products), products);
+  }
+});
+
+function variantPair() {
+  const time = (hour) => `2026-07-25T${hour}:00:00Z`;
+  const bands = [{ name: "f018", label: "18h" }, { name: "forecast", label: "2d" }];
+  const group = (name, count, status) => ({
+    name, status, timing: "on_time", leads_expected: count, leads_available: count,
+  });
+  const long = {
+    id: "long",
+    row_label: "Source",
+    variant: { id: "48h", label: "48 hour · every 6 h" },
+    init_hours: ["00", "06"],
+    cadence_hours: 6,
+    next_expected_init: time("12"),
+    next_expected_completion_at: time("15"),
+    lead_groups: bands,
+    recent_inits: [{
+      init_time: time("00"), status: "complete", timing: "on_time",
+      lead_groups: [group("f018", 19, "complete"), group("forecast", 49, "complete")],
+    }],
+  };
+  const short = {
+    id: "short",
+    row_label: "Source",
+    variant: { id: "18h", label: "18 hour · hourly" },
+    init_hours: ["00", "01", "06"],
+    cadence_hours: 1,
+    next_expected_init: time("07"),
+    next_expected_completion_at: time("08"),
+    lead_groups: [{ name: "forecast", label: "18h" }],
+    recent_inits: ["00", "01", "06"].map((hour) => ({
+      init_time: time(hour), status: hour === "00" ? "failed" : "complete", timing: hour === "00" ? null : "on_time",
+      lead_groups: [group("forecast", 19, hour === "00" ? "failed" : "complete")],
+    })),
+  };
+  return { time, long, short };
+}
+
+test("overlapping variant runs keep the longest measurement and disclose the shorter result", () => {
+  const { time, long, short } = variantPair();
+  const [merged] = mergeVariantRows([long, short]);
+  const top = bandsOf(merged)[0];
+  const run = resolveLeadRun(merged, time("00"));
+  const cell = cellOf(top, run);
+  assert.equal(cell.state, "complete");
+  assert.match(cellTitle(top, run, cell, false), /18 hour run: failed/);
+  assert.equal(merged.next_expected_init, short.next_expected_init);
+  assert.equal(merged.next_expected_completion_at, short.next_expected_completion_at);
+  assert.equal(merged.cadence_hours, 1);
+});
+
+test("a shorter report cannot fill a scheduled but unreported longer run", () => {
+  const { time, long, short } = variantPair();
+  const [merged] = mergeVariantRows([long, short]);
+  const axis = sharedInitAxes([merged], new Map(), false, "family").get(merged.id);
+  assert.ok(axis.runs.some((run) => run.init_time === time("06")));
+  const missing = resolveLeadRun(merged, time("06"));
+  for (const band of bandsOf(merged)) assert.equal(cellOf(band, missing).state, "unobserved");
+  assert.ok(leadLaneSeries(merged, Date.parse(time("12"))).every((lane) =>
+    lane.slots.find((slot) => slot.init.init_time === time("06"))?.state === "unobserved",
+  ));
+  assert.equal(resolveLeadRun(merged, time("03")).status, "not_scheduled");
+});
+
+test("an unreported shorter backer leaves its out-of-horizon band empty", () => {
+  const { time, long, short } = variantPair();
+  const firstBand = { name: "f006", label: "6h" };
+  const firstGroup = { name: "f006", status: "complete", leads_expected: 7, leads_available: 7 };
+  long.lead_groups.unshift(firstBand);
+  long.recent_inits[0].lead_groups.unshift(firstGroup);
+  short.lead_groups.unshift(firstBand);
+  const shortest = {
+    ...short,
+    id: "shortest",
+    variant: { id: "6h", label: "6 hour · hourly" },
+    lead_groups: [firstBand],
+    recent_inits: [{ init_time: time("01"), status: "complete", lead_groups: [firstGroup] }],
+  };
+  short.recent_inits = [];
+  const [merged] = mergeVariantRows([long, short, shortest]);
+  const [top, middle, bottom] = bandsOf(merged);
+  const init = resolveLeadRun(merged, time("01"));
+  assert.equal(cellOf(top, init).state, "beyond_horizon");
+  assert.equal(cellOf(middle, init).state, "unobserved");
+  assert.equal(cellOf(bottom, init).state, "unobserved");
+  const lanes = leadLaneSeries(merged, Date.parse(time("12")));
+  assert.equal(lanes.find((lane) => lane.label === "2d").slots.some(
+    (slot) => slot.init.init_time === time("01"),
+  ), false);
+});
+
+test("a member without configured init hours can back a run at any hour", () => {
+  const { time, long, short } = variantPair();
+  delete long.init_hours;
+  long.recent_inits[0].init_time = time("05");
+  const [merged] = mergeVariantRows([long, short]);
+  const [top] = bandsOf(merged);
+  assert.equal(cellOf(top, resolveLeadRun(merged, time("05"))).state, "complete");
+  assert.equal(cellOf(top, resolveLeadRun(merged, time("03"))).state, "unobserved");
+});
+
+test("an off-schedule report keeps its measurement when no member is scheduled", () => {
+  const { time, long, short } = variantPair();
+  short.recent_inits[1].init_time = time("03");
+  const [merged] = mergeVariantRows([long, short]);
+  const [top, bottom] = bandsOf(merged);
+  const init = resolveLeadRun(merged, time("03"));
+  assert.equal(cellOf(bottom, init).state, "complete");
+  assert.equal(cellOf(top, init).state, "beyond_horizon");
+});
+
+test("disjoint schedules retain both runs and re-key a virtual forecast band by its label", () => {
+  const { time, long, short } = variantPair();
+  short.init_hours = ["01"];
+  short.recent_inits = [short.recent_inits[1]];
+  long.recent_inits[0].init_time = time("06");
+  const [merged] = mergeVariantRows([long, short]);
+  const [top, bottom] = bandsOf(merged);
+  const early = resolveLeadRun(merged, time("01"));
+  const late = resolveLeadRun(merged, time("06"));
+  assert.equal(cellOf(bottom, early).state, "complete");
+  assert.equal(cellOf(top, early).state, "beyond_horizon");
+  assert.equal(cellTitle(top, early, cellOf(top, early), false), "18 hour run: no leads past 18h");
+  assert.equal(cellOf(top, late).state, "complete");
+  assert.deepEqual(displayedRuns(merged, 2).map(({ init_time }) => init_time), [time("01"), time("06")]);
+
+  short.recent_inits[0].lead_groups = [];
+  const [partlyReported] = mergeVariantRows([long, short]);
+  assert.equal(cellOf(bottom, resolveLeadRun(partlyReported, time("01"))).state, "unobserved");
+});
+
+test("shorter or missing runs at the end of the axis cannot shrink the longest bands", () => {
+  const { long, short } = variantPair();
+  const [merged] = mergeVariantRows([long, short]);
+  for (const extents of [leadExtents, compactLeadExtents]) {
+    assert.deepEqual(extents(merged), extents(long));
+  }
+});
+
+test("a single variant or legacy row keeps its own history even with the same source label", () => {
+  const { time, long, short } = variantPair();
+  const legacy = { ...short, variant: undefined };
+  const standalone = { ...short, row_label: "Mirror" };
+  const [longRow, legacyRow, mirrorRow] = mergeVariantRows([long, legacy, standalone]);
+  assert.equal(cellOf(bandsOf(longRow)[0], resolveLeadRun(longRow, time("00"))).state, "complete");
+  for (const row of [legacyRow, mirrorRow]) {
+    assert.equal(cellOf(bandsOf(row)[0], resolveLeadRun(row, time("00"))).state, "failed");
+  }
+});
+
+test("family captions show each distinct variant once in payload order and omit lone labels", () => {
+  const { long, short } = variantPair();
+  const mirror = { ...long, row_label: "Mirror" };
+  assert.equal(variantCaption([long, mirror, short, {}]), `${long.variant.label}, ${short.variant.label}`);
+  assert.equal(variantCaption([long, mirror]), "");
+  assert.equal(variantCaption([{}]), "");
+  short.variant.label = long.variant.label;
+  assert.equal(variantCaption([long, short]), long.variant.label);
+});
+
+test("lag pairing resolves source ids that belong to shorter merged rows", () => {
+  const { long, short } = variantPair();
+  const mirror = { ...long, id: "long-mirror", row_label: "Mirror" };
+  const shortMirror = { ...short, id: "short-mirror", row_label: "Mirror" };
+  const virtual = {
+    ...lagProduct([], selectedFamiliesLag({ source_ids: [short.id, shortMirror.id] })),
+    id: "virtual",
+  };
+  const init = short.recent_inits[1];
+  virtual.recent_inits = [{
+    ...lagInit(init.init_time, undefined, "complete", 4300),
+    source_lead_groups: { forecast: 4000 },
+  }];
+  assert.equal(lagAt(virtual, lagSources(virtual, [long, mirror])).rows[0].last.lag, "—");
+  const rows = mergeVariantRows([long, virtual, mirror, short, shortMirror]);
+  const row = rows.find((product) => product.id === virtual.id);
+  assert.equal(lagAt(row, lagSources(row, rows)).rows[0].last.lag, "5m");
+});
+
+function gefsVariantPair() {
+  const [long, short] = ["35 day", "16 day"].map((label, index) => {
+    const p95_s = index ? 25903.4 : 101183.8307;
+    return {
+      id: label,
+      row_label: "AWS",
+      variant: { id: label, label },
+      init_hours: index ? ["00", "06", "12", "18"] : ["00"],
+      latency_stats: { p95_s, delayed_threshold_s: index ? null : 103615.6614 },
+      timing_baseline: { status: index ? "insufficient_history" : "established" },
+      lead_groups: index
+        ? [{ name: "forecast", label: "16d" }]
+        : [{ name: "f384", label: "16d" }, { name: "forecast", label: "35d" }],
+      lead_group_stats: index
+        ? [{ name: "forecast", label: "16d", p95_s }]
+        : [
+            { name: "f384", label: "16d", p95_s: 89009, delayed_threshold_s: 154099 },
+            { name: "forecast", label: "35d", p95_s, delayed_threshold_s: 103615.6614 },
+          ],
+      recent_inits: [{
+        init_time: `2026-11-20T${index ? "18" : "00"}:00:00Z`,
+        status: index ? "in_flight" : "complete",
+        latency_s: index ? undefined : 100000,
+        lead_groups: [{ name: index ? "forecast" : "f384", status: index ? "in_flight" : "complete", latency_s: index ? undefined : 90000 }],
+      }],
+    };
+  });
+  return { long, short };
+}
+
+test("a GEFS 16-day 18z run uses its own ETA and never inherits the 35-day cutoff", () => {
+  const { long, short } = gefsVariantPair();
+  const [row] = mergeVariantRows([long, short]);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  const [group] = detailRows(row, now, false).rows;
+  assert.equal(group.run.time, "ETA 01:11");
+  assert.equal(group.run.timingReference, undefined);
+  assert.equal(etaLineText(etaTarget(row).target, now, false), "ETA 01:11 (in 2h 11m)");
+});
+
+test("GEFS preserves both lag measurements and explains only visible selected-family lags", () => {
+  const { long, short } = gefsVariantPair();
+  const [longSource, shortSource] = [long, short].map((product, index) => {
+    const stats = product.lead_group_stats[0];
+    stats.leads_in_group = 105;
+    return {
+      ...product,
+      id: `aws-${product.id}`,
+      recent_inits: [{
+        init_time: product.recent_inits[0].init_time,
+        status: "complete",
+        lead_groups: [{ name: stats.name, status: "complete", latency_s: index ? 4200 : 4000 }],
+      }],
+    };
+  });
+  for (const [product, source] of [[long, longSource], [short, shortSource]]) {
+    product.source_label = null;
+    product.row_label = "dynamical.org · virtual";
+    Object.assign(product.recent_inits[0].lead_groups[0], { status: "complete", latency_s: 4217 });
+    product.pipeline_lag = product === long
+      ? selectedFamiliesLag({ source_ids: [source.id] })
+      : readyPipelineLag({ source_ids: [source.id] });
+  }
+  long.recent_inits[0].source_lead_groups = { f384: 4205 };
+  const rows = mergeVariantRows([long, longSource, short, shortSource]);
+  const row = rows.find(isDynamicalRow);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  const details = detailRows(row, now, false, lagSources(row, rows));
+  const [group] = details.rows;
+  assert.equal(group.last.lag, "12s");
+  assert.equal(group.run.lag, "17s");
+  assert.ok(details.lagNote);
+
+  long.recent_inits = [];
+  const [wholeRun, source] = mergeVariantRows([long, longSource, short, shortSource]);
+  assert.equal(detailRows(wholeRun, now, false, [source]).lagNote, undefined);
+});
+
+test("a missing in-horizon lead in the current merged run still has a pending ETA", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].lead_groups = [];
+  const [row] = mergeVariantRows([long, short]);
+  const [group] = detailRows(row, Date.parse("2026-11-20T23:00:00Z"), false).rows;
+  assert.equal(group.run.state, "pending");
+  assert.equal(group.run.time, "ETA 01:11");
+});
+
+test("a scheduled shorter run uses its published completion estimate and its own cutoff", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].status = "complete";
+  long.next_expected_init = "2026-11-22T00:00:00Z";
+  short.next_expected_init = "2026-11-21T06:00:00Z";
+  short.next_expected_completion_at = "2026-11-21T13:12:00Z";
+  short.timing_baseline.status = "established";
+  short.lead_group_stats[0].delayed_threshold_s = 28000;
+  const [row] = mergeVariantRows([long, short]);
+  const [group] = detailRows(row, Date.parse("2026-11-21T00:00:00Z"), false).rows;
+  assert.equal(group.run.time, "ETA 13:12");
+  assert.equal(group.run.timingReference, "delayed past 13:46");
+  assert.equal(etaTarget(row).target, short.next_expected_completion_at);
+});
+
+test("tied upcoming announcements use the longest variant scheduled at that hour", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].status = "complete";
+  long.next_expected_init = short.next_expected_init = "2026-11-21T00:00:00Z";
+  long.next_expected_completion_at = "2026-11-22T04:06:00Z";
+  short.next_expected_completion_at = "2026-11-21T07:12:00Z";
+  const [row] = mergeVariantRows([long, short]);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  const [, fullHorizon] = detailRows(row, now, false).rows;
+  assert.equal(fullHorizon.run.time, "ETA 04:06");
+  assert.equal(etaTarget(row).target, long.next_expected_completion_at);
+
+  long.next_expected_init = short.next_expected_init = "2026-11-21T06:00:00Z";
+  short.next_expected_completion_at = "2026-11-21T13:12:00Z";
+  const [shortRun] = mergeVariantRows([long, short]);
+  assert.equal(detailRows(shortRun, now, false).rows[1].run.state, "beyond_horizon");
+  assert.equal(etaTarget(shortRun).target, short.next_expected_completion_at);
+});
+
+test("a shorter member's early announcement uses the scheduled longer run's horizon and ETA", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].status = "complete";
+  short.next_expected_init = "2026-11-21T00:00:00Z";
+  short.next_expected_completion_at = "2026-11-21T07:12:00Z";
+  long.next_expected_init = "2026-11-22T00:00:00Z";
+  long.next_expected_completion_at = "2026-11-23T04:06:00Z";
+  const [row] = mergeVariantRows([long, short]);
+  const [, fullHorizon] = detailRows(row, Date.parse("2026-11-20T23:00:00Z"), false).rows;
+  assert.equal(fullHorizon.run.state, "upcoming");
+  assert.equal(fullHorizon.run.time, "ETA 04:06");
+  assert.equal(etaTarget(row).target, "2026-11-22T04:06:23.830Z");
+});
+
+test("a source-budget lead never borrows the run deadline when its own deadline is absent", () => {
+  const { long, short } = gefsVariantPair();
+  short.timing_baseline = { method: "source_budget" };
+  short.recent_inits[0].deadline_s = 27000;
+  const [row] = mergeVariantRows([long, short]);
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  assert.equal(detailRows(row, now, false).rows[0].run.timingReference, undefined);
+  short.recent_inits[0].lead_groups[0].deadline_s = 26000;
+  const [withDeadline] = mergeVariantRows([long, short]);
+  const [group] = detailRows(withDeadline, now, false).rows;
+  assert.equal(group.run.timingReference, "deadline 01:13");
+});
+
+test("merged cadence accounts for interleaved init hours and the gap across midnight", () => {
+  const { long, short } = variantPair();
+  long.init_hours = ["00", "12"];
+  short.init_hours = ["06", "18"];
+  long.cadence_hours = short.cadence_hours = 12;
+  assert.equal(mergeVariantRows([long, short])[0].cadence_hours, 6);
+  short.init_hours = ["23"];
+  short.cadence_hours = 24;
+  assert.equal(mergeVariantRows([long, short])[0].cadence_hours, 1);
 });
 
 test("moves facets out of their own bands once the joint is published", () => {
@@ -2827,7 +3262,7 @@ test("local preview fixture carries a coherent delayed threshold and a run past 
   // the products short of history publish no threshold, and draw no line
   for (const group of fixture.groups) {
     for (const other of group.products) {
-      if (other.timing_baseline.status !== "insufficient_history") continue;
+      if (other.timing_baseline?.status !== "insufficient_history") continue;
       assert.equal(other.latency_stats.delayed_threshold_s, null, other.id);
       assert.equal(runChartThreshold(other), null, other.id);
     }

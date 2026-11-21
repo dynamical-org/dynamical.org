@@ -191,7 +191,9 @@ module.exports = function (eleventyConfig) {
       fs.readFileSync("./test/fixtures/pipeline-dashboard.json", "utf8"),
     );
     const shiftFixture = (target) => {
-      const shift = target.getTime() - Date.parse(source.generated_at);
+      // Shift by whole UTC days to keep the fixture's configured init hours.
+      const dayMs = 24 * 60 * 60 * 1000;
+      const shift = Math.round((target.getTime() - Date.parse(source.generated_at)) / dayMs) * dayMs;
       return JSON.parse(
         JSON.stringify(source, (_key, value) => {
           if (

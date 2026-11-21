@@ -40,6 +40,8 @@ const LABEL_PX = 12; // one axis-label row
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
+export const INIT_AXIS_SCOPE = "family"; // or "variant"
+export const MERGE_VARIANTS = true;
 const QUANTILE_ORDER_TOLERANCE_S = 1e-9;
 
 function hasTimestamp(value) {
@@ -271,18 +273,165 @@ export function agencyGroups(groups) {
   return Array.from(agencies, ([agency, groups]) => ({ agency, groups }));
 }
 
-/* The TOC's short name for a model: the agency is its heading, every entry is a
-   forecast, and the domain and grid resolution ("continental 2.5 km",
-   "0.25 degree") are the dataset's business, not the model's, so all of them
-   come off. The section heading keeps the full label. */
+/* The TOC's short name omits the agency, "forecast" and regional grid
+   descriptions. Degree resolutions distinguish separate model families. */
 export function tocModelLabel(label, agency) {
   const name = label.startsWith(`${agency} `) ? label.slice(agency.length + 1) : label;
   return name
     .replace(/\s+forecast\b/gi, "")
-    .replace(/,\s*[\d.]+\s*degrees?\b/gi, "")
     .replace(/\s+continental\b/gi, "")
     .replace(/\s+[\d.]+\s*km\b/gi, "")
     .trim();
+}
+
+export function variantBlocks(products) {
+  const variants = new Set(products.filter((product) => product.variant).map((product) => product.variant.id));
+  if (variants.size <= 1) return [{ variant: null, products }];
+
+  const blocks = [];
+  for (const product of products) {
+    const last = blocks.at(-1);
+    if (last && last.variant?.id === product.variant?.id) {
+      last.products.push(product);
+    } else {
+      blocks.push({ variant: product.variant, products: [product] });
+    }
+  }
+  return blocks;
+}
+
+export function variantCaption(products) {
+  const ids = new Set();
+  const labels = new Set();
+  for (const { variant } of products) {
+    if (!variant) continue;
+    ids.add(variant.id);
+    if (variant.label) labels.add(variant.label);
+  }
+  return ids.size > 1 ? [...labels].join(", ") : "";
+}
+
+function variantHorizon(variant) {
+  return variant.label.split(" · ", 1)[0];
+}
+
+function productIds(product) {
+  return product.memberIds ?? [product.id];
+}
+
+/* Products arrive longest variant first. At an hour they share, only the
+   longest scheduled member can supply the measurement. */
+export function mergeVariantRows(products) {
+  const rows = [];
+  const byLabel = new Map();
+  for (const product of products) {
+    let members = product.variant ? byLabel.get(product.row_label) : null;
+    if (!members) {
+      members = [];
+      rows.push(members);
+      if (product.variant) byLabel.set(product.row_label, members);
+    }
+    members.push(product);
+  }
+
+  return rows.map((rowProducts) => {
+    const [longest] = rowProducts;
+    if (rowProducts.length === 1) return longest;
+    const canonical = new Map(leadAxis(longest).map(({ key, label }) => [label, key]));
+    const members = rowProducts.map((product) => {
+      const axis = leadAxis(product);
+      const names = new Map(axis.map(({ key, label }) => [key, canonical.get(label)]));
+      return {
+        product,
+        runs: new Map(product.recent_inits.map((init) => [init.init_time, init])),
+        names,
+        variant: product.variant,
+        variantTiming: {
+          timing_baseline: product.timing_baseline,
+          latency_stats: product.latency_stats,
+          leadStats: new Map((product.lead_group_stats ?? []).flatMap((stats) => {
+            const key = canonical.get(stats.label) ?? names.get(stats.name);
+            return key == null ? [] : [[key, stats]];
+          })),
+        },
+        coverage: {
+          bands: new Set(names.values()),
+          lastLabel: axis.at(-1)?.label,
+        },
+      };
+    });
+    const initTimes = [...new Set(members.flatMap(({ runs }) => [...runs.keys()]))]
+      .sort((a, b) => Date.parse(a) - Date.parse(b));
+    const initHours = rowProducts.every((product) => product.init_hours)
+      ? [...new Set(rowProducts.flatMap((product) => product.init_hours))].sort()
+      : Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"));
+    const scheduledMemberIndex = (initTime) => {
+      const hour = initParts(initTime).time.slice(0, 2);
+      return members.findIndex(({ product }) => !product.init_hours || product.init_hours.includes(hour));
+    };
+    // Include the gap from the last init of one UTC day to the first of the next.
+    const gaps = initHours.map((hour, index) =>
+      Number(initHours[index + 1] ?? initHours[0]) - Number(hour) + (index === initHours.length - 1 ? 24 : 0),
+    );
+    const announced = members.reduce((soonest, member) => {
+      const time = Date.parse(member.product.next_expected_init);
+      return time < (soonest ? Date.parse(soonest.product.next_expected_init) : Infinity)
+        ? member : soonest;
+    }, null);
+    const nextInit = announced?.product.next_expected_init;
+    const next = announced && (members[scheduledMemberIndex(nextInit)] ?? announced);
+    let nextCompletion = next?.product.next_expected_completion_at;
+    // A completion published for a different init cannot be reused as a date.
+    if (next && Date.parse(next.product.next_expected_init) !== Date.parse(nextInit)) {
+      const p95 = next.product.latency_stats?.p95_s;
+      nextCompletion = Number.isFinite(p95) ? new Date(Date.parse(nextInit) + p95 * 1000).toISOString() : null;
+    }
+
+    return {
+      ...longest,
+      memberIds: rowProducts.map((product) => product.id),
+      init_hours: initHours,
+      cadence_hours: gaps.length ? Math.min(...gaps) : longest.cadence_hours,
+      memberSources: [...new Set(rowProducts.map((product) => product.source).filter(Boolean).map(displaySource))],
+      next_expected_init: nextInit,
+      next_expected_completion_at: nextCompletion,
+      nextExpectedRun: next && {
+        variant: next.variant, coverage: next.coverage, variantTiming: next.variantTiming,
+        completionAt: nextCompletion,
+      },
+      sizingLeadGroups: longest.recent_inits.at(-1)?.lead_groups ?? [],
+      recent_inits: initTimes.map((initTime) => {
+        const scheduled = scheduledMemberIndex(initTime);
+        const index = scheduled < 0 ? members.findIndex(({ runs }) => runs.has(initTime)) : scheduled;
+        const backing = members[index];
+        const { product, names, variant, coverage, variantTiming } = backing;
+        const pipelineLag = product.pipeline_lag;
+        const init = backing.runs.get(initTime);
+        if (!init) return {
+          init_time: initTime,
+          variant, coverage, variantTiming, pipelineLag,
+          status: "unobserved",
+          unreported: true,
+        };
+        const lead_groups = init.lead_groups?.flatMap((group) => {
+          const name = names.get(group.name);
+          return name == null ? [] : [{ ...group, name }];
+        });
+        const sourceGroups = init.source_lead_groups;
+        const source_lead_groups = validSourceLeadGroups(sourceGroups) ? Object.fromEntries(
+          Object.entries(sourceGroups).flatMap(([name, value]) => {
+            const key = names.get(name);
+            return key == null ? [] : [[key, value]];
+          }),
+        ) : sourceGroups;
+        const shorterRuns = members.slice(index + 1).flatMap((member) => {
+          const run = member.runs.get(initTime);
+          return run?.status ? [{ variant: member.variant, status: run.status, timing: run.timing }] : [];
+        });
+        return { ...init, variant, coverage, variantTiming, pipelineLag, lead_groups, source_lead_groups, shorterRuns };
+      }),
+    };
+  });
 }
 
 function productsOf(dashboard) {
@@ -476,8 +625,7 @@ export function leadAxis(product) {
 
 export function leadExtents(product) {
   const leads = leadAxis(product);
-  const newest = product.recent_inits?.at(-1);
-  const slices = leadSlices(newest?.lead_groups ?? []);
+  const slices = leadSlices(product.sizingLeadGroups ?? product.recent_inits?.at(-1)?.lead_groups ?? []);
   const expected = leads.map(
     (lead) => slices.find((slice) => slice.name === lead.key)?.expected ?? 0,
   );
@@ -500,8 +648,7 @@ export function leadExtents(product) {
 
 export function compactLeadExtents(product) {
   const leads = leadAxis(product);
-  const newest = product.recent_inits?.at(-1);
-  const slices = leadSlices(newest?.lead_groups ?? []);
+  const slices = leadSlices(product.sizingLeadGroups ?? product.recent_inits?.at(-1)?.lead_groups ?? []);
   const expected = leads.map(
     (lead) => slices.find((slice) => slice.name === lead.key)?.expected ?? 0,
   );
@@ -580,8 +727,8 @@ export function gutterPx(labelled) {
   return Math.min(GUTTER_MAX_CH, widest) * CH_PX;
 }
 
-/* What the field shows: the newest runs that fit, oldest first. The chart
-   under the field draws exactly this slice, so both take it from here. */
+/* The newest runs that fit, oldest first, for a lead field and chart with
+   no shared init axis. */
 
 export function displayedRuns(product, runCount) {
   return product.recent_inits.slice(-Math.max(1, runCount || RUNS_MAX));
@@ -602,13 +749,51 @@ function runsFitting(availablePx, gutter, runWidth, gap) {
   );
 }
 
-export function runsThatFit(product, availablePx, local) {
-  return runsFitting(
-    availablePx,
-    gutterPx(bandsOf(product)),
-    initColumnPx(product, selectedTimeZone(local)),
-    RUN_GAP_PX,
-  );
+export function runsThatFit(product, availablePx, local, {
+  gutter = gutterPx(bandsOf(product)),
+  column = initColumnPx(product, selectedTimeZone(local)),
+} = {}) {
+  return runsFitting(availablePx, gutter, column, RUN_GAP_PX);
+}
+
+/* A scope's shared gutter and column width put every init at the same x
+   position, even when the rows have different lead labels or recent runs.
+   In variant scope, a merged row belongs to its longest member's variant. */
+export function sharedInitAxes(products, widths, local, scope = INIT_AXIS_SCOPE) {
+  const scopes = new Map();
+  for (const product of products) {
+    if (!product.variant) continue;
+    const key = scope === "variant" ? product.variant.id : null;
+    if (!scopes.has(key)) scopes.set(key, []);
+    scopes.get(key).push(product);
+  }
+
+  const axes = new Map();
+  for (const rows of scopes.values()) {
+    const inits = new Map();
+    for (const row of rows) {
+      for (const init of row.recent_inits) inits.set(init.init_time, init);
+    }
+    const runs = [...inits.values()].sort((a, b) => Date.parse(a.init_time) - Date.parse(b.init_time));
+    const geometry = {
+      gutter: Math.max(...rows.map((row) => gutterPx(bandsOf(row)))),
+      column: initColumnPx({ recent_inits: runs }, selectedTimeZone(local)),
+    };
+    const count = Math.min(...rows.map((row) => runsThatFit(row, widths.get(row.id), local, geometry)));
+    const axis = { ...geometry, runs: runs.slice(-count) };
+    for (const row of rows) axes.set(row.id, axis);
+  }
+  return axes;
+}
+
+export function resolveLeadRun(product, initTime) {
+  const own = product.recent_inits.find((init) => init.init_time === initTime);
+  if (own) return own;
+  const hour = initParts(initTime).time.slice(0, 2);
+  return {
+    init_time: initTime,
+    status: product.init_hours && !product.init_hours.includes(hour) ? "not_scheduled" : "unobserved",
+  };
 }
 
 /* A facet grid spends its width on lead columns inside every run, and those
@@ -651,12 +836,18 @@ function Band({
   </div>`;
 }
 
-/* What one run measured for one band. A band the run never reported reads as
-   unobserved rather than as a failure. */
+function beyondHorizon(init, bandKey) {
+  return init?.coverage?.lastLabel != null && !init.coverage.bands.has(bandKey);
+}
+
+/* A band outside the backing variant's horizon is empty. An unreported
+   measurement within the horizon reads as unobserved. */
 
 export function cellOf(band, init) {
   if (!init) return { state: "unobserved" };
+  if (band.kind === "lead" && beyondHorizon(init, band.key)) return { state: "beyond_horizon" };
   if (init.status === "unobserved") return { state: "unobserved" };
+  if (init.status === "not_scheduled") return { state: "not_scheduled" };
 
   if (band.kind === "lead") {
     const slice = leadSlices(init.lead_groups ?? []).find(
@@ -690,9 +881,18 @@ function facetCell(facet, init, timing = init.timing) {
 
 export function cellTitle(band, init, cell, local) {
   if (!init) return `${band.label} · not reported`;
+  if (cell.state === "not_scheduled") {
+    return `${band.label} · not scheduled at ${initParts(init.init_time).time}`;
+  }
+  const shorter = (init.shorterRuns ?? []).map(({ variant, status, timing }) =>
+    `${variantHorizon(variant)} run: ${statusLabel(status)}${timing ? `, ${timing.replaceAll("_", " ")}` : ""}`,
+  );
+  if (cell.state === "beyond_horizon") {
+    return [`${variantHorizon(init.variant)} run: no leads past ${init.coverage.lastLabel}`, ...shorter].join(" · ");
+  }
   const when = initShort(init.init_time, local);
   if (cell.state === "unobserved") {
-    return `${band.label} · ${when} · no probe visibility; not a publication failure`;
+    return [`${band.label} · ${when} · no probe visibility; not a publication failure`, ...shorter].join(" · ");
   }
   // the unit agrees with the total, so a band of one lead reads "1 / 1 arrival"
   const arrivals = cell.expected === 1 ? "arrival" : "arrivals";
@@ -708,6 +908,7 @@ export function cellTitle(band, init, cell, local) {
     volume,
     statusLabel(cell.state),
     cell.timing ? cell.timing.replaceAll("_", " ") : null,
+    ...shorter,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -974,7 +1175,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
                 local=${local}
                 measured=${facetAt
                   ? facetCell(facetAt, init, measured.timing)
-                  : { state: "unobserved" }}
+                  : { state: beyondHorizon(init, lead.key) ? "beyond_horizon" : "unobserved" }}
                 style=${`--cell-w:${leadWidth(lead).toFixed(2)}px`}
               />`;
             })}
@@ -1020,15 +1221,19 @@ function FacetRowsField({ product, local, runCount, dimension }) {
   </div>`;
 }
 
-function LeadField({ product, local, runCount }) {
-  const runs = displayedRuns(product, runCount);
+function LeadField({ product, local, runCount, sharedAxis }) {
+  const runs = sharedAxis
+    ? sharedAxis.runs.map((init) => resolveLeadRun(product, init.init_time))
+    : displayedRuns(product, runCount);
   const extents = leadExtents(product);
-  const column = initColumnPx(product, selectedTimeZone(local));
+  const bands = bandsOf(product);
+  const column = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
+  const gutter = sharedAxis?.gutter ?? gutterPx(bands);
   return html`<div
     class="pipeline-field"
-    style=${`--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutterPx(bandsOf(product))}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
+    style=${`--sq:${column}px;--run-gap:${RUN_GAP_PX}px;--clumped-run-gap:${RUN_GAP_PX}px;--run-width:${column}px;--band-gutter:${gutter}px;--band-gap:${BAND_GAP_PX}px;--label-h:${LABEL_PX}px`}
   >
-    ${bandsOf(product).map(
+    ${bands.map(
       (band) =>
         html`<${Band}
           key=${band.key}
@@ -1052,12 +1257,12 @@ function LeadField({ product, local, runCount }) {
   </div>`;
 }
 
-function etaTarget(product) {
+export function etaTarget(product) {
   const running = product.recent_inits.findLast(
     (init) => init.status === "pending" || init.status === "in_flight",
   );
   if (running) {
-    const p95 = product.latency_stats?.p95_s;
+    const p95 = (running.variantTiming ?? product).latency_stats?.p95_s;
     return {
       init: running,
       initTime: running.init_time,
@@ -1093,10 +1298,10 @@ export function etaLineText(target, now, local) {
 
 // The percentile columns summarise every init in the historical baseline, not
 // just the runs the grid draws, so the header names the sample they came from.
-function statsHeader(sampleInitCount, note = null) {
-  if (!sampleInitCount) return "time after init";
+function statsHeader(sampleInitCount, note, title) {
+  if (!sampleInitCount) return title;
   const samples = sampleInitCount === 1 ? "sample" : "samples";
-  const header = `time after init · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
+  const header = `${title} · ${sampleInitCount.toLocaleString("en-US")} ${samples}`;
   // the sample is thin, so the columns beside it come with no timing verdict
   return note ? `${header} · ${note}` : header;
 }
@@ -1105,8 +1310,9 @@ function statsHeader(sampleInitCount, note = null) {
    The feed's family names are its own, so the note names none of them. The
    other bases say nothing beyond the column header. */
 
-export function lagBasisNote(lag) {
+export function lagBasisNote(lag, runLabel) {
   if (!validPipelineLag(lag) || lag.basis !== "selected_families") return null;
+  if (runLabel) return `The ${runLabel} run's lag uses the source file families required by this dataset.`;
   return "Lag uses the source file families required by this dataset, not the source's whole run.";
 }
 
@@ -1115,15 +1321,14 @@ export function lagBasisNote(lag) {
    null for not known. A missing or malformed map is not known either, and
    nothing falls back to the source's whole run. */
 
+function validSourceLeadGroups(groups) {
+  return groups != null && typeof groups === "object" && !Array.isArray(groups) &&
+    Object.values(groups).every((value) => value === null || Number.isFinite(value));
+}
+
 function selectedSourceArrival(init, name) {
   const groups = init?.source_lead_groups;
-  if (groups == null || typeof groups !== "object" || Array.isArray(groups)) {
-    return null;
-  }
-  if (!Object.values(groups).every((value) => value === null || Number.isFinite(value))) {
-    return null;
-  }
-  return Object.hasOwn(groups, name) ? groups[name] : null;
+  return validSourceLeadGroups(groups) && Object.hasOwn(groups, name) ? groups[name] : null;
 }
 
 /* The sources the published lag is measured against, as rows of this group.
@@ -1135,7 +1340,9 @@ export function lagSources(product, groupProducts = []) {
   if (!isDynamicalRow(product) || !validPipelineLag(product.pipeline_lag)) {
     return [];
   }
-  const byId = new Map(groupProducts.map((sibling) => [sibling.id, sibling]));
+  const byId = new Map(groupProducts.flatMap((sibling) =>
+    productIds(sibling).map((id) => [id, sibling]),
+  ));
   const sources = product.pipeline_lag.source_ids.map((id) => byId.get(id));
   return sources.every(Boolean) ? sources : [];
 }
@@ -1234,8 +1441,21 @@ const NO_RUN = Object.freeze({
   lag: "—",
 });
 
+function beyondHorizonDetail(init) {
+  return { ...NO_RUN, status: `past ${init.coverage.lastLabel}`, state: "beyond_horizon", time: "", duration: "", lag: "" };
+}
+
+function runTimingReference(initMs, local, threshold, deadline = null) {
+  const seconds = deadline ?? threshold;
+  if (seconds == null) return null;
+  return `${deadline == null ? "delayed past" : "deadline"} ${clockTime(initMs + seconds * 1000, selectedTimeZone(local))}`;
+}
+
 function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
   if (!init) return NO_RUN;
+  if (beyondHorizon(init, stats.name)) return beyondHorizonDetail(init);
+  const baseline = init.variantTiming;
+  const bandStats = baseline ? baseline.leadStats.get(stats.name) : stats;
   const initMs = Date.parse(init.init_time);
   let time = "—";
   let duration = "—";
@@ -1247,14 +1467,17 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
     duration = formatLatency(live.latency_s);
   } else if (live?.status === "complete") {
     time = "done";
-  } else if (active && stats.p95_s != null) {
-    const target = initMs + stats.p95_s * 1000;
+  } else if (active && bandStats?.p95_s != null) {
+    const target = initMs + bandStats.p95_s * 1000;
     if (target > now) {
       time = `ETA ${clockTime(target, selectedTimeZone(local))}`;
     }
     const elapsed = Math.floor((now - initMs) / 1000);
     if (elapsed > 0) duration = formatDuration(elapsed);
   }
+  const timingReference = active && baseline && runTimingReference(
+    initMs, local, delayedThreshold(baseline, bandStats), leadDeadline(baseline, init, live),
+  );
   return {
     status: statusLabel(live?.status ?? "pending"),
     state: live?.status ?? "pending",
@@ -1263,13 +1486,21 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
     duration,
     // a horizon has a lag once both sides have landed it, and not before
     lag: formatSignedLatency(lagSeconds),
+    ...(timingReference ? { timingReference } : {}),
   };
 }
 
-function upcomingRunDetail(initTime, stats, local) {
+function upcomingRunDetail(initTime, stats, local, next) {
   if (!initTime) return NO_RUN;
-  const target =
-    stats.p95_s == null ? null : Date.parse(initTime) + stats.p95_s * 1000;
+  if (beyondHorizon(next, stats.name)) return beyondHorizonDetail(next);
+  const baseline = next?.variantTiming;
+  const bandStats = baseline ? baseline.leadStats.get(stats.name) : stats;
+  const initMs = Date.parse(initTime);
+  // The published completion time estimates the whole run, so only its final
+  // band takes it. Earlier bands still have their own historical estimates.
+  const completion = next?.coverage.lastLabel === stats.label ? next?.completionAt : null;
+  const target = completion ?? (bandStats?.p95_s == null ? null : initMs + bandStats.p95_s * 1000);
+  const timingReference = baseline && runTimingReference(initMs, local, delayedThreshold(baseline, bandStats));
   return {
     status: "upcoming",
     state: "upcoming",
@@ -1280,11 +1511,12 @@ function upcomingRunDetail(initTime, stats, local) {
         : `ETA ${clockTime(target, selectedTimeZone(local))}`,
     duration: "—",
     lag: "—",
+    ...(timingReference ? { timingReference } : {}),
   };
 }
 
-function labelledRun(label, initTime, local) {
-  return initTime ? `${label} · ${initShort(initTime, local)}` : label;
+function labelledRun(label, initTime, local, variant) {
+  return initTime ? [label, initShort(initTime, local), variant?.label].filter(Boolean).join(" · ") : label;
 }
 
 export function isDynamicalRow(product) {
@@ -1302,19 +1534,24 @@ export function detailRows(product, now, local, sources = []) {
   const afterLast = sourceArrivals(sources, last?.init_time);
   const afterActive = sourceArrivals(sources, active?.init_time);
   const horizons = horizonIndex(product);
-  // a selected-families lag reads only its own map, and only when the lag
-  // block that names it is whole; it never falls back to the source row
-  const selected = product.pipeline_lag?.basis === "selected_families";
-  const selectedValid =
-    selected && sources.length > 0 && validPipelineLag(product.pipeline_lag);
+  const historyTitle = product.memberIds ? `${variantHorizon(product.variant)} history` : "time after init";
+  const lastLag = product.memberIds ? last?.pipelineLag : product.pipeline_lag;
+  const activeLag = product.memberIds ? active?.pipelineLag : product.pipeline_lag;
+  const lastLagNote = lagBasisNote(lastLag);
+  const activeLagNote = lagBasisNote(activeLag);
+  const lagNote = lastLagNote === activeLagNote
+    ? lastLagNote
+    : lastLagNote ? lagBasisNote(lastLag, "last") : lagBasisNote(activeLag, "current");
   // this run's horizon, less the source's own arrival for the same horizon
-  const lagOf = (init, arrivals, stats) => {
-    if (selected) {
-      if (!selectedValid) return null;
+  const lagOf = (init, lag, arrivals, stats) => {
+    if (lag?.basis === "selected_families") {
+      // A selected-families lag never falls back to the source's whole run.
+      if (!sources.length || !validPipelineLag(lag)) return null;
       const ours = arrivedAt(init, stats.name);
       const theirs = selectedSourceArrival(init, stats.name);
       return ours == null || theirs == null ? null : ours - theirs;
     }
+    if (product.memberIds && !validPipelineLag(lag)) return null;
     const key = horizons.keyByName.get(stats.name);
     if (key == null || horizons.ambiguous.has(key)) return null;
     const ours = arrivedAt(init, stats.name);
@@ -1325,14 +1562,12 @@ export function detailRows(product, now, local, sources = []) {
     // a row measures its lag against the source the feed pairs it with; every
     // other row has no source to be late after
     lagged: sources.length > 0,
-    lastHeader: labelledRun("last run", last?.init_time, local),
+    ...(sources.length && lagNote ? { lagNote } : {}),
+    lastHeader: labelledRun("last run", last?.init_time, local, last?.variant),
     runHeader: active
-      ? labelledRun("current run", active.init_time, local)
-      : labelledRun("upcoming run", upcoming, local),
-    statsHeader: statsHeader(
-      product.latency_stats?.sample_init_count,
-      timingBaselineNote(product),
-    ),
+      ? labelledRun("current run", active.init_time, local, active.variant)
+      : labelledRun("upcoming run", upcoming, local, product.nextExpectedRun?.variant),
+    statsHeader: statsHeader(product.latency_stats?.sample_init_count, timingBaselineNote(product), historyTitle),
     rows: (product.lead_group_stats ?? []).map((stats, index) => ({
       name: stats.name,
       label: stats.label,
@@ -1343,7 +1578,7 @@ export function detailRows(product, now, local, sources = []) {
         now,
         local,
         false,
-        lagOf(last, afterLast, stats),
+        lagOf(last, lastLag, afterLast, stats),
       ),
       run: active
         ? observedRunDetail(
@@ -1353,9 +1588,9 @@ export function detailRows(product, now, local, sources = []) {
             now,
             local,
             true,
-            lagOf(active, afterActive, stats),
+            lagOf(active, activeLag, afterActive, stats),
           )
-        : upcomingRunDetail(upcoming, stats, local),
+        : upcomingRunDetail(upcoming, stats, local, product.nextExpectedRun),
       p50: formatLatency(stats.p50_s),
       p95: formatLatency(stats.p95_s),
       p99: formatLatency(stats.p99_s),
@@ -1418,11 +1653,10 @@ export function timingBaselineNote(product) {
   return shortfall && `insufficient history (${shortfall.days}/${shortfall.required} days)`;
 }
 
-/* The chart points mark completion time after init, or the
-   time elapsed so far for a run still arriving, against the product's current
-   delayed threshold. The timings are the summarizer's verdicts, each made
-   against the threshold of its day; the line is today's, so the chart draws
-   both and judges neither.
+/* The chart points mark completion time after init, or the time elapsed so
+   far for a run still arriving, against the current threshold for its variant.
+   The timing verdicts come from the summarizer and use the threshold of the
+   day the run was observed.
 
    The lead-group view draws a lane per group plus the whole run under the
    field's columns. An arrival-group view keeps the proportional run chart. */
@@ -1444,18 +1678,29 @@ const CHART_TICK_STEPS_S = [
 // time written beside it rather than flattening every landed run
 const CHART_ELAPSED_REACH = 3;
 
-/* The line is drawn only when the product has a verdict to make: one still
-   short of history publishes no threshold, and a feed that omits the field
-   draws the points alone. */
+function positiveSeconds(value) {
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function delayedThreshold(product, stats) {
+  if (product.timing_baseline?.status === "insufficient_history") return null;
+  return positiveSeconds(stats?.delayed_threshold_s);
+}
+
+function leadDeadline(product, init, entry) {
+  // Source-budget deadlines belong to this grain. Older payloads can have
+  // a run deadline without a lead-level deadline.
+  if (product.timing_baseline?.method === "source_budget") return positiveSeconds(entry?.deadline_s);
+  return positiveSeconds(entry && Object.hasOwn(entry, "deadline_s") ? entry.deadline_s : init.deadline_s);
+}
 
 export function runChartThreshold(product) {
-  if (product.timing_baseline?.status === "insufficient_history") return null;
-  const threshold = product.latency_stats?.delayed_threshold_s;
-  return Number.isFinite(threshold) && threshold > 0 ? threshold : null;
+  return delayedThreshold(product, product.latency_stats);
 }
 
 export function runChartSeries(product, now, inits = product.recent_inits ?? []) {
   const runs = [];
+  const timingMarks = [];
   const seen = new Set();
   for (const init of inits) {
     const ms = Date.parse(init.init_time);
@@ -1463,6 +1708,9 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
     // one point per init: a repeated timestamp would share a key and a place
     if (seen.has(ms)) continue;
     seen.add(ms);
+    if (init.variantTiming) {
+      timingMarks.push({ init, ms, threshold: runChartThreshold(init.variantTiming), deadline: positiveSeconds(init.deadline_s) });
+    }
     const run = {
       init,
       ms,
@@ -1484,41 +1732,39 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
     }
     runs.push(run);
   }
-  return { runs, threshold: runChartThreshold(product) };
+  return product.memberIds ? { runs, threshold: null, timingMarks } : { runs, threshold: runChartThreshold(product) };
 }
 
-/* The expanded lead view keeps the field's columns, including absent groups.
-   A missing entry and an explicit unobserved entry have different titles. */
+/* The expanded lead view keeps the field's columns. Within each variant's
+   horizon, a missing measurement and an explicit unobserved entry have
+   different titles. */
 export function leadLaneSeries(product, now, inits = product.recent_inits ?? []) {
   const stats = new Map((product.lead_group_stats ?? []).map((entry) => [entry.name, entry]));
   const leads = bandsOf(product).map((band) => {
-    const threshold = product.timing_baseline?.status === "insufficient_history"
-      ? null
-      : stats.get(band.key)?.delayed_threshold_s;
-    const slots = inits.map((init) => {
+    const threshold = product.memberIds ? null : delayedThreshold(product, stats.get(band.key));
+    const slots = inits.filter((init) => !beyondHorizon(init, band.key)).map((init) => {
       const entry = init.lead_groups?.find((group) => group.name === band.key);
-      // Source-budget deadlines belong to this grain; retain the run fallback for older payloads.
-      const value = product.timing_baseline?.method === "source_budget"
-        ? entry?.deadline_s
-        : entry && Object.hasOwn(entry, "deadline_s") ? entry.deadline_s : init.deadline_s;
-      const deadline = Number.isFinite(value) && value > 0 ? value : null;
-      if (!entry) return { init, state: "missing", deadline };
-      if (entry.status === "unobserved") return { init, state: "unobserved", deadline };
+      const baseline = init.variantTiming;
+      const timing = {
+        deadline: leadDeadline(baseline ?? product, init, entry),
+        threshold: baseline ? delayedThreshold(baseline, baseline.leadStats.get(band.key)) : null,
+      };
+      if (init.unreported || entry?.status === "unobserved") return { init, state: "unobserved", ...timing };
+      if (!entry) return { init, state: "missing", ...timing };
       const ms = Date.parse(init.init_time);
-      if (!Number.isFinite(ms)) return { init, state: "missing", deadline };
+      if (!Number.isFinite(ms)) return { init, state: "missing", ...timing };
       const elapsed = entry.status === "pending" || entry.status === "in_flight";
       const seconds = elapsed ? Math.max(0, (now - ms) / 1000)
         : Number.isFinite(entry.latency_s) ? entry.latency_s
         : entry.status === "failed" ? 0 : null;
-      if (seconds == null) return { init, state: "missing", deadline };
-      return { init, state: "point", deadline, run: {
+      if (seconds == null) return { init, state: "missing", ...timing };
+      return { init, state: "point", ...timing, run: {
         init, ms, status: entry.status, timing: entry.timing ?? null, seconds, elapsed,
         noTime: entry.status === "failed" && !Number.isFinite(entry.latency_s),
       } };
     });
-    return { name: band.key, label: band.label, slots,
-      runs: slots.filter((slot) => slot.run).map((slot) => slot.run),
-      threshold: Number.isFinite(threshold) && threshold > 0 ? threshold : null };
+    return { name: band.key, label: band.label, slots, threshold,
+      runs: slots.filter((slot) => slot.run).map((slot) => slot.run) };
   });
   const runSeries = runChartSeries(product, now, inits);
   const runByInit = new Map(runSeries.runs.map((run) => [run.init.init_time, run]));
@@ -1537,14 +1783,15 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
     slots: inits.map((init) => ({ init,
       state: runByInit.has(init.init_time) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
       run: runByInit.get(init.init_time),
-      deadline: Number.isFinite(init.deadline_s) && init.deadline_s > 0 ? init.deadline_s : null,
+      deadline: positiveSeconds(init.deadline_s),
+      threshold: init.variantTiming ? runChartThreshold(init.variantTiming) : null,
     })),
   };
   const lanes = [...leads, runLane];
   lanes.domain = latencyDomain({
     runs: lanes.flatMap((lane) => lane.runs),
     thresholds: lanes.map((lane) => lane.threshold).filter((value) => value != null),
-    deadlines: lanes.flatMap((lane) => lane.slots.map((slot) => slot.deadline).filter((value) => value != null)),
+    timingMarks: lanes.flatMap((lane) => lane.slots),
   });
   return lanes;
 }
@@ -1596,6 +1843,10 @@ export function latencyDomain(series) {
     .map((run) => run.seconds);
   if (series.threshold != null) landed.push(series.threshold);
   landed.push(...(series.thresholds ?? []), ...(series.deadlines ?? []));
+  for (const { threshold, deadline } of series.timingMarks ?? []) {
+    if (threshold != null) landed.push(threshold);
+    if (deadline != null) landed.push(deadline);
+  }
   // with nothing landed there is nothing to flatten, so the elapsed times
   // take the axis themselves
   const reach = landed.length ? Math.max(...landed) * CHART_ELAPSED_REACH : Infinity;
@@ -1627,7 +1878,7 @@ export function runChartScales(series, width, cadenceHours, labelPx = CH_PX * 3)
   const plotHeight = CHART_HEIGHT_PX - CHART_MARGIN.top - CHART_MARGIN.bottom;
   const { yMin, yMax } = latencyDomain(series);
 
-  const times = series.runs.map((run) => run.ms);
+  const times = [...new Set([...series.runs.map((run) => run.ms), ...(series.timingMarks ?? []).map((mark) => mark.ms)])];
   const first = times.length ? Math.min(...times) : 0;
   const last = times.length ? Math.max(...times) : 0;
   const gaps = [...times]
@@ -1721,12 +1972,16 @@ export function runChartKey(product, runs) {
   if (drawn("delayed", true)) {
     key.push({ mark: "delayed-elapsed", text: "judged delayed, not yet complete" });
   }
-  const shortfall = timingBaselineShortfall(product);
-  if (shortfall) {
+  const baselines = product.memberIds
+    ? new Map(runs.filter(({ init }) => init?.variantTiming).map(({ init }) => [init.variant.label, init.variantTiming]))
+    : new Map([["", product]]);
+  for (const [label, baseline] of baselines) {
+    const shortfall = timingBaselineShortfall(baseline);
+    if (!shortfall) continue;
     key.push({
       mark: null,
       // the gate counts distinct UTC days with a completed run, not calendar age
-      text: `no delayed threshold yet: ${shortfall.days} of ${shortfall.required} days with a completed run`,
+      text: `${label ? `${label} · ` : ""}no delayed threshold yet: ${shortfall.days} of ${shortfall.required} days with a completed run`,
     });
   }
   return key;
@@ -1737,6 +1992,39 @@ function RunKey({ items }) {
   return html`<ul>
     ${items.map((item) => html`<li key=${item.text} data-mark=${item.mark}>${item.text}</li>`)}
   </ul>`;
+}
+
+function timingMarksKey(marks) {
+  const items = [];
+  if (marks.some(({ threshold }) => threshold != null)) {
+    items.push({ mark: "threshold", text: "delayed threshold for this init" });
+  }
+  if (marks.some(({ deadline }) => deadline != null)) {
+    items.push({ mark: "deadline", text: "deadline for this init" });
+  }
+  return items;
+}
+
+function timingMarkText({ deadline, threshold }) {
+  return [
+    deadline == null ? null : `deadline ${formatLatency(deadline)} after init`,
+    threshold == null ? null : `delayed past ${formatLatency(threshold)} after init`,
+  ].filter(Boolean);
+}
+
+function TimingMarks({ mark, x, scale, label }) {
+  const { deadline, threshold } = mark;
+  return html`
+    ${threshold == null ? null : html`<g data-threshold="run">
+      <line x1=${x - 6} x2=${x + 8} y1=${scale.y(threshold)} y2=${scale.y(threshold)}>
+        <title>${label} · delayed past ${formatLatency(threshold)} after init</title>
+      </line>
+    </g>`}
+    ${deadline == null ? null : html`<line data-deadline="" x1=${x - 12} x2=${x - 7}
+      y1=${scale.y(deadline)} y2=${scale.y(deadline)}>
+      <title>${label} · deadline ${formatLatency(deadline)} after init</title>
+    </line>`}
+  `;
 }
 
 /* The chart across the row. Its width is measured, as the field's is: the
@@ -1763,11 +2051,13 @@ function RunChart({ product, now, local }) {
 
   if (!mounted) return null;
   const series = runChartSeries(product, now);
+  const timingMarks = series.timingMarks ?? [];
+  const timingKey = timingMarksKey(timingMarks);
   const zone = selectedTimeZone(local);
 
   let chart = null;
   let key = [];
-  if (series.runs.length > 0 && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
+  if ((series.runs.length > 0 || timingKey.length > 0) && width != null && width > CHART_MARGIN.left + CHART_MARGIN.right + 40) {
     const scale = runChartScales(
       series,
       width,
@@ -1785,7 +2075,7 @@ function RunChart({ product, now, local }) {
         top: scale.top,
       },
     );
-    key = [...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)];
+    key = [...runChartKey(product, series.runs), ...timingKey, ...pinnedKeyItems(parked.overflow, local)];
     // the threshold label hangs at its line's right end; a parked ring there
     // would sit on it, so the label moves to the line's left end, under the
     // line where above it would reach the title row
@@ -1834,7 +2124,7 @@ function RunChart({ product, now, local }) {
         </g>`,
       )}
       <line data-axis="x" x1=${scale.left} x2=${scale.right} y1=${scale.bottom} y2=${scale.bottom} />
-      ${series.runs.map((run, index) => {
+      ${(series.timingMarks ?? series.runs).map((run, index) => {
         const { date, time } = initParts(run.init.init_time, zone);
         const x = scale.x(run.ms);
         const labelled = index % scale.labelEvery === 0;
@@ -1856,6 +2146,8 @@ function RunChart({ product, now, local }) {
             <line x1=${scale.left} x2=${scale.right} y1=${scale.y(series.threshold)} y2=${scale.y(series.threshold)} />
             <text ...${thresholdAttrs}>${thresholdText}</text>
           </g>`}
+      ${timingMarks.map((mark) => html`<${TimingMarks} key=${mark.init.init_time}
+        mark=${mark} x=${scale.x(mark.ms)} scale=${scale} label=${initShort(mark.init.init_time, local)} />`)}
       ${series.runs.map((run) => {
         return html`<circle
           key=${run.init.init_time}
@@ -2031,9 +2323,9 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
   const thresholdText = lineY == null ? null : `delayed past ${formatLatency(series.threshold)}`;
   // a parked ring at the right end of the line would sit on its label, so
   // the label moves to the line's left end
-  const parkedColumn = new Map(shown.map(({ init, index }) => [init.init_time, index]));
+  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
   const rings = parked.runs.map((run) => {
-    const cx = columns.x(parkedColumn.get(run.init.init_time));
+    const cx = columns.x(columnOf.get(run.init.init_time));
     const r = markRadius(run) + 1;
     return { left: cx - r, right: cx + r, top: parkedY(scale) - r, bottom: parkedY(scale) + r };
   });
@@ -2109,6 +2401,9 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
               <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
               <text ...${thresholdLabel}>${thresholdText}</text>
             </g>`}
+        ${series.timingMarks?.map((mark) => html`<${TimingMarks} key=${mark.init.init_time}
+          mark=${mark} x=${columns.x(columnOf.get(mark.init.init_time))}
+          scale=${scale} label=${initShort(mark.init.init_time, local)} />`)}
         ${shown.map(({ init, index, run }) => {
           return html`<circle
             key=${init.init_time}
@@ -2131,17 +2426,18 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
     <${InitTiers} runs=${runs} local=${local} />`;
 }
 
-function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
+function AlignedRunChart({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   // the figure follows the field: nothing until the row is measured, and
   // nothing for a product with no runs
   if (runCount == null || !product.recent_inits.length) return null;
-  const zone = selectedTimeZone(local);
-  const runs = displayedRuns(product, runCount);
-  const series = runChartSeries(product, now, runs);
+  const runs = sharedAxis?.runs ?? displayedRuns(product, runCount);
+  const series = runChartSeries(product, now, sharedAxis
+    ? runs.map((init) => resolveLeadRun(product, init.init_time))
+    : runs);
   const scale = alignedChartScales(series);
   const plotted = new Map(series.runs.map((run) => [run.init.init_time, run]));
-  const runWidth = initColumnPx(product, zone);
-  const gutter = gutterPx(bandsOf(product));
+  const runWidth = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
+  const gutter = sharedAxis?.gutter ?? gutterPx(bandsOf(product));
   const columns = runColumns(runs.length, runWidth, RUN_GAP_PX);
   // the labels hang off the right edge while the field's column has room
   // for the widest of them beside the plot; the gutter and its gap are the
@@ -2177,17 +2473,25 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth }) {
       local=${local}
       parked=${parked}
     />
-    <${RunKey} items=${[...runChartKey(product, series.runs), ...pinnedKeyItems(parked.overflow, local)]} />
+    <${RunKey} items=${[
+      ...runChartKey(product, series.runs),
+      ...timingMarksKey(series.timingMarks ?? []),
+      ...pinnedKeyItems(parked.overflow, local),
+    ]} />
   </figure>`;
 }
 
-function LeadLanes({ product, now, local, runCount, fieldWidth }) {
+function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   const [selected, setSelected] = useState(null);
   if (runCount == null || !product.recent_inits.length) return null;
-  const runs = displayedRuns(product, runCount);
-  const lanes = leadLaneSeries(product, now, runs);
-  const gutter = gutterPx(bandsOf(product));
-  const runWidth = initColumnPx(product, selectedTimeZone(local));
+  const runs = sharedAxis?.runs ?? displayedRuns(product, runCount);
+  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
+  const laneRuns = sharedAxis
+    ? product.recent_inits.filter((init) => columnOf.has(init.init_time))
+    : runs;
+  const lanes = leadLaneSeries(product, now, laneRuns);
+  const gutter = sharedAxis?.gutter ?? gutterPx(bandsOf(product));
+  const runWidth = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
   const columns = runColumns(runs.length, runWidth, RUN_GAP_PX);
   const em = chartEm();
   const height = Math.max(44, CHART_HEIGHT_PX / 2);
@@ -2200,7 +2504,6 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
     fieldWidth - gutter - RUN_GAP_PX;
   const clipWidth = Math.max(columns.width, fieldWidth - gutter - RUN_GAP_PX);
   const allPoints = lanes.flatMap((lane) => lane.runs);
-  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
   const parked = lanes.map((lane) => ({ lane, layout: pinnedLayout(
     lane.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
     (run) => columns.x(columnOf.get(run.init.init_time)),
@@ -2213,9 +2516,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
   if (lanes.some((lane) => lane.slots.some((slot) => slot.state === "missing" || slot.state === "unobserved"))) {
     key.push({ mark: "missing", text: "no measurement" });
   }
-  if (lanes.some((lane) => lane.slots.some((slot) => slot.deadline != null))) {
-    key.push({ mark: "deadline", text: "deadline for this init" });
-  }
+  key.push(...timingMarksKey(lanes.flatMap((lane) => lane.slots)));
   if (allPoints.some((run) => run.status === "failed")) {
     key.push({ mark: "failed", text: "failed" });
   }
@@ -2305,14 +2606,14 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
               <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
               <text ...${label}>${thresholdText}</text>
             </g>`}
-            ${lane.slots.map((slot, index) => {
-              const x = columns.x(index);
+            ${lane.slots.map((slot) => {
+              const x = columns.x(columnOf.get(slot.init.init_time));
               const detail = slot.state === "missing"
                 ? `no measurement for ${lane.label} at ${initShort(slot.init.init_time, local)}`
                 : slot.state === "unobserved"
                   ? cellTitle({ kind: "lead", label: lane.label }, slot.init, { state: "unobserved" }, local)
                   : `${lane.label} · ${runTitle(slot.run, local)}${slot.run.timing == null ? " · not judged" : ""}`;
-              const title = `${detail}${slot.deadline == null ? "" : ` · deadline ${formatLatency(slot.deadline)} after init`}`;
+              const title = [detail, ...timingMarkText(slot)].join(" · ");
               return html`<g key=${slot.init.init_time} data-slot-init=${slot.init.init_time}
                 tabindex="0" role="button" aria-label=${title}
                 onClick=${() => setSelected(title)}
@@ -2322,8 +2623,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
                     setSelected(title);
                   }
                 }}>
-                ${slot.deadline == null ? null : html`<line data-deadline="" x1=${x - 12} x2=${x - 7}
-                  y1=${scale.y(slot.deadline)} y2=${scale.y(slot.deadline)}><title>${lane.label} · ${initShort(slot.init.init_time, local)} · deadline ${formatLatency(slot.deadline)} after init</title></line>`}
+                <${TimingMarks} mark=${slot} x=${x} scale=${scale} label=${`${lane.label} · ${initShort(slot.init.init_time, local)}`} />
                 ${slot.state === "point" ? html`<circle data-init-time=${slot.init.init_time}
                   data-status=${slot.run.status} data-timing=${slot.run.timing}
                   data-elapsed=${slot.run.elapsed ? "" : null}
@@ -2347,7 +2647,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth }) {
       const when = initShort(slot.init.init_time, local);
       const detail = slot.run ? `${when}, ${slot.run.noTime ? "no completion time recorded" : `${slot.run.elapsed ? "elapsed " : ""}${formatLatency(slot.run.seconds)}`}, ${slot.run.status}, ${slot.run.timing?.replaceAll("_", " ") ?? "not judged"}`
         : `${when}, ${slot.state === "unobserved" ? "unobserved" : "no measurement"}`;
-      return `${detail}${slot.deadline == null ? "" : `, deadline ${formatLatency(slot.deadline)} after init`}`;
+      return [detail, ...timingMarkText(slot)].join(", ");
     }).join("; ")}</li>`)}</ul>
   </figure>`;
 }
@@ -2365,10 +2665,11 @@ function Details({
   runCount,
   dimension,
   fieldWidth,
+  sharedAxis,
 }) {
   const details = detailRows(product, now, local, sources);
-  // the chart lines up with the lead-group field; an arrival-group field
-  // keeps the chart across the row
+  // Lead lanes use the field's axis. The chart in the facet view spans the
+  // row and uses the product's own history.
   const chart = dimension
     ? html`<${RunChart} key="chart" product=${product} now=${now} local=${local} />`
     : html`<${LeadLanes}
@@ -2378,6 +2679,7 @@ function Details({
         local=${local}
         runCount=${runCount}
         fieldWidth=${fieldWidth}
+        sharedAxis=${sharedAxis}
       />`;
   // A row paired with a source measures each horizon against that source's own
   // arrival for the same horizon, so the lag reads beside the time it is a lag
@@ -2419,7 +2721,7 @@ function Details({
             <td>${row.last.duration}</td>
             ${afterSource && html`<td>${row.last.lag}</td>`}
             <${StatusCell} detail=${row.run} />
-            <td>${row.run.time}</td>
+            <td>${row.run.time}${row.run.timingReference && html`<small>${row.run.timingReference}</small>`}</td>
             <td>${row.run.duration}</td>
             ${afterSource && html`<td>${row.run.lag}</td>`}
             <td>${row.p50}</td>
@@ -2432,8 +2734,7 @@ function Details({
     </table>
   </div>`;
   // a lag over the source's selected families says what it was measured against
-  const lagNote = afterSource && lagBasisNote(product.pipeline_lag);
-  const note = lagNote && html`<p key="lag-note">${lagNote}</p>`;
+  const note = afterSource && details.lagNote && html`<p key="lag-note">${details.lagNote}</p>`;
   const facets = facetRows(product);
   if (facets.length === 0) return html`${chart}${note}${leadTable}`;
 
@@ -2493,7 +2794,7 @@ function Eta({ product, now, local }) {
       state += ` · ${target.init.timing.replace("_", " ")}`;
       timing = target.init.timing;
     } else {
-      const note = timingBaselineNote(product);
+      const note = timingBaselineNote(target.init.variantTiming ?? product);
       if (note) state += ` · ${note}`;
     }
   } else {
@@ -2514,33 +2815,19 @@ function Row({
   advisory,
   local,
   now,
+  width,
+  sharedAxis,
   sources,
   viewIndex,
   expanded,
   onCycle,
   onToggle,
 }) {
-  // the run count comes from the measured row body: a 1fr grid column, so its
-  // width does not depend on the field it holds. Measured once the row is in
-  // the DOM and again whenever the body changes size — a window resize, a
-  // font landing, the toc rail appearing — and the field waits for it.
-  const body = useRef(null);
-  const [width, setWidth] = useState(null);
-  useLayoutEffect(() => {
-    const node = body.current;
-    if (!node) return undefined;
-    const measure = () => setWidth(node.getBoundingClientRect().width);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
   // the lead grid is the view a row opens on; the facet grids are a click away
   const views = viewsOf(product);
   const index = wrapIndex(viewIndex, views.length);
   const view = views[index];
-  // how many runs the field shows; the chart in the details shows the same
+  // the row's own fit is used for facet fields and lead fields without a shared axis
   const runCount =
     width == null
       ? null
@@ -2560,8 +2847,9 @@ function Row({
           product=${product}
           local=${local}
           runCount=${runCount}
+          sharedAxis=${sharedAxis}
         />`;
-  }, [product, local, runCount, index]);
+  }, [product, local, runCount, index, sharedAxis]);
 
   // the cycle is only reachable, and only worth announcing, when a product has
   // more than the one view
@@ -2574,13 +2862,17 @@ function Row({
 
   return html`<section
     class="pipeline-row"
+    id=${product.memberIds && `pipeline-product-${product.id}`}
     data-product-id=${product.id}
     data-view=${String(index)}
   >
     <div>
+      ${product.memberIds?.slice(1).map(
+        (id) => html`<span key=${id} id=${`pipeline-product-${id}`}></span>`,
+      )}
       <strong>${displayRowLabel(product.row_label)}</strong>
       <div class="pipeline-source-meta">
-        <div>${displaySource(product.source)}</div>
+        <div>${product.memberSources?.join(", ") || displaySource(product.source)}</div>
         <div>${`${product.cadence_hours ?? "—"}h init cadence`}</div>
         <div>${`${product.init_hours?.join("/") || "—"}z`}</div>
         <div
@@ -2590,7 +2882,7 @@ function Row({
         >${advisory ? `⚠ ${advisory.agency.toUpperCase()} advisory` : ""}</div>
       </div>
     </div>
-    <div class="pipeline-row-body" ref=${body}>
+    <div class="pipeline-row-body">
       <div
         class="pipeline-viz"
         data-slot="field"
@@ -2632,6 +2924,7 @@ function Row({
             runCount=${runCount}
             dimension=${view.dimension}
             fieldWidth=${width}
+            sharedAxis=${sharedAxis}
           />`
         : null}
     </div>
@@ -2669,8 +2962,70 @@ function TocTree({ agencies }) {
 /* The groups and their rows, keyed by id so a poll that reorders or adds a
    product moves nodes rather than rebuilding them. */
 
+function Group({ group, aliases, advisories, state, actions }) {
+  const section = useRef(null);
+  const [widths, setWidths] = useState(() => new Map());
+  const { products } = group;
+  useLayoutEffect(() => {
+    // The row bodies have a grid track independent of their fields. Measure
+    // them together so one resize produces a fit for the whole scope.
+    const bodies = Array.from(section.current.querySelectorAll(":scope > .pipeline-row > .pipeline-row-body"));
+    const measure = () => {
+      const measured = new Map(bodies.map((body) => [
+        body.parentElement.dataset.productId, body.getBoundingClientRect().width,
+      ]));
+      setWidths((previous) =>
+        previous.size === measured.size && [...measured].every(([id, width]) => previous.get(id) === width)
+          ? previous
+          : measured,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const body of bodies) observer.observe(body);
+    return () => observer.disconnect();
+  }, [products]);
+
+  const axes = useMemo(() => sharedInitAxes(products, widths, state.local), [products, widths, state.local]);
+  const blocks = useMemo(
+    () => MERGE_VARIANTS ? [{ variant: null, products }] : variantBlocks(products),
+    [products],
+  );
+  return html`<section class="pipeline-group" ref=${section}>
+    ${aliases.map(
+      (alias) => html`<span key=${alias} id=${`pipeline-group-${alias}`}></span>`,
+    )}
+    <h3 key="heading" id=${`pipeline-group-${group.id}`}>${group.label}</h3>
+    ${group.variantCaption && html`<p key="variants">${group.variantCaption}</p>`}
+    ${blocks.flatMap((block) => [
+      block.variant && html`<h4 key=${`variant-${block.products[0].id}`} class="pipeline-variant">
+        ${block.variant.label}
+      </h4>`,
+      ...block.products.map(
+        (product) => html`<${Row}
+          key=${product.id}
+          product=${product}
+          advisory=${advisories.findLast((advisory) =>
+            productIds(product).some((id) => advisory.product_ids?.includes(id)),
+          )}
+          local=${state.local}
+          now=${state.now}
+          width=${widths.get(product.id)}
+          sharedAxis=${axes.get(product.id)}
+          sources=${lagSources(product, products)}
+          viewIndex=${state.views[product.id] ?? 0}
+          expanded=${state.expanded[product.id] ?? false}
+          onCycle=${() => actions.cycleView(product)}
+          onToggle=${() => actions.toggleDetails(product.id)}
+        />`,
+      ),
+    ])}
+  </section>`;
+}
+
 function Groups({ state, actions, agencies }) {
   const { dashboard } = state;
+  const initialHash = useRef(location.hash);
   // the toc script caches the group headings and their links, so it is told
   // when they first exist and whenever the set of groups changes — nothing
   // below a group is its business
@@ -2682,6 +3037,15 @@ function Groups({ state, actions, agencies }) {
     : null;
   useEffect(() => {
     if (signature === null) return;
+    // On a direct visit the browser can see the fragment before the fetched
+    // dashboard has rendered the headings, rows and their aliases.
+    const hash = initialHash.current;
+    initialHash.current = "";
+    if (hash && hash === location.hash) {
+      const anchor = document.getElementById(hash.slice(1));
+      const target = anchor?.closest(".pipeline-row") ?? anchor?.closest(".pipeline-group")?.querySelector("h3");
+      target?.scrollIntoView();
+    }
     document.dispatchEvent(new Event("md-toc:refresh"));
   }, [signature]);
 
@@ -2691,28 +3055,13 @@ function Groups({ state, actions, agencies }) {
   const advisories = dashboard.advisories ?? [];
   const aliases = groupAliases(dashboard.groups);
   return agencies.flatMap(({ groups }) => groups).map(
-    (group) => html`<section key=${group.id} class="pipeline-group">
-      ${aliases.get(group.id).map(
-        (alias) => html`<span key=${alias} id=${`pipeline-group-${alias}`}></span>`,
-      )}
-      <h3 key="heading" id=${`pipeline-group-${group.id}`}>${group.label}</h3>
-      ${group.products.map(
-        (product) => html`<${Row}
-          key=${product.id}
-          product=${product}
-          advisory=${advisories.findLast((advisory) =>
-            advisory.product_ids?.includes(product.id),
-          )}
-          local=${state.local}
-          now=${state.now}
-          sources=${lagSources(product, group.products)}
-          viewIndex=${state.views[product.id] ?? 0}
-          expanded=${state.expanded[product.id] ?? false}
-          onCycle=${() => actions.cycleView(product)}
-          onToggle=${() => actions.toggleDetails(product.id)}
-        />`,
-      )}
-    </section>`,
+    (group) => html`<${Group} key=${group.id}
+      group=${group}
+      aliases=${aliases.get(group.id)}
+      advisories=${advisories}
+      state=${state}
+      actions=${actions}
+    />`,
   );
 }
 
@@ -2866,9 +3215,17 @@ function start(app) {
 
   async function tick() {
     try {
-      const dashboard = validateDashboard(
+      const payload = validateDashboard(
         await fetchJson(dashboardUrl, "no-cache"),
       );
+      const dashboard = MERGE_VARIANTS ? {
+        ...payload,
+        groups: payload.groups.map((group) => ({
+          ...group,
+          variantCaption: variantCaption(group.products),
+          products: mergeVariantRows(group.products),
+        })),
+      } : payload;
       store.update((state) => ({
         dashboard,
         views: wrappedViews(state.views, dashboard),
