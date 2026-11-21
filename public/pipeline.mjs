@@ -23,7 +23,8 @@ const DASHBOARD_VERSIONS = new Set([2, 3]); // granular schemas; the lead-only s
 // the CSS reads them back off the field as custom properties.
 const CELL_PX = 12; // one measurement, the same size in every view
 const CLUMP_GAP_PX = 2; // between the lead columns within one run
-const RUN_GAP_PX = 6; // between init columns, as main spaced its bars
+const RUN_GAP_PX = 6; // between different inits
+const VARIANT_GAP_PX = 2; // between variants of the same init
 const FACET_CELL_PX = 8; // compact rows when a facet owns the vertical axis
 const FACET_CLUMP_GAP_PX = 1; // lead columns remain visibly separate
 const FACET_RUN_GAP_PX = 6; // separate runs after the lead columns compact
@@ -40,8 +41,6 @@ const LABEL_PX = 12; // one axis-label row
 const CH_PX = 6; // one monospace character at the band-label size
 const GUTTER_MAX_CH = 24; // long facet labels get room, but not unbounded
 const RUNS_MAX = 10; // what the payload carries
-export const INIT_AXIS_SCOPE = "family"; // or "variant"
-export const MERGE_VARIANTS = true;
 const QUANTILE_ORDER_TOLERANCE_S = 1e-9;
 
 function hasTimestamp(value) {
@@ -284,22 +283,6 @@ export function tocModelLabel(label, agency) {
     .trim();
 }
 
-export function variantBlocks(products) {
-  const variants = new Set(products.filter((product) => product.variant).map((product) => product.variant.id));
-  if (variants.size <= 1) return [{ variant: null, products }];
-
-  const blocks = [];
-  for (const product of products) {
-    const last = blocks.at(-1);
-    if (last && last.variant?.id === product.variant?.id) {
-      last.products.push(product);
-    } else {
-      blocks.push({ variant: product.variant, products: [product] });
-    }
-  }
-  return blocks;
-}
-
 export function variantCaption(products) {
   const ids = new Set();
   const labels = new Set();
@@ -312,15 +295,38 @@ export function variantCaption(products) {
 }
 
 function variantHorizon(variant) {
-  return variant.label.split(" · ", 1)[0];
+  return variant?.label?.split(" · ", 1)[0];
+}
+
+export function horizonLabel(variant) {
+  const match = /^(\d+) (hour|day)$/.exec(variantHorizon(variant) ?? "");
+  return match ? `${match[1]}${match[2][0]}` : "";
+}
+
+function horizonHours(variant) {
+  const label = horizonLabel(variant);
+  return label ? Number(label.slice(0, -1)) * (label.endsWith("d") ? 24 : 1) : 0;
 }
 
 function productIds(product) {
   return product.memberIds ?? [product.id];
 }
 
-/* Products arrive longest variant first. At an hour they share, only the
-   longest scheduled member can supply the measurement. */
+function scheduledAt(product, initTime) {
+  const hour = String(new Date(initTime).getUTCHours()).padStart(2, "0");
+  return !product.init_hours || product.init_hours.includes(hour);
+}
+
+function rowMembers(row) {
+  return row.members ?? [row];
+}
+
+function columnKey({ init_time, variant }) {
+  return `${Date.parse(init_time)}/${variant?.id ?? ""}`;
+}
+
+/* Combine source rows while retaining each variant's schedule and reports.
+   The longest member still supplies the common lead scale and history stats. */
 export function mergeVariantRows(products) {
   const rows = [];
   const byLabel = new Map();
@@ -335,6 +341,7 @@ export function mergeVariantRows(products) {
   }
 
   return rows.map((rowProducts) => {
+    rowProducts.sort((a, b) => horizonHours(b.variant) - horizonHours(a.variant));
     const [longest] = rowProducts;
     if (rowProducts.length === 1) return longest;
     const canonical = new Map(leadAxis(longest).map(({ key, label }) => [label, key]));
@@ -343,7 +350,7 @@ export function mergeVariantRows(products) {
       const names = new Map(axis.map(({ key, label }) => [key, canonical.get(label)]));
       return {
         product,
-        runs: new Map(product.recent_inits.map((init) => [init.init_time, init])),
+        runs: product.recent_inits,
         names,
         variant: product.variant,
         variantTiming: {
@@ -360,15 +367,9 @@ export function mergeVariantRows(products) {
         },
       };
     });
-    const initTimes = [...new Set(members.flatMap(({ runs }) => [...runs.keys()]))]
-      .sort((a, b) => Date.parse(a) - Date.parse(b));
     const initHours = rowProducts.every((product) => product.init_hours)
       ? [...new Set(rowProducts.flatMap((product) => product.init_hours))].sort()
       : Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"));
-    const scheduledMemberIndex = (initTime) => {
-      const hour = initParts(initTime).time.slice(0, 2);
-      return members.findIndex(({ product }) => !product.init_hours || product.init_hours.includes(hour));
-    };
     // Include the gap from the last init of one UTC day to the first of the next.
     const gaps = initHours.map((hour, index) =>
       Number(initHours[index + 1] ?? initHours[0]) - Number(hour) + (index === initHours.length - 1 ? 24 : 0),
@@ -379,7 +380,7 @@ export function mergeVariantRows(products) {
         ? member : soonest;
     }, null);
     const nextInit = announced?.product.next_expected_init;
-    const next = announced && (members[scheduledMemberIndex(nextInit)] ?? announced);
+    const next = announced && (members.find(({ product }) => scheduledAt(product, nextInit)) ?? announced);
     let nextCompletion = next?.product.next_expected_completion_at;
     // A completion published for a different init cannot be reused as a date.
     if (next && Date.parse(next.product.next_expected_init) !== Date.parse(nextInit)) {
@@ -387,32 +388,10 @@ export function mergeVariantRows(products) {
       nextCompletion = Number.isFinite(p95) ? new Date(Date.parse(nextInit) + p95 * 1000).toISOString() : null;
     }
 
-    return {
-      ...longest,
-      memberIds: rowProducts.map((product) => product.id),
-      init_hours: initHours,
-      cadence_hours: gaps.length ? Math.min(...gaps) : longest.cadence_hours,
-      memberSources: [...new Set(rowProducts.map((product) => product.source).filter(Boolean).map(displaySource))],
-      next_expected_init: nextInit,
-      next_expected_completion_at: nextCompletion,
-      nextExpectedRun: next && {
-        variant: next.variant, coverage: next.coverage, variantTiming: next.variantTiming,
-        completionAt: nextCompletion,
-      },
-      sizingLeadGroups: longest.recent_inits.at(-1)?.lead_groups ?? [],
-      recent_inits: initTimes.map((initTime) => {
-        const scheduled = scheduledMemberIndex(initTime);
-        const index = scheduled < 0 ? members.findIndex(({ runs }) => runs.has(initTime)) : scheduled;
-        const backing = members[index];
-        const { product, names, variant, coverage, variantTiming } = backing;
-        const pipelineLag = product.pipeline_lag;
-        const init = backing.runs.get(initTime);
-        if (!init) return {
-          init_time: initTime,
-          variant, coverage, variantTiming, pipelineLag,
-          status: "unobserved",
-          unreported: true,
-        };
+    // At the same init, the row's latest/current-run selection still prefers
+    // the longest run when both have the status it is looking for.
+    const recent = members.flatMap(({ product, runs, names, variant, coverage, variantTiming }) =>
+      runs.map((init) => {
         const lead_groups = init.lead_groups?.flatMap((group) => {
           const name = names.get(group.name);
           return name == null ? [] : [{ ...group, name }];
@@ -424,12 +403,31 @@ export function mergeVariantRows(products) {
             return key == null ? [] : [[key, value]];
           }),
         ) : sourceGroups;
-        const shorterRuns = members.slice(index + 1).flatMap((member) => {
-          const run = member.runs.get(initTime);
-          return run?.status ? [{ variant: member.variant, status: run.status, timing: run.timing }] : [];
-        });
-        return { ...init, variant, coverage, variantTiming, pipelineLag, lead_groups, source_lead_groups, shorterRuns };
+        return {
+          ...init, variant, coverage, variantTiming, pipelineLag: product.pipeline_lag,
+          lead_groups, source_lead_groups,
+        };
       }),
+    ).sort((a, b) => Date.parse(a.init_time) - Date.parse(b.init_time) ||
+      horizonHours(a.variant) - horizonHours(b.variant));
+
+    return {
+      ...longest,
+      members: rowProducts,
+      memberIds: rowProducts.map((product) => product.id),
+      reportedRuns: new Map(recent.map((init) => [columnKey(init), init])),
+      variantCoverage: new Map(members.map(({ variant, coverage }) => [variant.id, coverage])),
+      init_hours: initHours,
+      cadence_hours: gaps.length ? Math.min(...gaps) : longest.cadence_hours,
+      memberSources: [...new Set(rowProducts.map((product) => product.source).filter(Boolean).map(displaySource))],
+      next_expected_init: nextInit,
+      next_expected_completion_at: nextCompletion,
+      nextExpectedRun: next && {
+        variant: next.variant, coverage: next.coverage, variantTiming: next.variantTiming,
+        completionAt: nextCompletion,
+      },
+      sizingLeadGroups: longest.recent_inits.at(-1)?.lead_groups ?? [],
+      recent_inits: recent,
     };
   });
 }
@@ -756,44 +754,94 @@ export function runsThatFit(product, availablePx, local, {
   return runsFitting(availablePx, gutter, column, RUN_GAP_PX);
 }
 
-/* A scope's shared gutter and column width put every init at the same x
-   position, even when the rows have different lead labels or recent runs.
-   In variant scope, a merged row belongs to its longest member's variant. */
-export function sharedInitAxes(products, widths, local, scope = INIT_AXIS_SCOPE) {
-  const scopes = new Map();
-  for (const product of products) {
-    if (!product.variant) continue;
-    const key = scope === "variant" ? product.variant.id : null;
-    if (!scopes.has(key)) scopes.set(key, []);
-    scopes.get(key).push(product);
-  }
-
-  const axes = new Map();
-  for (const rows of scopes.values()) {
-    const inits = new Map();
-    for (const row of rows) {
-      for (const init of row.recent_inits) inits.set(init.init_time, init);
+/* The family supplies the timestamps. A variant can appear at a reported init
+   only if it runs at that UTC hour and at least one of its members reports
+   history that far back. */
+export function familyInitColumns(rows) {
+  const times = new Map();
+  const variants = new Map();
+  for (const product of rows.flatMap(rowMembers)) {
+    const id = product.variant?.id;
+    if (!variants.has(id)) variants.set(id, { variant: product.variant, oldest: Infinity, products: [] });
+    const entry = variants.get(id);
+    entry.products.push(product);
+    for (const { init_time } of product.recent_inits) {
+      const ms = Date.parse(init_time);
+      entry.oldest = Math.min(entry.oldest, ms);
+      if (!times.has(ms)) times.set(ms, init_time);
     }
-    const runs = [...inits.values()].sort((a, b) => Date.parse(a.init_time) - Date.parse(b.init_time));
-    const geometry = {
-      gutter: Math.max(...rows.map((row) => gutterPx(bandsOf(row)))),
-      column: initColumnPx({ recent_inits: runs }, selectedTimeZone(local)),
-    };
-    const count = Math.min(...rows.map((row) => runsThatFit(row, widths.get(row.id), local, geometry)));
-    const axis = { ...geometry, runs: runs.slice(-count) };
-    for (const row of rows) axes.set(row.id, axis);
   }
-  return axes;
+  const ordered = [...variants.values()].sort((a, b) => horizonHours(b.variant) - horizonHours(a.variant));
+  return [...times].sort(([a], [b]) => a - b).flatMap(([ms, init_time]) =>
+    ordered.flatMap(({ variant, oldest, products }) =>
+      ordered.length === 1 || (ms >= oldest && products.some((product) => scheduledAt(product, init_time)))
+        ? [{ init_time, variant }]
+        : [],
+    ),
+  );
 }
 
-export function resolveLeadRun(product, initTime) {
-  const own = product.recent_inits.find((init) => init.init_time === initTime);
-  if (own) return own;
-  const hour = initParts(initTime).time.slice(0, 2);
-  return {
-    init_time: initTime,
-    status: product.init_hours && !product.init_hours.includes(hour) ? "not_scheduled" : "unobserved",
-  };
+export function resolveColumnRun(row, column) {
+  const { init_time, variant } = column;
+  const member = rowMembers(row).find((product) => product.variant?.id === variant?.id);
+  const scheduled = member && scheduledAt(member, init_time);
+  const own = row.reportedRuns
+    ? row.reportedRuns.get(columnKey(column))
+    : member?.recent_inits.find((init) => Date.parse(init.init_time) === Date.parse(init_time));
+  if (own && (scheduled || !variant)) {
+    return own.init_time === init_time ? own : { ...own, init_time };
+  }
+  return scheduled
+    ? { ...column, status: "unobserved", unreported: true, coverage: row.variantCoverage?.get(variant?.id) }
+    : { ...column, status: "not_scheduled" };
+}
+
+function columnGap(previous, current, gap = RUN_GAP_PX) {
+  return previous?.init_time === current?.init_time ? VARIANT_GAP_PX : gap;
+}
+
+function pairedColumnStyle(columns, index) {
+  const gap = columnGap(columns[index - 1], columns[index]);
+  return gap === RUN_GAP_PX ? null : `margin-inline-start:${gap - RUN_GAP_PX}px`;
+}
+
+function fittedColumns(columns, available, gutter, width) {
+  const usable = available - gutter - 6 - 4;
+  let start = columns.length;
+  let used = 0;
+  while (start > 0) {
+    let first = start - 1;
+    while (first > 0 && columns[first - 1].init_time === columns[first].init_time) first -= 1;
+    const size = start - first;
+    const next = used + (used ? RUN_GAP_PX : 0) + size * width + (size - 1) * VARIANT_GAP_PX;
+    if (next > usable || columns.length - first > RUNS_MAX) break;
+    start = first;
+    used = next;
+  }
+  // Keep a complete init together whenever it fits.
+  return columns.slice(Math.min(start, columns.length - 1));
+}
+
+/* The shared gutter, column width and fit put each variant at the same
+   position across the family's source rows. Legacy rows keep their own axes. */
+export function sharedInitAxes(products, widths, local) {
+  const rows = products.filter((row) => row.variant);
+  if (!rows.length) return new Map();
+  const all = familyInitColumns(rows);
+  const gutter = Math.max(...rows.map((row) => gutterPx(bandsOf(row))));
+  const column = initColumnPx({ recent_inits: all }, selectedTimeZone(local));
+  const available = Math.min(...rows.map((row) => widths.get(row.id) || Infinity));
+  const columns = fittedColumns(all, available, gutter, column);
+  const showVariants = new Set(rows.flatMap(rowMembers).map((row) => row.variant.id)).size > 1;
+  const axis = { gutter, column, columns, showVariants };
+  return new Map(rows.map((row) => [row.id, axis]));
+}
+
+function axisRuns(product, columns, sharedAxis) {
+  return sharedAxis ? columns.map((column) => {
+    const run = resolveColumnRun(product, column);
+    return sharedAxis.showVariants && !run.variant ? { ...run, variant: column.variant } : run;
+  }) : columns;
 }
 
 /* A facet grid spends its width on lead columns inside every run, and those
@@ -840,8 +888,8 @@ function beyondHorizon(init, bandKey) {
   return init?.coverage?.lastLabel != null && !init.coverage.bands.has(bandKey);
 }
 
-/* A band outside the backing variant's horizon is empty. An unreported
-   measurement within the horizon reads as unobserved. */
+/* A band outside the column's horizon is empty. An unreported measurement
+   within the horizon reads as unobserved. */
 
 export function cellOf(band, init) {
   if (!init) return { state: "unobserved" };
@@ -879,20 +927,19 @@ function facetCell(facet, init, timing = init.timing) {
 /* The hover label. What the square stands for comes first, then when, then how
    much of it arrived — a facet names itself and its dimension. */
 
-export function cellTitle(band, init, cell, local) {
+export function cellTitle(band, init, cell, local, variant = init?.variant) {
   if (!init) return `${band.label} · not reported`;
+  const horizon = variantHorizon(variant);
+  const run = horizon ? `${horizon} run` : null;
   if (cell.state === "not_scheduled") {
-    return `${band.label} · not scheduled at ${initParts(init.init_time).time}`;
+    return [band.label, run, `not scheduled at ${initParts(init.init_time).time}`].filter(Boolean).join(" · ");
   }
-  const shorter = (init.shorterRuns ?? []).map(({ variant, status, timing }) =>
-    `${variantHorizon(variant)} run: ${statusLabel(status)}${timing ? `, ${timing.replaceAll("_", " ")}` : ""}`,
-  );
   if (cell.state === "beyond_horizon") {
-    return [`${variantHorizon(init.variant)} run: no leads past ${init.coverage.lastLabel}`, ...shorter].join(" · ");
+    return `${run}: no leads past ${init.coverage.lastLabel}`;
   }
   const when = initShort(init.init_time, local);
   if (cell.state === "unobserved") {
-    return [`${band.label} · ${when} · no probe visibility; not a publication failure`, ...shorter].join(" · ");
+    return [band.label, run, when, "no probe visibility; not a publication failure"].filter(Boolean).join(" · ");
   }
   // the unit agrees with the total, so a band of one lead reads "1 / 1 arrival"
   const arrivals = cell.expected === 1 ? "arrival" : "arrivals";
@@ -904,23 +951,24 @@ export function cellTitle(band, init, cell, local) {
     band.kind === "facet" ? `${band.label} (${band.dimension})` : `lead ${band.label}`,
     // a facet nested in a lead band names the lead it belongs to
     band.lead ? `lead ${band.lead}` : null,
+    run,
     when,
     volume,
     statusLabel(cell.state),
     cell.timing ? cell.timing.replaceAll("_", " ") : null,
-    ...shorter,
   ]
     .filter(Boolean)
     .join(" · ");
 }
 
-function Cell({ band, init, local, measured, style }) {
+function Cell({ band, init, local, measured, style, variant }) {
   const cell = measured ?? cellOf(band, init);
   return html`<div
     class=${`pipeline-cell g-${cell.state}`}
     data-init-time=${init?.init_time}
+    data-variant=${(variant ?? init?.variant)?.id}
     data-timing=${cell.timing}
-    title=${cellTitle(band, init, cell, local)}
+    title=${cellTitle(band, init, cell, local, variant)}
     style=${style}
   >
     <div
@@ -1006,29 +1054,42 @@ export function viewAt(product, index) {
   return views[wrapIndex(index, views.length)];
 }
 
-/* The init axis: the time under every column, then the date only where it turns
-   over, so a date lines up with the first timestamp it covers. */
-
-function InitTiers({ runs, local }) {
+/* One time tick across an init, with a compact horizon under each bar when
+   there is a choice of variants. Dates are shown only when they turn over. */
+function InitTiers({ columns, runWidth, local }) {
   const zone = selectedTimeZone(local);
+  const groups = [];
+  for (const column of columns) {
+    const last = groups.at(-1);
+    if (last?.[0].init_time === column.init_time) last.push(column);
+    else groups.push([column]);
+  }
+  const paired = groups.some((group) => group.length > 1);
   let previousDate = null;
-  return html`<${LabelTier}
-      bandClass="pipeline-band pipeline-band--foot"
-      spanClass="pipeline-run-label"
-      runs=${runs}
-      textOf=${(init) => initParts(init.init_time, zone).time}
-      titleOf=${(init) => initShort(init.init_time, local)}
-    />
-    <${LabelTier}
-      spanClass="pipeline-run-date"
-      runs=${runs}
-      textOf=${(init) => {
-        const { date } = initParts(init.init_time, zone);
-        const turned = date !== previousDate;
-        previousDate = date;
-        return turned ? date : "";
-      }}
-    />`;
+  const ticks = groups.map((group) => {
+    const { init_time } = group[0];
+    const { date, time } = initParts(init_time, zone);
+    const turned = date !== previousDate;
+    previousDate = date;
+    const style = group.length > 1 ? `width:${group.length * runWidth + (group.length - 1) * VARIANT_GAP_PX}px` : null;
+    return { init_time, date: turned ? date : "", time, style };
+  });
+  return html`${paired && html`
+      <${Band} className="pipeline-band pipeline-band--foot" clumped>
+        ${groups.flatMap((group) => group.map((column, index) => html`<span
+          key=${columnKey(column)}
+          class="pipeline-run-horizon"
+          style=${pairedColumnStyle(group, index)}
+        >${group.length > 1 ? html`<span title=${column.variant?.label}>${horizonLabel(column.variant)}</span>` : null}</span>`))}
+      <//>`}
+    <${Band} className=${paired ? "pipeline-band" : "pipeline-band pipeline-band--foot"} clumped>
+      ${ticks.map(({ init_time, time, style }) => html`<span key=${init_time} class="pipeline-run-label"
+        style=${style} title=${initShort(init_time, local)}>${time}</span>`)}
+    <//>
+    <${Band} clumped>
+      ${ticks.map(({ init_time, date, style }) => html`<span key=${init_time} class="pipeline-run-date"
+        style=${style}>${date}</span>`)}
+    <//>`;
 }
 
 /* The joint, indexed once per render: which facets a run reported under a lead
@@ -1054,25 +1115,6 @@ function jointIndex(product, runs, leads) {
     index.set(init, byLead);
   }
   return index;
-}
-
-/* One label tier under the blocks: a span per run, exactly one block wide, so
-   every tier centres on the same axis as the squares above it. */
-
-function LabelTier({
-  bandClass = "pipeline-band",
-  spanClass,
-  runs,
-  textOf,
-  titleOf,
-}) {
-  return html`<${Band} className=${bandClass} clumped>
-    ${runs.map(
-      (init, index) =>
-        html`<span key=${init.init_time} class=${spanClass} title=${titleOf?.(init)}
-        >${textOf(init, index)}</span>`,
-    )}
-  <//>`;
 }
 
 /* The facet-row field: one row per facet, one block per run, one column per
@@ -1122,7 +1164,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
     laneRuns.forEach((init, column) => {
       children.push(
         html`<div
-          key=${`head/${init.init_time}`}
+          key=${`head/${columnKey(init)}`}
           class="pipeline-clump pipeline-run-head"
           ...${owned(init)}
           style=${at(0, column)}
@@ -1152,7 +1194,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
       laneRuns.forEach((init, column) => {
         children.push(
           html`<div
-            key=${`${facet.name}/${init.init_time}`}
+            key=${`${facet.name}/${columnKey(init)}`}
             class="pipeline-clump"
             data-facet=${facet.name}
             ...${owned(init)}
@@ -1186,7 +1228,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
     laneRuns.forEach((init, column) => {
       children.push(
         html`<span
-          key=${`time/${init.init_time}`}
+          key=${`time/${columnKey(init)}`}
           class="pipeline-run-label"
           ...${owned(init)}
           style=${at(facets.length + 1, column)}
@@ -1203,7 +1245,7 @@ function FacetRowsField({ product, local, runCount, dimension }) {
       previousDate = date;
       children.push(
         html`<span
-          key=${`date/${init.init_time}`}
+          key=${`date/${columnKey(init)}`}
           class="pipeline-run-date"
           ...${owned(init)}
           style=${at(facets.length + 2, column)}
@@ -1222,9 +1264,8 @@ function FacetRowsField({ product, local, runCount, dimension }) {
 }
 
 function LeadField({ product, local, runCount, sharedAxis }) {
-  const runs = sharedAxis
-    ? sharedAxis.runs.map((init) => resolveLeadRun(product, init.init_time))
-    : displayedRuns(product, runCount);
+  const columns = sharedAxis?.columns ?? displayedRuns(product, runCount);
+  const runs = axisRuns(product, columns, sharedAxis);
   const extents = leadExtents(product);
   const bands = bandsOf(product);
   const column = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
@@ -1243,17 +1284,19 @@ function LeadField({ product, local, runCount, sharedAxis }) {
           style=${`--cell-h:${(band.kind === "lead" ? (extents.get(band.key) ?? CELL_PX) : CELL_PX).toFixed(2)}px`}
         >
           ${runs.map(
-            (init) =>
+            (init, index) =>
               html`<${Cell}
-                key=${init.init_time}
+                key=${columnKey(columns[index])}
                 band=${band}
                 init=${init}
                 local=${local}
+                variant=${sharedAxis?.showVariants ? columns[index].variant : null}
+                style=${pairedColumnStyle(columns, index)}
               />`,
           )}
         <//>`,
     )}
-    <${InitTiers} runs=${runs} local=${local} />
+    <${InitTiers} columns=${columns} runWidth=${column} local=${local} />
   </div>`;
 }
 
@@ -1413,13 +1456,14 @@ function arrivedAt(init, name) {
    earliest of them, which is the comparison the feed's own lag statistics
    make. */
 
-function sourceArrivals(sources, initTime) {
+function sourceArrivals(sources, target) {
   const arrivals = new Map();
-  if (!initTime) return arrivals;
+  if (!target) return arrivals;
   for (const source of sources) {
     const { keyByName, ambiguous } = horizonIndex(source);
     const init = (source.recent_inits ?? []).find(
-      (candidate) => candidate.init_time === initTime,
+      (candidate) => Date.parse(candidate.init_time) === Date.parse(target.init_time) &&
+        (!source.members || !target.variant || candidate.variant?.id === target.variant.id),
     );
     for (const [name, key] of keyByName) {
       if (ambiguous.has(key)) continue;
@@ -1529,10 +1573,13 @@ export function detailRows(product, now, local, sources = []) {
     (init) => init.status === "pending" || init.status === "in_flight",
   );
   const active = activeIndex >= 0 ? recent[activeIndex] : null;
-  const last = activeIndex >= 0 ? recent[activeIndex - 1] : recent.at(-1);
+  const last = active && product.memberIds
+    ? recent.findLast((init) => Date.parse(init.init_time) <= Date.parse(active.init_time) &&
+        init.status !== "pending" && init.status !== "in_flight")
+    : active ? recent[activeIndex - 1] : recent.at(-1);
   const upcoming = active ? null : product.next_expected_init;
-  const afterLast = sourceArrivals(sources, last?.init_time);
-  const afterActive = sourceArrivals(sources, active?.init_time);
+  const afterLast = sourceArrivals(sources, last);
+  const afterActive = sourceArrivals(sources, active);
   const horizons = horizonIndex(product);
   const historyTitle = product.memberIds ? `${variantHorizon(product.variant)} history` : "time after init";
   const lastLag = product.memberIds ? last?.pipelineLag : product.pipeline_lag;
@@ -1704,10 +1751,10 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
   const seen = new Set();
   for (const init of inits) {
     const ms = Date.parse(init.init_time);
-    if (!Number.isFinite(ms) || init.status === "unobserved") continue;
-    // one point per init: a repeated timestamp would share a key and a place
-    if (seen.has(ms)) continue;
-    seen.add(ms);
+    if (!Number.isFinite(ms) || init.status === "unobserved" || init.status === "not_scheduled") continue;
+    const key = columnKey(init);
+    if (seen.has(key)) continue;
+    seen.add(key);
     if (init.variantTiming) {
       timingMarks.push({ init, ms, threshold: runChartThreshold(init.variantTiming), deadline: positiveSeconds(init.deadline_s) });
     }
@@ -1767,22 +1814,22 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
       runs: slots.filter((slot) => slot.run).map((slot) => slot.run) };
   });
   const runSeries = runChartSeries(product, now, inits);
-  const runByInit = new Map(runSeries.runs.map((run) => [run.init.init_time, run]));
+  const runByInit = new Map(runSeries.runs.map((run) => [run.init, run]));
   for (const init of inits) {
     const ms = Date.parse(init.init_time);
-    if (init.status !== "failed" || !Number.isFinite(ms) || runByInit.has(init.init_time)) continue;
+    if (init.status !== "failed" || !Number.isFinite(ms) || runByInit.has(init)) continue;
     const run = {
       init, ms, status: init.status, timing: init.timing ?? null,
       seconds: 0, elapsed: false, noTime: true,
     };
-    runByInit.set(init.init_time, run);
+    runByInit.set(init, run);
     runSeries.runs.push(run);
   }
   const runLane = {
     name: "run", label: "run", ...runSeries,
     slots: inits.map((init) => ({ init,
-      state: runByInit.has(init.init_time) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
-      run: runByInit.get(init.init_time),
+      state: runByInit.has(init) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
+      run: runByInit.get(init),
       deadline: positiveSeconds(init.deadline_s),
       threshold: init.variantTiming ? runChartThreshold(init.variantTiming) : null,
     })),
@@ -1927,6 +1974,7 @@ function runTitle(run, local) {
     : `${formatLatency(run.seconds)} after init`;
   return [
     initShort(run.init.init_time, local),
+    variantHorizon(run.init.variant),
     how,
     statusLabel(run.status),
     run.timing?.replaceAll("_", " "),
@@ -2209,10 +2257,17 @@ export function alignedChartScales(series, domain = latencyDomain(series), heigh
    square, and a point sits at the column's centre — whether or not the runs
    around it have a time to plot. */
 
-export function runColumns(count, runWidth, gap) {
+export function runColumns(count, runWidth, gap, columns = []) {
+  const centers = [];
+  let width = 0;
+  for (let index = 0; index < count; index += 1) {
+    if (index) width += columns.length ? columnGap(columns[index - 1], columns[index], gap) : gap;
+    centers.push(width + runWidth / 2);
+    width += runWidth;
+  }
   return {
-    width: count > 0 ? count * runWidth + (count - 1) * gap : 0,
-    x: (index) => index * (runWidth + gap) + runWidth / 2,
+    width,
+    x: (index) => centers[index],
   };
 }
 
@@ -2291,7 +2346,9 @@ export function pinnedLayout(runs, xOf, { em, titleRight, right, top }) {
 
 function parkedNames(runs, local) {
   return runs
-    .map((run) => `${initShort(run.init.init_time, local)}, ${pinnedTime(run.seconds)} so far`)
+    .map(({ init, seconds }) => [
+      initShort(init.init_time, local), variantHorizon(init.variant), `${pinnedTime(seconds)} so far`,
+    ].filter(Boolean).join(", "))
     .join("; ");
 }
 
@@ -2312,7 +2369,7 @@ function pinnedAria(runs, local) {
 function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local, parked }) {
   const lineY = series.threshold == null ? null : scale.y(series.threshold);
   const shown = runs
-    .map((init, index) => ({ init, index, run: plotted.get(init.init_time) }))
+    .map((init, index) => ({ init, index, run: plotted.get(init) }))
     .filter((entry) => entry.run);
   const span =
     runs.length > 1
@@ -2323,9 +2380,9 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
   const thresholdText = lineY == null ? null : `delayed past ${formatLatency(series.threshold)}`;
   // a parked ring at the right end of the line would sit on its label, so
   // the label moves to the line's left end
-  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
+  const columnOf = new Map(runs.map((init, index) => [init, index]));
   const rings = parked.runs.map((run) => {
-    const cx = columns.x(columnOf.get(run.init.init_time));
+    const cx = columns.x(columnOf.get(run.init));
     const r = markRadius(run) + 1;
     return { left: cx - r, right: cx + r, top: parkedY(scale) - r, bottom: parkedY(scale) + r };
   });
@@ -2401,13 +2458,14 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
               <line x1="0" x2=${columns.width} y1=${lineY} y2=${lineY} />
               <text ...${thresholdLabel}>${thresholdText}</text>
             </g>`}
-        ${series.timingMarks?.map((mark) => html`<${TimingMarks} key=${mark.init.init_time}
-          mark=${mark} x=${columns.x(columnOf.get(mark.init.init_time))}
-          scale=${scale} label=${initShort(mark.init.init_time, local)} />`)}
+        ${series.timingMarks?.map((mark) => html`<${TimingMarks} key=${columnKey(mark.init)}
+          mark=${mark} x=${columns.x(columnOf.get(mark.init))}
+          scale=${scale} label=${labelledRun("run", mark.init.init_time, local, mark.init.variant)} />`)}
         ${shown.map(({ init, index, run }) => {
           return html`<circle
-            key=${init.init_time}
+            key=${columnKey(init)}
             data-init-time=${init.init_time}
+            data-variant=${init.variant?.id}
             data-status=${run.status}
             data-timing=${run.timing}
             data-elapsed=${run.elapsed ? "" : null}
@@ -2419,26 +2477,25 @@ function AlignedPlot({ runs, plotted, scale, series, columns, inside, em, local,
         })}
         ${parked.labels.map(
           ({ run, text, attrs }) =>
-            html`<text key=${`pinned/${run.init.init_time}`} data-pinned="" ...${attrs}>${text}</text>`,
+            html`<text key=${`pinned/${columnKey(run.init)}`} data-pinned="" ...${attrs}>${text}</text>`,
         )}
       </svg>
-    <//>
-    <${InitTiers} runs=${runs} local=${local} />`;
+    <//>`;
 }
 
 function AlignedRunChart({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   // the figure follows the field: nothing until the row is measured, and
   // nothing for a product with no runs
   if (runCount == null || !product.recent_inits.length) return null;
-  const runs = sharedAxis?.runs ?? displayedRuns(product, runCount);
-  const series = runChartSeries(product, now, sharedAxis
-    ? runs.map((init) => resolveLeadRun(product, init.init_time))
-    : runs);
+  const axis = sharedAxis?.columns ?? displayedRuns(product, runCount);
+  if (!axis.length) return null;
+  const runs = axisRuns(product, axis, sharedAxis);
+  const series = runChartSeries(product, now, runs);
   const scale = alignedChartScales(series);
-  const plotted = new Map(series.runs.map((run) => [run.init.init_time, run]));
+  const plotted = new Map(series.runs.map((run) => [run.init, run]));
   const runWidth = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
   const gutter = sharedAxis?.gutter ?? gutterPx(bandsOf(product));
-  const columns = runColumns(runs.length, runWidth, RUN_GAP_PX);
+  const columns = runColumns(axis.length, runWidth, RUN_GAP_PX, axis);
   // the labels hang off the right edge while the field's column has room
   // for the widest of them beside the plot; the gutter and its gap are the
   // field's own
@@ -2450,10 +2507,10 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth, sharedAxis
   const inside =
     columns.width + CHART_LABEL_GAP_PX + widestLabel * 0.6 * em >
     fieldWidth - gutter - RUN_GAP_PX;
-  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
+  const columnOf = new Map(runs.map((init, index) => [init, index]));
   const parked = pinnedLayout(
     series.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
-    (run) => columns.x(columnOf.get(run.init.init_time)),
+    (run) => columns.x(columnOf.get(run.init)),
     { em, titleRight: "time after init".length * 0.6 * em, right: columns.width, top: scale.top },
   );
   // the key starts where the plot does: past the gutter and the band's gap
@@ -2473,6 +2530,7 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth, sharedAxis
       local=${local}
       parked=${parked}
     />
+    <${InitTiers} columns=${axis} runWidth=${runWidth} local=${local} />
     <${RunKey} items=${[
       ...runChartKey(product, series.runs),
       ...timingMarksKey(series.timingMarks ?? []),
@@ -2484,15 +2542,15 @@ function AlignedRunChart({ product, now, local, runCount, fieldWidth, sharedAxis
 function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   const [selected, setSelected] = useState(null);
   if (runCount == null || !product.recent_inits.length) return null;
-  const runs = sharedAxis?.runs ?? displayedRuns(product, runCount);
-  const columnOf = new Map(runs.map((init, index) => [init.init_time, index]));
-  const laneRuns = sharedAxis
-    ? product.recent_inits.filter((init) => columnOf.has(init.init_time))
-    : runs;
+  const axis = sharedAxis?.columns ?? displayedRuns(product, runCount);
+  if (!axis.length) return null;
+  const runs = axisRuns(product, axis, sharedAxis);
+  const columnOf = new Map(runs.map((init, index) => [init, index]));
+  const laneRuns = runs.filter((init) => !init.unreported && init.status !== "not_scheduled");
   const lanes = leadLaneSeries(product, now, laneRuns);
   const gutter = sharedAxis?.gutter ?? gutterPx(bandsOf(product));
   const runWidth = sharedAxis?.column ?? initColumnPx(product, selectedTimeZone(local));
-  const columns = runColumns(runs.length, runWidth, RUN_GAP_PX);
+  const columns = runColumns(axis.length, runWidth, RUN_GAP_PX, axis);
   const em = chartEm();
   const height = Math.max(44, CHART_HEIGHT_PX / 2);
   const scale = alignedChartScales({ runs: [] }, lanes.domain, height);
@@ -2506,7 +2564,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
   const allPoints = lanes.flatMap((lane) => lane.runs);
   const parked = lanes.map((lane) => ({ lane, layout: pinnedLayout(
     lane.runs.filter((run) => run.elapsed && scale.pinned(run.seconds)),
-    (run) => columns.x(columnOf.get(run.init.init_time)),
+    (run) => columns.x(columnOf.get(run.init)),
     { em, titleRight: columns.width, right: columns.width, top: scale.top },
   ) }));
   const parkedItems = parked.flatMap(({ lane, layout }) => layout.overflow.length
@@ -2560,7 +2618,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
             if (lineY != null && lineY > box.top && lineY < box.bottom) return null;
             if (label && boxesMeet(box, labelBox(label, thresholdText, em))) return null;
             if (inside && lane.runs.some((run) => {
-              const cx = columns.x(columnOf.get(run.init.init_time));
+              const cx = columns.x(columnOf.get(run.init));
               const cy = run.elapsed && scale.pinned(run.seconds) ? parkedY(scale) : scale.y(run.seconds);
               const r = markRadius(run);
               return boxesMeet(box, { left: cx - r, right: cx + r, top: cy - r, bottom: cy + r });
@@ -2607,14 +2665,15 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
               <text ...${label}>${thresholdText}</text>
             </g>`}
             ${lane.slots.map((slot) => {
-              const x = columns.x(columnOf.get(slot.init.init_time));
+              const x = columns.x(columnOf.get(slot.init));
               const detail = slot.state === "missing"
-                ? `no measurement for ${lane.label} at ${initShort(slot.init.init_time, local)}`
+                ? `no measurement for ${lane.label} at ${initShort(slot.init.init_time, local)}${slot.init.variant ? ` · ${variantHorizon(slot.init.variant)}` : ""}`
                 : slot.state === "unobserved"
                   ? cellTitle({ kind: "lead", label: lane.label }, slot.init, { state: "unobserved" }, local)
                   : `${lane.label} · ${runTitle(slot.run, local)}${slot.run.timing == null ? " · not judged" : ""}`;
               const title = [detail, ...timingMarkText(slot)].join(" · ");
-              return html`<g key=${slot.init.init_time} data-slot-init=${slot.init.init_time}
+              return html`<g key=${columnKey(slot.init)} data-slot-init=${slot.init.init_time}
+                data-variant=${slot.init.variant?.id}
                 tabindex="0" role="button" aria-label=${title}
                 onClick=${() => setSelected(title)}
                 onKeyDown=${(event) => {
@@ -2625,6 +2684,7 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
                 }}>
                 <${TimingMarks} mark=${slot} x=${x} scale=${scale} label=${`${lane.label} · ${initShort(slot.init.init_time, local)}`} />
                 ${slot.state === "point" ? html`<circle data-init-time=${slot.init.init_time}
+                  data-variant=${slot.init.variant?.id}
                   data-status=${slot.run.status} data-timing=${slot.run.timing}
                   data-elapsed=${slot.run.elapsed ? "" : null}
                   data-pinned=${slot.run.elapsed && scale.pinned(slot.run.seconds) ? "" : null}
@@ -2634,17 +2694,17 @@ function LeadLanes({ product, now, local, runCount, fieldWidth, sharedAxis }) {
                     y1=${scale.bottom - 8} y2=${scale.bottom}><title>${title}</title></line>`}
               </g>`;
             })}
-            ${parkedLabels.map(({ run, text, attrs }) => html`<text key=${run.init.init_time}
+            ${parkedLabels.map(({ run, text, attrs }) => html`<text key=${columnKey(run.init)}
               data-pinned="" ...${attrs}>${text}</text>`)}
           </g>`;
         })}
       </svg>
     </div>
-    <${InitTiers} runs=${runs} local=${local} />
+    <${InitTiers} columns=${axis} runWidth=${runWidth} local=${local} />
     ${selected ? html`<p class="pipeline-lane-selection" role="status">${selected}</p>` : null}
     <${RunKey} items=${[...key, ...parkedItems]} />
     <ul class="sr-only">${lanes.map((lane) => html`<li key=${lane.name}>${lane.label}: ${lane.slots.map((slot) => {
-      const when = initShort(slot.init.init_time, local);
+      const when = [initShort(slot.init.init_time, local), variantHorizon(slot.init.variant)].filter(Boolean).join(", ");
       const detail = slot.run ? `${when}, ${slot.run.noTime ? "no completion time recorded" : `${slot.run.elapsed ? "elapsed " : ""}${formatLatency(slot.run.seconds)}`}, ${slot.run.status}, ${slot.run.timing?.replaceAll("_", " ") ?? "not judged"}`
         : `${when}, ${slot.state === "unobserved" ? "unobserved" : "no measurement"}`;
       return [detail, ...timingMarkText(slot)].join(", ");
@@ -2668,10 +2728,13 @@ function Details({
   sharedAxis,
 }) {
   const details = detailRows(product, now, local, sources);
-  // Lead lanes use the field's axis. The chart in the facet view spans the
-  // row and uses the product's own history.
+  // Keep a multi-variant family's chart on its lead axis when switching
+  // views, so simultaneous runs still have distinct positions.
   const chart = dimension
-    ? html`<${RunChart} key="chart" product=${product} now=${now} local=${local} />`
+    ? sharedAxis?.showVariants
+      ? html`<${AlignedRunChart} key="chart" product=${product} now=${now} local=${local}
+          runCount=${runCount} fieldWidth=${fieldWidth} sharedAxis=${sharedAxis} />`
+      : html`<${RunChart} key="chart" product=${product} now=${now} local=${local} />`
     : html`<${LeadLanes}
         key="chart"
         product=${product}
@@ -2801,7 +2864,8 @@ function Eta({ product, now, local }) {
     const seconds = Math.floor((Date.parse(target.initTime) - now) / 1000);
     state = seconds <= 0 ? "processing" : `init in ${formatDuration(seconds)}`;
   }
-  return html`<strong data-slot="eta-init">${initShort(target.initTime, local)}</strong>
+  const horizon = horizonLabel(target.init?.variant ?? product.nextExpectedRun?.variant);
+  return html`<strong data-slot="eta-init">${[initShort(target.initTime, local), horizon].filter(Boolean).join(" · ")}</strong>
     <span data-slot="eta-state" data-timing=${timing}>${state}</span>
     <span data-slot="eta-line" hidden=${!target.target}>${target.target ? etaLineText(target.target, now, local) : ""}</span>`;
 }
@@ -2987,39 +3051,30 @@ function Group({ group, aliases, advisories, state, actions }) {
   }, [products]);
 
   const axes = useMemo(() => sharedInitAxes(products, widths, state.local), [products, widths, state.local]);
-  const blocks = useMemo(
-    () => MERGE_VARIANTS ? [{ variant: null, products }] : variantBlocks(products),
-    [products],
-  );
   return html`<section class="pipeline-group" ref=${section}>
     ${aliases.map(
       (alias) => html`<span key=${alias} id=${`pipeline-group-${alias}`}></span>`,
     )}
     <h3 key="heading" id=${`pipeline-group-${group.id}`}>${group.label}</h3>
     ${group.variantCaption && html`<p key="variants">${group.variantCaption}</p>`}
-    ${blocks.flatMap((block) => [
-      block.variant && html`<h4 key=${`variant-${block.products[0].id}`} class="pipeline-variant">
-        ${block.variant.label}
-      </h4>`,
-      ...block.products.map(
-        (product) => html`<${Row}
-          key=${product.id}
-          product=${product}
-          advisory=${advisories.findLast((advisory) =>
-            productIds(product).some((id) => advisory.product_ids?.includes(id)),
-          )}
-          local=${state.local}
-          now=${state.now}
-          width=${widths.get(product.id)}
-          sharedAxis=${axes.get(product.id)}
-          sources=${lagSources(product, products)}
-          viewIndex=${state.views[product.id] ?? 0}
-          expanded=${state.expanded[product.id] ?? false}
-          onCycle=${() => actions.cycleView(product)}
-          onToggle=${() => actions.toggleDetails(product.id)}
-        />`,
-      ),
-    ])}
+    ${products.map(
+      (product) => html`<${Row}
+        key=${product.id}
+        product=${product}
+        advisory=${advisories.findLast((advisory) =>
+          productIds(product).some((id) => advisory.product_ids?.includes(id)),
+        )}
+        local=${state.local}
+        now=${state.now}
+        width=${widths.get(product.id)}
+        sharedAxis=${axes.get(product.id)}
+        sources=${lagSources(product, products)}
+        viewIndex=${state.views[product.id] ?? 0}
+        expanded=${state.expanded[product.id] ?? false}
+        onCycle=${() => actions.cycleView(product)}
+        onToggle=${() => actions.toggleDetails(product.id)}
+      />`,
+    )}
   </section>`;
 }
 
@@ -3218,14 +3273,14 @@ function start(app) {
       const payload = validateDashboard(
         await fetchJson(dashboardUrl, "no-cache"),
       );
-      const dashboard = MERGE_VARIANTS ? {
+      const dashboard = {
         ...payload,
         groups: payload.groups.map((group) => ({
           ...group,
           variantCaption: variantCaption(group.products),
           products: mergeVariantRows(group.products),
         })),
-      } : payload;
+      };
       store.update((state) => ({
         dashboard,
         views: wrappedViews(state.views, dashboard),

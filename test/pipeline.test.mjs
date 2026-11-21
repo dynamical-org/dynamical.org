@@ -48,10 +48,10 @@ const {
   lagSources,
   lagBasisNote,
   groupAliases,
-  resolveLeadRun,
+  resolveColumnRun,
+  horizonLabel,
   sharedInitAxes,
   mergeVariantRows,
-  variantBlocks,
   variantCaption,
   etaLineText,
   etaTarget,
@@ -513,22 +513,10 @@ test("fits the run count to the width the row actually has", () => {
 
 test("family columns use the narrowest row and keep the newest distinct inits", () => {
   const { rows, widths, recent } = unevenFamily();
-  const axes = sharedInitAxes(rows, widths, false, "family");
+  const axes = sharedInitAxes(rows, widths, false);
   for (const row of rows) {
-    assert.deepEqual(axes.get(row.id).runs.map((run) => run.init_time), recent);
+    assert.deepEqual(axes.get(row.id).columns.map((column) => column.init_time), recent);
   }
-});
-
-test("variant columns exclude other variants and use only their own rows' fit", () => {
-  const { rows, widths, recent } = unevenFamily();
-  const [first, mirror, second] = rows;
-  const axes = sharedInitAxes(rows, widths, false, "variant");
-  for (const row of [first, mirror]) {
-    assert.deepEqual(axes.get(row.id).runs.map((run) => run.init_time), [
-      "2026-07-25T03:00:00Z", recent[1],
-    ]);
-  }
-  assert.deepEqual(axes.get(second.id).runs.map((run) => run.init_time), [recent[0]]);
 });
 
 function unevenFamily() {
@@ -536,6 +524,7 @@ function unevenFamily() {
   const product = (id, variant, hours) => ({
     id,
     variant: { id: variant },
+    init_hours: variant === "long" ? ["00", "03", "12"] : ["06"],
     recent_inits: hours.map((hour) => ({ init_time: time(hour) })),
   });
   return {
@@ -565,39 +554,12 @@ test("schedule classification uses UTC even when the local label shows another h
   };
 
   assert.equal(initParts(unreported, "America/Chicago").time, "01 CDT");
-  assert.equal(cellOf(band, resolveLeadRun(row, unreported)).state, "unobserved");
+  assert.equal(cellOf(band, resolveColumnRun(row, { init_time: unreported })).state, "unobserved");
   assert.equal(initParts(offSchedule, "America/Chicago").time, "06 CDT");
-  assert.equal(cellOf(band, resolveLeadRun(row, offSchedule)).state, "not_scheduled");
-  const measurement = cellOf(band, resolveLeadRun(row, own));
+  assert.equal(cellOf(band, resolveColumnRun(row, { init_time: offSchedule })).state, "not_scheduled");
+  const measurement = cellOf(band, resolveColumnRun(row, { init_time: own }));
   assert.equal(measurement.state, "complete");
   assert.equal(measurement.timing, "on_time");
-});
-
-test("variant headings follow consecutive blocks without claiming intervening rows", () => {
-  const long = { id: "long", label: "15 day · every 12 h" };
-  const short = { id: "short", label: "6 day · 06/18z" };
-  const products = [
-    { id: "a", variant: long },
-    { id: "b", variant: long },
-    { id: "c", variant: short },
-    { id: "d", variant: long },
-  ];
-  assert.deepEqual(variantBlocks(products).map(({ variant, products }) => [
-    variant.id, products.map(({ id }) => id),
-  ]), [["long", ["a", "b"]], ["short", ["c"]], ["long", ["d"]]]);
-});
-
-test("single-variant and legacy families have no redundant heading", () => {
-  const single = [
-    { id: "a", variant: { id: "long" } },
-    { id: "b", variant: { id: "long" } },
-  ];
-  const legacy = [{ id: "a" }, { id: "b" }];
-  for (const products of [single, legacy]) {
-    const blocks = variantBlocks(products);
-    assert.equal(blocks.some(({ variant }) => variant), false);
-    assert.deepEqual(blocks.flatMap(({ products }) => products), products);
-  }
 });
 
 function variantPair() {
@@ -637,33 +599,59 @@ function variantPair() {
   return { time, long, short };
 }
 
-test("overlapping variant runs keep the longest measurement and disclose the shorter result", () => {
+test("shared init columns keep both variants, longest first, only inside their reported windows", () => {
   const { time, long, short } = variantPair();
-  const [merged] = mergeVariantRows([long, short]);
-  const top = bandsOf(merged)[0];
-  const run = resolveLeadRun(merged, time("00"));
-  const cell = cellOf(top, run);
-  assert.equal(cell.state, "complete");
-  assert.match(cellTitle(top, run, cell, false), /18 hour run: failed/);
-  assert.equal(merged.next_expected_init, short.next_expected_init);
-  assert.equal(merged.next_expected_completion_at, short.next_expected_completion_at);
-  assert.equal(merged.cadence_hours, 1);
+  long.recent_inits.unshift({ ...long.recent_inits[0], init_time: "2026-07-24T18:00:00Z" });
+  long.init_hours.push("18");
+  short.init_hours.push("18");
+  short.recent_inits[0].init_time = "2026-07-25T00:00:00+00:00";
+  const columns = pipeline.familyInitColumns(mergeVariantRows([long, short]));
+  assert.deepEqual(columns.map(({ init_time, variant }) => [Date.parse(init_time), variant.id]), [
+    ["2026-07-24T18:00:00Z", "48h"], [time("00"), "48h"], [time("00"), "18h"],
+    [time("01"), "18h"], [time("06"), "48h"], [time("06"), "18h"],
+  ].map(([init, variant]) => [Date.parse(init), variant]));
 });
 
-test("a shorter report cannot fill a scheduled but unreported longer run", () => {
+test("a scheduled but unreported column cannot borrow another variant's run", () => {
   const { time, long, short } = variantPair();
-  const [merged] = mergeVariantRows([long, short]);
-  const axis = sharedInitAxes([merged], new Map(), false, "family").get(merged.id);
-  assert.ok(axis.runs.some((run) => run.init_time === time("06")));
-  const missing = resolveLeadRun(merged, time("06"));
-  for (const band of bandsOf(merged)) assert.equal(cellOf(band, missing).state, "unobserved");
-  assert.ok(leadLaneSeries(merged, Date.parse(time("12"))).every((lane) =>
-    lane.slots.find((slot) => slot.init.init_time === time("06"))?.state === "unobserved",
-  ));
-  assert.equal(resolveLeadRun(merged, time("03")).status, "not_scheduled");
+  const [row, longOnly] = mergeVariantRows([long, short, { ...long, id: "mirror", row_label: "Mirror" }]);
+  const columns = pipeline.familyInitColumns([row, longOnly]);
+  const at = (hour, id) => columns.find(({ init_time, variant }) => init_time === time(hour) && variant.id === id);
+  const [top, bottom] = bandsOf(row);
+  const statusAt = (target, column, band) => cellOf(band, pipeline.resolveColumnRun(target, column)).state;
+  assert.equal(statusAt(row, at("06", "48h"), top), "unobserved");
+  assert.equal(statusAt(row, at("00", "48h"), bottom), "complete");
+  assert.equal(statusAt(row, at("00", "18h"), bottom), "failed");
+  assert.equal(statusAt(row, at("00", "18h"), top), "beyond_horizon");
+  assert.equal(statusAt(longOnly, at("00", "18h"), top), "not_scheduled");
 });
 
-test("an unreported shorter backer leaves its out-of-horizon band empty", () => {
+test("a source scheduled for a short horizon only at 06z and 18z leaves the shared 00z column empty", () => {
+  const { time, long, short } = variantPair();
+  long.init_hours = ["00", "12"];
+  const awsShort = { ...short, init_hours: ["06", "18"], recent_inits: [short.recent_inits.at(-1)] };
+  const gcsShort = { ...short, id: "gcs", row_label: "GCS", init_hours: ["00", "06", "12", "18"] };
+  const [aws, gcs] = mergeVariantRows([long, awsShort, gcsShort]);
+  const columns = pipeline.familyInitColumns([aws, gcs]);
+  const at06 = columns.filter(({ init_time }) => init_time === time("06"));
+  assert.deepEqual(at06.map(({ variant }) => variant.id), ["18h"]);
+  const at00 = columns.find(({ init_time, variant }) => init_time === time("00") && variant.id === "18h");
+  assert.equal(pipeline.resolveColumnRun(aws, at00).status, "not_scheduled");
+  assert.equal(pipeline.resolveColumnRun(gcs, at00).status, "failed");
+});
+
+test("a single-variant family keeps one column for each reported init", () => {
+  const { time, long } = variantPair();
+  const rows = mergeVariantRows([long, {
+    ...long, id: "mirror", row_label: "Mirror", recent_inits: [{ ...long.recent_inits[0], init_time: time("06") }],
+  }]);
+  const columns = pipeline.familyInitColumns(rows);
+  assert.deepEqual(columns.map(({ init_time }) => init_time), [time("00"), time("06")]);
+  assert.equal(pipeline.resolveColumnRun(rows[0], columns[0]), long.recent_inits[0]);
+  assert.equal(pipeline.resolveColumnRun(rows[0], columns[1]).status, "unobserved");
+});
+
+test("an unreported short column still leaves its out-of-horizon band empty", () => {
   const { time, long, short } = variantPair();
   const firstBand = { name: "f006", label: "6h" };
   const firstGroup = { name: "f006", status: "complete", leads_expected: 7, leads_available: 7 };
@@ -677,37 +665,34 @@ test("an unreported shorter backer leaves its out-of-horizon band empty", () => 
     lead_groups: [firstBand],
     recent_inits: [{ init_time: time("01"), status: "complete", lead_groups: [firstGroup] }],
   };
-  short.recent_inits = [];
+  short.recent_inits = [short.recent_inits[0]];
   const [merged] = mergeVariantRows([long, short, shortest]);
   const [top, middle, bottom] = bandsOf(merged);
-  const init = resolveLeadRun(merged, time("01"));
+  const init = resolveColumnRun(merged, { init_time: time("01"), variant: short.variant });
   assert.equal(cellOf(top, init).state, "beyond_horizon");
   assert.equal(cellOf(middle, init).state, "unobserved");
   assert.equal(cellOf(bottom, init).state, "unobserved");
-  const lanes = leadLaneSeries(merged, Date.parse(time("12")));
+  const lanes = leadLaneSeries(merged, Date.parse(time("12")), [init]);
   assert.equal(lanes.find((lane) => lane.label === "2d").slots.some(
     (slot) => slot.init.init_time === time("01"),
   ), false);
 });
 
-test("a member without configured init hours can back a run at any hour", () => {
+test("a member without configured init hours can supply a column at any hour", () => {
   const { time, long, short } = variantPair();
   delete long.init_hours;
   long.recent_inits[0].init_time = time("05");
   const [merged] = mergeVariantRows([long, short]);
   const [top] = bandsOf(merged);
-  assert.equal(cellOf(top, resolveLeadRun(merged, time("05"))).state, "complete");
-  assert.equal(cellOf(top, resolveLeadRun(merged, time("03"))).state, "unobserved");
+  assert.equal(cellOf(top, resolveColumnRun(merged, { init_time: time("05"), variant: long.variant })).state, "complete");
+  assert.equal(cellOf(top, resolveColumnRun(merged, { init_time: time("03"), variant: long.variant })).state, "unobserved");
 });
 
-test("an off-schedule report keeps its measurement when no member is scheduled", () => {
+test("an off-schedule report does not create a column in a multi-variant family", () => {
   const { time, long, short } = variantPair();
   short.recent_inits[1].init_time = time("03");
-  const [merged] = mergeVariantRows([long, short]);
-  const [top, bottom] = bandsOf(merged);
-  const init = resolveLeadRun(merged, time("03"));
-  assert.equal(cellOf(bottom, init).state, "complete");
-  assert.equal(cellOf(top, init).state, "beyond_horizon");
+  const rows = mergeVariantRows([long, short]);
+  assert.equal(pipeline.familyInitColumns(rows).some(({ init_time }) => init_time === time("03")), false);
 });
 
 test("disjoint schedules retain both runs and re-key a virtual forecast band by its label", () => {
@@ -717,8 +702,8 @@ test("disjoint schedules retain both runs and re-key a virtual forecast band by 
   long.recent_inits[0].init_time = time("06");
   const [merged] = mergeVariantRows([long, short]);
   const [top, bottom] = bandsOf(merged);
-  const early = resolveLeadRun(merged, time("01"));
-  const late = resolveLeadRun(merged, time("06"));
+  const early = resolveColumnRun(merged, { init_time: time("01"), variant: short.variant });
+  const late = resolveColumnRun(merged, { init_time: time("06"), variant: long.variant });
   assert.equal(cellOf(bottom, early).state, "complete");
   assert.equal(cellOf(top, early).state, "beyond_horizon");
   assert.equal(cellTitle(top, early, cellOf(top, early), false), "18 hour run: no leads past 18h");
@@ -727,7 +712,24 @@ test("disjoint schedules retain both runs and re-key a virtual forecast band by 
 
   short.recent_inits[0].lead_groups = [];
   const [partlyReported] = mergeVariantRows([long, short]);
-  assert.equal(cellOf(bottom, resolveLeadRun(partlyReported, time("01"))).state, "unobserved");
+  assert.equal(cellOf(bottom, resolveColumnRun(partlyReported, { init_time: time("01"), variant: short.variant })).state, "unobserved");
+});
+
+test("an active short run keeps its own ETA beside a completed long run", () => {
+  const { time, long, short } = variantPair();
+  short.recent_inits = [{ ...short.recent_inits[0], status: "in_flight" }];
+  short.latency_stats = { p95_s: 3600 };
+  const [row] = mergeVariantRows([long, short]);
+  const details = detailRows(row, Date.parse(time("00")), false);
+  assert.equal(etaTarget(row).target, "2026-07-25T01:00:00.000Z");
+  assert.match(details.runHeader, /18 hour/);
+  assert.match(details.lastHeader, /48 hour/);
+});
+
+test("compact horizon labels keep two-digit hour and day variants within three glyphs", () => {
+  const names = ["48 hour", "18 hour", "84 hour", "35 day", "16 day", "15 day", "6 day"];
+  assert.deepEqual(names.map((name) => horizonLabel({ label: `${name} · every 6 h` })),
+    ["48h", "18h", "84h", "35d", "16d", "15d", "6d"]);
 });
 
 test("shorter or missing runs at the end of the axis cannot shrink the longest bands", () => {
@@ -743,9 +745,9 @@ test("a single variant or legacy row keeps its own history even with the same so
   const legacy = { ...short, variant: undefined };
   const standalone = { ...short, row_label: "Mirror" };
   const [longRow, legacyRow, mirrorRow] = mergeVariantRows([long, legacy, standalone]);
-  assert.equal(cellOf(bandsOf(longRow)[0], resolveLeadRun(longRow, time("00"))).state, "complete");
+  assert.equal(cellOf(bandsOf(longRow)[0], resolveColumnRun(longRow, { init_time: time("00"), variant: long.variant })).state, "complete");
   for (const row of [legacyRow, mirrorRow]) {
-    assert.equal(cellOf(bandsOf(row)[0], resolveLeadRun(row, time("00"))).state, "failed");
+    assert.equal(cellOf(bandsOf(row)[0], resolveColumnRun(row, { init_time: time("00"), variant: row.variant })).state, "failed");
   }
 });
 

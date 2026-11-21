@@ -43,11 +43,6 @@
   color: var(--muted-text);
 }
 
-.pipeline-variant {
-  margin: 1.2rem 0 0;
-  color: var(--muted-text);
-}
-
 .pipeline-row {
   display: grid;
   grid-template-columns: 19rem minmax(0, 1fr) 16rem;
@@ -259,9 +254,10 @@
   margin-top: 0.3rem;
 }
 
-/* one per run block, exactly as wide as the block it names */
+/* Each tier spans the bars it labels. */
 .pipeline-run-label,
-.pipeline-run-date {
+.pipeline-run-date,
+.pipeline-run-horizon {
   /* never shrink, or a label drifts out from under the blocks it names */
   flex: none;
   /* exactly one run block wide, so both tiers centre on the same axis */
@@ -275,6 +271,12 @@
 
 .pipeline-run-label {
   color: var(--muted-text);
+}
+
+.pipeline-run-horizon > span {
+  display: inline-block;
+  /* Three monospace glyphs fit inside a 12px cell at this width. */
+  transform: scaleX(0.7);
 }
 
 .pipeline-stats {
