@@ -1357,7 +1357,7 @@ const isActiveRun = (init) => init.status === "pending" || init.status === "in_f
 
 function runSeverity(init) {
   if (init.status === "failed") return 3;
-  if (init.timing === "delayed" || init.timing === "late") return 2;
+  if (init.timing === "delayed") return 2;
   return init.status === "pending" || init.status === "unobserved" ? 0 : 1;
 }
 

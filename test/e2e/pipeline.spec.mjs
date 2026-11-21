@@ -385,6 +385,7 @@ test("the HRRR facet grid preserves a 12z pair and its reported and missing cell
     for (const product of [long, short]) {
       product.recent_inits.push({ ...product.recent_inits.at(-1), init_time: pairedInit });
     }
+    short.recent_inits.push({ ...short.recent_inits.at(-1), init_time: "2026-07-25T13:00:00Z" });
     nomadsShort.init_hours = nomadsShort.init_hours.filter((hour) => hour !== "12");
     return payload;
   }, FIXTURE);
@@ -396,14 +397,33 @@ test("the HRRR facet grid preserves a 12z pair and its reported and missing cell
   const label = row.locator(`.pipeline-run-label${hour("12")}`);
   await expect(row.locator(`.pipeline-run-horizon${hour("12")} > span`)).toHaveText(["48h", "18h"]);
   await expect(label).toHaveText(["12z"]);
-  await expect(at(row, "12").first().locator(".pipeline-cell").last()).toHaveClass(/\bg-complete\b/);
-  await expect(at(row, "12").last().locator(".pipeline-cell").last()).toHaveClass(/\bg-beyond_horizon\b/);
+  const pair = at(row, "12");
+  await expect(pair).toHaveCount(2);
+  const geometry = () => pair.evaluateAll(([first, second]) => {
+    const left = first.getBoundingClientRect();
+    const right = second.getBoundingClientRect();
+    return { lanes: [first.dataset.lane, second.dataset.lane], gap: right.left - left.right };
+  });
+  const desktop = await geometry();
+  expect(desktop.lanes[0]).toBe(desktop.lanes[1]);
+  expect(desktop.gap).toBeCloseTo(2, 1);
+  await expect(pair.first().locator(".pipeline-cell").last()).toHaveClass(/\bg-complete\b/);
+  await expect(pair.last().locator(".pipeline-cell").last()).toHaveClass(/\bg-beyond_horizon\b/);
   await expect(at(row, "01").locator(".pipeline-cell").nth(2)).toHaveClass(/\bg-complete\b/);
 
   const nomads = page.locator('[data-product-id="external-noaa-hrrr-nomads"]');
   await nomads.getByRole("group", { name: /activate for component/ }).click();
   await expect(at(nomads, "12").first().locator(".pipeline-cell.g-unobserved")).toHaveCount(4);
   await expect(at(nomads, "12").last().locator(".pipeline-cell.g-not_scheduled")).toHaveCount(4);
+
+  // Two blocks fit per lane here. Splitting the most recent four in half
+  // would put one 12z block next to 01z and the other next to 13z.
+  await page.setViewportSize({ width: 256, height: 900 });
+  await expect(at(row, "00")).toHaveCount(0);
+  await expect(at(row, "13")).toHaveCount(1);
+  await expect(pair).toHaveCount(2);
+  const narrow = await geometry();
+  expect(narrow.lanes[0]).toBe(narrow.lanes[1]);
 });
 
 test("an advisory naming only a shorter HRRR member appears on its merged source row", async ({ page }) => {

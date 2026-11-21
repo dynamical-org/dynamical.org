@@ -749,15 +749,25 @@ test("an active short run keeps its own ETA beside a completed long run", () => 
   assert.match(details.lastHeader, /48 hour/);
 });
 
-test("the latest delayed short run wins the ETA and current header over a pending long run", () => {
+test("a delayed short run wins the ETA and current header over an on-time long run", () => {
   const { time, long, short } = variantPair();
-  long.recent_inits[0].status = "pending";
+  long.recent_inits[0] = { ...long.recent_inits[0], status: "in_flight", timing: "on_time" };
   long.latency_stats = { p95_s: 7200 };
   short.recent_inits = [{ ...short.recent_inits[0], status: "in_flight", timing: "delayed" }];
   short.latency_stats = { p95_s: 3600 };
   const [row] = mergeVariantRows([long, short]);
   assert.equal(etaTarget(row).target, "2026-07-25T01:00:00.000Z");
   assert.match(detailRows(row, Date.parse(time("00")), false).runHeader, /18 hour/);
+});
+
+test("an on-time short run wins the ETA over a pending long run", () => {
+  const { long, short } = variantPair();
+  long.recent_inits[0] = { ...long.recent_inits[0], status: "pending", timing: null };
+  long.latency_stats = { p95_s: 7200 };
+  short.recent_inits = [{ ...short.recent_inits[0], status: "in_flight", timing: "on_time" }];
+  short.latency_stats = { p95_s: 3600 };
+  const [row] = mergeVariantRows([long, short]);
+  assert.equal(etaTarget(row).target, "2026-07-25T01:00:00.000Z");
 });
 
 test("equal on-time runs at one init keep the longest horizon in the row summary", () => {
