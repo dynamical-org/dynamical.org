@@ -69,17 +69,16 @@ function initialView(entry, virtual) {
   return { bounds };
 }
 
-// True when dims hold a map grid the explorer can draw: (latitude, longitude) or (y, x)
-// next to each other, and last unless the store is virtual (whose tile facade moves them).
+// Native cells are last. Regular axes can precede other dims in virtual stores,
+// whose facade moves them last.
 function hasMapGrid(dims = [], virtual = true) {
-  return dims.some((d, i) =>
+  return dims.at(-1) === "cell" || dims.some((d, i) =>
     /^(latitude|lat|y)$/i.test(d) && /^(longitude|lon|x)$/i.test(dims[i + 1]) &&
     (virtual || i === dims.length - 2),
   );
 }
 
-// True when STAC lists every variable's dims and none holds a map grid: a native grid
-// such as ICON's icosahedral cells (one `cell` dim), which the explorer cannot draw.
+// True when STAC lists every variable's dims and none holds a map grid.
 function noMapGrid(variables) {
   return variables.length > 0 && variables.every((v) => Array.isArray(v.dims)) &&
     !variables.some((v) => hasMapGrid(v.dims));
@@ -104,7 +103,7 @@ function chunkView(entry, dataset) {
   const keep = dataset.initialView;
   const variable = entry["cube:variables"]?.[dataset.defaultVariable];
   const dims = entry["cube:dimensions"];
-  if (dataset.virtual || !variable?.chunks || !dims) return keep;
+  if (dataset.virtual || !variable?.chunks || !dims || variable.dimensions.at(-1) === "cell") return keep;
   const [w, s, e, n] = keep.bounds;
   const cLon = (w + e) / 2;
   const cy = (mercY(s) + mercY(n)) / 2;

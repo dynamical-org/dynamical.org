@@ -18,30 +18,34 @@ const CORS = {
 // chunks 0–3 are block 0; the analyses have 4 spatial chunks and one block.
 // Reading the index at the end of each chunk object ((offset, nbytes) uint64
 // pairs + a crc32c) tells a spec which inner chunk a range read is for.
-const chunkEntries = new Map();
-for (const name of readdirSync(new URL("chunks/", STORE))) {
-  const body = readFileSync(new URL(`chunks/${name}`, STORE));
-  for (const n of [8, 4]) {
-    const size = n * 16 + 4;
-    if (body.length < size) continue;
-    const index = body.subarray(body.length - size);
-    const entries = [];
-    for (let i = 0; i < n; i += 1) {
-      entries.push([Number(index.readBigUInt64LE(i * 16)), Number(index.readBigUInt64LE(i * 16 + 8))]);
-    }
-    if (entries.every(([offset, nbytes]) => nbytes > 0 && offset + nbytes <= body.length - size)) {
-      chunkEntries.set(name, entries);
-      break;
+function indexShards(store, counts) {
+  const chunks = new Map();
+  for (const name of readdirSync(new URL("chunks/", store))) {
+    const body = readFileSync(new URL(`chunks/${name}`, store));
+    for (const n of counts) {
+      const size = n * 16 + 4;
+      if (body.length < size) continue;
+      const index = body.subarray(body.length - size);
+      const entries = [];
+      for (let i = 0; i < n; i += 1) {
+        entries.push([Number(index.readBigUInt64LE(i * 16)), Number(index.readBigUInt64LE(i * 16 + 8))]);
+      }
+      if (entries.every(([offset, nbytes]) => nbytes > 0 && offset + nbytes <= body.length - size)) {
+        chunks.set(name, entries);
+        break;
+      }
     }
   }
+  return chunks;
 }
+const chunkEntries = indexShards(STORE, [8, 4]);
 
 /** Whether a store key is a shard object (a data array's chunk), not a coordinate. */
 export const isShardKey = (key) => chunkEntries.has(key.replace(/^chunks\//, ""));
 
 /** The inner chunk a range read targets as { entry, block }, or nulls. */
-export function innerOf(key, start) {
-  const entries = chunkEntries.get(key.replace(/^chunks\//, ""));
+export function innerOf(key, start, chunks = chunkEntries) {
+  const entries = chunks.get(key.replace(/^chunks\//, ""));
   const entry = entries?.findIndex(([offset]) => offset === start) ?? -1;
   if (entry < 0) return { entry: null, block: null };
   return { entry, block: entries.length === 8 ? Math.floor(entry / 4) : 0 };
@@ -61,16 +65,17 @@ function parseRange(header, size) {
  * reply, and `failFor` (same argument) true aborts it as a network error.
  * Every read is appended to `log`, with `failed` set on the aborted ones.
  */
-export function storeRoute({ delayFor = () => 0, failFor = () => false, log = [] } = {}) {
+export function storeRoute({ delayFor = () => 0, failFor = () => false, log = [], store = STORE, shardCounts = [8, 4] } = {}) {
+  const chunks = store === STORE ? chunkEntries : indexShards(store, shardCounts);
   return async (route) => {
     const request = route.request();
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { ...CORS, "access-control-allow-headers": "*" } });
     const key = new URL(request.url()).pathname.split(".icechunk/")[1] ?? "";
-    const file = new URL(key, STORE);
+    const file = new URL(key, store);
     if (!key || !existsSync(file)) return route.fulfill({ status: 404, headers: CORS });
     const body = readFileSync(file);
     const range = parseRange(request.headers().range, body.length);
-    const { entry, block } = range ? innerOf(key, range[0]) : { entry: null, block: null };
+    const { entry, block } = range ? innerOf(key, range[0], chunks) : { entry: null, block: null };
     const read = { key, start: range?.[0], block, entry };
     if (failFor(read)) {
       log.push({ ...read, range, failed: true, at: Date.now() });

@@ -48,10 +48,14 @@ export function spatialDimsAnywhere(dimNames) {
  * - Whole-grid chunks (one GRIB message per chunk, the virtual stores): drawn through
  *   the tile facade, which also allows a level dim after the grid.
  * @param {Record<string, any>} meta
- * @returns {{ cls: ReturnType<typeof classifyDims>, spatialIdx: [number, number], wholeGrid: boolean }}
+ * @returns {{ cls: ReturnType<typeof classifyDims>, spatialIdx: [number, number], wholeGrid: boolean, native?: true }}
  */
 export function layoutOf(meta) {
   const dimNames = meta.dimension_names ?? [];
+  if (dimNames.at(-1) === "cell" && meta.attributes?.location === "face" && typeof meta.attributes.mesh === "string") {
+    const cls = classifyDims([...dimNames.slice(0, -1), "y", "x"]);
+    return { cls, spatialIdx: [dimNames.length - 1, -1], wholeGrid: false, native: true };
+  }
   const chunks = meta.chunk_grid?.configuration?.chunk_shape ?? [];
   const sharded = (meta.codecs ?? []).some((c) => c.name === "sharding_indexed");
   const at = (cls) => /** @type {[number, number]} */ (cls.spatial.map((d) => dimNames.indexOf(d)));

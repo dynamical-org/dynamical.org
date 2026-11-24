@@ -19,6 +19,7 @@ import { shiftAttrs } from "./lib/grid.js";
 import { formatMB } from "./lib/meter.js";
 import { changeSelection, stepAccepted } from "./lib/pending.js";
 import { formatLead, formatUtc } from "./lib/time.js";
+import { NativeCellLayer, nativeGeometry } from "./native/cell-layer.js";
 import { makeSource, unsupportedReason } from "./source.js";
 import { openStore } from "./store.js";
 import { StaleTileError, makeGetTileData, makeRenderTile, readGridSample, readTileBlock } from "./tile.js";
@@ -163,6 +164,7 @@ export function mount(el, options) {
     loadedIds: new Set(),
     /** Per layer id: the tile textures it owns (destroyed on unload and retirement). */
     textures: new Map(),
+    geometry: nativeGeometry(),
     /** Per layer id: the stepFlags of the tiles its viewport selected, at its last load. */
     viewTiles: new Map(),
     retiring: /** @type {string[]} */ ([]),
@@ -352,7 +354,7 @@ export function mount(el, options) {
     const { block } = selectionFor(s.info, s.pinnedIdx, s.stepIndex);
     const tiles = [...s.liveIds].flatMap((id) => s.viewTiles.get(id) ?? []);
     const v = viewData(tiles, s.stepIndex - block.start);
-    if (v.state === "empty") setState("empty", emptyMessage(block, v.last));
+    if (v.state === "empty" || (s.info.native && v.state === "none")) setState("empty", emptyMessage(block, v.last));
     else setState("ready", "Ready");
   }
 
@@ -448,6 +450,10 @@ export function mount(el, options) {
       width: mapEl.clientWidth || 800,
       height: mapEl.clientHeight || 450,
     });
+    if (info.native) {
+      const { h, w } = info.tile;
+      return info.native.visible(vp.getBounds()).length * (block.stop - block.start) * h * w * 4;
+    }
     const rows = [];
     const cols = [];
     for (const fx of [0, 0.5, 1]) {
@@ -493,10 +499,19 @@ export function mount(el, options) {
       const { sel, block } = selectionFor(info, s.pinnedIdx, s.stepIndex);
       const base = baseKey(info, s.pinnedIdx, block);
       const layerIndex = s.stepIndex - block.start;
-      for (const offset of info.grid.wrapOffsets) {
+      for (const offset of info.grid?.wrapOffsets ?? [0]) {
         const id = `${base}|r${s.retry}|w${offset}`;
         ids.add(id);
         const cb = callbacksFor(id, info);
+        if (info.native) {
+          layers.push(new NativeCellLayer({
+            id, info, selection: sel, geometry: s.geometry, signal: s.abort.signal,
+            paint: { layerIndex, min: range.min, max: range.max, colormapTexture: s.colormap, colormapIndex: COLORMAP },
+            maxRequests: opts.maxRequests ?? MAX_REQUESTS,
+            ...cb,
+          }));
+          continue;
+        }
         layers.push(
           new ZarrLayer({
             // One layer per (variable, run, pinned indices, block): leaving a
@@ -716,7 +731,7 @@ export function mount(el, options) {
     try {
       let info = newVar ? await s.source.describe(req.path, { center }) : s.info;
       if (g !== s.gen) return;
-      if (newVar) {
+      if (newVar && !info.native) {
         // Reuse opened metadata across selections. Each world copy needs its
         // own source because its GeoZarr transform has a different offset.
         const rasterSources = new Map(await Promise.all(info.grid.wrapOffsets.map(async (offset) => [
@@ -1037,6 +1052,7 @@ export function mount(el, options) {
       s.abort.abort();
       scheme.removeEventListener("change", onScheme);
       deck.finalize();
+      s.geometry.destroy();
       for (const set of s.textures.values()) for (const t of set) t.destroy();
       s.textures.clear();
       s.info?.facade?.clear();
@@ -1070,7 +1086,7 @@ export function mount(el, options) {
         playing: play.on,
         layers: [...s.liveIds],
         textures: [...s.textures.values()].reduce((n, set) => n + set.size, 0),
-        grid: info ? { attrs: info.grid.attrs, crs: info.grid.crs, wrapOffsets: info.grid.wrapOffsets } : null,
+        grid: info?.grid ? { attrs: info.grid.attrs, crs: info.grid.crs, wrapOffsets: info.grid.wrapOffsets } : null,
       };
     },
     setStep,

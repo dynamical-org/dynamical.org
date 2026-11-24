@@ -31,8 +31,8 @@ The plugin
   `/explorer/explorer.js` (`site/loader.js`). No explorer JS or weather data loads
   before the click;
 - leaves the section out when STAC lists every variable's dims and none has a
-  (latitude, longitude) or (y, x) pair: a native grid such as ICON's icosahedral `cell`
-  dim, which the map cannot draw (`noMapGrid` in `site/mount-options.cjs`).
+  (latitude, longitude) or (y, x) pair or a trailing `cell` dim
+  (`noMapGrid` in `site/mount-options.cjs`).
 
 `site/datasets.cjs` exports an `optOuts` list of `{ id, reason }` objects, currently
 empty. Add an opt-out only when a dataset cannot work, with a one-line reason;
@@ -209,7 +209,7 @@ In a box of fixed height the map shrinks to fit, down to that floor.
     coordinate value is 0, or the first if none is. Its options are labelled from
     coordinate values ("member 5"). Other dims are labelled with their coordinate values
     and units (e.g. "500 hPa").
-- **Texture blocks.** The ECMWF-example technique: one `ZarrLayer` per
+- **Texture blocks.** The ECMWF-example technique: one data layer per
   (variable, run, pinned indices, block). Every step of the block goes into one
   `r32float` 2D-array texture, and the shader picks the step, so scrubbing inside
   a block costs no requests.
@@ -219,6 +219,23 @@ In a box of fixed height the map shrinks to fit, down to that floor.
     re-upload when the slider leaves it.
   - Leaving a block replaces the layer, so an old field is never drawn under new
     labels.
+  - **Native cells** (ICON-EU) draw the triangles from the variable's UGRID mesh.
+    - The node positions and connectivity are read once per snapshot. A half-degree
+      index lists the chunks with faces in each bin. The bins keep the index small
+      and avoid fetching the long, interleaved chunks whose overall bounding boxes
+      overlap the view even when their faces do not.
+    - One visible native inner chunk is one tile. The reader pads that chunk's
+      cells into a square texture plane per lead, preserving the face order.
+      The triangle shader samples the selected lead and discards missing values.
+      The colour range comes from the chunk nearest the opening view's centre.
+    - Position buffers are built when first visible and reused across variable
+      and run changes. Panning off a chunk unloads its texture. A later pan can
+      use the store's byte cache. Meshes with faces crossing the antimeridian
+      are unsupported.
+    - ICON-EU opens on central Germany, about three chunks in the desktop frame.
+      Each chunk uses about 0.58 MB for vertices and 8.94 MB for all 93 leads.
+      The full domain can load all 32 chunks, about 64 MB compressed for
+      temperature data and 304 MB of GPU buffers and textures.
   - **Whole-grid chunks** (the virtual stores: one GRIB message per chunk,
     e.g. 721×1440) go through the tile facade (`src/grib/tile-facade.js`).
     - ZarrLayer is given a view of the array with small tiles: 121 cells, and on
@@ -411,7 +428,7 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 - missing-step detection (`stepFlags`, `viewData`), the init list, the member default,
   and control changes against the requested selection (`pending.js`);
 - the empty-tail analysis search and the virtual latest-chunk walk-back;
-- layouts with a trailing level dim;
+- layouts with a trailing level dim or UGRID cell dim;
 - the failure-evicting promise cache;
 - the GRIB codec against gribberish's Python codec, on fixtures for DRS 5.0,
   5.0 + bitmap, 5.3, 5.3 + bitmap and 5.42, plus REFS zero-group constant
@@ -420,14 +437,15 @@ In a box of fixed height the map shrinks to fit, down to that floor.
 - the data-received meter, alone and through the retrying client;
 - the legend text: units, close bounds, constant, sparse and empty samples;
 - the tile facade;
+- native face coverage, connectivity, and padded reads;
 - the byte cache: ranges, eviction, failed and missing reads, copies;
 - the site plugin: automatic HTTPS Icechunk eligibility, reasoned opt-outs, optional
   overrides, preserved existing defaults, derived views and variables, the
-  chunk-derived first view, leaving out native grids, the Explore section's
+  chunk-derived first view, leaving out unsupported grids, the Explore section's
   markup and escaping, the preview's projection and clipping, and when the build hook
   installs and builds.
 
 `npm run test:e2e` at the repo root also runs `explorer/test/e2e/` (the `explorer`
-Playwright project): offline specs against the tiny Icechunk store in
-`explorer/test/fixtures/`, plus a live
+Playwright project): offline specs against the small raster and native-cell
+Icechunk stores in `explorer/test/fixtures/`, plus a live
 GFS and GFS-virtual smoke test.

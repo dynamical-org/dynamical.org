@@ -221,10 +221,10 @@ test("the explorer shortcode renders the preview, the button and options that ro
 
 const { noMapGrid } = require("../site/mount-options.cjs");
 
-test("a native grid (no map dims anywhere) is told apart from unknown or drawable dims", () => {
+test("unsupported grids are told apart from native cells and unknown dims", () => {
   const v = (dims) => ({ dims });
-  assert.equal(noMapGrid([v(["init_time", "lead_time", "cell"]), v(["cell"])]), true);
-  assert.equal(noMapGrid([v(["init_time", "lead_time", "cell"]), v(["time", "latitude", "longitude"])]), false);
+  assert.equal(noMapGrid([v(["init_time", "lead_time", "station"]), v(["node"])]), true);
+  assert.equal(noMapGrid([v(["init_time", "lead_time", "cell"]), v(["cell"])]), false);
   // Virtual level variables keep the grid before the level: still a map grid.
   assert.equal(noMapGrid([v(["time", "latitude", "longitude", "pressure_level"])]), false);
   // Without dims for every variable the browser decides, as before.
@@ -232,16 +232,21 @@ test("a native grid (no map dims anywhere) is told apart from unknown or drawabl
   assert.equal(noMapGrid([]), false);
 });
 
-test("a dataset with no map grid gets no Explore section; a drawable one keeps it", () => {
+test("ICON-EU cells get a cropped Explore preview while unsupported grids stay hidden", () => {
   const native = {
     ...entry,
     id: "dwd-icon-eu-forecast-5-day-icosahedral",
     variables: [{ name: "temperature_2m", dimension_names: ["init_time", "lead_time", "cell"] }],
     variableGroups: [],
   };
-  assert.equal(exploreSection(native, () => "<svg/>"), "");
-  const mixed = { ...native, variables: [...native.variables, entry.variables[0]] };
-  assert.match(exploreSection(mixed, () => "<svg/>"), /<section class="explore"/);
+  const html = exploreSection(native, (bounds) => {
+    assert.deepEqual(bounds, [8, 49, 14, 53]);
+    return "<svg/>";
+  });
+  assert.match(html, /<svg\/>\s*<button type="button">Load interactive map<\/button>/);
+  assert.equal(explorerMountOptions(native).defaultVariable, "temperature_2m");
+  const unsupported = { ...native, variables: [{ name: "temperature_2m", dimension_names: ["time", "station"] }] };
+  assert.equal(exploreSection(unsupported, () => "<svg/>"), "");
 });
 
 const { chunkView } = require("../site/mount-options.cjs");

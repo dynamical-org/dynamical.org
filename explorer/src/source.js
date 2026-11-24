@@ -11,11 +11,14 @@ import { missingSentinels } from "./lib/colour.js";
 import { absolutePath, coordinateValues, defaultIndex, dimLabel, latestWithChunk, layoutOf, probeLatest } from "./lib/dims.js";
 import { buildGrid } from "./lib/grid.js";
 import { decodeCf } from "./lib/time.js";
+import { makeMesh } from "./native/mesh.js";
+import { paddedReader } from "./native/read.js";
 
 const NUMERIC = /^(u?int(8|16|32|64)|float(16|32|64))$/;
 
 /** Parent group path of an array path: "/a/b" → "/a", "/b" → "". */
 const parentOf = (path) => path.slice(0, path.lastIndexOf("/"));
+const relativeTo = (path, ref) => ref.startsWith("/") ? ref : `${parentOf(path)}/${ref}`;
 
 /**
  * Tile edge for whole-grid chunks (the virtual stores; see grib/tile-facade.js), in
@@ -66,6 +69,37 @@ export function unsupportedReason(meta) {
 export function makeSource(store, config) {
   const coords = new Map();
   const grids = new Map();
+  const topologies = new Map();
+  const meshes = new Map();
+
+  async function topology(path) {
+    return cachedPromise(topologies, path, async () => {
+      const attrs = (await store.getMeta(path))?.attributes;
+      const nodes = attrs?.node_coordinates?.trim().split(/\s+/) ?? [];
+      if (attrs?.cf_role !== "mesh_topology" || attrs.topology_dimension !== 2 ||
+          (attrs.face_dimension ?? "cell") !== "cell" || nodes.length !== 2 || !attrs.face_node_connectivity) {
+        throw new Error("Expected a UGRID face mesh with geographic node coordinates");
+      }
+      const arrays = await Promise.all([...nodes, attrs.face_node_connectivity].map((name) => store.open(relativeTo(path, name))));
+      const [a, b, faces] = arrays;
+      const lat = [a, b].find((x) => x.attrs.standard_name === "latitude");
+      const lon = [a, b].find((x) => x.attrs.standard_name === "longitude");
+      if (!lat || !lon || lat.shape.length !== 1 || lon.shape[0] !== lat.shape[0] ||
+          lon.shape.length !== 1 || faces.shape.length !== 2 || faces.shape[1] !== 3) {
+        throw new Error("Expected triangles with one-dimensional longitude and latitude nodes");
+      }
+      const values = await Promise.all([lon, lat, faces].map(async (arr) => (await zarr.get(arr)).data));
+      return { values, startIndex: Number(faces.attrs.start_index ?? 0) };
+    });
+  }
+
+  async function nativeMesh(path, length, center) {
+    return cachedPromise(meshes, `${path}|${length}|${center.join(",")}`, async () => {
+      const { values: [lon, lat, faces], startIndex } = await topology(path);
+      const mesh = makeMesh(lon, lat, faces, length, startIndex);
+      return { mesh, centerChunk: mesh.nearestChunk(center) };
+    });
+  }
 
   /** A 1-D coordinate array next to the variable, else at the root. */
   async function coord(group, name) {
@@ -133,9 +167,11 @@ export function makeSource(store, config) {
     const dimNames = /** @type {string[]} */ (meta.dimension_names);
     const attrs = meta.attributes ?? {};
     const group = parentOf(path);
-    const { cls, spatialIdx, wholeGrid } = layoutOf(meta);
-    const [g, arr] = await Promise.all([grid(group, attrs, cls.spatial), store.open(path)]);
-    const [cy, cx] = [Math.floor(g.y.n / 2), Math.floor(g.x.n / 2)];
+    const { cls, spatialIdx, wholeGrid, native } = layoutOf(meta);
+    const [g, arr] = await Promise.all([native ? null : grid(group, attrs, cls.spatial), store.open(path)]);
+    const cellLength = arr.chunks.at(-1);
+    const cell = native ? await nativeMesh(relativeTo(path, attrs.mesh), cellLength, center) : null;
+    if (cell && cell.mesh.count !== arr.shape.at(-1)) throw new Error("Native mesh face count differs from the cell dimension");
     const d = (name) => dimNames.indexOf(name);
     const virtual = isVirtual(meta);
 
@@ -143,13 +179,13 @@ export function makeSource(store, config) {
     // facade: small tiles (facadeTile), (y, x) last, and each real chunk read once
     // through its LRU. Everything else reads the array as stored.
     const reorder = spatialIdx[0] !== dimNames.length - 2;
-    const tileSize = facadeTile(g);
+    const tileSize = g ? facadeTile(g) : 0;
     const facade =
       wholeGrid && (reorder || g.y.n > tileSize || g.x.n > tileSize)
         ? createTileFacade({ array: arr, get: zarr.get, spatial: spatialIdx, tileSize, keyPrefix: `${store.snapshotId}|${path}` })
         : null;
     const node = facade ? facade.view : arr;
-    const nodeDims = facade ? facade.view.dimensionNames : dimNames;
+    const nodeDims = facade ? facade.view.dimensionNames : cell ? [...dimNames.slice(0, -1), ...cls.spatial] : dimNames;
 
     // Virtual stores: a chunk exists when a 1-byte read of its GRIB message returns a
     // byte (an unwritten chunk has no reference, so icechunk-js returns nothing). A read
@@ -165,6 +201,7 @@ export function makeSource(store, config) {
       new Error(`Could not check for the latest ${dim}: the upstream probe failed (${r.log.join("; ")})`);
 
     const pinned = await pinnedDims(group, meta, cls);
+    const probeAt = cell ? { cell: 0 } : { [cls.spatial[0]]: Math.floor(g.y.n / 2), [cls.spatial[1]]: Math.floor(g.x.n / 2) };
 
     const probe = (probeDim, at) =>
       probeLatest({
@@ -173,7 +210,7 @@ export function makeSource(store, config) {
         meta,
         dimNames,
         probeDim,
-        at: { [cls.spatial[0]]: cy, [cls.spatial[1]]: cx, ...at },
+        at: { ...probeAt, ...at },
       });
 
     let init = null;
@@ -214,6 +251,8 @@ export function makeSource(store, config) {
 
     const scale = Number(attrs.scale_factor ?? 1);
     const offset = Number(attrs.add_offset ?? 0);
+    const missing = missingSentinels(attrs, meta.fill_value);
+    const edge = cell ? Math.ceil(Math.sqrt(cellLength)) : 0;
     return {
       path,
       arr,
@@ -221,21 +260,22 @@ export function makeSource(store, config) {
       /** ZarrLayer's `node`, its dim order, and a zarr.get-compatible reader for it. */
       node,
       nodeDims,
-      read: facade ? facade.get : zarr.get,
+      read: cell ? paddedReader(zarr.get, cell.mesh.count, cellLength, { missing, scale, offset }) : facade ? facade.get : zarr.get,
       facade,
+      native: cell?.mesh,
       virtual,
       cls,
       grid: g,
       attrs,
       units: attrs.units ?? "",
-      missing: missingSentinels(attrs, meta.fill_value),
-      scale,
-      offset,
+      missing: cell ? [] : missing,
+      scale: cell ? 1 : scale,
+      offset: cell ? 0 : offset,
       init,
       step,
       pinned,
-      tile: { h: node.chunks[node.chunks.length - 2], w: node.chunks[node.chunks.length - 1] },
-      centerCell: lonLatToCell(g, center),
+      tile: cell ? { h: edge, w: edge } : { h: node.chunks.at(-2), w: node.chunks.at(-1) },
+      centerCell: cell ? [cell.centerChunk * edge, 0] : lonLatToCell(g, center),
     };
   }
 
