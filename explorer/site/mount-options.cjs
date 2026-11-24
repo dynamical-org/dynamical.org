@@ -103,7 +103,7 @@ function chunkView(entry, dataset) {
   const keep = dataset.initialView;
   const variable = entry["cube:variables"]?.[dataset.defaultVariable];
   const dims = entry["cube:dimensions"];
-  if (dataset.virtual || !variable?.chunks || !dims || variable.dimensions.at(-1) === "cell") return keep;
+  if (dataset.virtual || !variable?.chunks || !dims) return keep;
   const [w, s, e, n] = keep.bounds;
   const cLon = (w + e) / 2;
   const cy = (mercY(s) + mercY(n)) / 2;

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as zarr from "zarrita";
 import { makeMesh } from "../src/native/mesh.js";
 import { paddedReader } from "../src/native/read.js";
+import { makeSource } from "../src/source.js";
+import { readTileBlock } from "../src/tile.js";
 
 // Chunks span the small query box when reduced to a bbox, but only the
 // middle chunk's faces enter it. One face also straddles a bin boundary.
@@ -45,4 +48,35 @@ test("native values respect cell and lead order and pad the partial chunk with N
   const { data } = await read(array, [1, { start: 1, stop: 3 }, { start: 3, stop: 6 }, { start: 0, stop: 3 }]);
   assert.deepEqual(data, Float32Array.of(230, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN,
     250, 252, NaN, NaN, NaN, NaN, NaN, NaN, NaN));
+});
+
+test("a native tile applies scale, offset and missing values only once", async () => {
+  const bytes = new Map();
+  const root = zarr.root(bytes);
+  async function array(path, dtype, dimensionNames, shape, data, attributes, fillValue) {
+    const arr = await zarr.create(root.resolve(path), {
+      dtype, dimensionNames, shape, chunkShape: shape, attributes, fillValue,
+    });
+    if (data) await zarr.set(arr, null, { data, shape, stride: shape.length === 2 ? [shape[1], 1] : [1] });
+  }
+  await array("/mesh", "int32", [], [], null, {
+    cf_role: "mesh_topology", topology_dimension: 2, node_coordinates: "lon lat",
+    face_node_connectivity: "faces",
+  });
+  const points = coords.slice(0, 9);
+  await array("/lon", "float32", ["node"], [9], Float32Array.from(points, ([x]) => x), { standard_name: "longitude" });
+  await array("/lat", "float32", ["node"], [9], Float32Array.from(points, ([, y]) => y), { standard_name: "latitude" });
+  await array("/faces", "int32", ["cell", "corner"], [3, 3], nodes.slice(0, 9), { start_index: 1 });
+  // The valid raw value 2 decodes to 3, which was a missing sentinel before decoding.
+  await array("/scaled", "int16", ["cell"], [3], Int16Array.of(2, 3, -9999), {
+    location: "face", mesh: "/mesh", scale_factor: 2, add_offset: -1, missing_value: 3,
+  }, -9999);
+
+  const source = makeSource({
+    getMeta: async (path) => JSON.parse(new TextDecoder().decode(bytes.get(path + "/zarr.json"))),
+    open: (path) => zarr.open(root.resolve(path), { kind: "array" }),
+  });
+  const info = await source.describe("/scaled", { center: [-2, 0] });
+  const { data } = await readTileBlock(info, {}, 0, 0);
+  assert.deepEqual(data, Float32Array.of(3, NaN, NaN, NaN));
 });

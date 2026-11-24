@@ -87,6 +87,9 @@ export class NativeCellLayer extends CompositeLayer {
     reads.set(id, controller);
     const { w, h } = info.tile;
     try {
+      // Cached reads still decode and upload. Let the browser draw and handle input between chunks.
+      await new Promise((resolve) => setTimeout(resolve));
+      if (controller.signal.aborted || signal.aborted) return;
       const content = await getTileData(info.node, {
         device: this.context.device, sliceSpec: tileSlice(info, selection, id * h, 0),
         width: w, height: h, signal: controller.signal,

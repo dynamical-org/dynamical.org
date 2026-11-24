@@ -24,7 +24,7 @@ export function makeMesh(lon, lat, faces, chunkLength, startIndex = 0) {
     const a = faces[i] - startIndex, b = faces[i + 1] - startIndex, c = faces[i + 2] - startIndex;
     const w = lonBin(Math.min(lon[a], lon[b], lon[c])), e = lonBin(Math.max(lon[a], lon[b], lon[c]));
     const s = latBin(Math.min(lat[a], lat[b], lat[c])), n = latBin(Math.max(lat[a], lat[b], lat[c]));
-    if (!(w >= 0 && e < ROW && s >= 0 && n <= 360 && e - w < ROW / 2)) {
+    if (!(w >= 0 && e < ROW && s >= 0 && n <= 180 * BINS_PER_DEGREE && e - w < ROW / 2)) {
       throw new Error("Native mesh has invalid nodes or faces crossing the antimeridian");
     }
     west = Math.min(west, w); east = Math.max(east, e);

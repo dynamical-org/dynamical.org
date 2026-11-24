@@ -354,7 +354,7 @@ export function mount(el, options) {
     const { block } = selectionFor(s.info, s.pinnedIdx, s.stepIndex);
     const tiles = [...s.liveIds].flatMap((id) => s.viewTiles.get(id) ?? []);
     const v = viewData(tiles, s.stepIndex - block.start);
-    if (v.state === "empty" || (s.info.native && v.state === "none")) setState("empty", emptyMessage(block, v.last));
+    if (v.state === "empty") setState("empty", emptyMessage(block, v.last));
     else setState("ready", "Ready");
   }
 
