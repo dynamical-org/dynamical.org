@@ -1619,7 +1619,7 @@ function upcomingRunDetail(initTime, stats, local, next, product) {
   // band takes it. Earlier bands still have their own historical estimates.
   const completion = next?.coverage.lastLabel === stats.label ? next?.completionAt : null;
   const target = completion ?? (eta == null ? null : initMs + eta * 1000);
-  const timingReference = baseline && runTimingReference(initMs, local, delayedThreshold(baseline, bandStats));
+  const timingReference = baseline && runTimingReference(initMs, local, cycleGroupThreshold(baseline, initTime, bandStats));
   return {
     status: "upcoming",
     state: "upcoming",
@@ -1832,6 +1832,15 @@ function runEtaSeconds(baseline, initTime) {
 function groupEtaSeconds(baseline, initTime, bandStats) {
   const p95 = cycleOf(baseline, initTime)?.lead_group_p95_s?.[bandStats?.name];
   return Number.isFinite(p95) ? p95 : bandStats?.p95_s;
+}
+
+// The bar an init that has not reported yet will be judged against for one
+// lead band: its cycle's, once the summary publishes one, else the pooled one.
+function cycleGroupThreshold(baseline, initTime, bandStats) {
+  const groups = cycleOf(baseline, initTime)?.lead_group_thresholds_s;
+  return groups && Object.hasOwn(groups, bandStats?.name)
+    ? delayedThreshold(baseline, { delayed_threshold_s: groups[bandStats.name] })
+    : delayedThreshold(baseline, bandStats);
 }
 
 function initRunThreshold(product, init) {

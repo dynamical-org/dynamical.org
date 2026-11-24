@@ -3631,3 +3631,62 @@ test("a fast cycle's band ETA lands before its own delayed-past time", () => {
   assert.equal(legacy.run.time, "ETA 01:40");
   assert.equal(legacy.run.timingReference, "delayed past 01:19");
 });
+
+test("an upcoming run's band ETA and delayed-past time come from its cycle", () => {
+  const variant = (id, label, hours, cycle) => ({
+    id,
+    row_label: "AWS",
+    variant: { id, label },
+    init_hours: hours,
+    timing_baseline: { status: "established", method: "historical" },
+    latency_stats: { p50_s: 26000, p95_s: 28800, delayed_threshold_s: 31600 },
+    lead_group_stats: [
+      { name: "f000", label: "0h", p50_s: 25000, p95_s: 27603, delayed_threshold_s: 30206 },
+      { name: "f144", label: "6d", p50_s: 26000, p95_s: 28800, delayed_threshold_s: 31600 },
+    ],
+    cycle_thresholds: cycle,
+    recent_inits: [],
+  });
+  const long = variant("15d", "15 day", ["00", "12"], {});
+  long.lead_group_stats.push({ name: "forecast", label: "15d", p50_s: 30000, p95_s: 33000, delayed_threshold_s: 36000 });
+  long.lead_groups = long.lead_group_stats.map(({ name, label }) => ({ name, label }));
+  long.next_expected_init = "2026-11-25T00:00:00Z";
+  long.next_expected_completion_at = "2026-11-25T09:10:00Z";
+  const short = variant("6d", "6 day", ["06", "18"], {
+    "18": {
+      delayed_threshold_s: 27500,
+      lead_group_thresholds_s: { f000: 26344, f144: 27500 },
+      p50_s: 24500,
+      p95_s: 26000,
+      lead_group_p50_s: { f000: 23600, f144: 24500 },
+      lead_group_p95_s: { f000: 24972, f144: 26000 },
+      basis: "cycle",
+    },
+  });
+  short.lead_groups = short.lead_group_stats.map(({ name, label }) => ({ name, label }));
+  short.next_expected_init = "2026-11-24T18:00:00Z";
+  short.next_expected_completion_at = "2026-11-25T01:13:20Z";
+  short.recent_inits = [{
+    init_time: "2026-11-24T06:00:00Z",
+    status: "complete",
+    delayed_threshold_s: 27500,
+    lead_groups: [
+      { name: "f000", status: "complete", latency_s: 20000 },
+      { name: "f144", status: "complete", latency_s: 21000 },
+    ],
+  }];
+  const now = Date.parse("2026-11-24T17:00:00Z");
+  const [f000, f144] = detailRows(mergeVariantRows([long, short])[0], now, false).rows;
+  assert.equal(f000.run.state, "upcoming");
+  assert.equal(f000.run.time, "ETA 00:56");
+  assert.equal(f000.run.timingReference, "delayed past 01:19");
+  assert.equal(f144.run.time, "ETA 01:13");
+  assert.equal(f144.run.timingReference, "delayed past 01:38");
+
+  // without a cycle entry the band keeps the pooled bar, as before
+  delete short.cycle_thresholds["18"];
+  short.next_expected_completion_at = "2026-11-25T02:00:00Z";
+  const [legacy] = detailRows(mergeVariantRows([long, short])[0], now, false).rows;
+  assert.equal(legacy.run.time, "ETA 01:40");
+  assert.equal(legacy.run.timingReference, "delayed past 02:23");
+});
