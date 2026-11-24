@@ -105,6 +105,15 @@ module.exports = {
   "noaa-refs-forecast-3-hourly-virtual": {
     earthmover: "https://app.earthmover.io/marketplace/6acff8b2444308a163f0ba58",
   },
+  "noaa-rtma-analysis-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6b0509848b4c0d9e021da1e9",
+  },
+  "noaa-rtma-ru-analysis-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6b0509c0e214672eec8a812f",
+  },
+  "noaa-urma-analysis-virtual": {
+    earthmover: "https://app.earthmover.io/marketplace/6b050bba48f41edfad861451",
+  },
   "noaa-mrms-conus-analysis-hourly": {
     earthmover: "https://app.earthmover.io/marketplace/69b17d6d9b47e3348aeb99dc",
     source_coop: "https://source.coop/dynamical/noaa-mrms-conus-analysis-hourly",
