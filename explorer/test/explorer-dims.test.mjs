@@ -52,6 +52,21 @@ test("pinned and selected dims are labelled with their coordinate value", () => 
   assert.equal(dimLabel("model_level", 3, "1"), "3");
 });
 
+test("a trailing UGRID cell dim opens as a native forecast without pinning the cell", () => {
+  const meta = {
+    dimension_names: ["init_time", "lead_time", "cell"],
+    shape: [2, 3, 24],
+    attributes: { mesh: "/geometry/triangles", location: "face" },
+  };
+  const { cls, native } = layoutOf(meta);
+  assert.ok(native);
+  assert.equal(cls.init, "init_time");
+  assert.equal(cls.step, "lead_time");
+  assert.deepEqual(cls.extras, []);
+  assert.throws(() => layoutOf({ ...meta, attributes: {} }));
+  assert.throws(() => layoutOf({ ...meta, dimension_names: ["init_time", "cell", "lead_time"] }));
+});
+
 test("REFS string statistic coordinates retain their labels and ensemble-mean default", () => {
   // Public REFS vlen-utf8 coordinate: index 0 is the ensemble mean; index 1
   // is NOAA's member-weighted population standard deviation (spread).

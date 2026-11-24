@@ -152,6 +152,11 @@ const datasets = [
     // 51.7 MB, init 2026-09-25 12Z.
   },
   {
+    id: "dwd-icon-eu-forecast-5-day-icosahedral",
+    // Fitted at catalog width, this central Germany view needs three cell chunks.
+    initialView: { bounds: [8, 49, 14, 53] },
+  },
+  {
     id: "eccc-hrdps-forecast",
     initialView: { bounds: CANADA },
     proj4: null,

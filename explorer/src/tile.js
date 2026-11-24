@@ -79,17 +79,23 @@ export function makeGetTileData(ctx) {
   };
 }
 
+/** Build a tile selection. Native chunks occupy successive rows of padded planes. */
+export function tileSlice(info, selection, r0, c0) {
+  const { h, w } = info.tile;
+  const dims = info.nodeDims;
+  return dims.map((name, i) => {
+    if (i === dims.length - 2) return zarr.slice(r0, Math.min(r0 + h, info.grid?.y.n ?? r0 + h));
+    if (i === dims.length - 1) return zarr.slice(c0, Math.min(c0 + w, info.grid?.x.n ?? w));
+    return selection[name];
+  });
+}
+
 /** Read the same block + spatial chunk a tile would, as Float32 (for the colour range). */
 export async function readTileBlock(info, selection, row, col, signal) {
   const { h, w } = info.tile;
   const r0 = Math.floor(row / h) * h;
   const c0 = Math.floor(col / w) * w;
-  const dims = info.nodeDims;
-  const spec = dims.map((name, i) => {
-    if (i === dims.length - 2) return zarr.slice(r0, Math.min(r0 + h, info.grid.y.n));
-    if (i === dims.length - 1) return zarr.slice(c0, Math.min(c0 + w, info.grid.x.n));
-    return selection[name];
-  });
+  const spec = tileSlice(info, selection, r0, c0);
   const chunk = await info.read(info.node, spec, { signal });
   return { r0, c0, data: toFloat32(chunk.data, info) };
 }

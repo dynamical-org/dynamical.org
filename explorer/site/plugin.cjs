@@ -27,8 +27,7 @@ const escapeAttribute = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 // The Explore section for one catalog entry, or "" when it has no explorer: no HTTPS
-// Icechunk asset, an opt-out, or no variable with a map grid (a native grid such as
-// ICON's icosahedral cells, see noMapGrid), where the map could only fail.
+// Icechunk asset, an opt-out, or no variable with a map grid (see noMapGrid).
 // `preview(bounds)` is the empty-map SVG of the view the map opens on.
 function exploreSection(entry, preview) {
   const options = explorerMountOptions(entry, datasets, optOuts);
