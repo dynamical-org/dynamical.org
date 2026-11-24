@@ -996,6 +996,32 @@ test("a source-budget lead never borrows the run deadline when its own deadline 
   assert.equal(group.run.timingReference, "deadline 01:13");
 });
 
+test("a merged variant's run is marked and named by its own threshold over its variant's pooled one", () => {
+  const { long, short } = gefsVariantPair();
+  short.timing_baseline.status = "established";
+  short.lead_group_stats[0].delayed_threshold_s = 28000;
+  const now = Date.parse("2026-11-20T23:00:00Z");
+  const [pooled] = mergeVariantRows([long, short]);
+  assert.equal(detailRows(pooled, now, false).rows[0].run.timingReference, "delayed past 01:46");
+
+  long.recent_inits[0].delayed_threshold_s = 90000;
+  long.recent_inits[0].lead_groups[0].delayed_threshold_s = 80000;
+  short.recent_inits[0].lead_groups[0].delayed_threshold_s = 25200;
+  const [row] = mergeVariantRows([long, short]);
+  assert.equal(detailRows(row, now, false).rows[0].run.timingReference, "delayed past 01:00");
+  // the short run has no run-level threshold of its own, and its variant none pooled
+  assert.deepEqual(runChartSeries(row, now).timingMarks.map((mark) => mark.threshold), [90000, null]);
+  const lead = leadLaneSeries(row, now).find((lane) => lane.name === "f384");
+  assert.deepEqual(lead.slots.map((slot) => slot.threshold), [80000, 25200]);
+
+  // a variant without the history for a threshold still draws none
+  short.timing_baseline.status = "insufficient_history";
+  const [unjudged] = mergeVariantRows([long, short]);
+  assert.equal(detailRows(unjudged, now, false).rows[0].run.timingReference, undefined);
+  assert.deepEqual(leadLaneSeries(unjudged, now).find((lane) => lane.name === "f384").slots
+    .map((slot) => slot.threshold), [80000, null]);
+});
+
 test("merged cadence accounts for interleaved init hours and the gap across midnight", () => {
   const { long, short } = variantPair();
   long.init_hours = ["00", "12"];
@@ -2879,6 +2905,94 @@ test("HRRR source budgets use each grain's deadline and preserve unjudged inits"
     assert.equal(missing.state, "missing");
     assert.equal(missing.deadline, null);
   }
+});
+
+// a product judged per init cycle: each init and lead group carries the
+// threshold it was judged against
+function perCycleProduct(runThresholds, leadThresholds, overrides = {}) {
+  const base = chartProduct({
+    lead_groups: [{ name: "f000", label: "0h" }],
+    lead_group_stats: [{ name: "f000", label: "0h", delayed_threshold_s: 2100 }],
+    ...overrides,
+  });
+  return {
+    ...base,
+    recent_inits: base.recent_inits.map((init, index) => ({
+      ...init,
+      delayed_threshold_s: runThresholds[index],
+      lead_groups: [{ name: "f000", status: "complete", latency_s: 1000, delayed_threshold_s: leadThresholds[index] }],
+    })),
+  };
+}
+
+test("per-cycle thresholds: an old payload keeps the single pooled lines", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const series = runChartSeries(chartProduct(), now);
+  assert.equal(series.threshold, 7200);
+  assert.equal(series.timingMarks, undefined);
+  const lanes = leadLaneSeries(chartProduct({ lead_groups: [{ name: "f000", label: "0h" }] }), now);
+  assert.deepEqual(lanes.map((lane) => lane.threshold), [2100, 7200]);
+  assert.ok(lanes.every((lane) => lane.slots.every((slot) => slot.threshold === null)));
+});
+
+test("per-cycle thresholds: differing ones are marked per init, with no single line", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = perCycleProduct([6000, 8000, 6500, 7200, 6000], [1800, 2400, 2100, 2100, 1800]);
+  const series = runChartSeries(product, now);
+  assert.equal(series.threshold, null);
+  // the unobserved init is not on the chart; the failed one keeps its mark
+  assert.deepEqual(series.timingMarks.map((mark) => [mark.init.init_time, mark.threshold, mark.deadline]), [
+    ["2026-07-24T12:00:00Z", 6000, null],
+    ["2026-07-24T18:00:00Z", 8000, null],
+    ["2026-07-25T00:00:00Z", 6500, null],
+    ["2026-07-25T12:00:00Z", 6000, null],
+  ]);
+  assert.ok(pipeline.latencyDomain(series).yMax >= 8000);
+  const [lead, run] = leadLaneSeries(product, now);
+  assert.equal(lead.threshold, null);
+  assert.deepEqual(lead.slots.map((slot) => slot.threshold), [1800, 2400, 2100, 2100, 1800]);
+  assert.equal(run.threshold, null);
+  assert.deepEqual(run.slots.map((slot) => slot.threshold), [6000, 8000, 6500, 7200, 6000]);
+});
+
+test("per-cycle thresholds: all equal to the pooled ones keep the single lines", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = perCycleProduct(Array(5).fill(7200), Array(5).fill(2100));
+  const series = runChartSeries(product, now);
+  assert.equal(series.threshold, 7200);
+  assert.equal(series.timingMarks, undefined);
+  const lanes = leadLaneSeries(product, now);
+  assert.deepEqual(lanes.map((lane) => lane.threshold), [2100, 7200]);
+  assert.ok(lanes.every((lane) => lane.slots.every((slot) => slot.threshold === null)));
+  // one lane can differ while the other keeps its line
+  const mixed = perCycleProduct(Array(5).fill(7200), [1800, 2100, 2100, 2100, 2100]);
+  const [lead, run] = leadLaneSeries(mixed, now);
+  assert.equal(lead.threshold, null);
+  assert.equal(lead.slots[0].threshold, 1800);
+  assert.equal(run.threshold, 7200);
+});
+
+test("per-cycle thresholds: none are drawn without the history for one", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = perCycleProduct([6000, 8000, 6500, 7200, 6000], [1800, 2400, 2100, 2100, 1800], {
+    timing_baseline: { status: "insufficient_history", history_days: 12, required_history_days: 30 },
+  });
+  const series = runChartSeries(product, now);
+  assert.equal(series.threshold, null);
+  assert.equal(series.timingMarks, undefined);
+  const lanes = leadLaneSeries(product, now);
+  assert.ok(lanes.every((lane) => lane.threshold === null && lane.slots.every((slot) => slot.threshold === null)));
+});
+
+test("per-cycle thresholds leave source-budget deadlines as they were", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = sourceBudgetProduct(chartProduct());
+  const series = runChartSeries(product, now);
+  assert.equal(series.threshold, null);
+  assert.equal(series.timingMarks, undefined);
+  const [lead, run] = leadLaneSeries(product, now);
+  assert.deepEqual(lead.slots.map((slot) => [slot.deadline, slot.threshold]), [[3600, null], [null, null], [null, null]]);
+  assert.deepEqual(run.slots.map((slot) => [slot.deadline, slot.threshold]), [[4200, null], [4500, null], [null, null]]);
 });
 
 test("failed groups and whole runs have red-mark state without inventing a latency", () => {
