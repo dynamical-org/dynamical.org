@@ -3466,3 +3466,168 @@ test("local preview fixture carries a coherent delayed threshold and a run past 
     }
   }
 });
+
+// --- ETAs read the init cycle's own p95 ---------------------------------------
+
+function cycleEtaProduct() {
+  const at = (hour) => `2026-11-24T${hour}:00:00Z`;
+  return {
+    at,
+    product: {
+      id: "cycle-eta",
+      init_hours: ["06", "18"],
+      cadence_hours: 12,
+      timing_baseline: { status: "established", method: "historical" },
+      latency_stats: { p50_s: 5400, p95_s: 7200, p99_s: 7500, delayed_threshold_s: 9000 },
+      lead_group_stats: [
+        { name: "f000", label: "0h", p50_s: 1800, p95_s: 3600, p99_s: 3700, delayed_threshold_s: 5400 },
+        { name: "forecast", label: "2d", p50_s: 5400, p95_s: 7200, p99_s: 7500, delayed_threshold_s: 9000 },
+      ],
+      cycle_thresholds: {
+        "18": {
+          delayed_threshold_s: 6000,
+          lead_group_thresholds_s: { f000: 3000, forecast: 6000 },
+          p50_s: 3000,
+          p95_s: 4500,
+          lead_group_p50_s: { f000: 900, forecast: 3000 },
+          lead_group_p95_s: { f000: 1800, forecast: 4500 },
+          basis: "cycle",
+        },
+      },
+      next_expected_init: at("18"),
+      next_expected_completion_at: "2026-11-24T19:15:00Z",
+      recent_inits: [{
+        init_time: at("18"),
+        status: "in_flight",
+        delayed_threshold_s: 6000,
+        lead_groups: [
+          { name: "f000", status: "in_flight", delayed_threshold_s: 3000 },
+          { name: "forecast", status: "pending", delayed_threshold_s: 6000 },
+        ],
+      }],
+    },
+  };
+}
+
+test("a running ETA reads its init cycle's p95", () => {
+  const { product } = cycleEtaProduct();
+  assert.equal(etaTarget(product).target, "2026-11-24T19:15:00.000Z");
+});
+
+test("a running ETA falls back to the pooled p95 without a cycle p95", () => {
+  const { at, product } = cycleEtaProduct();
+  const pooled = "2026-11-24T20:00:00.000Z";
+  product.cycle_thresholds["18"].p95_s = null;
+  assert.equal(etaTarget(product).target, pooled);
+  // a payload from before cycle percentiles, and one from before cycle thresholds
+  const { p95_s, ...older } = cycleEtaProduct().product.cycle_thresholds["18"];
+  product.cycle_thresholds["18"] = older;
+  assert.equal(etaTarget(product).target, pooled);
+  delete product.cycle_thresholds;
+  assert.equal(etaTarget(product).target, pooled);
+  // another cycle's entry never applies
+  product.cycle_thresholds = { "06": { p95_s: 60 } };
+  assert.equal(etaTarget(product).target, pooled);
+  product.recent_inits[0].init_time = at("06");
+  assert.equal(etaTarget(product).target, "2026-11-24T06:01:00.000Z");
+});
+
+test("details-table band ETAs read the cycle's lead_group_p95_s; history columns stay pooled", () => {
+  const { product } = cycleEtaProduct();
+  const now = Date.parse("2026-11-24T18:10:00Z");
+  const [f000, forecast] = detailRows(product, now, false).rows;
+  assert.equal(f000.run.time, "ETA 18:30");
+  assert.equal(forecast.run.time, "ETA 19:15");
+  assert.equal(f000.p95, "1h");
+  assert.equal(forecast.p95, "2h");
+
+  // a band missing from the cycle entry takes its pooled p95
+  delete product.cycle_thresholds["18"].lead_group_p95_s.f000;
+  assert.equal(detailRows(product, now, false).rows[0].run.time, "ETA 19:00");
+  delete product.cycle_thresholds;
+  assert.equal(detailRows(product, now, false).rows[1].run.time, "ETA 20:00");
+});
+
+test("an upcoming band ETA reads the next init's cycle", () => {
+  const { product } = cycleEtaProduct();
+  product.recent_inits = [];
+  const [f000] = detailRows(product, Date.parse("2026-11-24T17:00:00Z"), false).rows;
+  assert.equal(f000.run.state, "upcoming");
+  assert.equal(f000.run.time, "ETA 18:30");
+});
+
+test("a merged-row variant reads its own cycle, not the longest member's", () => {
+  const { time, long, short } = variantPair();
+  short.recent_inits = [{ ...short.recent_inits[0], status: "in_flight" }];
+  long.latency_stats = { p95_s: 7200 };
+  short.latency_stats = { p95_s: 3600 };
+  long.cycle_thresholds = { "00": { p95_s: 600 } };
+  short.cycle_thresholds = { "00": { p95_s: 1800 } };
+  const [row] = mergeVariantRows([long, short]);
+  assert.equal(etaTarget(row).target, "2026-07-25T00:30:00.000Z");
+  assert.match(detailRows(row, Date.parse(time("00")), false).runHeader, /18 hour/);
+});
+
+test("a merged row's recomputed next completion reads that init's cycle p95", () => {
+  const { long, short } = gefsVariantPair();
+  short.recent_inits[0].status = "complete";
+  short.next_expected_init = "2026-11-21T00:00:00Z";
+  short.next_expected_completion_at = "2026-11-21T07:12:00Z";
+  long.next_expected_init = "2026-11-22T00:00:00Z";
+  long.next_expected_completion_at = "2026-11-23T04:06:00Z";
+  long.cycle_thresholds = { "00": { p95_s: 90000 } };
+  const [row] = mergeVariantRows([long, short]);
+  assert.equal(etaTarget(row).target, "2026-11-22T01:00:00.000Z");
+});
+
+test("a fast cycle's band ETA lands before its own delayed-past time", () => {
+  // The short-horizon 18z run: pooled f000 p95 27,603 s put the ETA (01:40)
+  // after the cycle's own f000 bar (26,344 s, 01:19).
+  const variant = (id, label, hours, cycle) => ({
+    id,
+    row_label: "AWS",
+    variant: { id, label },
+    init_hours: hours,
+    timing_baseline: { status: "established", method: "historical" },
+    latency_stats: { p50_s: 26000, p95_s: 28800, delayed_threshold_s: 31600 },
+    lead_group_stats: [
+      { name: "f000", label: "0h", p50_s: 25000, p95_s: 27603, delayed_threshold_s: 30206 },
+      { name: "f144", label: "6d", p50_s: 26000, p95_s: 28800, delayed_threshold_s: 31600 },
+    ],
+    cycle_thresholds: cycle,
+    recent_inits: [],
+  });
+  const long = variant("15d", "15 day", ["00", "12"], {});
+  long.lead_group_stats.push({ name: "forecast", label: "15d", p50_s: 30000, p95_s: 33000, delayed_threshold_s: 36000 });
+  long.lead_groups = long.lead_group_stats.map(({ name, label }) => ({ name, label }));
+  const short = variant("6d", "6 day", ["06", "18"], {
+    "18": {
+      delayed_threshold_s: 27500,
+      lead_group_thresholds_s: { f000: 26344, f144: 27500 },
+      p50_s: 24500,
+      p95_s: 26000,
+      lead_group_p50_s: { f000: 23600, f144: 24500 },
+      lead_group_p95_s: { f000: 24972, f144: 26000 },
+      basis: "cycle",
+    },
+  });
+  short.lead_groups = short.lead_group_stats.map(({ name, label }) => ({ name, label }));
+  short.recent_inits = [{
+    init_time: "2026-11-23T18:00:00Z",
+    status: "in_flight",
+    delayed_threshold_s: 27500,
+    lead_groups: [
+      { name: "f000", status: "in_flight", delayed_threshold_s: 26344 },
+      { name: "f144", status: "pending", delayed_threshold_s: 27500 },
+    ],
+  }];
+  const [row] = mergeVariantRows([long, short]);
+  const [f000] = detailRows(row, Date.parse("2026-11-24T00:00:00Z"), false).rows;
+  assert.equal(f000.run.timingReference, "delayed past 01:19");
+  assert.equal(f000.run.time, "ETA 00:56");
+
+  delete short.cycle_thresholds["18"].lead_group_p95_s;
+  const [legacy] = detailRows(mergeVariantRows([long, short])[0], Date.parse("2026-11-24T00:00:00Z"), false).rows;
+  assert.equal(legacy.run.time, "ETA 01:40");
+  assert.equal(legacy.run.timingReference, "delayed past 01:19");
+});

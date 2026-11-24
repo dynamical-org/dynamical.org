@@ -358,6 +358,7 @@ export function mergeVariantRows(products) {
         variantTiming: {
           timing_baseline: product.timing_baseline,
           latency_stats: product.latency_stats,
+          cycle_thresholds: product.cycle_thresholds,
           leadStats: new Map((product.lead_group_stats ?? []).flatMap((stats) => {
             const key = canonical.get(stats.label) ?? names.get(stats.name);
             return key == null ? [] : [[key, stats]];
@@ -386,7 +387,7 @@ export function mergeVariantRows(products) {
     let nextCompletion = next?.product.next_expected_completion_at;
     // A completion published for a different init cannot be reused as a date.
     if (next && Date.parse(next.product.next_expected_init) !== Date.parse(nextInit)) {
-      const p95 = next.product.latency_stats?.p95_s;
+      const p95 = runEtaSeconds(next.product, nextInit);
       nextCompletion = Number.isFinite(p95) ? new Date(Date.parse(nextInit) + p95 * 1000).toISOString() : null;
     }
 
@@ -1377,7 +1378,7 @@ function summaryRun(product, includes) {
 export function etaTarget(product) {
   const running = summaryRun(product, isActiveRun);
   if (running) {
-    const p95 = (running.variantTiming ?? product).latency_stats?.p95_s;
+    const p95 = runEtaSeconds(running.variantTiming ?? product, running.init_time);
     return {
       init: running,
       initTime: running.init_time,
@@ -1567,11 +1568,12 @@ function runTimingReference(initMs, local, threshold, deadline = null) {
   return `${deadline == null ? "delayed past" : "deadline"} ${clockTime(initMs + seconds * 1000, selectedTimeZone(local))}`;
 }
 
-function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
+function observedRunDetail(init, live, stats, now, local, active, lagSeconds, product) {
   if (!init) return NO_RUN;
   if (beyondHorizon(init, stats.name)) return beyondHorizonDetail(init);
   const baseline = init.variantTiming;
   const bandStats = baseline ? baseline.leadStats.get(stats.name) : stats;
+  const eta = groupEtaSeconds(baseline ?? product, init.init_time, bandStats);
   const initMs = Date.parse(init.init_time);
   let time = "—";
   let duration = "—";
@@ -1583,8 +1585,8 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
     duration = formatLatency(live.latency_s);
   } else if (live?.status === "complete") {
     time = "done";
-  } else if (active && bandStats?.p95_s != null) {
-    const target = initMs + bandStats.p95_s * 1000;
+  } else if (active && eta != null) {
+    const target = initMs + eta * 1000;
     if (target > now) {
       time = `ETA ${clockTime(target, selectedTimeZone(local))}`;
     }
@@ -1606,16 +1608,17 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
   };
 }
 
-function upcomingRunDetail(initTime, stats, local, next) {
+function upcomingRunDetail(initTime, stats, local, next, product) {
   if (!initTime) return NO_RUN;
   if (beyondHorizon(next, stats.name)) return beyondHorizonDetail(next);
   const baseline = next?.variantTiming;
   const bandStats = baseline ? baseline.leadStats.get(stats.name) : stats;
+  const eta = groupEtaSeconds(baseline ?? product, initTime, bandStats);
   const initMs = Date.parse(initTime);
   // The published completion time estimates the whole run, so only its final
   // band takes it. Earlier bands still have their own historical estimates.
   const completion = next?.coverage.lastLabel === stats.label ? next?.completionAt : null;
-  const target = completion ?? (bandStats?.p95_s == null ? null : initMs + bandStats.p95_s * 1000);
+  const target = completion ?? (eta == null ? null : initMs + eta * 1000);
   const timingReference = baseline && runTimingReference(initMs, local, delayedThreshold(baseline, bandStats));
   return {
     status: "upcoming",
@@ -1695,6 +1698,7 @@ export function detailRows(product, now, local, sources = []) {
         local,
         false,
         lagOf(last, lastLag, afterLast, stats),
+        product,
       ),
       run: active
         ? observedRunDetail(
@@ -1705,8 +1709,9 @@ export function detailRows(product, now, local, sources = []) {
             local,
             true,
             lagOf(active, activeLag, afterActive, stats),
+            product,
           )
-        : upcomingRunDetail(upcoming, stats, local, product.nextExpectedRun),
+        : upcomingRunDetail(upcoming, stats, local, product.nextExpectedRun, product),
       p50: formatLatency(stats.p50_s),
       p95: formatLatency(stats.p95_s),
       p99: formatLatency(stats.p99_s),
@@ -1805,6 +1810,28 @@ function delayedThreshold(product, stats) {
 // init cycle is judged on its own history, else the pooled one.
 function judgedThreshold(baseline, pooled, entry) {
   return delayedThreshold(baseline, entry && Object.hasOwn(entry, "delayed_threshold_s") ? entry : pooled);
+}
+
+// The cycle entry an init is judged under: its UTC init hour, zero-padded.
+function cycleOf(baseline, initTime) {
+  const initMs = Date.parse(initTime);
+  if (!Number.isFinite(initMs)) return null;
+  const hour = String(new Date(initMs).getUTCHours()).padStart(2, "0");
+  return baseline?.cycle_thresholds?.[hour] ?? null;
+}
+
+// An ETA reads the p95 beside the threshold the run is judged by: its cycle's
+// once the summary publishes one, else the pooled p95.
+function runEtaSeconds(baseline, initTime) {
+  const p95 = cycleOf(baseline, initTime)?.p95_s;
+  return Number.isFinite(p95) ? p95 : baseline?.latency_stats?.p95_s;
+}
+
+// The same for one lead band; `bandStats.name` is the publishing product's own
+// group name, which is what its cycle entry is keyed by.
+function groupEtaSeconds(baseline, initTime, bandStats) {
+  const p95 = cycleOf(baseline, initTime)?.lead_group_p95_s?.[bandStats?.name];
+  return Number.isFinite(p95) ? p95 : bandStats?.p95_s;
 }
 
 function initRunThreshold(product, init) {
