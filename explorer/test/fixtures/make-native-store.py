@@ -105,19 +105,30 @@ def main() -> None:
                     - 5 * (1 - run)
                     + np.tile([-30, 0], len(faces) // 2)
                 )
+        attrs = {
+            "units": "degree_Celsius",
+            "mesh": "/geometry/triangles",
+            "location": "face",
+        }
+        fill_value = np.nan
+        if name == "dew_point_2m":
+            scale, offset = 0.25, 10
+            missing, fill_value = -15, -9999
+            field = ((field - offset) / scale).astype("int16")
+            # The first visible patch has two missing faces. Another face
+            # legitimately decodes to -15, the raw missing_value sentinel.
+            field[..., 0] = missing
+            field[..., 1] = fill_value
+            attrs.update(scale_factor=scale, add_offset=offset, missing_value=missing)
         root.create_array(
             name,
             data=field,
             chunks=(1, 3, 8),
             shards=(1, 3, 24),
-            compressors=[BloscCodec(cname="zstd", typesize=4)],
-            fill_value=np.nan,
+            compressors=[BloscCodec(cname="zstd", typesize=field.dtype.itemsize)],
+            fill_value=fill_value,
             dimension_names=DIMS,
-            attributes={
-                "units": "degree_Celsius",
-                "mesh": "/geometry/triangles",
-                "location": "face",
-            },
+            attributes=attrs,
         )
 
     session.commit("Synthetic native triangles")

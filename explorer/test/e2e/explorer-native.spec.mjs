@@ -62,6 +62,19 @@ test("native faces draw their own values and only visible chunks are read, once 
   await expectState(page, "ready");
 });
 
+test("native faces decode scale, offset and missing values exactly once", async ({ page }) => {
+  await open(page);
+  await page.getByRole("combobox", { name: "Variable" }).selectOption("/dew_point_2m");
+  await expectState(page, "ready");
+
+  await drawn(page, FIRST, -15);
+  await drawn(page, SECOND, 15);
+  await expect.poll(() => pixelAt(page, 10.74, 50.94), { message: "missing_value face" })
+    .toEqual([255, 0, 255]);
+  await expect.poll(() => pixelAt(page, 10.76, 51.07), { message: "fill value face" })
+    .toEqual([255, 0, 255]);
+});
+
 test("stopping a native variable switch keeps the drawn faces until retry replaces them", async ({ page }) => {
   let hold = false;
   const reads = await open(page, { delayFor: ({ entry }) => hold && entry !== null ? 4_000 : 0 });
