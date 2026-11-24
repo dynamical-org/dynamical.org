@@ -1592,7 +1592,7 @@ function observedRunDetail(init, live, stats, now, local, active, lagSeconds) {
     if (elapsed > 0) duration = formatDuration(elapsed);
   }
   const timingReference = active && baseline && runTimingReference(
-    initMs, local, delayedThreshold(baseline, bandStats), leadDeadline(baseline, init, live),
+    initMs, local, judgedThreshold(baseline, bandStats, live), leadDeadline(baseline, init, live),
   );
   return {
     status: statusLabel(live?.status ?? "pending"),
@@ -1710,12 +1710,10 @@ export function detailRows(product, now, local, sources = []) {
       p50: formatLatency(stats.p50_s),
       p95: formatLatency(stats.p95_s),
       p99: formatLatency(stats.p99_s),
-      // the group's own current cutoff, the one an in-flight run's bubbled
-      // delay names
+      // the cutoff an in-flight run's bubbled delay names: the current run's
+      // own for this group once each init cycle has one, else the group's pooled one
       threshold: formatLatency(
-        product.timing_baseline?.status === "insufficient_history"
-          ? null
-          : stats.delayed_threshold_s,
+        judgedThreshold(product, stats, active ? liveGroupOf(active, stats, index) : null),
       ),
     })),
   };
@@ -1803,6 +1801,18 @@ function delayedThreshold(product, stats) {
   return positiveSeconds(stats?.delayed_threshold_s);
 }
 
+// The threshold a run or lead group was judged against: its own, once each
+// init cycle is judged on its own history, else the pooled one.
+function judgedThreshold(baseline, pooled, entry) {
+  return delayedThreshold(baseline, entry && Object.hasOwn(entry, "delayed_threshold_s") ? entry : pooled);
+}
+
+function initRunThreshold(product, init) {
+  // a merged row's init is judged under its variant; a placeholder has none
+  const baseline = product.memberIds ? init.variantTiming : product;
+  return baseline ? judgedThreshold(baseline, baseline.latency_stats, init) : null;
+}
+
 function leadDeadline(product, init, entry) {
   // Source-budget deadlines belong to this grain. Older payloads can have
   // a run deadline without a lead-level deadline.
@@ -1824,8 +1834,12 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
     const key = columnKey(init);
     if (seen.has(key)) continue;
     seen.add(key);
-    if (init.variantTiming) {
-      timingMarks.push({ init, ms, threshold: runChartThreshold(init.variantTiming), deadline: positiveSeconds(init.deadline_s) });
+    if (init.variantTiming || !product.memberIds) {
+      timingMarks.push({
+        init, ms, threshold: initRunThreshold(product, init),
+        // only a merged row's chart marks run deadlines
+        deadline: product.memberIds ? positiveSeconds(init.deadline_s) : null,
+      });
     }
     const run = {
       init,
@@ -1848,7 +1862,13 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
     }
     runs.push(run);
   }
-  return product.memberIds ? { runs, threshold: null, timingMarks } : { runs, threshold: runChartThreshold(product) };
+  if (product.memberIds) return { runs, threshold: null, timingMarks };
+  // one line while every init drawn was judged against the pooled threshold;
+  // per-cycle thresholds that differ from it are marked per init instead
+  const threshold = runChartThreshold(product);
+  return timingMarks.every((mark) => mark.threshold === threshold)
+    ? { runs, threshold }
+    : { runs, threshold: null, timingMarks };
 }
 
 /* The expanded lead view keeps the field's columns. Within each variant's
@@ -1857,13 +1877,14 @@ export function runChartSeries(product, now, inits = product.recent_inits ?? [])
 export function leadLaneSeries(product, now, inits = product.recent_inits ?? []) {
   const stats = new Map((product.lead_group_stats ?? []).map((entry) => [entry.name, entry]));
   const leads = bandsOf(product).map((band) => {
-    const threshold = product.memberIds ? null : delayedThreshold(product, stats.get(band.key));
-    const slots = inits.filter((init) => !beyondHorizon(init, band.key)).map((init) => {
+    const pooled = product.memberIds ? null : delayedThreshold(product, stats.get(band.key));
+    const laneSlots = inits.filter((init) => !beyondHorizon(init, band.key)).map((init) => {
       const entry = init.lead_groups?.find((group) => group.name === band.key);
       const baseline = init.variantTiming;
       const timing = {
         deadline: leadDeadline(baseline ?? product, init, entry),
-        threshold: baseline ? delayedThreshold(baseline, baseline.leadStats.get(band.key)) : null,
+        threshold: baseline ? judgedThreshold(baseline, baseline.leadStats.get(band.key), entry)
+          : product.memberIds ? null : judgedThreshold(product, stats.get(band.key), entry),
       };
       if (init.unreported || entry?.status === "unobserved") return { init, state: "unobserved", ...timing };
       if (!entry) return { init, state: "missing", ...timing };
@@ -1879,7 +1900,10 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
         noTime: entry.status === "failed" && !Number.isFinite(entry.latency_s),
       } };
     });
-    return { name: band.key, label: band.label, slots, threshold,
+    // as on the run chart: one line unless an init's own threshold differs
+    const shared = !product.memberIds && laneSlots.every((slot) => slot.threshold === pooled);
+    const slots = shared ? laneSlots.map((slot) => ({ ...slot, threshold: null })) : laneSlots;
+    return { name: band.key, label: band.label, slots, threshold: shared ? pooled : null,
       runs: slots.filter((slot) => slot.run).map((slot) => slot.run) };
   });
   const runSeries = runChartSeries(product, now, inits);
@@ -1900,7 +1924,7 @@ export function leadLaneSeries(product, now, inits = product.recent_inits ?? [])
       state: runByInit.has(init) ? "point" : init.status === "unobserved" ? "unobserved" : "missing",
       run: runByInit.get(init),
       deadline: positiveSeconds(init.deadline_s),
-      threshold: init.variantTiming ? runChartThreshold(init.variantTiming) : null,
+      threshold: runSeries.timingMarks ? initRunThreshold(product, init) : null,
     })),
   };
   const lanes = [...leads, runLane];
