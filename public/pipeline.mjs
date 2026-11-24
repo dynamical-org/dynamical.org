@@ -1710,12 +1710,10 @@ export function detailRows(product, now, local, sources = []) {
       p50: formatLatency(stats.p50_s),
       p95: formatLatency(stats.p95_s),
       p99: formatLatency(stats.p99_s),
-      // the group's own current cutoff, the one an in-flight run's bubbled
-      // delay names
+      // the cutoff an in-flight run's bubbled delay names: the current run's
+      // own for this group once each init cycle has one, else the group's pooled one
       threshold: formatLatency(
-        product.timing_baseline?.status === "insufficient_history"
-          ? null
-          : stats.delayed_threshold_s,
+        judgedThreshold(product, stats, active ? liveGroupOf(active, stats, index) : null),
       ),
     })),
   };

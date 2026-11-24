@@ -3412,6 +3412,20 @@ test("details name each group's own delayed threshold beside its percentiles", (
   );
 });
 
+test("details name the current run's own group threshold when it has one", () => {
+  const now = Date.parse("2026-07-25T14:30:00Z");
+  const product = perCycleProduct([6000, 8000, 6500, 7200, 6000], [1800, 2400, 2100, 2100, 1800]);
+  // the in-flight 12Z run was judged against 30m, not the pooled 35m
+  assert.deepEqual(detailRows(product, now, false).rows.map((row) => row.threshold), ["30m"]);
+  // with no run in flight the column keeps the pooled cutoff
+  product.recent_inits.at(-1).status = "complete";
+  product.recent_inits.at(-1).latency_s = 3000;
+  assert.deepEqual(detailRows(product, now, false).rows.map((row) => row.threshold), ["35m"]);
+  product.recent_inits.at(-1).status = "in_flight";
+  product.timing_baseline.status = "insufficient_history";
+  assert.deepEqual(detailRows(product, now, false).rows.map((row) => row.threshold), ["—"]);
+});
+
 // The fixture is what the browser spec and the local preview draw, so its
 // threshold has to be the one its percentiles imply, and its delayed run has
 // to sit past it — or the chart would contradict the caption beside it.
