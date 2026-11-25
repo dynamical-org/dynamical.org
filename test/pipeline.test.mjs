@@ -3690,3 +3690,193 @@ test("an upcoming run's band ETA and delayed-past time come from its cycle", () 
   assert.equal(legacy.run.time, "ETA 01:40");
   assert.equal(legacy.run.timingReference, "delayed past 02:23");
 });
+
+// -- products whose runs differ by cycle (wxopticon `cycle_leads`) ------------
+
+// One model: 0h/6d/15d at 00z and 12z, 0h/6d only at 06z and 18z. The 15d band
+// names its cycles (`init_hours`); the others are in every cycle.
+function cycleLeadsProduct() {
+  const time = (day, hour) => `2026-11-${day}T${hour}:00:00Z`;
+  const group = (name, expected, status, latency_s) => ({
+    name, status, timing: status === "complete" ? "on_time" : null,
+    leads_expected: expected, leads_available: status === "complete" ? expected : 0,
+    ...(latency_s ? { latency_s } : {}),
+  });
+  const longRun = (hour) => ({
+    init_time: time(25, hour), status: "complete", timing: "on_time", latency_s: 20000,
+    lead_groups: [group("f000", 2, "complete", 18000), group("f144", 218, "complete", 19000),
+      group("f360", 290, "complete", 20000)],
+  });
+  const shortRun = (hour, status = "complete") => ({
+    init_time: time(25, hour), status, timing: status === "complete" ? "on_time" : null,
+    ...(status === "complete" ? { latency_s: 19500 } : {}),
+    lead_groups: [group("f000", 2, status, status === "complete" ? 18500 : null),
+      group("f144", 218, status, status === "complete" ? 19500 : null)],
+  });
+  const product = {
+    id: "per-cycle",
+    row_label: "R2",
+    source: "s3://example",
+    init_hours: ["00", "06", "12", "18"],
+    cadence_hours: 6,
+    cycle_expected_lead_counts: { "00": 145, "06": 109, "12": 145, "18": 109 },
+    lead_groups: [{ name: "f000", label: "0h" }, { name: "f144", label: "6d" }, { name: "f360", label: "15d" }],
+    lead_group_stats: [
+      { name: "f000", label: "0h", leads_in_group: 1, p50_s: 18000, p95_s: 18600, delayed_threshold_s: 19500 },
+      { name: "f144", label: "6d", leads_in_group: 109, p50_s: 19000, p95_s: 19800, delayed_threshold_s: 20700 },
+      { name: "f360", label: "15d", leads_in_group: 145, init_hours: ["00", "12"],
+        p50_s: 20000, p95_s: 21000, delayed_threshold_s: 22000 },
+    ],
+    latency_stats: { p50_s: 19500, p95_s: 20500, delayed_threshold_s: 21500, sample_init_count: 120 },
+    timing_baseline: { status: "established" },
+    cycle_thresholds: {
+      "00": { delayed_threshold_s: 22000, p50_s: 20000, p95_s: 21000, basis: "cycle",
+        lead_group_thresholds_s: { f000: 19000, f144: 20000, f360: 22000 },
+        lead_group_p95_s: { f000: 18000, f144: 19200, f360: 21000 } },
+      "06": { delayed_threshold_s: 21000, p50_s: 19000, p95_s: 19800, basis: "cycle",
+        lead_group_thresholds_s: { f000: 19600, f144: 21000 },
+        lead_group_p95_s: { f000: 18600, f144: 19800 } },
+    },
+    recent_inits: [longRun("00"), shortRun("06", "in_flight")],
+    next_expected_init: time(25, "12"),
+    next_expected_completion_at: "2026-11-25T17:50:00Z",
+  };
+  return { time, product, longRun, shortRun };
+}
+
+test("a current payload without cycle fields renders exactly as before", () => {
+  const fixture = JSON.parse(
+    readFileSync(new URL("./fixtures/pipeline-dashboard.json", import.meta.url), "utf8"),
+  );
+  validateDashboard(fixture);
+  for (const group of fixture.groups) {
+    const rows = mergeVariantRows(group.products);
+    for (const row of rows) {
+      if (!row.memberIds) {
+        // a single row is the product itself, untouched
+        assert.ok(group.products.includes(row));
+        continue;
+      }
+      for (const init of row.recent_inits) {
+        assert.equal(init.coverage, row.variantCoverage.get(init.variant.id));
+      }
+      if (row.nextExpectedRun) {
+        assert.equal(row.nextExpectedRun.coverage, row.variantCoverage.get(row.nextExpectedRun.variant.id));
+      }
+    }
+  }
+  // and the long/short variant pair keeps its shared shapes
+  const { long, short } = variantPair();
+  const [row] = mergeVariantRows([long, short]);
+  assert.equal(row.sizingLeadGroups, long.recent_inits.at(-1).lead_groups);
+  const column = { init_time: "2026-07-25T01:00:00Z", variant: short.variant };
+  assert.equal(resolveColumnRun(row, { ...column, init_time: "2026-07-25T12:00:00Z" }).status, "not_scheduled");
+});
+
+test("a 06z run of a per-cycle product shows only its own bands", () => {
+  const { time, product } = cycleLeadsProduct();
+  const [row] = mergeVariantRows([product]);
+  const now = Date.parse("2026-11-25T11:00:00Z");
+  const [f000, f144, f360] = bandsOf(row).reverse();
+  const short = row.recent_inits.at(-1);
+
+  assert.equal(cellOf(f360, short).state, "beyond_horizon");
+  assert.equal(cellTitle(f360, short, cellOf(f360, short), false), "06z run: no leads past 6d");
+  assert.equal(cellOf(f144, short).state, "in_flight");
+  assert.equal(cellOf(f360, row.recent_inits[0]).state, "complete");
+  // the 15d lane skips the 06z run instead of drawing it pending
+  const lane = leadLaneSeries(row, now).find((entry) => entry.name === "f360");
+  assert.deepEqual(lane.slots.map((slot) => slot.init.init_time), [time(25, "00")]);
+  // the lead axis keeps the long run's proportions while the short run is newest
+  assert.equal(row.sizingLeadGroups, row.recent_inits[0].lead_groups);
+
+  const details = detailRows(row, now, false);
+  assert.equal(details.runHeader, "current run · 11-25 06z");
+  const byName = Object.fromEntries(details.rows.map((entry) => [entry.name, entry]));
+  assert.equal(byName.f360.last.state, "complete");
+  assert.equal(byName.f360.run.state, "beyond_horizon");
+  assert.equal(byName.f360.run.status, "past 6d");
+  // the band ETAs read the 06z cycle's own p95s
+  assert.equal(byName.f144.run.time, "ETA 11:30");
+  assert.equal(byName.f000.run.time, "ETA 11:10");
+  assert.equal(etaTarget(row).target, "2026-11-25T11:30:00.000Z");
+
+  // an unreported column takes its own cycle's bands
+  const at = (hour) => resolveColumnRun(row, { init_time: time(25, hour) });
+  assert.equal(cellOf(f360, at("12")).state, "unobserved");
+  assert.equal(cellOf(f360, at("18")).state, "beyond_horizon");
+  assert.equal(cellOf(f000, at("18")).state, "unobserved");
+});
+
+test("an upcoming run of a per-cycle product carries the bands of its hour", () => {
+  const { time, product, longRun, shortRun } = cycleLeadsProduct();
+  const now = Date.parse("2026-11-25T23:00:00Z");
+
+  // last 18z (short), next 00z (long): the 15d row stays for the upcoming run
+  product.recent_inits = [longRun("12"), shortRun("18")];
+  product.next_expected_init = time(26, "00");
+  product.next_expected_completion_at = "2026-11-26T05:50:00Z";
+  let details = detailRows(mergeVariantRows([product])[0], now, false);
+  let byName = Object.fromEntries(details.rows.map((entry) => [entry.name, entry]));
+  assert.equal(details.runHeader, "upcoming run · 11-26 00z");
+  assert.equal(byName.f360.last.state, "beyond_horizon");
+  assert.equal(byName.f360.run.state, "upcoming");
+  assert.equal(byName.f360.run.time, "ETA 05:50");
+  assert.equal(byName.f144.run.time, "ETA 05:20");
+
+  // last 00z (long), next 06z (short): the 06z run has no 15d band
+  product.recent_inits = [longRun("00")];
+  product.next_expected_init = time(25, "06");
+  details = detailRows(mergeVariantRows([product])[0], Date.parse("2026-11-25T05:00:00Z"), false);
+  byName = Object.fromEntries(details.rows.map((entry) => [entry.name, entry]));
+  assert.equal(byName.f360.last.state, "complete");
+  assert.equal(byName.f360.run.state, "beyond_horizon");
+  assert.equal(byName.f144.run.time, "ETA 11:30");
+
+  // neither the last (18z) nor the upcoming (06z) run has it: no 15d row
+  product.recent_inits = [shortRun("18")];
+  product.next_expected_init = time(26, "06");
+  details = detailRows(mergeVariantRows([product])[0], now, false);
+  assert.deepEqual(details.rows.map(({ name }) => name), ["f000", "f144"]);
+});
+
+test("a per-cycle member of a merged row keeps its cycles inside its variant", () => {
+  const { time, product, shortRun } = cycleLeadsProduct();
+  product.variant = { id: "15d", label: "15 day · every 6 h" };
+  const sixDay = {
+    ...product,
+    id: "six-day",
+    variant: { id: "6d", label: "6 day · every 6 h" },
+    lead_groups: product.lead_groups.slice(0, 2),
+    lead_group_stats: product.lead_group_stats.slice(0, 2),
+    cycle_thresholds: undefined,
+    cycle_expected_lead_counts: undefined,
+    recent_inits: [{ ...shortRun("00"), init_time: time(25, "00") }],
+    next_expected_init: time(25, "12"),
+  };
+  const [row] = mergeVariantRows([product, sixDay]);
+  const [f000, , f360] = bandsOf(row).reverse();
+  const run = (hour, id) => row.recent_inits.find(
+    (init) => init.init_time === time(25, hour) && init.variant.id === id,
+  );
+
+  assert.equal(cellOf(f360, run("00", "15d")).state, "complete");
+  assert.equal(cellOf(f360, run("06", "15d")).state, "beyond_horizon");
+  assert.equal(run("06", "15d").coverage.lastLabel, "6d");
+  assert.equal(cellOf(f360, run("00", "6d")).state, "beyond_horizon");
+  assert.equal(cellOf(f000, run("06", "15d")).state, "in_flight");
+  const unreported = resolveColumnRun(row, { init_time: time(25, "18"), variant: product.variant });
+  assert.equal(cellOf(f360, unreported).state, "beyond_horizon");
+  assert.equal(unreported.coverage.lastLabel, "6d");
+  const twelve = resolveColumnRun(row, { init_time: time(25, "12"), variant: product.variant });
+  assert.equal(cellOf(f360, twelve).state, "unobserved");
+});
+
+test("rejects lead group cycles that are not zero-padded hours", () => {
+  const { product } = cycleLeadsProduct();
+  const payload = dashboard();
+  payload.groups[0].products = [{ ...product, row_label: "R2" }];
+  validateDashboard(structuredClone(payload));
+  payload.groups[0].products[0].lead_group_stats[2].init_hours = [0, 12];
+  assert.throws(() => validateDashboard(payload), /Invalid pipeline lead group stats/);
+});

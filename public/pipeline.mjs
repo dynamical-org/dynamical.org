@@ -189,7 +189,11 @@ export function validateDashboard(data) {
               typeof stats.name === "string" &&
               stats.name !== "" &&
               !names.has(stats.name) &&
-              names.add(stats.name),
+              names.add(stats.name) &&
+              // a band only some cycles publish names their hours
+              (stats.init_hours == null ||
+                (Array.isArray(stats.init_hours) &&
+                  stats.init_hours.every((hour) => /^\d\d$/.test(hour)))),
           )
         ) {
           throw new TypeError("Invalid pipeline lead group stats");
@@ -319,6 +323,64 @@ function scheduledAt(product, initTime) {
   return !product.init_hours || product.init_hours.includes(hour);
 }
 
+/* A product whose runs differ by init cycle names, on each band only some
+   cycles publish, the hours that do (`init_hours`). A run of any other hour
+   has no such band, so it reads as past its own horizon, exactly like a
+   shorter variant's run. Without the field nothing here applies. */
+
+function hasCycleBands(product) {
+  return (product?.lead_group_stats ?? []).some((stats) => Array.isArray(stats.init_hours));
+}
+
+function bandInCycle(stats, initTime) {
+  if (!Array.isArray(stats?.init_hours)) return true;
+  const ms = Date.parse(initTime);
+  return !Number.isFinite(ms) ||
+    stats.init_hours.includes(String(new Date(ms).getUTCHours()).padStart(2, "0"));
+}
+
+/* The bands a run of `initTime` carries, as a coverage: keyed like
+   `coverage.bands` (`names` maps a merged member's own band names to the
+   row's), within `coverage` when the run already has one, and ending at the
+   cycle's last band. `coverage` itself when the product has no cycle bands. */
+
+function cycleCoverage(product, initTime, names = null, coverage = undefined) {
+  if (!hasCycleBands(product)) return coverage;
+  const carried = (product.lead_group_stats ?? []).filter((stats) => {
+    const key = names ? names.get(stats.name) : stats.name;
+    return key != null && bandInCycle(stats, initTime) && (!coverage || coverage.bands.has(key));
+  });
+  return {
+    bands: new Set(carried.map((stats) => (names ? names.get(stats.name) : stats.name))),
+    lastLabel: carried.at(-1)?.label,
+  };
+}
+
+/* The run that sizes the lead axis: the newest that carries every band, so a
+   short cycle's run never shrinks the bands it lacks. */
+
+function sizingRun(product) {
+  const runs = product.recent_inits ?? [];
+  if (!hasCycleBands(product)) return runs.at(-1);
+  const names = (product.lead_group_stats ?? []).map((stats) => stats.name);
+  return runs.findLast((init) =>
+    names.every((name) => (init.lead_groups ?? []).some((group) => group.name === name)),
+  ) ?? runs.at(-1);
+}
+
+function withCycleCoverage(product) {
+  if (!hasCycleBands(product)) return product;
+  return {
+    ...product,
+    recent_inits: product.recent_inits.map((init) => ({
+      ...init,
+      coverage: cycleCoverage(product, init.init_time),
+    })),
+    nextExpectedRun: { coverage: cycleCoverage(product, product.next_expected_init) },
+    sizingLeadGroups: sizingRun(product)?.lead_groups ?? [],
+  };
+}
+
 function rowMembers(row) {
   return row.members ?? [row];
 }
@@ -345,7 +407,7 @@ export function mergeVariantRows(products) {
   return rows.map((rowProducts) => {
     rowProducts.sort((a, b) => horizonHours(b.variant) - horizonHours(a.variant));
     const [longest] = rowProducts;
-    if (rowProducts.length === 1) return longest;
+    if (rowProducts.length === 1) return withCycleCoverage(longest);
     const canonical = new Map(leadAxis(longest).map(({ key, label }) => [label, key]));
     const members = rowProducts.map((product) => {
       const axis = leadAxis(product);
@@ -383,7 +445,10 @@ export function mergeVariantRows(products) {
         ? member : soonest;
     }, null);
     const nextInit = announced?.product.next_expected_init;
-    const next = announced && (members.find(({ product }) => scheduledAt(product, nextInit)) ?? announced);
+    const scheduled = announced && (members.find(({ product }) => scheduledAt(product, nextInit)) ?? announced);
+    const next = scheduled && hasCycleBands(scheduled.product)
+      ? { ...scheduled, coverage: cycleCoverage(scheduled.product, nextInit, scheduled.names, scheduled.coverage) }
+      : scheduled;
     let nextCompletion = next?.product.next_expected_completion_at;
     // A completion published for a different init cannot be reused as a date.
     if (next && Date.parse(next.product.next_expected_init) !== Date.parse(nextInit)) {
@@ -406,8 +471,8 @@ export function mergeVariantRows(products) {
           }),
         ) : sourceGroups;
         return {
-          ...init, variant, coverage, variantTiming, pipelineLag: product.pipeline_lag,
-          lead_groups, source_lead_groups,
+          ...init, variant, coverage: cycleCoverage(product, init.init_time, names, coverage),
+          variantTiming, pipelineLag: product.pipeline_lag, lead_groups, source_lead_groups,
         };
       }),
     ).sort((a, b) => Date.parse(a.init_time) - Date.parse(b.init_time) ||
@@ -419,6 +484,7 @@ export function mergeVariantRows(products) {
       memberIds: rowProducts.map((product) => product.id),
       reportedRuns: new Map(recent.map((init) => [columnKey(init), init])),
       variantCoverage: new Map(members.map(({ variant, coverage }) => [variant.id, coverage])),
+      variantNames: new Map(members.map(({ variant, names }) => [variant.id, names])),
       init_hours: initHours,
       cadence_hours: gaps.length ? Math.min(...gaps) : longest.cadence_hours,
       memberSources: [...new Set(rowProducts.map((product) => product.source).filter(Boolean).map(displaySource))],
@@ -428,7 +494,7 @@ export function mergeVariantRows(products) {
         variant: next.variant, coverage: next.coverage, variantTiming: next.variantTiming,
         completionAt: nextCompletion,
       },
-      sizingLeadGroups: longest.recent_inits.at(-1)?.lead_groups ?? [],
+      sizingLeadGroups: sizingRun(longest)?.lead_groups ?? [],
       recent_inits: recent,
     };
   });
@@ -794,7 +860,12 @@ export function resolveColumnRun(row, column) {
     return own.init_time === init_time ? own : { ...own, init_time };
   }
   return member && scheduledAt(member, init_time)
-    ? { ...column, status: "unobserved", unreported: true, coverage: row.variantCoverage?.get(variant?.id) }
+    ? {
+        ...column, status: "unobserved", unreported: true,
+        coverage: cycleCoverage(
+          member, init_time, row.variantNames?.get(variant?.id), row.variantCoverage?.get(variant?.id),
+        ),
+      }
     : { ...column, status: "not_scheduled" };
 }
 
@@ -938,7 +1009,8 @@ export function cellTitle(band, init, cell, local, variant = init?.variant) {
     return [band.label, run, `not scheduled at ${initParts(init.init_time).time}`].filter(Boolean).join(" · ");
   }
   if (cell.state === "beyond_horizon") {
-    return `${run}: no leads past ${init.coverage.lastLabel}`;
+    // a single product's short cycle has no variant to name
+    return `${run ?? `${initParts(init.init_time).time} run`}: no leads past ${init.coverage.lastLabel}`;
   }
   const when = initShort(init.init_time, local);
   if (cell.state === "unobserved") {
@@ -1661,6 +1733,11 @@ export function detailRows(product, now, local, sources = []) {
   const lagNote = lastLagNote === activeLagNote
     ? lastLagNote
     : lastLagNote ? lagBasisNote(lastLag, "last") : lagBasisNote(activeLag, "current");
+  // A band neither column's run carries (a cycle without it) has no row.
+  const upcomingRun = product.nextExpectedRun;
+  const carried = (name) => !hasCycleBands(product) ||
+    (last && !beyondHorizon(last, name)) ||
+    (active ? !beyondHorizon(active, name) : upcoming && !beyondHorizon(upcomingRun, name));
   // this run's horizon, less the source's own arrival for the same horizon
   const lagOf = (init, lag, arrivals, stats) => {
     if (lag?.basis === "selected_families") {
@@ -1720,7 +1797,7 @@ export function detailRows(product, now, local, sources = []) {
       threshold: formatLatency(
         judgedThreshold(product, stats, active ? liveGroupOf(active, stats, index) : null),
       ),
-    })),
+    })).filter((row) => carried(row.name)),
   };
 }
 
